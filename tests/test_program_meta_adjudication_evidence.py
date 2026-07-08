@@ -781,14 +781,33 @@ def test_program_adjudication_gepa_example_rejects_authority_spoofed_trace(
         _write_adjudication_trace_fixture(candidate_root, tmp_path)
     )
     trace = json.loads(trace_path.read_text(encoding="utf-8"))
-    trace["non_authority"]["activation_authority"] = True
+    trace["non_authority"]["external_authority"] = True
     trace_path.write_text(json.dumps(trace, indent=2, sort_keys=True) + "\n")
 
     with pytest.raises(
         ProgramMetaAdjudicationError,
-        match="widens non-authority flag: activation_authority",
+        match="widens non-authority flag: external_authority",
     ):
         build_program_adjudication_gepa_example(trace_path=trace_path)
+
+
+def test_program_adjudication_behavior_trace_writer_rejects_spoofed_effects(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    trace_path, _evidence_adjudication_path, _delegation_path = (
+        _write_adjudication_trace_fixture(candidate_root, tmp_path)
+    )
+    trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    trace["effect"]["provider_called"] = True
+
+    with pytest.raises(
+        ProgramMetaAdjudicationError,
+        match="widens effect flag: provider_called",
+    ):
+        write_program_adjudication_behavior_trace(
+            trace, tmp_path / "spoofed_adjudication_behavior_trace.json"
+        )
 
 
 def test_generated_program_adjudicator_decision_uses_dspx_meta_delegation(

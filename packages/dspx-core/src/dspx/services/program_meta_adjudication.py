@@ -2663,12 +2663,12 @@ def build_program_adjudication_behavior_trace(
 def write_program_adjudication_behavior_trace(
     trace: Mapping[str, Any], out_path: Path
 ) -> dict[str, Any]:
-    if trace.get("schema_version") != PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA:
-        raise ProgramMetaAdjudicationError(
-            "program adjudication behavior trace schema_version must be "
-            + PROGRAM_ADJUDICATION_BEHAVIOR_TRACE_SCHEMA
-        )
     payload = dict(trace)
+    validate_program_adjudication_behavior_trace_contract(
+        payload,
+        trace_path=out_path,
+        error_type=ProgramMetaAdjudicationError,
+    )
     out = _prepare_guarded_sidecar_output(
         out_path,
         payload=payload,

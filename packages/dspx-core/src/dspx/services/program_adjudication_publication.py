@@ -431,11 +431,26 @@ def _validate_trace(trace: Mapping[str, Any], path: Path) -> None:
         "promotion_authority",
         "oracle_authority",
         "governance_authority",
+        "external_authority",
         "external_mutation",
     ):
         if non_authority.get(key) is not False:
             raise ProgramAdjudicationPublicationError(
                 f"adjudication trace widens non-authority flag: {key}"
+            )
+    effect = _safe_mapping(trace.get("effect"))
+    for key in (
+        "candidate_files_mutated",
+        "canonical_target_mutated",
+        "ak_mutated",
+        "governance_mutated",
+        "oracle_index_mutated",
+        "shared_oracle_mutated",
+        "provider_called",
+    ):
+        if effect.get(key) is not False:
+            raise ProgramAdjudicationPublicationError(
+                f"adjudication trace widens effect flag: {key}"
             )
     if not _safe_mapping(trace.get("identity")):
         raise ProgramAdjudicationPublicationError(
