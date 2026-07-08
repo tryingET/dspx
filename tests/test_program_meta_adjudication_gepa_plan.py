@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -47,6 +48,10 @@ def _remove_candidate_behavior_sidecars(candidate_root: Path) -> None:
         path = candidate_root / name
         if path.exists():
             path.unlink()
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _write_runtime_inputs(tmp_path: Path) -> Path:
@@ -296,6 +301,266 @@ def test_meta_adjudication_plan_tracks_present_sidecars(
     )
     assert "program_jury_results" not in plan["missing_evidence"]
     assert "program_adjudicator_delegation" not in plan["missing_evidence"]
+
+
+def _candidate_identity(candidate_root: Path) -> dict[str, str | None]:
+    manifest = json.loads(
+        (candidate_root / "manifest.json").read_text(encoding="utf-8")
+    )
+    request = manifest["request"]
+    candidate = manifest["candidate_assembly"]
+    execution = manifest["execution_episode"]
+    receipt = manifest["receipt_bundle"]
+    return {
+        "request_id": request["request_id"],
+        "candidate_id": candidate["candidate_id"],
+        "assembly_id": candidate["assembly_id"],
+        "episode_id": execution["episode_id"],
+        "receipt_bundle_id": receipt["receipt_bundle_id"],
+    }
+
+
+def _write_decision_record(path: Path, *, candidate_root: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-promotion-decision-record-v1",
+                "status": "recorded",
+                "outcome": "withhold",
+                "promotion_state_after_decision": "not_promoted",
+                "decided_by": "local-adjudicator",
+                "rationale": "Insufficient evidence for activation.",
+                "identity": _candidate_identity(candidate_root),
+                "effect": {
+                    "local_decision_record_only": True,
+                    "program_files_mutated": False,
+                    "refined_review_mutated": False,
+                    "new_candidate_generated": False,
+                    "external_authority_mutated": False,
+                    "governance_mutated": False,
+                },
+                "non_authority": {
+                    "local_decision_record_only": True,
+                    "automatic_promotion": False,
+                    "oracle_ranking": False,
+                    "oracle_pruning": False,
+                    "oracle_promotion": False,
+                    "program_mutation": False,
+                    "refined_review_mutation": False,
+                    "new_candidate_generation": False,
+                    "governance_authority": False,
+                    "external_mutation": False,
+                    "promotion_authority": False,
+                    "winner_selection": False,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_refined_review(path: Path, *, candidate_root: Path, tmp_path: Path) -> None:
+    oracle_report_path = tmp_path / "oracle" / "program_oracle_report.json"
+    proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
+    oracle_report_path.parent.mkdir(parents=True, exist_ok=True)
+    proposal_path.parent.mkdir(parents=True, exist_ok=True)
+    oracle_report_path.write_text(
+        json.dumps(
+            {"schema_version": "program-oracle-evidence-report-v1", "records": []},
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proposal_path.write_text(
+        json.dumps(
+            {"schema_version": "program-refinement-proposal-v1", "status": "proposed"},
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    created_from_paths = {
+        "manifest": candidate_root / "manifest.json",
+        "oracle_report": oracle_report_path,
+        "refinement_proposal": proposal_path,
+        "original_promotion_review": candidate_root / "promotion_review.json",
+        "original_promotion_adjudication_request": candidate_root
+        / "promotion_adjudication_request.json",
+        "original_promotion_decision_template": candidate_root
+        / "promotion_decision_template.json",
+        "behavior_results": candidate_root / "behavior_results.json",
+        "behavior_episode": candidate_root / "behavior_episode.json",
+    }
+    created_from: dict[str, str] = {}
+    for key, source_path in created_from_paths.items():
+        created_from[f"{key}_path"] = str(source_path.resolve())
+        created_from[f"{key}_sha256"] = _sha256_file(source_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "program-promotion-review-refined-v1",
+                "status": "needs_more_evidence",
+                "promotion_state": "not_promoted",
+                "identity": _candidate_identity(candidate_root),
+                "created_from": created_from,
+                "evidence_summary": {"model_jury_results": {"present": False}},
+                "non_authority": {
+                    "local_review_packet_only": True,
+                    "automatic_promotion": False,
+                    "oracle_ranking": False,
+                    "oracle_pruning": False,
+                    "oracle_promotion": False,
+                    "program_mutation": False,
+                    "new_candidate_generation": False,
+                    "promotion_authority": False,
+                    "governance_authority": False,
+                    "external_mutation": False,
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_meta_adjudication_plan_revalidates_jury_results_contract(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    jury_path = tmp_path / "promotion" / "jury_results.json"
+    jury = build_program_jury_execution_result(
+        manifest_path=candidate_root / "manifest.json"
+    )
+    write_program_jury_execution_result(jury, jury_path)
+
+    tampered_jury = json.loads(jury_path.read_text(encoding="utf-8"))
+    tampered_jury["created_from"]["behavior_results_sha256"] = "0" * 64
+    jury_path.write_text(
+        json.dumps(tampered_jury, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        jury_results_path=jury_path,
+    )
+
+    assert plan["sidecars"]["jury_results"]["status"] == "contract_invalid"
+    assert "behavior results sha256" in plan["sidecars"]["jury_results"]["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["jury_results"] = {
+        **forged_sidecars["jury_results"],
+        "status": "present",
+        "sha256": _sha256_file(jury_path),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="behavior results sha256"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
+def test_meta_adjudication_plan_revalidates_refined_review_contract(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    review_path = tmp_path / "promotion" / "promotion_review_refined.json"
+    _write_refined_review(review_path, candidate_root=candidate_root, tmp_path=tmp_path)
+
+    valid_plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        review_path=review_path,
+    )
+    assert valid_plan["sidecars"]["review"]["status"] == "present"
+
+    tampered_review = json.loads(review_path.read_text(encoding="utf-8"))
+    tampered_review["non_authority"]["promotion_authority"] = True
+    review_path.write_text(
+        json.dumps(tampered_review, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        review_path=review_path,
+    )
+    assert plan["sidecars"]["review"]["status"] == "contract_invalid"
+    assert "promotion_authority" in plan["sidecars"]["review"]["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["review"] = {
+        **forged_sidecars["review"],
+        "status": "present",
+        "sha256": _sha256_file(review_path),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="promotion_authority"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
+
+
+def test_meta_adjudication_plan_revalidates_decision_record_contract(
+    tmp_path: Path, monkeypatch
+) -> None:
+    candidate_root = _materialize_obsidian_like_candidate(tmp_path, monkeypatch)
+    decision_path = tmp_path / "promotion" / "promotion_decision_record.json"
+    _write_decision_record(decision_path, candidate_root=candidate_root)
+
+    valid_plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        decision_record_path=decision_path,
+    )
+    assert valid_plan["sidecars"]["decision_record"]["status"] == "present"
+
+    tampered_decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    tampered_decision["non_authority"]["promotion_authority"] = True
+    decision_path.write_text(
+        json.dumps(tampered_decision, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    plan = build_program_meta_adjudication_plan(
+        manifest_path=candidate_root / "manifest.json",
+        decision_record_path=decision_path,
+    )
+    assert plan["sidecars"]["decision_record"]["status"] == "contract_invalid"
+    assert "promotion_authority" in plan["sidecars"]["decision_record"]["warning"]
+
+    forged_plan = dict(plan)
+    forged_sidecars = {key: dict(value) for key, value in plan["sidecars"].items()}
+    forged_sidecars["decision_record"] = {
+        **forged_sidecars["decision_record"],
+        "status": "present",
+        "sha256": _sha256_file(decision_path),
+    }
+    forged_plan["sidecars"] = forged_sidecars
+
+    with pytest.raises(ValueError, match="promotion_authority"):
+        validate_program_meta_adjudication_plan_contract(
+            forged_plan,
+            expected_identities=[forged_plan["identity"]],
+            valid_manifest_hashes=[forged_plan["manifest"]["sha256"]],
+        )
 
 
 def test_meta_adjudication_plan_consumes_valid_runtime_episode(

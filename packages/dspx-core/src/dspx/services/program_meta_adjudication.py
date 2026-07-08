@@ -13,6 +13,9 @@ from dspx.services.program_adjudication_publication import (
 from dspx.services.program_evidence_adjudication_validation import (
     validate_program_evidence_adjudication_contract,
 )
+from dspx.services.program_jury_result_validation import (
+    validate_program_jury_results_contract,
+)
 from dspx.services.program_oracle_publication import (
     ProgramOraclePublicationError,
     validate_program_oracle_publication_preflight_contract,
@@ -21,6 +24,14 @@ from dspx.services.program_oracle_publication import (
 from dspx.services.program_runtime_episode import (
     PROGRAM_RUNTIME_EPISODE_SCHEMA,
     validate_program_runtime_episode_contract,
+)
+from dspx.services.program_promotion_decision import (
+    ProgramPromotionDecisionError,
+    validate_program_promotion_decision_record_contract,
+)
+from dspx.services.program_promotion_refinement import (
+    ProgramPromotionRefinementError,
+    validate_program_promotion_review_refined_contract,
 )
 from dspx.services.program_refinement import (
     ProgramRefinementError,
@@ -284,7 +295,7 @@ def validate_program_meta_adjudication_plan_contract(
             + ", ".join(f"{key} false" for key in invalid_effect),
         )
 
-    expected = (
+    expected: list[Mapping[str, Any]] = (
         [
             _safe_mapping(item)
             for item in expected_identities
@@ -319,6 +330,9 @@ def validate_program_meta_adjudication_plan_contract(
     owner_validated_sidecar_keys = {
         "runtime_episode",
         "oracle_publication_receipt",
+        "jury_results",
+        "review",
+        "decision_record",
         "program_evidence_adjudication",
         "adjudication_behavior_trace",
     }
@@ -394,6 +408,42 @@ def validate_program_meta_adjudication_plan_contract(
                 receipt=oracle_publication_receipt,
             )
         except (ProgramOraclePublicationError, ProgramMetaAdjudicationError) as exc:
+            _raise_contract_error(error_type, str(exc))
+
+    jury_results = present_sidecar_payloads.get("jury_results")
+    if jury_results is not None and manifest_file is not None:
+        try:
+            _validate_jury_results_sidecar(
+                manifest_path=manifest_file,
+                jury_results=jury_results,
+                sibling_sidecars=sidecars,
+                valid_manifest_hashes=valid_hashes,
+            )
+        except ProgramMetaAdjudicationError as exc:
+            _raise_contract_error(error_type, str(exc))
+
+    review = present_sidecar_payloads.get("review")
+    if review is not None and manifest_file is not None:
+        try:
+            _validate_review_sidecar(
+                manifest_path=manifest_file,
+                review_path=present_sidecar_paths["review"],
+                review=review,
+                sibling_sidecars=sidecars,
+                valid_manifest_hashes=valid_hashes,
+            )
+        except (ProgramPromotionRefinementError, ProgramMetaAdjudicationError) as exc:
+            _raise_contract_error(error_type, str(exc))
+
+    decision_record = present_sidecar_payloads.get("decision_record")
+    if decision_record is not None and manifest_file is not None:
+        try:
+            _validate_decision_record_sidecar(
+                manifest_path=manifest_file,
+                decision_record=decision_record,
+                expected_identities=expected,
+            )
+        except (ProgramPromotionDecisionError, ProgramMetaAdjudicationError) as exc:
             _raise_contract_error(error_type, str(exc))
 
     evidence_adjudication = present_sidecar_payloads.get(
@@ -549,6 +599,136 @@ def _validated_sidecar_hash(
     return ref[1] if ref is not None else None
 
 
+def _valid_ref_from_sidecars(
+    sidecars: Mapping[str, Mapping[str, Any]], key: str
+) -> dict[Path, str] | None:
+    ref = _validated_sidecar_ref(sidecars, key)
+    if ref is None:
+        return None
+    return {ref[0]: ref[1]}
+
+
+def _created_manifest_ref(
+    payload: Mapping[str, Any], *, fallback_manifest_path: Path, label: str
+) -> tuple[Path, str]:
+    created_from = _safe_mapping(payload.get("created_from"))
+    path_text = _first_text(created_from.get("manifest_path"))
+    digest = _first_text(created_from.get("manifest_sha256"))
+    if path_text is None and digest is None:
+        fallback = fallback_manifest_path.expanduser().resolve()
+        return fallback, _sha256_file(fallback)
+    if path_text is None or digest is None:
+        raise ProgramMetaAdjudicationError(
+            f"{label} manifest path and sha256 are required"
+        )
+    return Path(path_text).expanduser().resolve(), digest
+
+
+def _validate_manifest_ref_allowed(
+    *, ref_path: Path, ref_hash: str, valid_manifest_hashes: set[str] | None, label: str
+) -> None:
+    if valid_manifest_hashes is not None and ref_hash not in valid_manifest_hashes:
+        raise ProgramMetaAdjudicationError(
+            f"{label} manifest sha256 does not match candidate/source manifest"
+        )
+
+
+def _validate_jury_results_sidecar(
+    *,
+    manifest_path: Path,
+    jury_results: Mapping[str, Any],
+    sibling_sidecars: Mapping[str, Mapping[str, Any]],
+    valid_manifest_hashes: set[str] | None = None,
+) -> None:
+    manifest_file = manifest_path.expanduser().resolve()
+    jury_manifest_path, jury_manifest_hash = _created_manifest_ref(
+        jury_results,
+        fallback_manifest_path=manifest_file,
+        label="program meta-adjudication plan jury_results sidecar",
+    )
+    _validate_manifest_ref_allowed(
+        ref_path=jury_manifest_path,
+        ref_hash=jury_manifest_hash,
+        valid_manifest_hashes=valid_manifest_hashes,
+        label="program meta-adjudication plan jury_results sidecar",
+    )
+    valid_manifest_refs = {jury_manifest_path: jury_manifest_hash}
+    current_behavior_results_sha256 = None
+    current_behavior_episode_sha256 = None
+    if jury_manifest_path == manifest_file:
+        current_behavior_results_sha256 = _validated_sidecar_hash(
+            sibling_sidecars, "behavior_results"
+        )
+        current_behavior_episode_sha256 = _validated_sidecar_hash(
+            sibling_sidecars, "behavior_episode"
+        )
+    validate_program_jury_results_contract(
+        jury_results,
+        valid_manifest_refs=valid_manifest_refs,
+        current_manifest_path=manifest_file
+        if jury_manifest_path == manifest_file
+        else None,
+        current_behavior_results_sha256=current_behavior_results_sha256,
+        current_behavior_episode_sha256=current_behavior_episode_sha256,
+        label="program meta-adjudication plan jury_results sidecar",
+        error_type=ProgramMetaAdjudicationError,
+    )
+
+
+def _validate_review_sidecar(
+    *,
+    manifest_path: Path,
+    review_path: Path,
+    review: Mapping[str, Any],
+    sibling_sidecars: Mapping[str, Mapping[str, Any]],
+    valid_manifest_hashes: set[str] | None = None,
+) -> None:
+    manifest_file = manifest_path.expanduser().resolve()
+    review_manifest_path, review_manifest_hash = _created_manifest_ref(
+        review,
+        fallback_manifest_path=manifest_file,
+        label="program meta-adjudication plan review sidecar",
+    )
+    _validate_manifest_ref_allowed(
+        ref_path=review_manifest_path,
+        ref_hash=review_manifest_hash,
+        valid_manifest_hashes=valid_manifest_hashes,
+        label="program meta-adjudication plan review sidecar",
+    )
+    validate_program_promotion_review_refined_contract(
+        review,
+        refined_review_path=review_path,
+        valid_manifest_refs={review_manifest_path: review_manifest_hash},
+        valid_oracle_report_refs=_valid_ref_from_sidecars(
+            sibling_sidecars, "oracle_report"
+        ),
+        valid_behavior_results_refs=_valid_ref_from_sidecars(
+            sibling_sidecars, "behavior_results"
+        ),
+        valid_behavior_episode_refs=_valid_ref_from_sidecars(
+            sibling_sidecars, "behavior_episode"
+        ),
+        error_type=ProgramMetaAdjudicationError,
+    )
+
+
+def _validate_decision_record_sidecar(
+    *,
+    manifest_path: Path,
+    decision_record: Mapping[str, Any],
+    expected_identities: list[Mapping[str, Any]] | None = None,
+) -> None:
+    manifest_file = manifest_path.expanduser().resolve()
+    expected: list[Mapping[str, Any]] | None = expected_identities
+    if expected is None:
+        manifest = load_program_manifest(manifest_file)
+        expected = [_identity_from_manifest(manifest)]
+    validate_program_promotion_decision_record_contract(
+        decision_record,
+        expected_identities=expected,
+    )
+
+
 def _validate_program_evidence_adjudication_sidecar(
     *,
     manifest_path: Path,
@@ -625,6 +805,36 @@ def _sidecar_status(
                 receipt=payload,
             )
         except (ProgramOraclePublicationError, ProgramMetaAdjudicationError) as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
+    if schema == required_schema and key == "jury_results":
+        try:
+            _validate_jury_results_sidecar(
+                manifest_path=manifest_path,
+                jury_results=payload,
+                sibling_sidecars=sibling_sidecars or {},
+            )
+        except ProgramMetaAdjudicationError as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
+    if schema == required_schema and key == "review":
+        try:
+            _validate_review_sidecar(
+                manifest_path=manifest_path,
+                review_path=path,
+                review=payload,
+                sibling_sidecars=sibling_sidecars or {},
+            )
+        except (ProgramPromotionRefinementError, ProgramMetaAdjudicationError) as exc:
+            sidecar_status = "contract_invalid"
+            warning = str(exc)
+    if schema == required_schema and key == "decision_record":
+        try:
+            _validate_decision_record_sidecar(
+                manifest_path=manifest_path,
+                decision_record=payload,
+            )
+        except (ProgramPromotionDecisionError, ProgramMetaAdjudicationError) as exc:
             sidecar_status = "contract_invalid"
             warning = str(exc)
     if schema == required_schema and key == "program_evidence_adjudication":
@@ -2711,7 +2921,10 @@ def build_program_meta_adjudication_plan(
 
     def record_sidecar(key: str, explicit_path: Path | None = None) -> None:
         sidecars[key] = _sidecar_status(
-            manifest_path, key=key, explicit_path=explicit_path
+            manifest_path,
+            key=key,
+            explicit_path=explicit_path,
+            sibling_sidecars=sidecars,
         )
 
     record_sidecar("behavior_results", behavior_results_path)
