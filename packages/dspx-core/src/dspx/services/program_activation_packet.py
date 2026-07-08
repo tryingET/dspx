@@ -1739,6 +1739,10 @@ def build_generated_program_activation_packet(
         generation_fitness_results_hash=_first_text(
             (generation_fitness_results_ref or {}).get("sha256")
         ),
+        expected_runtime_episode_path=runtime_episode_path,
+        expected_runtime_episode_hash=_first_text(
+            (runtime_episode_ref or {}).get("sha256")
+        ),
         error_type=ProgramActivationPacketError,
     )
     _validate_candidate_state_target_adjudication_alignment(

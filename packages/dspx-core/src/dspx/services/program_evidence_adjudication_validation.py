@@ -140,6 +140,8 @@ def _validate_runtime_episode_ref(
     label: str,
     current_manifest_path: Path,
     current_manifest_hash: str,
+    expected_runtime_episode_path: Path | None,
+    expected_runtime_episode_hash: str | None,
     error_type: type[Exception],
 ) -> tuple[Path, str] | None:
     ref_map = _safe_mapping(ref)
@@ -159,6 +161,21 @@ def _validate_runtime_episode_ref(
     if runtime_path_text is None:
         _raise(error_type, f"{label} ref path is required")
     runtime_path = Path(runtime_path_text).expanduser().resolve()
+    if expected_runtime_episode_path is not None:
+        expected_runtime_path = expected_runtime_episode_path.expanduser().resolve()
+        if runtime_path != expected_runtime_path:
+            _raise(
+                error_type,
+                f"{label} ref path does not match supplied runtime episode",
+            )
+    if (
+        expected_runtime_episode_hash is not None
+        and runtime_sha256 != expected_runtime_episode_hash
+    ):
+        _raise(
+            error_type,
+            f"{label} ref sha256 does not match supplied runtime episode",
+        )
     current_manifest_resolved = current_manifest_path.expanduser().resolve()
     current_manifest = _load_json_object(
         current_manifest_resolved,
@@ -193,6 +210,8 @@ def validate_program_evidence_adjudication_contract(
     oracle_report_hash: str | None = None,
     activation_packet_hash: str | None = None,
     generation_fitness_results_hash: str | None = None,
+    expected_runtime_episode_path: Path | None = None,
+    expected_runtime_episode_hash: str | None = None,
     label: str = "program evidence adjudication",
     error_type: type[Exception] = ValueError,
 ) -> None:
@@ -262,6 +281,8 @@ def validate_program_evidence_adjudication_contract(
         label=f"{label} runtime_episode",
         current_manifest_path=current_manifest_path,
         current_manifest_hash=current_manifest_hash,
+        expected_runtime_episode_path=expected_runtime_episode_path,
+        expected_runtime_episode_hash=expected_runtime_episode_hash,
         error_type=error_type,
     )
     behavior_ref = _safe_mapping(evidence_refs.get("behavior"))

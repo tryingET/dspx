@@ -559,13 +559,15 @@ def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     reset_embedding_engine()
 
 
-def _write_runtime_episode(candidate_root: Path, tmp_path: Path) -> Path:
-    runtime_inputs = tmp_path / "runtime" / "runtime-inputs.json"
+def _write_runtime_episode(
+    candidate_root: Path, tmp_path: Path, *, name: str = "episode"
+) -> Path:
+    runtime_inputs = tmp_path / "runtime" / f"{name}-runtime-inputs.json"
     _write_json(
         runtime_inputs,
         {"inputs": {"ticket_text": "Server is down for all users"}},
     )
-    runtime_root = tmp_path / "runtime" / "episode"
+    runtime_root = tmp_path / "runtime" / name
     run_program_runtime_episode(
         manifest_path=candidate_root / "manifest.json",
         inputs_path=runtime_inputs,
@@ -2339,6 +2341,68 @@ def test_program_promote_status_accepts_runtime_bound_target_adjudication(
         "program_evidence_adjudication_sha256"
     ] == _sha256(adjudication_path)
     assert payload["truth_summary"]["target_protocol_adjudication_present"] is True
+
+
+def test_program_promote_status_accepts_matching_explicit_runtime_bound_adjudication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    runtime_episode_path = _write_runtime_episode(candidate_root, tmp_path)
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+    )
+
+    payload = build_program_candidate_state(
+        manifest_path=manifest_path,
+        runtime_episode_path=runtime_episode_path,
+        program_evidence_adjudication_path=adjudication_path,
+    )
+
+    assert payload["artifact_hashes"]["runtime_episode_sha256"] == _sha256(
+        runtime_episode_path
+    )
+    assert payload["artifact_hashes"][
+        "program_evidence_adjudication_sha256"
+    ] == _sha256(adjudication_path)
+
+
+def test_program_promote_status_rejects_split_runtime_bound_adjudication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    manifest_path = candidate_root / "manifest.json"
+    adjudicated_runtime_episode_path = _write_runtime_episode(
+        candidate_root, tmp_path, name="adjudicated-episode"
+    )
+    supplied_runtime_episode_path = _write_runtime_episode(
+        candidate_root, tmp_path, name="supplied-episode"
+    )
+    adjudication_path = _write_runtime_evidence_adjudication(
+        tmp_path / "target" / "program_evidence_adjudication.json",
+        manifest_path=manifest_path,
+        runtime_episode_path=adjudicated_runtime_episode_path,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="runtime_episode ref path does not match supplied runtime episode",
+    ):
+        build_program_candidate_state(
+            manifest_path=manifest_path,
+            runtime_episode_path=supplied_runtime_episode_path,
+            program_evidence_adjudication_path=adjudication_path,
+        )
 
 
 def test_program_promote_status_rejects_runtime_bound_target_adjudication_trace_drift(

@@ -2003,6 +2003,8 @@ def build_program_candidate_state(
         oracle_report_hash=oracle_report_hash,
         activation_packet_hash=activation_packet_hash,
         generation_fitness_results_hash=generation_fitness_results_hash,
+        expected_runtime_episode_path=runtime_episode_file,
+        expected_runtime_episode_hash=runtime_episode_hash,
         error_type=ProgramCandidateStateError,
     )
     if runtime_episode is not None and runtime_episode_file is not None:
