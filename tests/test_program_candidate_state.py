@@ -52,6 +52,10 @@ from dspx.services.program_promotion_refinement import (
     build_program_promotion_refinement,
 )
 from dspx.services.program_refinement import build_program_refinement_proposal
+from dspx.services.program_refinement_comparison import (
+    build_program_refinement_candidate_comparison,
+    write_program_refinement_candidate_comparison,
+)
 from dspx.services.program_refinement_workflow import (
     materialize_and_compare_refinement_candidate,
 )
@@ -1137,6 +1141,96 @@ def test_program_promote_status_summarizes_program_run_runtime_episode(
     assert payload["truth_summary"]["promotion_applied"] is False
     assert payload["effect"]["oracle_index_mutated"] is False
     assert payload["effect"]["external_authority_mutated"] is False
+
+
+def test_program_candidate_state_summarizes_runtime_aware_comparison(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    source_runtime_episode = _write_runtime_episode(
+        source_root, tmp_path, name="source-comparison"
+    )
+    candidate_runtime_episode = _write_runtime_episode(
+        candidate_root, tmp_path, name="candidate-comparison"
+    )
+    comparison = build_program_refinement_candidate_comparison(
+        source_manifest_path=source_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+        source_runtime_episode_path=source_runtime_episode,
+        candidate_runtime_episode_path=candidate_runtime_episode,
+    )
+    runtime_comparison_path = tmp_path / "refinement" / "runtime_comparison.json"
+    write_program_refinement_candidate_comparison(comparison, runtime_comparison_path)
+
+    payload = build_program_candidate_state(
+        manifest_path=candidate_root / "manifest.json",
+        source_manifest_path=source_root / "manifest.json",
+        comparison_path=runtime_comparison_path,
+    )
+
+    comparison_summary = payload["promotion_state"]["comparison"]
+    assert comparison_summary["present"] is True
+    assert comparison_summary["manifest_role"] == "candidate"
+    assert comparison_summary["runtime_evidence_present_for_role"] is True
+    assert comparison_summary["runtime_evidence_compared"] is True
+    assert (
+        comparison_summary["runtime_episode_id"]
+        == json.loads(candidate_runtime_episode.read_text(encoding="utf-8"))[
+            "runtime_episode_id"
+        ]
+    )
+    assert comparison_summary["runtime_status"] == "executed"
+    assert comparison_summary["runtime_behavior_status"] == "executed"
+    assert comparison_summary["runtime_artifact_hashes"][
+        "behavior_results_hash"
+    ] == _sha256(candidate_runtime_episode.parent / "behavior_results.json")
+    assert comparison_summary["winner_selected"] is False
+    assert comparison_summary["activation_authority"] is False
+    assert comparison_summary["promotion_authority"] is False
+    assert payload["truth_summary"]["comparison_present"] is True
+    assert paths["comparison"].exists()
+
+
+def test_program_candidate_state_rejects_stale_runtime_aware_comparison_trace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_root, candidate_root, _paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    source_runtime_episode = _write_runtime_episode(
+        source_root, tmp_path, name="source-comparison"
+    )
+    candidate_runtime_episode = _write_runtime_episode(
+        candidate_root, tmp_path, name="candidate-comparison"
+    )
+    comparison = build_program_refinement_candidate_comparison(
+        source_manifest_path=source_root / "manifest.json",
+        candidate_manifest_path=candidate_root / "manifest.json",
+        source_runtime_episode_path=source_runtime_episode,
+        candidate_runtime_episode_path=candidate_runtime_episode,
+    )
+    runtime_comparison_path = tmp_path / "refinement" / "runtime_comparison.json"
+    write_program_refinement_candidate_comparison(comparison, runtime_comparison_path)
+    traces_path = candidate_runtime_episode.parent / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text(encoding="utf-8"))
+    traces["status"] = "tampered"
+    _write_json(traces_path, traces)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="program_runtime_traces_sha256 does not match current file",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate_root / "manifest.json",
+            source_manifest_path=source_root / "manifest.json",
+            comparison_path=runtime_comparison_path,
+        )
 
 
 def test_program_candidate_state_rejects_stale_program_run_manifest_hash(

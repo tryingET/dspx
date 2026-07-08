@@ -1241,6 +1241,26 @@ def _comparison_summary(
     ):
         role = "candidate"
     interpretation = _safe_mapping(comparison.get("interpretation"))
+    runtime_comparison = _safe_mapping(comparison.get("runtime_evidence_comparison"))
+    runtime_role_summary = _safe_mapping(runtime_comparison.get(role))
+    created_from = _safe_mapping(comparison.get("created_from"))
+    source_runtime_bound = bool(
+        _first_text(
+            created_from.get("source_runtime_episode_path"),
+            created_from.get("source_runtime_episode_hash"),
+        )
+    )
+    candidate_runtime_bound = bool(
+        _first_text(
+            created_from.get("candidate_runtime_episode_path"),
+            created_from.get("candidate_runtime_episode_hash"),
+        )
+    )
+    runtime_evidence_compared = (
+        runtime_comparison.get("compared") is True
+        and source_runtime_bound
+        and candidate_runtime_bound
+    )
     return {
         "present": True,
         "schema_version": comparison.get("schema_version"),
@@ -1248,7 +1268,20 @@ def _comparison_summary(
         "manifest_role": role,
         "improvement_observed": interpretation.get("improvement_observed") is True,
         "needs_more_evidence": interpretation.get("needs_more_evidence") is True,
+        "runtime_evidence_present_for_role": runtime_role_summary.get(
+            "runtime_evidence_present"
+        )
+        is True,
+        "runtime_evidence_compared": runtime_evidence_compared,
+        "runtime_episode_id": runtime_role_summary.get("runtime_episode_id"),
+        "runtime_status": runtime_role_summary.get("runtime_status"),
+        "runtime_behavior_status": runtime_role_summary.get("behavior_status"),
+        "runtime_artifact_hashes": _safe_mapping(
+            runtime_role_summary.get("artifact_hashes")
+        ),
         "winner_selected": False,
+        "activation_authority": False,
+        "promotion_authority": False,
     }
 
 
