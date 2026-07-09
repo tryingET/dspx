@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "79bebfd7832f5e3f93b6ad833b1e96c3ef0d1c99"
-created_at: "2026-07-09T00:34:49Z"
+created_at: "2026-07-09T19:13:39Z"
 intent: "Harden meta-adjudication optional sidecar graph binding"
 files:
   - "docs/project/product-posture.md"
@@ -17,7 +17,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-impact HEAD~1"
-    status: "fail"
+    status: "pass"
 group:
   index: 1
   total: 1
