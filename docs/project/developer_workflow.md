@@ -167,7 +167,10 @@ Validation contract:
 - `just verify-full`
   - runs `just verify-fast` first
   - then runs a non-pytest runtime/invariant branch alongside the package+complete-test branch; boundary and candidate-state tests run once in the complete suite instead of being duplicated in both branches
-  - schedules fast tests individually across workers so oversized files cannot monopolize one worker; candidate-state tests share only a process-local immutable-key generation cache while keeping every candidate/output tree test-local
+  - schedules fast tests individually across workers so oversized files cannot monopolize one worker
+  - isolates unbound module-synthesis evidence lookup from machine-local `generated/` state; promotion-target/default-path characterizations retain native resolution, and dedicated evidence tests bind explicit temporary receipt and Oracle roots
+  - shares deterministic generated-code validation results across xdist workers only when the complete pre-validation tree, relevant environment, executable, and execution implementation match; cache hits replay path-rebased file effects into private program trees
+  - builds one immutable, production-generated candidate-state graph per pytest session, gives mutation tests private copy-on-write sidecars, guards the canonical template after every test, and keeps manifest-mutating characterizations on fresh graphs
   - includes `just typecheck-tests` so test harness contracts are type-checked alongside package code
   - keeps `uv.lock` clean for the read-only validation commands it delegates through `uv run --no-sync`
   - remains the explicit full confidence gate before merge/release or when the current slice needs the whole suite
