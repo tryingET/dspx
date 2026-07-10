@@ -61,6 +61,12 @@ from dspx.services.program_refinement_workflow import (
 )
 from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_service import materialize_program_from_intent
+from program_candidate_state_shared import (
+    assert_candidate_state_template_unchanged,
+    private_gepa_optimizer_bundle,
+    private_mutable_artifact,
+    shared_candidate_state_graph,
+)
 
 runner = CliRunner()
 
@@ -293,6 +299,8 @@ def _file_hashes(root: Path) -> dict[str, str]:
         str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
         for path in sorted(root.rglob("*"))
         if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.suffix not in {".pyc", ".pyo"}
     }
 
 
@@ -588,7 +596,7 @@ def _write_runtime_episode(
     return runtime_root / "runtime_episode.json"
 
 
-def _materialize_candidate_state_inputs(
+def _materialize_candidate_state_inputs_real(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[Path, Path, dict[str, Path]]:
@@ -736,6 +744,62 @@ def _materialize_candidate_state_inputs(
         "index": index_path,
     }
     return source_root, candidate_root, paths
+
+
+def _materialize_candidate_state_inputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    fresh: bool = False,
+) -> tuple[Path, Path, dict[str, Path]]:
+    if fresh:
+        return _materialize_candidate_state_inputs_real(tmp_path, monkeypatch)
+
+    graph = shared_candidate_state_graph(
+        tmp_path,
+        builder=lambda template_root: _materialize_candidate_state_inputs_real(
+            template_root,
+            monkeypatch,
+        ),
+    )
+    _setup_env(tmp_path, monkeypatch)
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(graph.source_root.parent / "cache"))
+    return graph.source_root, graph.candidate_root, graph.private_paths()
+
+
+@pytest.fixture(autouse=True)
+def _protect_shared_candidate_state_template(tmp_path: Path) -> Any:
+    yield
+    assert_candidate_state_template_unchanged(tmp_path)
+
+
+def test_program_candidate_state_mutable_overlays_are_isolated(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _source_root, _candidate_root, first_paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    canonical_path = first_paths["proposal"]
+    canonical_hash = _sha256(canonical_path)
+
+    mutable_path = private_mutable_artifact(tmp_path, first_paths, "proposal")
+    mutable_path.write_text(
+        mutable_path.read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+
+    _source_root, _candidate_root, second_paths = _materialize_candidate_state_inputs(
+        tmp_path,
+        monkeypatch,
+    )
+    assert first_paths["proposal"] == mutable_path
+    assert second_paths["proposal"] == canonical_path
+    assert mutable_path.stat().st_ino != canonical_path.stat().st_ino
+    assert _sha256(canonical_path) == canonical_hash
+    assert _sha256(second_paths["proposal"]) == canonical_hash
+    assert_candidate_state_template_unchanged(tmp_path)
 
 
 def test_program_promote_status_writes_whole_candidate_truth_state_only(
@@ -1283,6 +1347,7 @@ def test_program_candidate_state_rejects_stale_program_run_manifest_hash(
     source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
         tmp_path,
         monkeypatch,
+        fresh=True,
     )
     runtime_episode = _write_runtime_episode(source_root, tmp_path)
     manifest_path = source_root / "manifest.json"
@@ -1506,6 +1571,7 @@ def test_program_candidate_state_rejects_stale_refinement_proposal_oracle_hash(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "proposal")
     proposal = json.loads(paths["proposal"].read_text(encoding="utf-8"))
     proposal["created_from"]["oracle_report_sha256"] = "0" * 64
     _write_json(paths["proposal"], proposal)
@@ -1526,6 +1592,7 @@ def test_program_candidate_state_rejects_stale_refined_review_manifest_hash(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "review")
     review = json.loads(paths["review"].read_text(encoding="utf-8"))
     review["created_from"]["manifest_sha256"] = "0" * 64
     _write_json(paths["review"], review)
@@ -1545,6 +1612,7 @@ def test_program_candidate_state_rejects_invalid_decision_record_status(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "decision")
     decision = json.loads(paths["decision"].read_text(encoding="utf-8"))
     decision["status"] = "draft"
     _write_json(paths["decision"], decision)
@@ -1564,6 +1632,7 @@ def test_program_candidate_state_rejects_wrong_path_refinement_proposal_behavior
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "proposal")
     wrong_behavior = tmp_path / "wrong" / "behavior_results.json"
     _write_json(
         wrong_behavior,
@@ -1590,6 +1659,7 @@ def test_program_candidate_state_rejects_wrong_path_refined_review_oracle_hash(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "review")
     wrong_report = tmp_path / "wrong" / "oracle_report.json"
     _write_json(
         wrong_report,
@@ -1616,6 +1686,7 @@ def test_program_candidate_state_rejects_wrong_path_refined_review_proposal_hash
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "review")
     wrong_proposal = tmp_path / "wrong" / "refinement_proposal.json"
     _write_json(
         wrong_proposal,
@@ -1642,6 +1713,7 @@ def test_program_candidate_state_rejects_wrong_path_refined_review_behavior_hash
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "review")
     wrong_behavior = tmp_path / "wrong" / "behavior_results.json"
     _write_json(
         wrong_behavior,
@@ -1667,6 +1739,7 @@ def test_program_candidate_state_rejects_refined_review_cross_manifest_behavior_
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "review")
     candidate_behavior = candidate_root / "behavior_results.json"
     review = json.loads(paths["review"].read_text(encoding="utf-8"))
     review["created_from"]["behavior_results_path"] = str(candidate_behavior)
@@ -1689,6 +1762,7 @@ def test_program_candidate_state_rejects_stale_comparison_candidate_behavior_has
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "comparison")
     comparison = json.loads(paths["comparison"].read_text(encoding="utf-8"))
     comparison["created_from"]["candidate_behavior_results_hash"] = "0" * 64
     _write_json(paths["comparison"], comparison)
@@ -1711,6 +1785,7 @@ def test_program_candidate_state_revalidates_comparison_when_current_manifest_is
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "comparison")
     comparison = json.loads(paths["comparison"].read_text(encoding="utf-8"))
     comparison["created_from"]["source_behavior_results_hash"] = "0" * 64
     _write_json(paths["comparison"], comparison)
@@ -1732,6 +1807,7 @@ def test_program_candidate_state_rejects_stale_promotion_plan_comparison_hash(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "promotion_plan")
     promotion_plan = json.loads(paths["promotion_plan"].read_text(encoding="utf-8"))
     promotion_plan["evidence_hashes"]["comparison_hash"] = "0" * 64
     _write_json(paths["promotion_plan"], promotion_plan)
@@ -1754,6 +1830,7 @@ def test_program_candidate_state_rejects_promotion_plan_effect_authority_drift(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "promotion_plan")
     promotion_plan = json.loads(paths["promotion_plan"].read_text(encoding="utf-8"))
     promotion_plan["effect"]["external_authority_mutated"] = True
     _write_json(paths["promotion_plan"], promotion_plan)
@@ -1846,6 +1923,7 @@ def test_program_candidate_state_rejects_stale_activation_packet_manifest_hash(
     source_root, _candidate_root, _paths = _materialize_candidate_state_inputs(
         tmp_path,
         monkeypatch,
+        fresh=True,
     )
     manifest_path = source_root / "manifest.json"
     activation_packet = build_generated_program_activation_packet(
@@ -1878,6 +1956,7 @@ def test_program_candidate_state_rejects_stale_activation_packet_evidence_hash(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "oracle_report")
     activation_packet = build_generated_program_activation_packet(
         manifest_path=source_root / "manifest.json",
         owning_domain="softwareco/dspx-generated-program-governance",
@@ -1911,6 +1990,7 @@ def test_program_candidate_state_rejects_stale_export_preflight_hash(
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "decision")
     decision = json.loads(paths["decision"].read_text(encoding="utf-8"))
     decision["stale_marker"] = "decision changed after export preflight"
     _write_json(paths["decision"], decision)
@@ -2120,10 +2200,15 @@ def test_program_candidate_state_rejects_meta_adjudication_plan_stale_sidecar_ha
         tmp_path,
         monkeypatch,
     )
+    private_mutable_artifact(tmp_path, paths, "jury_results")
+    private_mutable_artifact(tmp_path, paths, "meta_adjudication_plan")
     paths["jury_results"].write_text(
         paths["jury_results"].read_text(encoding="utf-8") + "\n",
         encoding="utf-8",
     )
+    meta_plan = json.loads(paths["meta_adjudication_plan"].read_text(encoding="utf-8"))
+    meta_plan["sidecars"]["jury_results"]["path"] = str(paths["jury_results"].resolve())
+    _write_json(paths["meta_adjudication_plan"], meta_plan)
 
     with pytest.raises(
         ProgramCandidateStateError,
@@ -2414,8 +2499,10 @@ def test_program_candidate_state_rejects_stale_gepa_optimizer_manifest(
         tmp_path,
         monkeypatch,
     )
-    bad_payload = json.loads(paths["gepa_refinement"].read_text(encoding="utf-8"))
-    optimizer_manifest = Path(bad_payload["gepa_output"]["manifest_path"])
+    bad_payload, optimizer_manifest = private_gepa_optimizer_bundle(
+        tmp_path,
+        paths,
+    )
     manifest_payload = json.loads(optimizer_manifest.read_text(encoding="utf-8"))
     manifest_payload["program"]["sha256"] = "0" * 64
     _write_json(optimizer_manifest, manifest_payload)
