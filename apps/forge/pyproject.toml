@@ -1,8 +1,15 @@
 [project]
 name = "dspx-forge"
 version = "0.1.0"
-description = "Forge app for DSPx monorepo"
+description = "Optional Forge workflow application built on DSPx Core"
+readme = { text = "DSPx Forge is the optional backlog and issue-workflow application for the DSPx monorepo. It provides the `dspx-forge` command-line interface and depends only on the public DSPx Core package.", content-type = "text/markdown" }
 requires-python = ">=3.13"
+keywords = ["dspy", "workflow", "forge"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+]
 dependencies = [
   "dspx-core>=0.1.0,<0.2.0",
   "pydantic>=2.0.0",
@@ -21,5 +28,5 @@ dspx-forge = "dspx_forge.cli:main"
 module-name = "dspx_forge"
 
 [build-system]
-requires = ["uv-build>=0.2"]
+requires = ["uv-build>=0.2,<0.12"]
 build-backend = "uv_build"

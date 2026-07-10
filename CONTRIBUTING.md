@@ -43,12 +43,16 @@ Development Setup
   just verify-pre-push
   # run the full parallelized gate before merge/release or when the slice needs whole-repo confidence
   just verify-full
+  # exact credential-free GitHub CI surfaces when changing CI or packaging
+  just ci-quality
+  just ci-test-shards
+  just ci-package
 
 Pull Requests
 -------------
 - Describe the problem and solution clearly.
 - Add tests when feasible (unit or smoke-level).
-- Ensure CI passes.
+- Ensure CI passes. CI uses Python 3.13, `uv sync --frozen`, bounded offline test shards, the measured coverage ratchet, and isolated package checks; it never publishes artifacts.
 
 Code of Conduct
 ---------------

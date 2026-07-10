@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+  UV_NO_PROGRESS: "1"
+
+jobs:
+  quality:
+    name: Quality and contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.14"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: extractions/setup-just@v3
+      - run: uv sync --frozen --all-packages --dev
+      - run: just ci-quality
+
+  tests:
+    name: Tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [core-0, core-1, core-2, core-3, forge, slow]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.14"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: extractions/setup-just@v3
+      - run: uv sync --frozen --all-packages --dev
+      - name: Run bounded offline shard with coverage
+        env:
+          CI_COVERAGE: "1"
+          COVERAGE_FILE: .coverage.${{ matrix.shard }}
+        run: just ci-test-shard shard=${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.shard }}
+          path: .coverage.${{ matrix.shard }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  coverage:
+    name: Coverage ratchet
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.14"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --frozen --all-packages --dev
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage-data
+          merge-multiple: true
+      - run: uv run --frozen --no-sync coverage combine coverage-data
+      - run: uv run --frozen --no-sync coverage report
+
+  package:
+    name: Build and package smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.14"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: extractions/setup-just@v3
+      - run: uv sync --frozen --all-packages --dev
+      - run: just ci-package

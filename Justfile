@@ -146,6 +146,25 @@ test-residual-serial:
     echo "no local tests"; \
   fi
 
+# GitHub CI's deterministic bounded test shard. CI_COVERAGE=1 records shard data.
+ci-test-shard shard:
+  bash scripts/ci/test-shard.sh "{{shard}}"
+
+# Local parity for the exact offline test set used by GitHub CI.
+ci-test-shards:
+  for shard in core-0 core-1 core-2 core-3 forge slow; do just ci-test-shard shard="$shard"; done
+
+# Static checks and repo contracts that do not require AK or machine-local tooling.
+ci-quality:
+  just workflow-contract-check
+  uv run --frozen --no-sync ruff format --check packages/dspx-core/src apps/forge/src tests
+  uv run --frozen --no-sync ruff check packages/dspx-core/src apps/forge/src tests
+  uv run --frozen --no-sync ty check packages/dspx-core/src apps/forge/src tests
+
+# Build both distributions, validate metadata, install wheels, and smoke all CLIs.
+ci-package:
+  bash scripts/ci/package-check.sh
+
 # Deterministic replay provenance guard (receipt-first CI signal)
 replay-provenance-check:
   uv run --no-sync -q python scripts/check_replay_provenance.py

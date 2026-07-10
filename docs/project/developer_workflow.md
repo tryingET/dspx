@@ -92,6 +92,10 @@ just hooks-run files="path/one.py path/two.py"             # run repo hook stack
 just verify-impact-receipt                                # run impact-aware validation and write generated/ci/verify-impact-result.json
 just verify-pre-push                                      # matches the pre-push hook
 just verify-full                                          # explicit full gate before merge/release or when needed
+just ci-quality                                           # GitHub static/contract job parity (no AK dependency)
+just ci-test-shard shard=core-0                           # one exact GitHub test shard
+just ci-test-shards                                       # complete offline GitHub test set
+just ci-package                                           # isolated build/metadata/install/CLI smoke
 ```
 
 Generic `repo-loop-validation-v1` aliases for orchestration prompts:
@@ -152,6 +156,14 @@ Validation contract:
   - runs the same impact-aware planner with `--result-out generated/ci/verify-impact-result.json`
   - writes `dspx-verification-impact-result-v1` local evidence for passed, failed, or blocked-wide plans
   - does not replace `just verify-full`; a blocked-wide receipt is an escalation signal, not validation success
+- GitHub CI
+  - runs on Python 3.13 with a frozen uv lock and uv's dependency cache
+  - keeps tests bounded as four deterministic core file shards, one Forge marker shard, and one offline slow shard; live/network/model/GPU/Postgres tests are intentionally opt-in and are not represented as credential-free CI passes
+  - combines branch coverage from all six disjoint shards and enforces the measured brownfield ratchet configured in `pyproject.toml`
+  - builds both wheels and source distributions in a temporary directory, checks package metadata, installs the wheels into a clean Python 3.13 environment, and smokes every packaged CLI
+  - has read-only repository permission and contains no publish or secret-bearing step
+- `just ci-quality`, `just ci-test-shard`, and `just ci-package`
+  - are the local command surfaces used directly by GitHub CI; `just ci-test-shards` runs the complete credential-free test set locally
 - `just verify-full`
   - runs `just verify-fast` first
   - then runs the heavier runtime/invariant branch and the package+test typecheck/test branch in parallel

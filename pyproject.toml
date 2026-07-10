@@ -28,5 +28,16 @@ filterwarnings = [
 [tool.ruff]
 extend-exclude = ["examples/workflows/**"]
 
+[tool.coverage.run]
+branch = true
+source = ["dspx", "dspx_forge"]
+
+[tool.coverage.report]
+# Measured against the complete offline shard set on 2026-07-10. Keep this a
+# brownfield ratchet: raise it only after a new full measurement, never by guess.
+fail_under = 64
+show_missing = true
+skip_covered = true
+
 [tool.ty.src]
 exclude = ["examples/workflows/**"]
