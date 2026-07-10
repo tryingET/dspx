@@ -3,11 +3,21 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import os
+import subprocess
+import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.cache import make_key
-from dspx.run_receipts import RUN_RECEIPT_VERSION, load_run_receipt
+from dspx.run_receipts import (
+    EXECUTION_REPLAY_POLICY_VERSION,
+    RUN_RECEIPT_VERSION,
+    canonical_replay_identity_hash,
+    current_execution_replay_runtime_identity,
+    load_run_receipt,
+)
 from dspx.services.program_contracts import sanitize_ident
 from dspx.services.program_runtime_traces import validate_program_runtime_traces
 
@@ -84,6 +94,41 @@ _ISSUE_PROGRAM_MANIFEST_INVALID_JSON_OBJECT = "program_manifest_invalid_json_obj
 _ISSUE_PROGRAM_EVIDENCE_ARTIFACT_MISSING = "program_evidence_artifact_missing"
 _ISSUE_PROGRAM_EVIDENCE_HASH_MISMATCH = "program_evidence_hash_mismatch"
 _ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH = "program_evidence_declaration_mismatch"
+_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_KIND = "execution_replay_unsupported_kind"
+_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_PROVIDER = "execution_replay_unsupported_provider"
+_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_INPUTS = "execution_replay_unsupported_inputs"
+_ISSUE_EXECUTION_REPLAY_POLICY_MISSING = "execution_replay_policy_missing"
+_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_EFFECTS = "execution_replay_unsupported_effects"
+_ISSUE_EXECUTION_REPLAY_IDENTITY_DRIFT = "execution_replay_identity_drift"
+_ISSUE_EXECUTION_REPLAY_PROCESS_FAILED = "execution_replay_process_failed"
+_ISSUE_EXECUTION_REPLAY_UNEXPECTED_EFFECT = "execution_replay_unexpected_effect"
+_ISSUE_EXECUTION_REPLAY_OUTPUT_INVALID = "execution_replay_output_invalid"
+_ISSUE_EXECUTION_REPLAY_OUTPUT_EXISTS = "execution_replay_output_exists"
+_ISSUE_EXECUTION_REPLAY_OUTPUT_HASH_MISMATCH = "execution_replay_output_hash_mismatch"
+_ISSUE_EXECUTION_REPLAY_WRITE_FAILED = "execution_replay_write_failed"
+
+_EXECUTION_REPLAY_KIND = "signature-gen"
+_EXECUTION_REPLAY_PROVIDER = "stub"
+_EXECUTION_REPLAY_STRATEGY = "signature-gen-local-reexecution"
+_EXECUTION_REPLAY_EFFECTS: dict[str, bool] = {
+    "network": False,
+    "provider_call": False,
+    "mlflow": False,
+    "subprocess": True,
+    "temporary_filesystem": True,
+    "source_artifact_write": False,
+    "shared_oracle": False,
+    "external_authority_mutated": False,
+    "explicit_replay_output_write": True,
+}
+_EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS = {
+    "class_name",
+    "constraints",
+    "feedback",
+    "inputs",
+    "max_attempts",
+    "outputs",
+}
 
 
 ValidationIssue = tuple[str, str]
@@ -2089,4 +2134,500 @@ def check_run_receipt(meta_path: Path) -> dict[str, Any]:
 
     if report["errors"]:
         report["status"] = "failed"
+    return report
+
+
+def _signature_execution_replay_argv(
+    receipt: Mapping[str, Any], replayed_output: Path
+) -> list[str] | None:
+    replay_inputs = receipt.get("replay_inputs")
+    if not isinstance(replay_inputs, Mapping):
+        return None
+    prompt = replay_inputs.get("prompt")
+    template_version = replay_inputs.get("template_version")
+    options = replay_inputs.get("options")
+    if (
+        not isinstance(prompt, str)
+        or not prompt.strip()
+        or not isinstance(template_version, str)
+        or not template_version.startswith("simple-")
+        or not isinstance(options, Mapping)
+        or set(options) - _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS
+    ):
+        return None
+
+    def string_list(name: str) -> list[str] | None:
+        value = options.get(name, [])
+        if not isinstance(value, list) or any(
+            not isinstance(item, str) or not item.strip() for item in value
+        ):
+            return None
+        return [str(item) for item in value]
+
+    inputs = string_list("inputs")
+    outputs = string_list("outputs")
+    constraints = string_list("constraints")
+    feedback = string_list("feedback")
+    if None in (inputs, outputs, constraints, feedback):
+        return None
+
+    class_name = replay_inputs.get("class_name")
+    option_class_name = options.get("class_name")
+    if class_name is not None and (
+        not isinstance(class_name, str) or not class_name.strip()
+    ):
+        return None
+    if option_class_name is not None and option_class_name != class_name:
+        return None
+    max_attempts = options.get("max_attempts")
+    if max_attempts is not None and (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or max_attempts < 1
+    ):
+        return None
+
+    argv = [
+        sys.executable,
+        "-m",
+        "dspx.cli.dspx",
+        "signature",
+        "gen",
+        prompt,
+        "--provider",
+        _EXECUTION_REPLAY_PROVIDER,
+        "--template-version",
+        template_version,
+        "--no-cache",
+        "--outfile",
+        str(replayed_output),
+    ]
+    if class_name:
+        argv.extend(["--class-name", class_name])
+    for cli_name, values in (
+        ("--input", inputs),
+        ("--output", outputs),
+        ("--constraint", constraints),
+        ("--feedback", feedback),
+    ):
+        for value in values or []:
+            argv.extend([cli_name, value])
+    if max_attempts is not None:
+        argv.extend(["--max-attempts", str(max_attempts)])
+    return argv
+
+
+def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
+    """Re-run a deterministic receipt in a scrubbed, receipt-local sandbox.
+
+    Check-only remains the compatibility path. Execution additionally requires an
+    exact receipt policy and identity bindings, invokes the real ``signature gen``
+    command with the stub provider and cache disabled, compares the fresh output,
+    and only then exclusively publishes it to ``replay_output``.
+    """
+    report = check_run_receipt(meta_path)
+    report["replay_mode"] = "execute"
+    report["execution"] = {
+        "attempted": False,
+        "strategy": _EXECUTION_REPLAY_STRATEGY,
+        "effects": dict(_EXECUTION_REPLAY_EFFECTS),
+    }
+    execution: dict[str, Any] = report["execution"]
+    if report["status"] != "ok":
+        execution["blocked_reason"] = "receipt_or_artifact_drift"
+        return report
+
+    receipt = load_run_receipt(meta_path)
+    assert receipt is not None
+    run_kind = str(receipt.get("run_kind") or "")
+    provider = str(receipt.get("provider") or "")
+    if run_kind != _EXECUTION_REPLAY_KIND:
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "unsupported_run_kind"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_KIND,
+            message=f"execution replay does not support run_kind={run_kind!r}",
+        )
+        return report
+    if provider != _EXECUTION_REPLAY_PROVIDER:
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "unsupported_provider"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_PROVIDER,
+            message=f"execution replay does not support provider={provider!r}",
+        )
+        return report
+
+    policy = receipt.get("execution_replay")
+    if not isinstance(policy, Mapping):
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "missing_receipt_policy"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_POLICY_MISSING,
+            message="receipt has no execution_replay policy; refusing to infer effects",
+        )
+        return report
+    if policy.get("supported") is not True or policy.get("strategy") != (
+        _EXECUTION_REPLAY_STRATEGY
+    ):
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "unsupported_receipt_inputs"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_INPUTS,
+            message="receipt inputs/template have no supported deterministic executor",
+        )
+        return report
+
+    effects = policy.get("effects")
+    if (
+        policy.get("schema_version") != EXECUTION_REPLAY_POLICY_VERSION
+        or policy.get("local_only") is not True
+        or not isinstance(effects, Mapping)
+        or dict(effects) != _EXECUTION_REPLAY_EFFECTS
+    ):
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "unsupported_effects_or_policy"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_EFFECTS,
+            message="receipt execution replay policy/effects are not exactly supported",
+        )
+        return report
+
+    provider_details = receipt.get("provider_details")
+    provider_identity = policy.get("provider_identity")
+    runtime_identity = policy.get("runtime_identity")
+    output_identity = policy.get("output_identity")
+    expected_provider_identity = {
+        "provider": provider,
+        "provider_details": dict(provider_details)
+        if isinstance(provider_details, Mapping)
+        else None,
+    }
+    current_runtime_identity = current_execution_replay_runtime_identity()
+    identity_checks = {
+        "execution_replay_input_identity_match": policy.get("input_hash")
+        == canonical_replay_identity_hash(receipt.get("replay_inputs")),
+        "execution_replay_provider_identity_match": (
+            isinstance(provider_details, Mapping)
+            and isinstance(provider_identity, Mapping)
+            and provider_identity.get("provider") == provider
+            and provider_identity.get("provider_details") == dict(provider_details)
+            and provider_identity.get("hash")
+            == canonical_replay_identity_hash(expected_provider_identity)
+        ),
+        "execution_replay_runtime_identity_match": (
+            isinstance(runtime_identity, Mapping)
+            and {key: value for key, value in runtime_identity.items() if key != "hash"}
+            == current_runtime_identity
+            and runtime_identity.get("hash")
+            == canonical_replay_identity_hash(current_runtime_identity)
+        ),
+        "execution_replay_output_identity_match": (
+            isinstance(output_identity, Mapping)
+            and output_identity.get("algorithm") == "sha256"
+            and output_identity.get("hash") == receipt.get("hash")
+        ),
+    }
+    report["checks"].update(identity_checks)
+    failed_identity_checks = [
+        name for name, passed in identity_checks.items() if not passed
+    ]
+    if failed_identity_checks:
+        report["status"] = "failed"
+        execution["blocked_reason"] = "receipt_identity_drift"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_IDENTITY_DRIFT,
+            message="execution replay identity drift: "
+            + ", ".join(sorted(failed_identity_checks)),
+        )
+        return report
+
+    try:
+        target = _resolve_path(str(replay_output), meta_path=meta_path)
+        source = _resolve_path(
+            str(receipt["output_path"]), meta_path=meta_path, output_hint=True
+        )
+        cache_file = _resolve_path(
+            str(receipt["cache_file"]),
+            meta_path=meta_path,
+            allow_external_absolute=True,
+        )
+    except (KeyError, ValueError) as exc:
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "invalid_output_path"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_OUTPUT_INVALID,
+            message=str(exc),
+        )
+        return report
+
+    forbidden_targets = {meta_path.resolve(), source.resolve(), cache_file.resolve()}
+    if target.resolve() in forbidden_targets or target.name.endswith(".meta.json"):
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "protected_output_path"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_OUTPUT_INVALID,
+            message="replay output must be a new non-receipt file distinct from source/cache",
+        )
+        return report
+    if target.exists() or target.is_symlink():
+        report["status"] = "failed"
+        execution["blocked_reason"] = "output_exists"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_OUTPUT_EXISTS,
+            message=f"replay output already exists; refusing overwrite: {target}",
+        )
+        return report
+    if not target.parent.exists() or not target.parent.is_dir():
+        report["status"] = "invalid"
+        execution["blocked_reason"] = "output_parent_missing"
+        _add_error(
+            report,
+            code=_ISSUE_EXECUTION_REPLAY_OUTPUT_INVALID,
+            message=f"replay output parent must already exist: {target.parent}",
+        )
+        return report
+
+    source_hash_before = _sha256_file(source)
+    expected_hash = str(receipt["hash"])
+    with tempfile.TemporaryDirectory(
+        prefix=".dspx-execution-replay-", dir=str(meta_path.parent.resolve())
+    ) as temporary_dir:
+        sandbox = Path(temporary_dir)
+        replayed_output = sandbox / "replayed.py"
+        argv = _signature_execution_replay_argv(receipt, replayed_output)
+        if argv is None:
+            report["status"] = "invalid"
+            execution["blocked_reason"] = "unsupported_receipt_inputs"
+            _add_error(
+                report,
+                code=_ISSUE_EXECUTION_REPLAY_UNSUPPORTED_INPUTS,
+                message="receipt signature inputs are not safely replayable",
+            )
+            return report
+
+        allowed_environment_keys = {
+            "DYLD_LIBRARY_PATH",
+            "LANG",
+            "LC_ALL",
+            "LD_LIBRARY_PATH",
+            "PATH",
+            "PYTHONPATH",
+            "SYSTEMROOT",
+            "TMPDIR",
+            "VIRTUAL_ENV",
+            "WINDIR",
+        }
+        scrubbed_env = {
+            key: value
+            for key, value in os.environ.items()
+            if key in allowed_environment_keys
+        }
+        scrubbed_env.update(
+            {
+                "HOME": str(sandbox),
+                "DSPX_PROVIDER": _EXECUTION_REPLAY_PROVIDER,
+                "DSPX_CACHE_ENABLE": "0",
+                "DSPX_CACHE_DIR": str(sandbox / "cache"),
+                "DSPX_RECEIPT_BRANCH": "local-execution-replay",
+                "MLFLOW_ENABLE": "0",
+            }
+        )
+        execution["attempted"] = True
+        try:
+            completed = subprocess.run(
+                argv,
+                cwd=sandbox,
+                env=scrubbed_env,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            report["status"] = "failed"
+            execution["blocked_reason"] = "reexecution_process_failed"
+            _add_error(
+                report,
+                code=_ISSUE_EXECUTION_REPLAY_PROCESS_FAILED,
+                message=f"local reexecution process failed: {type(exc).__name__}",
+            )
+            return report
+        if completed.returncode != 0:
+            report["status"] = "failed"
+            execution["blocked_reason"] = "reexecution_process_nonzero"
+            execution["returncode"] = completed.returncode
+            _add_error(
+                report,
+                code=_ISSUE_EXECUTION_REPLAY_PROCESS_FAILED,
+                message=f"local reexecution exited nonzero: {completed.returncode}",
+            )
+            return report
+
+        child_meta = replayed_output.parent / f"{replayed_output.name}.meta.json"
+        child_receipt = load_run_receipt(child_meta)
+        observed_files = sorted(
+            str(path.relative_to(sandbox))
+            for path in sandbox.rglob("*")
+            if path.is_file()
+        )
+        required_files = {"replayed.py", "replayed.py.meta.json"}
+        observed_file_set = set(observed_files)
+        unexpected_files = sorted(
+            path
+            for path in observed_file_set - required_files
+            if not (path.startswith(".dspy_cache/") and path.endswith("/cache.db"))
+        )
+        effects_bounded = required_files <= observed_file_set and not unexpected_files
+        report["checks"]["execution_replay_effects_bounded"] = effects_bounded
+        if not effects_bounded:
+            report["status"] = "failed"
+            execution["blocked_reason"] = "unexpected_local_effect"
+            execution["observed_files"] = observed_files
+            _add_error(
+                report,
+                code=_ISSUE_EXECUTION_REPLAY_UNEXPECTED_EFFECT,
+                message="local reexecution produced undeclared filesystem artifacts",
+                check="execution_replay_effects_bounded",
+            )
+            return report
+        if child_receipt is None or not replayed_output.is_file():
+            report["status"] = "failed"
+            execution["blocked_reason"] = "reexecution_evidence_missing"
+            _add_error(
+                report,
+                code=_ISSUE_EXECUTION_REPLAY_PROCESS_FAILED,
+                message="local reexecution did not emit output and receipt evidence",
+            )
+            return report
+
+        replayed_hash = _sha256_file(replayed_output)
+        child_provider_identity = {
+            "provider": child_receipt.get("provider"),
+            "provider_details": child_receipt.get("provider_details"),
+        }
+        child_policy = child_receipt.get("execution_replay")
+        child_runtime = (
+            child_policy.get("runtime_identity")
+            if isinstance(child_policy, Mapping)
+            else None
+        )
+        child_checks = {
+            "execution_replay_child_input_identity_match": (
+                canonical_replay_identity_hash(child_receipt.get("replay_inputs"))
+                == policy.get("input_hash")
+            ),
+            "execution_replay_child_provider_identity_match": (
+                child_provider_identity == expected_provider_identity
+                and canonical_replay_identity_hash(child_provider_identity)
+                == provider_identity.get("hash")
+            ),
+            "execution_replay_child_runtime_identity_match": (
+                isinstance(child_runtime, Mapping)
+                and child_runtime.get("hash") == runtime_identity.get("hash")
+            ),
+            "execution_replay_reexecuted_output_hash_match": replayed_hash
+            == expected_hash,
+        }
+        report["checks"].update(child_checks)
+        failed_child_checks = [
+            name for name, passed in child_checks.items() if not passed
+        ]
+        if failed_child_checks:
+            report["status"] = "failed"
+            execution["blocked_reason"] = "reexecution_identity_or_output_drift"
+            execution["reexecuted_hash"] = replayed_hash
+            code = (
+                _ISSUE_EXECUTION_REPLAY_OUTPUT_HASH_MISMATCH
+                if not child_checks["execution_replay_reexecuted_output_hash_match"]
+                else _ISSUE_EXECUTION_REPLAY_IDENTITY_DRIFT
+            )
+            _add_error(
+                report,
+                code=code,
+                message="local reexecution drift: "
+                + ", ".join(sorted(failed_child_checks)),
+            )
+            return report
+
+        payload = replayed_output.read_bytes()
+        try:
+            with target.open("xb") as fh:
+                fh.write(payload)
+        except (FileExistsError, OSError) as exc:
+            report["status"] = "failed"
+            execution["blocked_reason"] = "exclusive_write_failed"
+            code = (
+                _ISSUE_EXECUTION_REPLAY_OUTPUT_EXISTS
+                if isinstance(exc, FileExistsError)
+                else _ISSUE_EXECUTION_REPLAY_WRITE_FAILED
+            )
+            _add_error(
+                report,
+                code=code,
+                message=f"execution replay output write failed: {type(exc).__name__}",
+            )
+            return report
+
+        published_hash = _sha256_file(target)
+        source_hash_after = _sha256_file(source)
+        report["checks"].update(
+            {
+                "execution_replay_published_output_hash_match": published_hash
+                == expected_hash,
+                "execution_replay_source_output_preserved": source_hash_after
+                == source_hash_before,
+            }
+        )
+        if published_hash != expected_hash or source_hash_after != source_hash_before:
+            target.unlink(missing_ok=True)
+            report["status"] = "failed"
+            execution["blocked_reason"] = "post_publish_drift"
+            _add_error(
+                report,
+                code=_ISSUE_EXECUTION_REPLAY_WRITE_FAILED,
+                message="post-publish hash/source-preservation check failed; output removed",
+            )
+            return report
+
+        stdout_hash = hashlib.sha256(completed.stdout.encode("utf-8")).hexdigest()
+        stderr_hash = hashlib.sha256(completed.stderr.encode("utf-8")).hexdigest()
+
+    report["status"] = "executed"
+    report["execution"] = {
+        "attempted": True,
+        "strategy": _EXECUTION_REPLAY_STRATEGY,
+        "run_kind": run_kind,
+        "provider": provider,
+        "source_receipt": str(meta_path),
+        "source_output": str(source),
+        "replay_output": str(target),
+        "expected_hash": expected_hash,
+        "reexecuted_hash": expected_hash,
+        "actual_hash": expected_hash,
+        "bytes_written": target.stat().st_size,
+        "effects": dict(_EXECUTION_REPLAY_EFFECTS),
+        "evidence": {
+            "schema_version": "execution-replay-evidence-v1",
+            "input_identity_hash": policy.get("input_hash"),
+            "provider_identity_hash": provider_identity.get("hash"),
+            "runtime_identity_hash": runtime_identity.get("hash"),
+            "output_identity_hash": expected_hash,
+            "subprocess_returncode": 0,
+            "subprocess_stdout_hash": stdout_hash,
+            "subprocess_stderr_hash": stderr_hash,
+            "temporary_artifacts_cleaned": True,
+            "shared_oracle_mutated": False,
+            "external_authority_mutated": False,
+        },
+    }
     return report

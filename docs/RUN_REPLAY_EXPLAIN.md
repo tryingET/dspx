@@ -34,12 +34,12 @@ read_when:
 - Overly broad receipts -> accidental secret leakage in local artifacts.
 - Tight coupling to MLflow IDs -> replay breaks when tracking backends move.
 
-## Receipt schema (v1)
+## Receipt schema (v2)
 
 Path: `<output>.meta.json`
 
 Required fields:
-- `receipt_version`: `"v1"`
+- `receipt_version`: `"v2"`
 - `created_at`: UTC ISO timestamp
 - `run_kind`: e.g. `signature-gen`, `signature-refine`, `module-gen`, `codegen`
 - `provider`: provider name used for run context
@@ -51,6 +51,9 @@ Required fields:
 - `run_summary`: optional run-quality summary payload
 
 Optional fields:
+- `execution_replay`: emitted on new receipts; binds local execution support to
+  input/provider/runtime/output identities and exact permitted effects. Older v2
+  receipts remain valid for check-only but fail closed for execution.
 - command-specific compatibility fields (e.g. `class_name`, `inputs`,
   `outputs`, `spec_len`, `mode`, `rounds`)
 
@@ -74,7 +77,7 @@ Current writers using this contract:
 ## Replay command (implemented MVP)
 
 `dspx run replay --from <receipt> --check-only` now performs local checks:
-- receipt parse + schema validation (`receipt_version: v1`, required fields,
+- receipt parse + schema validation (`receipt_version: v2`, required fields,
   required `replay_inputs` keys)
 - output artifact existence + output hash verification
 - for `program-gen`, module-surface, execution-episode, inline behavior,
@@ -110,15 +113,50 @@ Stable replay issue codes (current v1 taxonomy):
   `module_surfaces`, `execution_episode`, `behavior_results`, `oracle_evidence`,
   `dataset_manifest`, `dataset_split_<split>`, `dataset_split_harness_<split>`, and
   `dataset_split_behavior_results_<split>` when present
+- execution replay: `execution_replay_unsupported_kind`,
+  `execution_replay_unsupported_provider`, `execution_replay_unsupported_inputs`,
+  `execution_replay_policy_missing`, `execution_replay_unsupported_effects`,
+  `execution_replay_identity_drift`, `execution_replay_process_failed`,
+  `execution_replay_unexpected_effect`, `execution_replay_output_invalid`,
+  `execution_replay_output_exists`, `execution_replay_output_hash_mismatch`,
+  `execution_replay_write_failed`
 
 Operational guarantees:
 - replay command forces local/offline posture (`MLFLOW_ENABLE=0`)
 - no provider/network/MLflow dependency for baseline replay verification
 
+### Safe local execution replay
+
+`dspx run replay --from <receipt> --no-check-only --to <new-file>` supports
+receipt-bound replay for deterministic, stub-backed, `simple-*` `signature-gen`
+runs. It does not import or execute generated Python. After the complete check-only
+gate passes, it re-runs the real signature generation command in a scrubbed local
+subprocess with cache and MLflow disabled, verifies the fresh child receipt and
+output identity, then exclusively publishes the result to the explicit
+receipt-local `--to` path. Temporary artifacts are removed. The report has
+`status: executed` and an `execution-replay-evidence-v1` object with bound
+input/provider/runtime/output hashes and hashed subprocess diagnostics.
+
+The v1 strategy is `signature-gen-local-reexecution`. Declared effects permit only
+the bounded subprocess, temporary filesystem, and explicit replay output write;
+network, provider calls, MLflow, source writes, shared Oracle, and external-authority
+mutation remain false. Execution replay fails closed when:
+
+- the receipt/output/cache check detects any drift;
+- the run kind, provider, template, or options have no deterministic executor;
+- the receipt lacks the execution policy or its strategy/effects differ at all;
+- input, provider, runtime, output, child receipt, or child output identity drifts;
+- the sandbox emits any undeclared file;
+- `--to` escapes the receipt directory, names a receipt/source/cache file, or
+  already exists.
+
+Check-only remains the default and does not require execution replay support, so
+all existing supported receipt kinds retain their non-mutating verification path.
+
 Exit codes:
-- `0`: verification passed
-- `1`: parsed receipt but drift detected
-- `2`: invalid receipt/arguments
+- `0`: verification passed or execution replay completed
+- `1`: parsed receipt but drift or an output conflict/write failure was detected
+- `2`: invalid receipt/arguments, unsupported kind, or unsupported effects/policy
 
 CI guard (current deterministic path):
 - `uv run -q python scripts/check_replay_provenance.py`

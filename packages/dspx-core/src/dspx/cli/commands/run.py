@@ -29,28 +29,36 @@ def run_replay(
         "--check-only/--no-check-only",
         help="Verify receipt/output/cache only (default: check-only)",
     ),
+    replay_output: Path | None = typer.Option(
+        None,
+        "--to",
+        help="New receipt-local output path (required with --no-check-only)",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
 ) -> None:
-    """Replay a past execution from its receipt.
-
-    Currently supports --check-only mode which verifies the receipt
-    and its references without re-executing.
-    """
-    from dspx.services.run_replay_service import check_run_receipt
+    """Check a receipt or safely replay a supported deterministic local run."""
+    from dspx.services.run_replay_service import (
+        check_run_receipt,
+        execute_run_receipt,
+    )
 
     # Replay checks are local-only by contract.
     prev_mlflow_enable = os.getenv("MLFLOW_ENABLE")
     os.environ["MLFLOW_ENABLE"] = "0"
 
     try:
-        if not check_only:
-            typer.echo(
-                "error: execute replay is not implemented yet; use --check-only",
-                err=True,
-            )
+        if not check_only and replay_output is None:
+            typer.echo("error: --to is required with --no-check-only", err=True)
+            raise typer.Exit(code=2)
+        if check_only and replay_output is not None:
+            typer.echo("error: --to requires --no-check-only", err=True)
             raise typer.Exit(code=2)
 
-        report = check_run_receipt(from_)
+        if check_only:
+            report = check_run_receipt(from_)
+        else:
+            assert replay_output is not None
+            report = execute_run_receipt(from_, replay_output)
         status = str(report.get("status") or "invalid")
 
         if json_out:
@@ -71,12 +79,20 @@ def run_replay(
                     checks[str(name)] = bool(value)
             for name in sorted(checks.keys()):
                 typer.echo(f"check.{name}: {'ok' if checks[name] else 'fail'}")
+            execution = report.get("execution")
+            if isinstance(execution, dict):
+                replay_path = execution.get("replay_output")
+                if replay_path:
+                    typer.echo(f"execution.output: {replay_path}")
+                evidence = execution.get("evidence")
+                if evidence:
+                    typer.echo(f"execution.evidence: {evidence}")
             for warning in report.get("warnings") or []:
                 typer.echo(f"warn: {warning}")
             for error in report.get("errors") or []:
                 typer.echo(f"error: {error}", err=True)
 
-        if status == "ok":
+        if status in {"ok", "executed"}:
             return
         if status == "failed":
             raise typer.Exit(code=1)

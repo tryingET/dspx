@@ -15,6 +15,28 @@ from dspx.redaction import redact_url
 
 RUN_RECEIPT_VERSION = "v2"
 RUN_IDENTITY_VERSION = "v1"
+EXECUTION_REPLAY_POLICY_VERSION = "local-execution-replay-v1"
+
+_EXECUTION_REPLAY_EFFECTS = {
+    "network": False,
+    "provider_call": False,
+    "mlflow": False,
+    "subprocess": True,
+    "temporary_filesystem": True,
+    "source_artifact_write": False,
+    "shared_oracle": False,
+    "external_authority_mutated": False,
+    "explicit_replay_output_write": True,
+}
+_EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS = {
+    "class_name",
+    "constraints",
+    "feedback",
+    "inputs",
+    "max_attempts",
+    "outputs",
+}
+
 
 # Outcome types for Oracle Dreaming/Consciousness
 OutcomeType = Literal["success", "failure", "partial", "cached", "unknown"]
@@ -299,6 +321,95 @@ def _json_safe(value: Any) -> Any:
     if isinstance(value, (list, tuple, set)):
         return [_json_safe(v) for v in value]
     return str(value)
+
+
+def canonical_replay_identity_hash(value: Any) -> str:
+    encoded = json.dumps(
+        _json_safe(value),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def current_execution_replay_runtime_identity() -> dict[str, Any]:
+    """Cwd-independent identity of the Python and replay implementation."""
+    static_context = _get_static_execution_context()
+    package_root = Path(__file__).resolve().parent
+    implementation_files = (
+        package_root / "run_receipts.py",
+        package_root / "services" / "run_replay_service.py",
+    )
+    implementation_hashes = {
+        path.relative_to(package_root).as_posix(): hashlib.sha256(
+            path.read_bytes()
+        ).hexdigest()
+        for path in implementation_files
+    }
+    runtime_identity = {
+        key: static_context[key]
+        for key in ("python_version", "platform")
+        if key in static_context
+    }
+    runtime_identity["implementation_hash"] = canonical_replay_identity_hash(
+        implementation_hashes
+    )
+    return runtime_identity
+
+
+def build_execution_replay_policy(
+    *,
+    run_kind: str,
+    provider: str,
+    provider_details: Mapping[str, Any],
+    replay_inputs: Mapping[str, Any],
+    output_hash: str,
+) -> dict[str, Any]:
+    """Bind the narrow local executor to input/provider/runtime/output identities."""
+    run_kind_norm = str(run_kind or "").strip().lower()
+    provider_norm = str(provider or "").strip()
+    inputs = _json_safe(dict(replay_inputs))
+    provider_identity = {
+        "provider": provider_norm,
+        "provider_details": _json_safe(dict(provider_details)),
+    }
+    runtime_identity = current_execution_replay_runtime_identity()
+    options = inputs.get("options") if isinstance(inputs, Mapping) else None
+    template_version = str(inputs.get("template_version") or "")
+
+    unsupported_reasons: list[str] = []
+    if run_kind_norm != "signature-gen":
+        unsupported_reasons.append("unsupported_run_kind")
+    if provider_norm != "stub":
+        unsupported_reasons.append("unsupported_provider")
+    if not template_version.startswith("simple-"):
+        unsupported_reasons.append("unsupported_template")
+    if (
+        not isinstance(options, Mapping)
+        or set(options) - _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS
+    ):
+        unsupported_reasons.append("unsupported_options")
+
+    supported = not unsupported_reasons
+    return {
+        "schema_version": EXECUTION_REPLAY_POLICY_VERSION,
+        "supported": supported,
+        "strategy": "signature-gen-local-reexecution" if supported else None,
+        "unsupported_reasons": unsupported_reasons,
+        "local_only": True,
+        "input_hash": canonical_replay_identity_hash(inputs),
+        "provider_identity": {
+            **provider_identity,
+            "hash": canonical_replay_identity_hash(provider_identity),
+        },
+        "runtime_identity": {
+            **runtime_identity,
+            "hash": canonical_replay_identity_hash(runtime_identity),
+        },
+        "output_identity": {"algorithm": "sha256", "hash": str(output_hash)},
+        "effects": dict(_EXECUTION_REPLAY_EFFECTS),
+    }
 
 
 def _hash_prefix(value: str | None, *, width: int = 12) -> str:
@@ -698,21 +809,30 @@ def build_run_receipt(
             Used by Consciousness for environment correlation.
     """
     provider_name = os.getenv("DSPX_PROVIDER") or "pi-rpc"
+    provider_details = _json_safe(_current_provider_details())
+    replay_inputs_payload = _json_safe(dict(replay_inputs or {}))
     receipt: dict[str, Any] = {
         "receipt_version": RUN_RECEIPT_VERSION,
         "execution_id": str(execution_id or uuid4().hex),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "run_kind": str(run_kind),
         "provider": provider_name,
-        "provider_details": _json_safe(_current_provider_details()),
+        "provider_details": provider_details,
         "output_path": _normalized_path_str(output_path),
         "hash": str(output_hash),
         "template_version": template_version,
         "cache_key": cache_key,
         "cache_file": _normalized_optional_path_str(cache_file),
         "cache_enabled": bool(cache_enabled),
-        "replay_inputs": _json_safe(dict(replay_inputs or {})),
+        "replay_inputs": replay_inputs_payload,
         "run_summary": _json_safe(dict(run_summary or {})),
+        "execution_replay": build_execution_replay_policy(
+            run_kind=run_kind,
+            provider=provider_name,
+            provider_details=provider_details,
+            replay_inputs=replay_inputs_payload,
+            output_hash=output_hash,
+        ),
     }
 
     # Phase C+ fields (only add if non-default)

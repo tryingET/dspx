@@ -663,10 +663,26 @@ just dspx run replay --from generated/sig_names.py.meta.json --check-only
 just dspx run replay --from generated/sig_names.py.meta.json --check-only --json
 ```
 
+Safe deterministic execution replay is explicit and output-only:
+
+```bash
+just dspx run replay --from generated/sig_names.py.meta.json \
+  --no-check-only --to generated/sig_names.replayed.py --json
+```
+
+This currently supports only stub-backed `simple-*` `signature-gen` receipts. It
+verifies the full receipt/source/cache and bound input/provider/runtime/output
+identities, then re-runs signature generation in a scrubbed local subprocess with
+cache and MLflow disabled. A matching child receipt/output is exclusively published
+to `--to`; generated Python is never imported. Network/provider calls, shared Oracle,
+and external authority remain disabled. Unsupported kinds/effects, identity or
+artifact drift, undeclared sandbox files, path escape, and existing output fail
+closed. Check-only remains the default for all supported kinds.
+
 Replay exit codes:
-- `0`: verification passed
-- `1`: receipt parsed, but drift detected (hash/cache/provenance)
-- `2`: invalid receipt/arguments
+- `0`: verification passed or deterministic replay completed
+- `1`: receipt parsed, but drift/output conflict/write failure was detected
+- `2`: invalid arguments/receipt or unsupported execution kind/effects
 
 Replay JSON diagnostics (stable machine-readable fields):
 - `error_codes`: ordered unique replay issue codes

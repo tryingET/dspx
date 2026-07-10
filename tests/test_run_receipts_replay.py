@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import dspx.cli.utils as dspx_utils
+import dspx.services.run_replay_service as replay_service
 from dspx.cli.dspx import app
 from dspx.cache import make_key
 from dspx.run_receipts import (
@@ -868,6 +869,256 @@ def test_run_replay_fails_on_malformed_cache_json(tmp_path: Path, monkeypatch) -
         and d.get("check") == "cache_file_json_object"
         for d in payload["error_details"]
     )
+
+
+@pytest.mark.slow
+def test_run_execution_replay_materializes_verified_signature_with_evidence(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path, monkeypatch, output_name="execution-source.py"
+    )
+    replay_out = tmp_path / "execution-replay.py"
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--no-check-only",
+            "--to",
+            str(replay_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "executed"
+    assert payload["execution"]["strategy"] == "signature-gen-local-reexecution"
+    assert payload["execution"]["provider"] == "stub"
+    assert payload["execution"]["effects"]["network"] is False
+    assert payload["execution"]["effects"]["provider_call"] is False
+    assert payload["execution"]["effects"]["subprocess"] is True
+    assert payload["execution"]["effects"]["shared_oracle"] is False
+    assert payload["execution"]["effects"]["external_authority_mutated"] is False
+    assert payload["execution"]["actual_hash"] == payload["receipt_hash"]
+    assert payload["checks"]["execution_replay_reexecuted_output_hash_match"] is True
+    assert payload["checks"]["execution_replay_source_output_preserved"] is True
+    evidence = payload["execution"]["evidence"]
+    assert evidence["schema_version"] == "execution-replay-evidence-v1"
+    assert evidence["subprocess_returncode"] == 0
+    assert evidence["temporary_artifacts_cleaned"] is True
+    assert replay_out.read_bytes() == (tmp_path / "execution-source.py").read_bytes()
+
+
+@pytest.mark.slow
+def test_run_execution_replay_fails_closed_on_drift_without_writing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path, monkeypatch, output_name="drift-source.py"
+    )
+    (tmp_path / "drift-source.py").write_text("drift\n", encoding="utf-8")
+    replay_out = tmp_path / "must-not-exist.py"
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--no-check-only",
+            "--to",
+            str(replay_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["execution"]["attempted"] is False
+    assert payload["execution"]["blocked_reason"] == "receipt_or_artifact_drift"
+    assert "output_hash_mismatch" in payload["error_codes"]
+    assert not replay_out.exists()
+
+
+@pytest.mark.slow
+def test_run_execution_replay_fails_closed_on_unsupported_run_kind(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    generated = runner.invoke(
+        app,
+        [
+            "module-gen",
+            "--name",
+            "Summarizer",
+            "--description",
+            "Summarizes text",
+            "--input",
+            "text",
+            "--output",
+            "summary",
+            "--template-version",
+            "simple-v1",
+            "--outfile",
+            str(tmp_path / "module.py"),
+        ],
+    )
+    assert generated.exit_code == 0, generated.stdout
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(tmp_path / "module.py.meta.json"),
+            "--no-check-only",
+            "--to",
+            str(tmp_path / "must-not-exist.py"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout)
+    assert "execution_replay_unsupported_kind" in payload["error_codes"]
+    assert not (tmp_path / "must-not-exist.py").exists()
+
+
+@pytest.mark.slow
+def test_run_execution_replay_fails_closed_on_effect_policy_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path, monkeypatch, output_name="effects-source.py"
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    receipt["execution_replay"]["effects"]["network"] = True
+    meta_path.write_text(json.dumps(receipt), encoding="utf-8")
+    replay_out = tmp_path / "must-not-exist.py"
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--no-check-only",
+            "--to",
+            str(replay_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    payload = json.loads(result.stdout)
+    assert "execution_replay_unsupported_effects" in payload["error_codes"]
+    assert not replay_out.exists()
+
+
+@pytest.mark.slow
+def test_run_execution_replay_detects_fresh_output_drift_before_publish(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path, monkeypatch, output_name="fresh-drift-source.py"
+    )
+    source_receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    replay_out = tmp_path / "must-not-publish.py"
+
+    def fake_reexecution(argv, **_kwargs):
+        child_out = Path(argv[argv.index("--outfile") + 1])
+        child_out.write_text("print('fresh drift')\n", encoding="utf-8")
+        drift_hash = hashlib.sha256(child_out.read_bytes()).hexdigest()
+        child_receipt = json.loads(json.dumps(source_receipt))
+        child_receipt["output_path"] = str(child_out)
+        child_receipt["hash"] = drift_hash
+        child_receipt["cache_enabled"] = False
+        child_receipt["execution_replay"]["output_identity"]["hash"] = drift_hash
+        write_run_receipt(child_out, child_receipt)
+        return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(replay_service.subprocess, "run", fake_reexecution)
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--no-check-only",
+            "--to",
+            str(replay_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert payload["execution"]["blocked_reason"] == (
+        "reexecution_identity_or_output_drift"
+    )
+    assert "execution_replay_output_hash_mismatch" in payload["error_codes"]
+    assert payload["checks"]["execution_replay_reexecuted_output_hash_match"] is False
+    assert not replay_out.exists()
+
+
+@pytest.mark.slow
+def test_run_execution_replay_fails_on_bound_runtime_identity_drift(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path, monkeypatch, output_name="runtime-drift-source.py"
+    )
+    receipt = json.loads(meta_path.read_text(encoding="utf-8"))
+    receipt["execution_replay"]["runtime_identity"]["python_version"] = "0.0.0"
+    meta_path.write_text(json.dumps(receipt), encoding="utf-8")
+    replay_out = tmp_path / "must-not-exist.py"
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--no-check-only",
+            "--to",
+            str(replay_out),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout)
+    assert "execution_replay_identity_drift" in payload["error_codes"]
+    assert payload["checks"]["execution_replay_runtime_identity_match"] is False
+    assert not replay_out.exists()
+
+
+def test_run_execution_replay_requires_explicit_output(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(tmp_path / "unused.meta.json"),
+            "--no-check-only",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "--to is required" in result.output
 
 
 def test_run_replay_invalid_receipt_exit_code(tmp_path: Path) -> None:
