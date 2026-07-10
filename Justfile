@@ -154,6 +154,14 @@ replay-provenance-check:
 module-synthesis-quality-check:
   uv run --no-sync -q python scripts/build_module_synthesis_quality_log.py
 
+# Deterministic offline semantic corpus; writes evidence only and calls no provider.
+semantic-benchmark out="generated/ci/semantic-benchmark-result.json":
+  target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_semantic_benchmarks.py --out "$target"
+
+# Explicit opt-in live semantic corpus; never included in default validation gates.
+semantic-benchmark-live provider out="generated/ci/semantic-benchmark-live-result.json":
+  selected="{{provider}}"; selected="${selected#provider=}"; target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_semantic_benchmarks.py --live --provider "$selected" --out "$target"
+
 # Executable boundary contract matrix for validation-only/preflight/rooting/parser surfaces
 boundary-contract-check:
   uv run --no-sync -m pytest -q tests/test_agent_service.py tests/test_synthesis_runtime_smoke.py tests/test_adapters_stores.py tests/test_tools_registry.py tests/test_authority_adapter_export_preflight.py tests/test_program_candidate_state.py

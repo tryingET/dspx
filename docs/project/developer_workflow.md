@@ -60,6 +60,16 @@ just smoke-base       # offline temp-dir signature -> module -> program -> eval 
 
 This uses the stub provider, disables MLflow, writes to a temp directory by default, and does not call AK or mutate external authority. It reports materialization and behavior separately and exits non-zero if generated behavior fails even when receipts/replay succeed. See `docs/project/first-local-loop.md`.
 
+Reproducible semantic regression gate (offline by default):
+
+```bash
+just semantic-benchmark
+# live provider evaluation is separate and explicit:
+just semantic-benchmark-live provider=dspy-lm-auth out=/tmp/semantic-live.json
+```
+
+The machine-readable result is evidence only and grants no activation or external authority. See `docs/project/semantic-benchmarks.md` for corpus thresholds, result schema, and live-provider controls.
+
 Artifact retention is inspection-first. Generated/server output roots are never cleaned implicitly. Preview aged files below the explicit server root and retain the emitted `plan_id`; apply requires that unchanged plan plus exact-root confirmation:
 
 ```bash

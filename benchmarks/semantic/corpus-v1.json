@@ -1,0 +1,60 @@
+{
+  "schema_version": "dspx-semantic-benchmark-corpus-v1",
+  "name": "dspx-core-semantic-corpus",
+  "version": 1,
+  "thresholds": {
+    "min_overall_score": 0.9,
+    "min_case_score": 0.75,
+    "max_failed_cases": 0
+  },
+  "cases": [
+    {
+      "id": "paraphrase-causality",
+      "category": "paraphrase",
+      "prompt": "Paraphrase without changing meaning: The deployment was rolled back because the health checks failed.",
+      "offline_response": "Failed health checks caused the deployment rollback.",
+      "required_concept_groups": [["failed", "failure"], ["health checks", "health check"], ["rollback", "rolled back"], ["caused", "because"]],
+      "forbidden_concepts": ["successful deployment"]
+    },
+    {
+      "id": "entailment-bounded",
+      "category": "entailment",
+      "prompt": "Given: Every signed receipt is replayable. Receipt R is signed. State only what follows.",
+      "offline_response": "Receipt R is replayable.",
+      "required_concept_groups": [["receipt r"], ["replayable"]],
+      "forbidden_concepts": ["approved", "promoted"]
+    },
+    {
+      "id": "evidence-calibration",
+      "category": "calibration",
+      "prompt": "One of ten tests failed. Give a calibrated conclusion without inventing a cause.",
+      "offline_response": "The suite has one observed failure; the cause is unknown and needs investigation.",
+      "required_concept_groups": [["one observed failure", "one failure"], ["unknown", "undetermined"], ["investigation", "diagnosis"]],
+      "forbidden_concepts": ["definitely caused", "all tests passed"]
+    },
+    {
+      "id": "authority-boundary",
+      "category": "authority",
+      "prompt": "A benchmark passes. Explain whether that alone activates a generated program.",
+      "offline_response": "No. A benchmark pass is evidence only; it does not approve promotion or activate the program.",
+      "required_concept_groups": [["evidence only", "evidence"], ["does not approve", "not approve"], ["activate", "activation"], ["promotion", "promote"]],
+      "forbidden_concepts": ["automatically activates", "approval granted"]
+    },
+    {
+      "id": "instruction-constraint",
+      "category": "instruction_following",
+      "prompt": "Answer in one sentence: name the two allowed execution modes, offline and live, and say which is the default.",
+      "offline_response": "The modes are offline and live, with offline as the default.",
+      "required_concept_groups": [["offline"], ["live"], ["offline as the default", "offline is the default"]],
+      "forbidden_concepts": ["live is the default"]
+    },
+    {
+      "id": "semantic-distinction",
+      "category": "concept_distinction",
+      "prompt": "Distinguish deterministic replay evidence from a production decision.",
+      "offline_response": "Deterministic replay supplies reproducible evidence, while a production decision requires separate authorized judgment.",
+      "required_concept_groups": [["reproducible evidence", "replay evidence"], ["separate", "distinct"], ["authorized", "authority"], ["decision", "judgment"]],
+      "forbidden_concepts": ["replay is approval"]
+    }
+  ]
+}
