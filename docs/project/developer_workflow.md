@@ -166,7 +166,8 @@ Validation contract:
   - are the local command surfaces used directly by GitHub CI; `just ci-test-shards` runs the complete credential-free test set locally
 - `just verify-full`
   - runs `just verify-fast` first
-  - then runs the heavier runtime/invariant branch and the package+test typecheck/test branch in parallel
+  - then runs a non-pytest runtime/invariant branch alongside the package+complete-test branch; boundary and candidate-state tests run once in the complete suite instead of being duplicated in both branches
+  - schedules fast tests individually across workers so oversized files cannot monopolize one worker; candidate-state tests share only a process-local immutable-key generation cache while keeping every candidate/output tree test-local
   - includes `just typecheck-tests` so test harness contracts are type-checked alongside package code
   - keeps `uv.lock` clean for the read-only validation commands it delegates through `uv run --no-sync`
   - remains the explicit full confidence gate before merge/release or when the current slice needs the whole suite

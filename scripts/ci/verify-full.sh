@@ -16,9 +16,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-say "==> verify-runtime + verify-tests (parallel)"
+say "==> verify-runtime + verify-tests (parallel, pytest deduplicated)"
+# The complete pytest suite runs in verify-tests. The full-gate environment keeps
+# verify-runtime on its non-pytest invariants so expensive tests run once, while
+# preserving the stable `just verify-runtime` command contract.
 (
-  just verify-runtime >"$log_dir/runtime.log" 2>&1
+  DSPX_VERIFY_FULL_NONOVERLAP=1 just verify-runtime >"$log_dir/runtime.log" 2>&1
 ) &
 runtime_pid=$!
 (

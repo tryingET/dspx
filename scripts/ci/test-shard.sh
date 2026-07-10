@@ -35,7 +35,7 @@ case "$shard" in
     ;;
 esac
 
-pytest_args=(-q -n "$jobs" --dist loadfile -m "$marker")
+pytest_args=(-q -n "$jobs" --dist load -m "$marker")
 if [[ "${CI_COVERAGE:-0}" == "1" ]]; then
   pytest_args+=(--cov=dspx --cov=dspx_forge --cov-branch --cov-report= --cov-fail-under=0)
 fi

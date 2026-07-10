@@ -34,6 +34,10 @@ case \"$1\" in
     exit 0
     ;;
   verify-runtime)
+    if [ "${{DSPX_VERIFY_FULL_NONOVERLAP:-0}}" != "1" ]; then
+      echo missing-nonoverlap-mode >&2
+      exit 98
+    fi
     echo runtime-failed >&2
     exit {runtime_exit}
     ;;

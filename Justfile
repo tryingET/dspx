@@ -120,11 +120,11 @@ test:
     echo "no local tests"; \
   fi
 
-# Opt-in parallel fast test run. Defaults stay serial; this excludes slow/live slices.
+# Parallel fast test run. Per-test scheduling prevents oversized files from monopolizing one worker.
 test-parallel jobs="auto":
   workers="{{jobs}}"; workers="${workers#jobs=}"; \
   if [ -d tests ]; then \
-    uv run --no-sync -m pytest -q tests -n "$workers" --dist loadfile -m "not slow and not live and not network and not model and not gpu and not postgres"; \
+    uv run --no-sync -m pytest -q tests -n "$workers" --dist load -m "not slow and not live and not network and not model and not gpu and not postgres"; \
   else \
     echo "no local tests"; \
   fi
@@ -218,10 +218,21 @@ verify-runtime-boundary:
   just boundary-contract-check
 
 verify-runtime:
+  if [ "${DSPX_VERIFY_FULL_NONOVERLAP:-0}" = "1" ]; then \
+    just verify-runtime-nonoverlap; \
+  else \
+    just verify-runtime-replay; \
+    just verify-runtime-monorepo; \
+    just verify-runtime-module-synthesis; \
+    just verify-runtime-boundary; \
+  fi
+
+# Full-gate runtime branch with no pytest overlap; verify-tests owns the complete suite.
+verify-runtime-nonoverlap:
   just verify-runtime-replay
   just verify-runtime-monorepo
   just verify-runtime-module-synthesis
-  just verify-runtime-boundary
+  node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict
 
 # Diagnose whether the current dirty tree is inside the active AK task scope.
 scope-doctor:
