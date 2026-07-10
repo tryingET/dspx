@@ -8,6 +8,8 @@ import re
 from pathlib import Path
 from typing import Any, Callable, cast
 
+from jsonschema import Draft202012Validator
+
 from dspx.provider_runtime import sanitize_text
 
 RESULT_SCHEMA = "dspx-semantic-benchmark-result-v1"
@@ -31,12 +33,34 @@ def load_semantic_corpus(path: Path) -> dict[str, Any]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict) or raw.get("schema_version") != CORPUS_SCHEMA:
         raise ValueError(f"unsupported semantic benchmark corpus: {path}")
+    allowed_top_level = {"schema_version", "name", "version", "thresholds", "cases"}
+    unknown_top_level = set(raw) - allowed_top_level
+    if unknown_top_level:
+        raise ValueError(
+            "corpus contains unknown fields: " + ", ".join(sorted(unknown_top_level))
+        )
+    name = raw.get("name")
+    version = raw.get("version")
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("corpus name must be a non-empty string")
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        raise ValueError("corpus version must be a positive integer")
     cases = raw.get("cases")
     thresholds = raw.get("thresholds")
     if not isinstance(cases, list) or not cases or len(cases) > _MAX_CASES:
         raise ValueError("corpus cases must be a non-empty bounded list")
     if not isinstance(thresholds, dict):
         raise ValueError("corpus thresholds must be an object")
+    expected_thresholds = {
+        "min_overall_score",
+        "min_case_score",
+        "max_failed_cases",
+    }
+    if set(thresholds) != expected_thresholds:
+        raise ValueError(
+            "corpus thresholds must contain exactly: "
+            + ", ".join(sorted(expected_thresholds))
+        )
 
     seen: set[str] = set()
     for index, case in enumerate(cases):
@@ -210,8 +234,13 @@ def run_semantic_benchmark(
     }
 
 
-def write_result(result: dict[str, Any], path: Path) -> None:
-    """Atomically write the machine-readable result to the requested path only."""
+def write_result(
+    result: dict[str, Any], path: Path, *, result_schema_path: Path
+) -> None:
+    """Validate and atomically write the machine-readable result."""
+    schema = json.loads(result_schema_path.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    Draft202012Validator(schema).validate(result)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
     temporary.write_text(

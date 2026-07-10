@@ -26,6 +26,11 @@ def parse_args() -> argparse.Namespace:
         "--out", type=Path, default=Path("generated/ci/semantic-benchmark-result.json")
     )
     parser.add_argument(
+        "--result-schema",
+        type=Path,
+        default=Path("benchmarks/semantic/result-schema-v1.json"),
+    )
+    parser.add_argument(
         "--live",
         action="store_true",
         help="Explicitly allow provider-backed execution; absent means offline fixtures only.",
@@ -72,7 +77,7 @@ def main() -> int:
             provider=args.provider,
             invoke=invoker,
         )
-        write_result(result, args.out)
+        write_result(result, args.out, result_schema_path=args.result_schema)
     except Exception as exc:
         from dspx.provider_runtime import sanitize_text
 

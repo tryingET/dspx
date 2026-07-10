@@ -46,7 +46,7 @@ def test_offline_corpus_is_deterministic_and_passes_thresholds(tmp_path: Path) -
     Draft202012Validator(schema).validate(first)
 
     out = tmp_path / "nested" / "result.json"
-    write_result(first, out)
+    write_result(first, out, result_schema_path=_RESULT_SCHEMA)
     assert json.loads(out.read_text(encoding="utf-8")) == first
 
 
@@ -107,3 +107,45 @@ def test_corpus_validation_fails_closed(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="duplicate case id"):
         load_semantic_corpus(path)
+
+
+@pytest.mark.parametrize(
+    ("patch", "message"),
+    [
+        ({"name": ""}, "name"),
+        ({"version": 0}, "version"),
+        ({"extra": True}, "unknown fields"),
+        (
+            {
+                "thresholds": {
+                    "min_overall_score": 0.9,
+                    "min_case_score": 0.75,
+                    "max_failed_cases": 0,
+                    "extension": 1,
+                }
+            },
+            "thresholds must contain exactly",
+        ),
+    ],
+)
+def test_corpus_metadata_and_threshold_shape_fail_closed(
+    tmp_path: Path, patch: dict[str, object], message: str
+) -> None:
+    corpus = load_semantic_corpus(_CORPUS)
+    corpus.update(patch)
+    path = tmp_path / "invalid-metadata.json"
+    path.write_text(json.dumps(corpus), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message):
+        load_semantic_corpus(path)
+
+
+def test_write_result_revalidates_schema_before_mutation(tmp_path: Path) -> None:
+    result = run_semantic_benchmark(load_semantic_corpus(_CORPUS))
+    result["thresholds"]["extension"] = 1
+    out = tmp_path / "result.json"
+
+    with pytest.raises(Exception):
+        write_result(result, out, result_schema_path=_RESULT_SCHEMA)
+
+    assert not out.exists()

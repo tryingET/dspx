@@ -18,14 +18,17 @@ RUN_IDENTITY_VERSION = "v1"
 EXECUTION_REPLAY_POLICY_VERSION = "local-execution-replay-v1"
 
 _EXECUTION_REPLAY_EFFECTS = {
-    "network": False,
+    "network_access_requested": False,
+    "network_isolation_enforced": False,
     "provider_call": False,
     "mlflow": False,
     "subprocess": True,
     "temporary_filesystem": True,
+    "external_filesystem_access_requested": False,
+    "external_filesystem_isolation_enforced": False,
     "source_artifact_write": False,
     "shared_oracle": False,
-    "external_authority_mutated": False,
+    "external_authority_mutation_requested": False,
     "explicit_replay_output_write": True,
 }
 _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS = {
@@ -334,28 +337,12 @@ def canonical_replay_identity_hash(value: Any) -> str:
 
 
 def current_execution_replay_runtime_identity() -> dict[str, Any]:
-    """Cwd-independent identity of the Python and replay implementation."""
-    static_context = _get_static_execution_context()
-    package_root = Path(__file__).resolve().parent
-    implementation_files = (
-        package_root / "run_receipts.py",
-        package_root / "services" / "run_replay_service.py",
-    )
-    implementation_hashes = {
-        path.relative_to(package_root).as_posix(): hashlib.sha256(
-            path.read_bytes()
-        ).hexdigest()
-        for path in implementation_files
+    """Stable compatibility identity for the versioned local replay executor."""
+    return {
+        "executor_version": EXECUTION_REPLAY_POLICY_VERSION,
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "platform": sys.platform,
     }
-    runtime_identity = {
-        key: static_context[key]
-        for key in ("python_version", "platform")
-        if key in static_context
-    }
-    runtime_identity["implementation_hash"] = canonical_replay_identity_hash(
-        implementation_hashes
-    )
-    return runtime_identity
 
 
 def build_execution_replay_policy(
@@ -390,6 +377,10 @@ def build_execution_replay_policy(
         or set(options) - _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS
     ):
         unsupported_reasons.append("unsupported_options")
+    if os.name != "posix" or not all(
+        hasattr(os, name) for name in ("O_DIRECTORY", "O_NOFOLLOW")
+    ):
+        unsupported_reasons.append("secure_output_creation_unavailable")
 
     supported = not unsupported_reasons
     return {

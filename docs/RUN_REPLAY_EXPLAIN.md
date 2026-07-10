@@ -137,10 +137,7 @@ receipt-local `--to` path. Temporary artifacts are removed. The report has
 `status: executed` and an `execution-replay-evidence-v1` object with bound
 input/provider/runtime/output hashes and hashed subprocess diagnostics.
 
-The v1 strategy is `signature-gen-local-reexecution`. Declared effects permit only
-the bounded subprocess, temporary filesystem, and explicit replay output write;
-network, provider calls, MLflow, source writes, shared Oracle, and external-authority
-mutation remain false. Execution replay fails closed when:
+The v1 strategy is `signature-gen-local-reexecution`. The child uses isolated Python startup (`-I`) and a small allowlisted environment; inherited Python/loader injection variables are removed. The executor requests only the subprocess, temporary filesystem, and explicit replay output write. It does not request network, provider, MLflow, source-write, shared-Oracle, or external-authority effects. This is not an OS network/filesystem sandbox, so the receipt truthfully records that network and external-filesystem isolation are not enforced. Receipt compatibility binds to the versioned executor policy, Python major/minor, and platform rather than source-file bytes or Python patch versions. Execution replay fails closed when:
 
 - the receipt/output/cache check detects any drift;
 - the run kind, provider, template, or options have no deterministic executor;
@@ -148,7 +145,8 @@ mutation remain false. Execution replay fails closed when:
 - input, provider, runtime, output, child receipt, or child output identity drifts;
 - the sandbox emits any undeclared file;
 - `--to` escapes the receipt directory, names a receipt/source/cache file, or
-  already exists.
+  already exists; publication traverses receipt-local directories with no-follow
+  file descriptors and creates the final file exclusively.
 
 Check-only remains the default and does not require execution replay support, so
 all existing supported receipt kinds retain their non-mutating verification path.

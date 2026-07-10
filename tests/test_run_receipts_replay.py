@@ -899,11 +899,15 @@ def test_run_execution_replay_materializes_verified_signature_with_evidence(
     assert payload["status"] == "executed"
     assert payload["execution"]["strategy"] == "signature-gen-local-reexecution"
     assert payload["execution"]["provider"] == "stub"
-    assert payload["execution"]["effects"]["network"] is False
+    assert payload["execution"]["effects"]["network_access_requested"] is False
+    assert payload["execution"]["effects"]["network_isolation_enforced"] is False
     assert payload["execution"]["effects"]["provider_call"] is False
     assert payload["execution"]["effects"]["subprocess"] is True
     assert payload["execution"]["effects"]["shared_oracle"] is False
-    assert payload["execution"]["effects"]["external_authority_mutated"] is False
+    assert (
+        payload["execution"]["effects"]["external_authority_mutation_requested"]
+        is False
+    )
     assert payload["execution"]["actual_hash"] == payload["receipt_hash"]
     assert payload["checks"]["execution_replay_reexecuted_output_hash_match"] is True
     assert payload["checks"]["execution_replay_source_output_preserved"] is True
@@ -1002,7 +1006,7 @@ def test_run_execution_replay_fails_closed_on_effect_policy_drift(
         tmp_path, monkeypatch, output_name="effects-source.py"
     )
     receipt = json.loads(meta_path.read_text(encoding="utf-8"))
-    receipt["execution_replay"]["effects"]["network"] = True
+    receipt["execution_replay"]["effects"]["network_access_requested"] = True
     meta_path.write_text(json.dumps(receipt), encoding="utf-8")
     replay_out = tmp_path / "must-not-exist.py"
 
@@ -1104,6 +1108,68 @@ def test_run_execution_replay_fails_on_bound_runtime_identity_drift(
     assert "execution_replay_identity_drift" in payload["error_codes"]
     assert payload["checks"]["execution_replay_runtime_identity_match"] is False
     assert not replay_out.exists()
+
+
+def test_run_execution_replay_ignores_inherited_pythonpath_startup_hook(
+    tmp_path: Path, monkeypatch
+) -> None:
+    meta_path = _generate_signature_receipt(
+        tmp_path, monkeypatch, output_name="isolated-source.py"
+    )
+    injected = tmp_path / "injected"
+    injected.mkdir()
+    marker = tmp_path / "startup-hook-ran"
+    (injected / "sitecustomize.py").write_text(
+        f"from pathlib import Path\nPath({str(marker)!r}).write_text('ran')\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PYTHONPATH", str(injected))
+
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--no-check-only",
+            "--to",
+            str(tmp_path / "isolated-replay.py"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert not marker.exists()
+
+
+def test_execution_replay_runtime_identity_is_versioned_not_source_bound() -> None:
+    from dspx.run_receipts import current_execution_replay_runtime_identity
+
+    identity = current_execution_replay_runtime_identity()
+    assert identity["executor_version"] == "local-execution-replay-v1"
+    assert identity["python_version"].count(".") == 1
+    assert "implementation_hash" not in identity
+
+
+def test_execution_replay_confined_write_rejects_swapped_parent(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "root"
+    parent = root / "nested"
+    parent.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    saved = root / "saved"
+    parent.rename(saved)
+    parent.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(OSError):
+        replay_service._exclusive_write_confined(
+            root.resolve(), root / "nested" / "replayed.py", b"safe"
+        )
+
+    assert not (outside / "replayed.py").exists()
 
 
 def test_run_execution_replay_requires_explicit_output(tmp_path: Path) -> None:

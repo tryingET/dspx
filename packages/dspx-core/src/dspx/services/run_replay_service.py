@@ -111,14 +111,17 @@ _EXECUTION_REPLAY_KIND = "signature-gen"
 _EXECUTION_REPLAY_PROVIDER = "stub"
 _EXECUTION_REPLAY_STRATEGY = "signature-gen-local-reexecution"
 _EXECUTION_REPLAY_EFFECTS: dict[str, bool] = {
-    "network": False,
+    "network_access_requested": False,
+    "network_isolation_enforced": False,
     "provider_call": False,
     "mlflow": False,
     "subprocess": True,
     "temporary_filesystem": True,
+    "external_filesystem_access_requested": False,
+    "external_filesystem_isolation_enforced": False,
     "source_artifact_write": False,
     "shared_oracle": False,
-    "external_authority_mutated": False,
+    "external_authority_mutation_requested": False,
     "explicit_replay_output_write": True,
 }
 _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS = {
@@ -679,6 +682,42 @@ def _resolve_path(
 
     # Stable fallback for diagnostics: prefer the receipt-relative interpretation.
     return candidates[0]
+
+
+def _exclusive_write_confined(root: Path, target: Path, payload: bytes) -> int:
+    """Create one file through no-follow directory descriptors below ``root``."""
+    if os.name != "posix" or not all(
+        hasattr(os, name) for name in ("O_DIRECTORY", "O_NOFOLLOW")
+    ):
+        raise OSError("secure receipt-local output creation is unavailable")
+    relative = target.relative_to(root)
+    if not relative.parts:
+        raise OSError("refusing to replace replay root")
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    parent_fd = os.dup(root_fd)
+    os.close(root_fd)
+    try:
+        directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        for component in relative.parts[:-1]:
+            next_fd = os.open(component, directory_flags, dir_fd=parent_fd)
+            os.close(parent_fd)
+            parent_fd = next_fd
+        file_fd = os.open(
+            relative.parts[-1],
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
+            dir_fd=parent_fd,
+        )
+        try:
+            with os.fdopen(file_fd, "wb", closefd=False) as fh:
+                fh.write(payload)
+                fh.flush()
+                os.fsync(fh.fileno())
+        finally:
+            os.close(file_fd)
+    finally:
+        os.close(parent_fd)
+    return len(payload)
 
 
 def _sha256_file(path: Path) -> str:
@@ -2189,6 +2228,7 @@ def _signature_execution_replay_argv(
 
     argv = [
         sys.executable,
+        "-I",
         "-m",
         "dspx.cli.dspx",
         "signature",
@@ -2416,12 +2456,9 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
             return report
 
         allowed_environment_keys = {
-            "DYLD_LIBRARY_PATH",
             "LANG",
             "LC_ALL",
-            "LD_LIBRARY_PATH",
             "PATH",
-            "PYTHONPATH",
             "SYSTEMROOT",
             "TMPDIR",
             "VIRTUAL_ENV",
@@ -2488,7 +2525,9 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
             if not (path.startswith(".dspy_cache/") and path.endswith("/cache.db"))
         )
         effects_bounded = required_files <= observed_file_set and not unexpected_files
-        report["checks"]["execution_replay_effects_bounded"] = effects_bounded
+        report["checks"]["execution_replay_temporary_files_as_declared"] = (
+            effects_bounded
+        )
         if not effects_bounded:
             report["status"] = "failed"
             execution["blocked_reason"] = "unexpected_local_effect"
@@ -2497,7 +2536,7 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
                 report,
                 code=_ISSUE_EXECUTION_REPLAY_UNEXPECTED_EFFECT,
                 message="local reexecution produced undeclared filesystem artifacts",
-                check="execution_replay_effects_bounded",
+                check="execution_replay_temporary_files_as_declared",
             )
             return report
         if child_receipt is None or not replayed_output.is_file():
@@ -2561,8 +2600,9 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
 
         payload = replayed_output.read_bytes()
         try:
-            with target.open("xb") as fh:
-                fh.write(payload)
+            bytes_written = _exclusive_write_confined(
+                meta_path.parent.resolve(), target, payload
+            )
         except (FileExistsError, OSError) as exc:
             report["status"] = "failed"
             execution["blocked_reason"] = "exclusive_write_failed"
@@ -2578,24 +2618,17 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
             )
             return report
 
-        published_hash = _sha256_file(target)
         source_hash_after = _sha256_file(source)
-        report["checks"].update(
-            {
-                "execution_replay_published_output_hash_match": published_hash
-                == expected_hash,
-                "execution_replay_source_output_preserved": source_hash_after
-                == source_hash_before,
-            }
+        report["checks"]["execution_replay_source_output_preserved"] = (
+            source_hash_after == source_hash_before
         )
-        if published_hash != expected_hash or source_hash_after != source_hash_before:
-            target.unlink(missing_ok=True)
+        if source_hash_after != source_hash_before:
             report["status"] = "failed"
-            execution["blocked_reason"] = "post_publish_drift"
+            execution["blocked_reason"] = "source_artifact_drift"
             _add_error(
                 report,
                 code=_ISSUE_EXECUTION_REPLAY_WRITE_FAILED,
-                message="post-publish hash/source-preservation check failed; output removed",
+                message="source artifact changed during replay",
             )
             return report
 
@@ -2614,7 +2647,7 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
         "expected_hash": expected_hash,
         "reexecuted_hash": expected_hash,
         "actual_hash": expected_hash,
-        "bytes_written": target.stat().st_size,
+        "bytes_written": bytes_written,
         "effects": dict(_EXECUTION_REPLAY_EFFECTS),
         "evidence": {
             "schema_version": "execution-replay-evidence-v1",
@@ -2626,8 +2659,8 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
             "subprocess_stdout_hash": stdout_hash,
             "subprocess_stderr_hash": stderr_hash,
             "temporary_artifacts_cleaned": True,
-            "shared_oracle_mutated": False,
-            "external_authority_mutated": False,
+            "shared_oracle_mutation_requested": False,
+            "external_authority_mutation_requested": False,
         },
     }
     return report
