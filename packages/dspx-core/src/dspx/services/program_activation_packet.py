@@ -8,6 +8,8 @@ from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import (
     ArtifactEnvelopePolicy,
+    identity_mismatch_keys,
+    identity_missing_keys,
     prepare_sidecar_output_path,
     require_false_envelope_flags,
     sha256_file as _sha256_file,
@@ -229,26 +231,19 @@ def _identity_mismatch(
     candidate_identity: Mapping[str, Any],
     artifact_identity: Mapping[str, Any],
 ) -> list[str]:
-    mismatched: list[str] = []
-    for key, candidate_value in candidate_identity.items():
-        artifact_value = artifact_identity.get(key)
-        if artifact_value in {None, ""} or candidate_value in {None, ""}:
-            continue
-        if str(artifact_value) != str(candidate_value):
-            mismatched.append(key)
-    return mismatched
+    return identity_mismatch_keys(
+        candidate_identity,
+        artifact_identity,
+        require_complete=False,
+        compare_as_text=True,
+    )
 
 
 def _missing_identity_keys(
     candidate_identity: Mapping[str, Any],
     artifact_identity: Mapping[str, Any],
 ) -> list[str]:
-    return [
-        key
-        for key, candidate_value in candidate_identity.items()
-        if candidate_value not in {None, ""}
-        and artifact_identity.get(key) in {None, ""}
-    ]
+    return identity_missing_keys(candidate_identity, artifact_identity)
 
 
 def _validate_artifact_identity(

@@ -7,6 +7,7 @@ from typing import Any, Mapping
 
 from dspx.services.artifact_boundary import (
     ArtifactEnvelopePolicy,
+    identity_matches_exactly,
     prepare_sidecar_output_path,
     require_false_envelope_flags,
     sha256_file as _artifact_sha256_file,
@@ -226,24 +227,7 @@ def _identity_from_manifest(manifest: Mapping[str, Any]) -> dict[str, str | None
 def _identity_exactly_matches(
     actual: Mapping[str, Any], expected: Mapping[str, str | None]
 ) -> bool:
-    if not actual:
-        return False
-    return all(
-        expected_value is None or actual.get(key) == expected_value
-        for key, expected_value in expected.items()
-    )
-
-
-def _identity_mismatch_keys(
-    actual: Mapping[str, Any], expected: Mapping[str, str | None]
-) -> list[str]:
-    return [
-        key
-        for key, expected_value in expected.items()
-        if expected_value is not None
-        and actual.get(key) is not None
-        and actual.get(key) != expected_value
-    ]
+    return identity_matches_exactly(actual, expected)
 
 
 def _identity_role(

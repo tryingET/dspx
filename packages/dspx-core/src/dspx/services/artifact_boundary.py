@@ -60,6 +60,61 @@ def require_false_envelope_flags(
         raise error_type(f"{label} widens {display} flags: " + ", ".join(invalid))
 
 
+def identity_missing_keys(
+    expected: Mapping[str, Any], actual: Mapping[str, Any]
+) -> list[str]:
+    """Return required identity keys omitted by an artifact envelope."""
+
+    return [
+        str(key)
+        for key, expected_value in expected.items()
+        if expected_value is not None
+        and expected_value != ""
+        and (actual.get(key) is None or actual.get(key) == "")
+    ]
+
+
+def identity_mismatch_keys(
+    expected: Mapping[str, Any],
+    actual: Mapping[str, Any],
+    *,
+    require_complete: bool,
+    compare_as_text: bool,
+) -> list[str]:
+    """Return identity keys that drift from the expected artifact identity."""
+
+    mismatched: list[str] = []
+    for key, expected_value in expected.items():
+        if expected_value is None or expected_value == "":
+            continue
+        actual_value = actual.get(key)
+        if actual_value is None or actual_value == "":
+            if require_complete:
+                mismatched.append(str(key))
+            continue
+        values_match = (
+            str(actual_value) == str(expected_value)
+            if compare_as_text
+            else actual_value == expected_value
+        )
+        if not values_match:
+            mismatched.append(str(key))
+    return mismatched
+
+
+def identity_matches_exactly(
+    actual: Mapping[str, Any], expected: Mapping[str, Any]
+) -> bool:
+    """Return whether all populated expected identity fields match exactly."""
+
+    return bool(actual) and not identity_mismatch_keys(
+        expected,
+        actual,
+        require_complete=True,
+        compare_as_text=False,
+    )
+
+
 def validate_artifact_envelope(
     payload: Mapping[str, Any],
     *,

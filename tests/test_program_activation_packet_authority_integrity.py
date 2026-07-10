@@ -9,6 +9,9 @@ import pytest
 from dspx.cli.dspx import app
 from dspx.services.artifact_boundary import (
     ArtifactEnvelopePolicy,
+    identity_matches_exactly,
+    identity_mismatch_keys,
+    identity_missing_keys,
     validate_artifact_envelope,
     validate_confined_artifact,
 )
@@ -51,6 +54,23 @@ def test_artifact_envelope_kernel_fails_closed_on_schema_authority_and_effect() 
     for payload, message in adversarial:
         with pytest.raises(ValueError, match=message):
             validate_artifact_envelope(payload, label="test envelope", policy=policy)
+
+
+def test_artifact_envelope_identity_kernel_fails_closed_on_missing_or_drifted_keys() -> (
+    None
+):
+    expected = {"request_id": "request-1", "candidate_id": "candidate-1"}
+    assert identity_matches_exactly(dict(expected), expected)
+    assert not identity_matches_exactly({"request_id": "request-1"}, expected)
+    assert identity_missing_keys(expected, {"request_id": "request-1"}) == [
+        "candidate_id"
+    ]
+    assert identity_mismatch_keys(
+        expected,
+        {"request_id": "request-1", "candidate_id": "candidate-2"},
+        require_complete=False,
+        compare_as_text=True,
+    ) == ["candidate_id"]
 
 
 def test_confined_artifact_kernel_rejects_stale_hash_and_symlink_escape(
