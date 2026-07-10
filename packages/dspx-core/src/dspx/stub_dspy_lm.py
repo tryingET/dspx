@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import os
 from typing import Any, Dict, Iterable, List, Optional
 
 try:
@@ -72,6 +74,17 @@ class DSpyStubLM(DSPyBaseLM, LMBase):
     def _make_text(
         prompt: Optional[str], messages: Optional[Iterable[Dict[str, Any]]]
     ) -> str:
+        fixture_json = os.getenv("DSPX_STUB_RESPONSE_JSON")
+        if fixture_json is not None:
+            try:
+                fixture = json.loads(fixture_json)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "DSPX_STUB_RESPONSE_JSON must contain valid JSON"
+                ) from exc
+            if not isinstance(fixture, dict):
+                raise ValueError("DSPX_STUB_RESPONSE_JSON must contain a JSON object")
+            return json.dumps(fixture, ensure_ascii=False, sort_keys=True)
         if prompt is not None:
             return f"stub: {prompt}"
         # flatten messages into a single string deterministically

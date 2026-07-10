@@ -1,5 +1,5 @@
 ---
-summary: "DSPx project status snapshot."
+summary: "DSPx shipped product posture and current evidence frontier."
 read_when:
   - "You need the current project status summary."
   - "You are checking high-level completion or remaining work."
@@ -8,109 +8,29 @@ type: "reference"
 
 # Project Status
 
-Current working branch: `main`.
-Working tree state: clean (commits ready for push).
+DSPx is a local-first behavioral-intelligence toolkit for generated DSPy programs. Active task, decision, direction, and evidence authority lives in AK; this file is a maintained runtime projection, not a task log.
 
-## Snapshot
+## Shipped truth
 
-- Monorepo split is active and enforced.
-  - Core package: `packages/dspx-core/src/dspx`
-  - Forge app package: `apps/forge/src/dspx_forge`
-- Root `pyproject.toml` is workspace-only:
-  - `[tool.uv.workspace] members = ["packages/dspx-core", "apps/forge"]`
-- Boundary rule is active and tested:
-  - allowed: `apps/* -> core`
-  - forbidden: `core -> apps/*` (no `dspx_forge.*` imports from core)
-- CI/release are package-aware and split (`core`, `forge`, compat matrix).
-- Latest branch commits:
-  - `9aead35` (`📝 docs(roadmap): mark implementation review as complete`)
-  - `ac571b5` (`✅ test(multi-provider): add capability aggregation tests`)
-  - `5824660` (`🐛 fix(cli): validate template-config file exists before adapter check`)
-  - `5419957` (`🐛 fix(capabilities): freeze ProviderCapabilities and fix aggregation bugs`)
-  - `7eed65a` (`📝 docs(status): mark CLI fast-fail as complete`)
+- The Python 3.13 `uv` monorepo enforces `apps/* -> packages/dspx-core` dependency direction.
+- Signature/module generation, provider runtimes, receipts, replay, Oracle indexing/interpretation, and generated-program evidence surfaces are implemented.
+- `program-gen` materializes bounded candidate assemblies with distinct materialization, binding, behavior, receipt, and non-authority evidence.
+- `program-loop` composes generation, receipt replay, candidate-local Oracle evidence/reporting, and candidate-state output. Its product status is behavior-first: failed/error/degraded behavior cannot report `ok` or exit zero, while successful materialization and replay remain separately visible and all evidence remains inspectable.
+- Generated-program review, jury, refinement, comparison, planning, and activation-packet surfaces remain local evidence/advisory seams. They do not activate production, mutate AK/governance, or acquire promotion authority.
+- Default smoke and program-loop paths are offline/stub-capable and service-free. Shared Oracle publication is explicit opt-in.
 
-## Completed now (branch state)
+## Current frontier
 
-- System4D workflow kit is in place and exercised:
-  - intake + kickoff prompt plumbing
-  - extension router + fixtures
-  - run artifacts authored through Stage 0..90 for:
-    - `docs/subagent-runs/20260208-run-stage-0-intake-interview-for/`
-- Canonical DB handling for workflow run was enforced and unblocked:
-  - canonical DB remains `mlflow.db`
-  - local `mlflow.db` materialized via CLI-generated runs
-- Wave-1 DSPx observability implementation landed in working tree:
-  - correlation tags in MLflow run tagging (`dspx.run_kind`, `dspx.template_version`, `dspx.output_basename`, `dspx.cache_key`, `dspx.output_hash_prefix`)
-  - additive receipt hint helper (`mlflow_hints`) and receipt-writer integration
-  - explain diagnostics hardening (`mlflow_context.lookup_mode`, `degrade_reason_codes`, `reason_code_version`)
-  - explicit remote lookup flag on explain:
-    - `dspx run explain --mlflow-remote-lookup`
-  - remote lookup now enforces bounded MLflow HTTP request/retry behavior (timeout budget applied, retries forced to `0`) to avoid long hangs on unreachable remote URIs
-- Replay/explain remains local-first and deterministic by default.
+The central gap is no longer basic artifact materialization. It is broader, provider-backed semantic proof: richer executable topology and adapter coverage, stronger benchmark slices, iterative optimization grounded in observed behavior, and clearer operator comparison/review flows. Unsafe tools, external retrievers, custom imports, and authority apply remain blocked until their own bounded contracts exist.
 
-## Current runtime / packaging behavior
+## Validation posture
 
-- Workspace/package flow:
-  - install/sync: `uv sync`
-  - core CLI: `just dspx ...`
-  - forge CLI: `just forge ...`
-- Monorepo boundary enforcement:
-  - `just monorepo-check`
-- Commit validation tiers:
-  - hook install: `just hooks-install`
-  - pre-commit (fast): ruff format/check + whitespace (staged files)
-  - pre-push (full): `just monorepo-check && just typecheck && just test`
-  - explicit batch gate: `just verify-full` (run once before push)
-- MLflow runtime policy:
-  - `MLFLOW_ENABLE=1` + unset URI => local `sqlite:///mlflow.db`
-  - explicit run start semantics still apply (no implicit run creation on bootstrap)
-- Explain behavior:
-  - default: local-first explain, optional local MLflow enrichment with `--with-mlflow`
-  - remote URI mode: safe default-off remote lookup
-  - opt-in bounded remote candidate search with `--mlflow-remote-lookup`
-- Receipt contract:
-  - centralized helper module: `dspx.run_receipts`
-  - v1 receipts emitted for signature gen/refine, module-gen, codegen
-  - additive `mlflow_hints` now emitted by those writers
+Use the repo `Justfile`: `just check` for landing readiness, `just verify-impact` for bounded changed-file validation, and `just verify-full` when impact is wide or before release. `just smoke-base` is the offline deterministic semantic-control proof for workflow/status plumbing; it does not claim live-model quality. Generated/server artifact roots are non-authoritative local storage; inspect retention candidates with `just artifact-cleanup`, then apply only with the unchanged dry-run plan id and exact-root confirmation.
 
-## Latest validation snapshot
+## Canonical orientation
 
-Executed on current working tree:
-- `uv run -m pytest -q tests` ✅ passing (`345 passed, 7 skipped`)
-  - prior hotspot resolved: `tests/test_run_receipts.py::test_run_explain_remote_lookup_flag_graceful` now completes (~3s), no hang
-- `pre-commit run --all-files` ✅ passing
-- `just verify-full` ✅ passing
-
-## Known gaps and immediate risks
-
-- Work is not committed yet; reviewable but broad working-tree delta remains.
-- Wave-1 is implemented in-tree but still needs clean commit slicing and upstream handoff progression.
-- Remote MLflow lookup is intentionally bounded/heuristic; not a full remote artifact-verification pipeline.
-- Replay strictness policy (`warn` vs stricter enforcement modes) still needs explicit governance closure.
-- Upstream execution (MLflow + DSPy umbrella issues/PR sequencing) remains next major milestone.
-- **Template Adapter Integration:** Architecture critique complete (`docs/TEMPLATE_ADAPTER_CRITIQUE.md`). 6 upstream issues filed (https://github.com/MaximeRivest/dspy-template-adapter/issues/1-6). DSPx-side work: capabilities infrastructure DONE (`11dd6ee`), CLI fast-fail DONE (`a191016`), implementation review DONE (`ac571b5`), TemplateAdapterConfig DTO DONE (`220e0ae` with 21 tests), YAML schema validation DONE (`f4e1408` with 14 tests), --dry-run flag DONE (`aca0912` with 3 tests). **All DSPx-side prerequisites complete.** Implementation blocked until upstream fixes for XML parser (#1), JSON markdown (#2), partial demos (#6).
-
-## Next direction
-
-- **Behavioral Oracle Phase B COMPLETE:** Territory mapping, contracts, frontiers, and attractors now implemented. 47 Phase B tests + integration tests.
-- **Tech debt addressed:** Long CLI command functions refactored into focused action handlers (~60% reduction in individual function size for contract/frontiers/attractors commands).
-- **Oracle Phase C (Time Travel):** Next milestone—behavioral git for branching, diffing, and bisecting across behavioral history.
-- Builds entirely on existing receipts/cache/MLflow infrastructure—no external dependencies on upstream fixes.
-
-## Canonical docs
-
-- `README.md`
-- `docs/MONOREPO_TRANSITION.md`
-- `docs/MLFLOW_OBSERVABILITY_PLAN.md`
-- `docs/RUN_REPLAY_EXPLAIN.md`
-- `docs/SUBAGENT_WORKFLOW.md`
-- `PROJECT_STATUS.md`
-- `docs/project/vision.md`
+- `docs/system4d/compass.md`
+- `docs/ARCHITECTURE.md`
 - `docs/project/product-posture.md`
-- AK direction/task/decision runtime where landed
-
-## Recommended posture
-
-- Keep boundary guardrail strict and continuously tested.
-- Keep replay/explain local-first by default; remote behavior explicit opt-in.
-- Keep docs synchronized with actual CLI/runtime behavior after each scoped change.
+- `docs/project/developer_workflow.md`
+- AK direction/task/decision/evidence runtime

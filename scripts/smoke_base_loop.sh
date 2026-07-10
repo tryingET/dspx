@@ -46,10 +46,21 @@ uv run --package dspx-core -q python -m dspx.cli.dspx module-gen \
 
 cp examples/program_gen/ticket_intent.yaml "$OUT_DIR/intent.yaml"
 
-printf '[smoke-base] program-gen\n'
-uv run --package dspx-core -q python -m dspx.cli.dspx program-gen \
+printf '[smoke-base] program-loop (materialization + behavior truth)\n'
+export DSPX_STUB_RESPONSE_JSON='{"urgency":"high"}'
+uv run --package dspx-core -q python -m dspx.cli.dspx program-loop \
   --intent "$OUT_DIR/intent.yaml" \
-  --outdir "$PROGRAM_DIR"
+  --outdir "$PROGRAM_DIR" \
+  --skip-oracle-index \
+  --json > "$OUT_DIR/program-loop-result.json"
+uv run --package dspx-core -q python - "$OUT_DIR/program-loop-result.json" <<'PY'
+import json
+import sys
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+print(f"[smoke-base] workflow_status={payload['status']}")
+print(f"[smoke-base] materialization_status={payload['steps']['program_gen']['materialization_status']}")
+print(f"[smoke-base] behavior_status={payload['steps']['behavior_evaluation']['status']}")
+PY
 
 printf '[smoke-base] generated eval harnesses\n'
 (
@@ -72,5 +83,6 @@ printf '[smoke-base] signature: %s\n' "$OUT_DIR/ticket_sig.py"
 printf '[smoke-base] module: %s\n' "$OUT_DIR/ticket_module.py"
 printf '[smoke-base] program manifest: %s\n' "$PROGRAM_DIR/manifest.json"
 printf '[smoke-base] program receipt: %s\n' "$PROGRAM_DIR/manifest.json.meta.json"
+printf '[smoke-base] workflow proof: %s\n' "$OUT_DIR/program-loop-result.json"
 printf '[smoke-base] authority export plan: %s\n' "$PROGRAM_DIR/ak-export-plan.json"
 printf '[smoke-base] adapter receipt: %s\n' "$PROGRAM_DIR/ak-export-plan.json.meta.json"

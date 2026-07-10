@@ -11,7 +11,7 @@ type: "implementation-frame"
 
 ## Status
 
-Status: blocker-specific implementation frame. It is subordinate to [[vision]] and [[product-posture]] and must not become a second general product posture file.
+Status: historical implementation frame with a shipped bounded baseline. The original deterministic-scaffold blocker is no longer absolute: bounded pipelines, retrievers, no-tool reasoning modules, behavior orchestration, replay, and capability descriptors have landed. Remaining unsupported capabilities in this document are frontier constraints, not evidence that all program generation is blocked. This frame is subordinate to [[vision]] and [[product-posture]] and must not become a second general product posture file.
 
 DRY ownership:
 

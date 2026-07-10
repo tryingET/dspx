@@ -58,7 +58,17 @@ First local product loop smoke, useful after setup or before demonstrating the b
 just smoke-base       # offline temp-dir signature -> module -> program -> eval -> authority-plan loop
 ```
 
-This uses the stub provider, disables MLflow, writes to a temp directory by default, and does not call AK or mutate external authority. See `docs/project/first-local-loop.md`.
+This uses the stub provider, disables MLflow, writes to a temp directory by default, and does not call AK or mutate external authority. It reports materialization and behavior separately and exits non-zero if generated behavior fails even when receipts/replay succeed. See `docs/project/first-local-loop.md`.
+
+Artifact retention is inspection-first. Generated/server output roots are never cleaned implicitly. Preview aged files below the explicit server root and retain the emitted `plan_id`; apply requires that unchanged plan plus exact-root confirmation:
+
+```bash
+just artifact-cleanup
+just artifact-cleanup generated/server 7 \
+  --apply --plan-id <reviewed-plan-id> --confirm-root generated/server
+```
+
+The cleanup tool rejects filesystem/home/git roots and invalid ages, never follows or deletes symlinks, never deletes directories, confines every candidate to the configured root, and refuses apply if the candidate metadata has changed since the reviewed dry run.
 
 ```bash
 ./scripts/ci/smoke.sh

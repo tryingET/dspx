@@ -9,7 +9,7 @@ read_when:
 
 ## Driver (The Nexus)
 
-**The Oracle.** Behavioral intelligence is the paradigm shift—from reactive debugging to proactive prediction.
+**Behavior-backed product truth.** Receipts prove what ran; executable evaluation determines whether the generated program actually works; Oracle compounds those observations into behavioral intelligence.
 
 ## Outcomes
 
@@ -17,13 +17,13 @@ read_when:
 |-------|---------|--------|
 | A: Calculus | Index, search, drift, cluster | ✅ Complete |
 | B: Topology | Territory, contracts, frontiers, attractors | ✅ Complete |
-| C: Time Travel | Branch, diff, bisect behavioral history | 🟡 Next |
+| C: Time Travel | Branch, diff, bisect behavioral history | 🟡 First receipt-backed CLI slice shipped; operationalization next |
 | D: Dreaming | Simulate futures, synthesize tests | Future |
 | E: Consciousness | Self-aware behavioral health | Future |
 
 ## Current Vector
 
-Receipt v2 fields enable Phase C (causal_chain, parent_run_id, branch, outcome).
+Make every golden path preserve materialization/replay evidence while deriving workflow success and exit semantics from observed behavior. Grow a small executable benchmark corpus before widening topology or optimization so later Oracle/search work learns from semantic outcomes rather than artifact completion.
 
 ## 6-Month Target
 

@@ -75,13 +75,7 @@ Use a generated directory only when you explicitly want the artifacts under the 
 
 3. Copies `examples/program_gen/ticket_intent.yaml` into the output directory. The example intent contains one inline example and an opaque optional external-authority ref.
 
-4. Materializes a program-shaped candidate assembly:
-
-   ```bash
-   uv run --package dspx-core -q python -m dspx.cli.dspx program-gen \
-     --intent "$OUT_DIR/intent.yaml" \
-     --outdir "$OUT_DIR/program"
-   ```
+4. Runs the integrated offline `program-loop --skip-oracle-index --json`, materializing the candidate while asserting behavior-first workflow status. The `program-loop-workflow-v2` summary makes the behavior gate and non-zero failed/degraded exit semantics explicit while retaining `steps.program_gen.status: ok` for materialization compatibility. The smoke scopes `DSPX_STUB_RESPONSE_JSON` to a deterministic `{"urgency":"high"}` semantic control, then prints distinct `workflow_status`, `materialization_status`, and `behavior_status`; failed behavior preserves artifacts but exits non-zero. This proves the contract and harness, not live-model classifier quality.
 
 5. Runs the generated deterministic harnesses from the generated program directory:
 
@@ -176,7 +170,7 @@ The state artifact has `schema_version: program-candidate-state-v1`; it summariz
 
 ## Boundary reminder
 
-This loop proves local materialization and evidence plumbing only.
+This loop proves local materialization, receipt/evidence plumbing, and the executable semantic-control contract that workflow success requires passing aggregate behavior. It does not prove broad real-world model quality.
 
 DSPx core emits portable local evidence and opaque external authority refs. The authority adapter consumes those evidence artifacts to produce a planned sidecar export plan or a stronger local export-preflight packet, and `program-promote status` can summarize all local truth into one state artifact. These surfaces must not call Agent Kernel, mutate task state, invoke an adjudicator, apply/export authority, or turn evidence into authority. Actual external apply remains future work requiring exact AK target-contract binding, external duplicate checks, an apply receipt, and rollback/failure semantics.
 

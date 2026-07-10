@@ -1240,14 +1240,23 @@ def program_loop(
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         steps = payload.get("steps") or {}
+        generation = steps.get("program_gen") or {}
+        behavior = steps.get("behavior_evaluation") or {}
         state = steps.get("candidate_state") or {}
         typer.echo(str(payload.get("workflow_path") or "program_loop.json"))
+        typer.echo(f"workflow_status: {payload.get('status')}")
+        typer.echo(
+            f"materialization_status: {generation.get('materialization_status')}"
+        )
+        typer.echo(f"behavior_status: {behavior.get('status')}")
         typer.echo(f"candidate_state: {state.get('status')}")
         required_next_steps = state.get("required_next_steps") or []
         if required_next_steps:
             typer.echo("next:")
             for item in required_next_steps:
                 typer.echo(f"- {item}")
+    if payload.get("status") != "ok":
+        raise typer.Exit(code=1)
 
 
 @app.command("program-run")

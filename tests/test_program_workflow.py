@@ -62,6 +62,7 @@ def _loop_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", '{"urgency":"high"}')
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
     reset_embedding_engine()
@@ -89,10 +90,14 @@ def test_program_loop_cli_runs_one_intent_to_stateful_oracle_report(
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == "program-loop-workflow-v1"
+    assert payload["schema_version"] == "program-loop-workflow-v2"
     assert payload["status"] == "ok"
     assert payload["candidate"]["manifest_path"] == str(outdir / "manifest.json")
     assert payload["steps"]["program_gen"]["status"] == "ok"
+    assert payload["steps"]["program_gen"]["materialization_status"] == "materialized"
+    assert payload["steps"]["behavior_evaluation"]["status"] == "passed"
+    assert payload["steps"]["behavior_evaluation"]["source_kind"] == "behavior_episode"
+    assert payload["steps"]["behavior_evaluation"]["passed"] is True
     assert payload["steps"]["replay_check"]["status"] == "ok"
     assert payload["steps"]["oracle_index"]["status"] == "ok"
     assert payload["steps"]["oracle_index"]["result"]["indexed"] == 1
@@ -157,6 +162,117 @@ def test_program_loop_cli_runs_one_intent_to_stateful_oracle_report(
     assert stats["by_run_kind"]["program-oracle-evidence"] == 1
 
 
+def test_program_loop_prefers_aggregate_behavior_episode_over_inline_results() -> None:
+    evaluation = program_workflow._workflow_behavior_evaluation(
+        {
+            "created_from": {
+                "behavior_results_path": "/candidate/behavior_results.json",
+                "behavior_episode_path": "/candidate/behavior_episode.json",
+            },
+            "evidence_state": {
+                "behavior": {
+                    "present": True,
+                    "status": "passed",
+                    "sha256": "a" * 64,
+                },
+                "behavior_episode": {
+                    "present": True,
+                    "status": "failed",
+                    "sha256": "b" * 64,
+                },
+            },
+        }
+    )
+
+    assert evaluation["source_kind"] == "behavior_episode"
+    assert evaluation["status"] == "failed"
+    assert evaluation["passed"] is False
+    assert evaluation["path"] == "/candidate/behavior_episode.json"
+
+
+def test_program_loop_behavior_failure_is_nonzero_but_preserves_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+    intent_path.write_text(
+        intent_path.read_text(encoding="utf-8").replace(
+            "urgency: high", "urgency: impossible"
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "behavior_failed"
+    assert payload["steps"]["program_gen"]["status"] == "ok"
+    assert payload["steps"]["program_gen"]["materialization_status"] == "materialized"
+    assert payload["steps"]["replay_check"]["status"] == "ok"
+    assert payload["steps"]["behavior_evaluation"]["status"] == "failed"
+    assert payload["steps"]["behavior_evaluation"]["passed"] is False
+    assert (outdir / "manifest.json").exists()
+    assert (outdir / "behavior_results.json").exists()
+    assert (outdir / "program_loop.json").exists()
+
+
+def test_program_loop_without_behavior_evidence_is_degraded_and_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+    intent_text = intent_path.read_text(encoding="utf-8")
+    intent_path.write_text(intent_text.split("examples:", 1)[0], encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "program-loop",
+            "--intent",
+            str(intent_path),
+            "--outdir",
+            str(outdir),
+            "--skip-oracle-index",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "degraded"
+    assert payload["steps"]["program_gen"]["status"] == "ok"
+    assert payload["steps"]["behavior_evaluation"] == {
+        "path": None,
+        "passed": False,
+        "sha256": None,
+        "source_kind": "none",
+        "status": "not_evaluated",
+        "summary": {
+            "present": False,
+            "sha256": None,
+            "status": "not_evaluated",
+            "status_counts": {},
+        },
+    }
+    assert (outdir / "manifest.json").exists()
+    assert (outdir / "program_loop.json").exists()
+
+
 def test_program_loop_can_skip_oracle_index_and_still_write_candidate_state(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -180,7 +296,7 @@ def test_program_loop_can_skip_oracle_index_and_still_write_candidate_state(
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == "program-loop-workflow-v1"
+    assert payload["schema_version"] == "program-loop-workflow-v2"
     assert payload["status"] == "ok"
     assert payload["steps"]["oracle_index"]["status"] == "skipped"
     assert payload["steps"]["oracle_report"]["status"] == "skipped"

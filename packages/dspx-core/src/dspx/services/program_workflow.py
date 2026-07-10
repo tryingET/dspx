@@ -27,7 +27,7 @@ from dspx.services.program_oracle_report import build_program_oracle_evidence_re
 from dspx.services.program_service import run_generate_from_intent_path
 from dspx.services.run_replay_service import check_run_receipt
 
-PROGRAM_LOOP_SCHEMA = "program-loop-workflow-v1"
+PROGRAM_LOOP_SCHEMA = "program-loop-workflow-v2"
 
 _FORBIDDEN_OUTPUT_NAMES = {
     *PROTECTED_PROGRAM_ARTIFACT_NAMES,
@@ -154,6 +154,48 @@ def _preflight_loop_sidecar_outputs(
                     f"{label} conflicts with sidecar output path already used by {seen_label}: {target} vs {seen_target}"
                 )
         seen[target] = label
+
+
+def _workflow_behavior_evaluation(
+    state_payload: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Project canonical candidate-state behavior into workflow status evidence.
+
+    Candidate state owns current-file/hash validation. The workflow prefers the
+    aggregate behavior episode so dataset-only and multi-source failures cannot be
+    hidden by a missing or passing inline-example result.
+    """
+
+    evidence_state = dict(state_payload.get("evidence_state") or {})
+    behavior_episode = dict(evidence_state.get("behavior_episode") or {})
+    behavior_results = dict(evidence_state.get("behavior") or {})
+    created_from = dict(state_payload.get("created_from") or {})
+    if behavior_episode.get("present") is True:
+        source_kind = "behavior_episode"
+        summary = behavior_episode
+        path = created_from.get("behavior_episode_path")
+    elif behavior_results.get("present") is True:
+        source_kind = "behavior_results"
+        summary = behavior_results
+        path = created_from.get("behavior_results_path")
+    else:
+        source_kind = "none"
+        summary = {
+            "present": False,
+            "status": "not_evaluated",
+            "status_counts": {},
+            "sha256": None,
+        }
+        path = None
+    status = str(summary.get("status") or "unknown")
+    return {
+        "status": status,
+        "passed": status == "passed",
+        "source_kind": source_kind,
+        "path": str(path) if path is not None else None,
+        "sha256": summary.get("sha256"),
+        "summary": summary,
+    }
 
 
 def write_program_loop_result(
@@ -336,6 +378,10 @@ def run_program_loop_from_intent_path(
     )
     state_payload = write_program_candidate_state(state, resolved_state_out)
 
+    behavior_evaluation = _workflow_behavior_evaluation(state_payload)
+    behavior_status = str(behavior_evaluation["status"])
+    behavior_passed = behavior_evaluation["passed"] is True
+
     generated_sidecars = [resolved_state_out]
     if oracle_report is not None:
         generated_sidecars.append(resolved_oracle_report_out)
@@ -348,8 +394,13 @@ def run_program_loop_from_intent_path(
         "schema_version": PROGRAM_LOOP_SCHEMA,
         "status": "ok"
         if replay.get("status") == "ok"
+        and behavior_passed
         and state_payload.get("status")
         and (skip_oracle_index or (oracle_index_result or {}).get("errors") == 0)
+        else "behavior_failed"
+        if behavior_status == "failed"
+        else "behavior_error"
+        if behavior_status == "error"
         else "degraded",
         "intent_path": str(intent_path.expanduser().resolve()),
         "candidate": {
@@ -363,9 +414,11 @@ def run_program_loop_from_intent_path(
         "steps": {
             "program_gen": {
                 "status": "ok",
+                "materialization_status": "materialized",
                 "manifest_path": _safe_rel(manifest_path, root),
                 "generated_file_count": len(artifact.files),
             },
+            "behavior_evaluation": behavior_evaluation,
             "replay_check": {
                 "status": replay.get("status"),
                 "receipt_path": str(receipt_path),

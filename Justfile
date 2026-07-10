@@ -314,6 +314,10 @@ smoke-base out="":
 smoke-program-refinement out="":
   bash scripts/smoke_program_refinement_loop.sh "{{out}}"
 
+# Inspect aged server artifacts by default; pass apply confirmations explicitly as extra args.
+artifact-cleanup root="generated/server" days="7" *args:
+  uv run --no-sync python scripts/cleanup_artifacts.py --root "{{root}}" --older-than-days "{{days}}" {{args}}
+
 # Monorepo boundary guardrail check
 monorepo-check:
   uv run --no-sync -q python scripts/check_monorepo_boundaries.py
