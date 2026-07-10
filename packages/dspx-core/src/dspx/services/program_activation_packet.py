@@ -1,13 +1,18 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import subprocess
 from pathlib import Path
 from typing import Any, Mapping
 
-from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.artifact_boundary import (
+    ArtifactEnvelopePolicy,
+    prepare_sidecar_output_path,
+    require_false_envelope_flags,
+    sha256_file as _sha256_file,
+    validate_artifact_envelope,
+)
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_external_authority_export import (
     ProgramExternalAuthorityExportError,
@@ -136,10 +141,6 @@ def _first_text(*values: object) -> str | None:
     return None
 
 
-def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def _identity_from_manifest(manifest: Mapping[str, Any]) -> dict[str, str | None]:
     request = _safe_mapping(manifest.get("request"))
     candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
@@ -203,22 +204,25 @@ def _load_optional_artifact(
         return None, None
     payload = _load_json_object(path, label=label)
     expected_schema = _EXPECTED_SCHEMAS[label]
-    if payload.get("schema_version") != expected_schema:
-        raise ProgramActivationPacketError(
-            f"{label} schema_version must be {expected_schema}"
-        )
+    validate_artifact_envelope(
+        payload,
+        label=label,
+        policy=ArtifactEnvelopePolicy(schema_version=expected_schema),
+        error_type=ProgramActivationPacketError,
+    )
     return payload, _artifact_ref(path, schema_version=expected_schema)
 
 
 def _validate_non_authority_false(
     payload: Mapping[str, Any], *, label: str, keys: tuple[str, ...]
 ) -> None:
-    non_authority = _safe_mapping(payload.get("non_authority"))
-    invalid = [key for key in keys if non_authority.get(key) is not False]
-    if invalid:
-        raise ProgramActivationPacketError(
-            f"{label} widens non-authority flags: " + ", ".join(invalid)
-        )
+    require_false_envelope_flags(
+        payload,
+        section="non_authority",
+        keys=keys,
+        label=label,
+        error_type=ProgramActivationPacketError,
+    )
 
 
 def _identity_mismatch(

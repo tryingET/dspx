@@ -1,11 +1,120 @@
 from __future__ import annotations
 
+import hashlib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Literal, Mapping
 
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 
 PayloadArtifactRootPolicy = Literal["ignore", "forbid", "allow_named"]
+
+
+@dataclass(frozen=True)
+class ArtifactEnvelopePolicy:
+    """Typed policy for the common, authority-safe artifact envelope fields."""
+
+    schema_version: str
+    required_false_authority: tuple[str, ...] = ()
+    required_false_effect: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ConfinedArtifact:
+    """A resolved artifact proven to be confined and hash-current."""
+
+    path: Path
+    sha256: str
+
+
+def sha256_file(path: Path) -> str:
+    """Return the content digest used by DSPx artifact references."""
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def require_artifact_schema(
+    payload: Mapping[str, Any],
+    *,
+    label: str,
+    schema_version: str,
+    error_type: type[ValueError] = ValueError,
+) -> None:
+    if payload.get("schema_version") != schema_version:
+        raise error_type(f"{label} schema_version must be {schema_version}")
+
+
+def require_false_envelope_flags(
+    payload: Mapping[str, Any],
+    *,
+    section: Literal["non_authority", "effect"],
+    keys: Iterable[str],
+    label: str,
+    error_type: type[ValueError] = ValueError,
+) -> None:
+    raw_flags = payload.get(section)
+    flags = raw_flags if isinstance(raw_flags, Mapping) else {}
+    invalid = [key for key in keys if flags.get(key) is not False]
+    if invalid:
+        display = "non-authority" if section == "non_authority" else "effect"
+        raise error_type(f"{label} widens {display} flags: " + ", ".join(invalid))
+
+
+def validate_artifact_envelope(
+    payload: Mapping[str, Any],
+    *,
+    label: str,
+    policy: ArtifactEnvelopePolicy,
+    error_type: type[ValueError] = ValueError,
+) -> None:
+    """Validate schema plus fail-closed authority/effect claims."""
+
+    require_artifact_schema(
+        payload,
+        label=label,
+        schema_version=policy.schema_version,
+        error_type=error_type,
+    )
+    require_false_envelope_flags(
+        payload,
+        section="non_authority",
+        keys=policy.required_false_authority,
+        label=label,
+        error_type=error_type,
+    )
+    require_false_envelope_flags(
+        payload,
+        section="effect",
+        keys=policy.required_false_effect,
+        label=label,
+        error_type=error_type,
+    )
+
+
+def validate_confined_artifact(
+    path: Path,
+    *,
+    root: Path,
+    label: str,
+    expected_sha256: str,
+    expected_name: str | None = None,
+    error_type: type[ValueError] = ValueError,
+    outside_root_message: str = "outside the confined artifact root",
+) -> ConfinedArtifact:
+    """Resolve a path, reject traversal/symlink escape, and verify its digest."""
+
+    resolved = path.expanduser().resolve()
+    confined_root = root.expanduser().resolve()
+    if expected_name is not None and resolved.name != expected_name:
+        raise error_type(f"{label} path must be {expected_name}")
+    if not _is_relative_to(resolved, confined_root):
+        raise error_type(f"{label} path is {outside_root_message}")
+    if not resolved.exists():
+        raise error_type(f"{label} path is missing: {resolved}")
+    digest = sha256_file(resolved)
+    if digest != expected_sha256:
+        raise error_type(f"{label} sha256 does not match current file")
+    return ConfinedArtifact(path=resolved, sha256=digest)
 
 
 def _iter_path_values(value: object) -> Iterable[str]:

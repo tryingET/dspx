@@ -5,7 +5,13 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.artifact_boundary import (
+    ArtifactEnvelopePolicy,
+    prepare_sidecar_output_path,
+    require_false_envelope_flags,
+    sha256_file as _artifact_sha256_file,
+    validate_artifact_envelope,
+)
 from dspx.services.program_external_authority_export import (
     ProgramExternalAuthorityExportError,
     validate_program_external_authority_export_preflight_contract,
@@ -170,7 +176,7 @@ def _first_text(*values: object) -> str | None:
 
 
 def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return _artifact_sha256_file(path)
 
 
 def _sha256_payload(payload: Mapping[str, Any]) -> str:
@@ -256,8 +262,12 @@ def _identity_role(
 
 
 def _assert_schema(payload: Mapping[str, Any], *, label: str, schema: str) -> None:
-    if payload.get("schema_version") != schema:
-        raise ProgramCandidateStateError(f"{label} schema_version must be {schema}")
+    validate_artifact_envelope(
+        payload,
+        label=label,
+        policy=ArtifactEnvelopePolicy(schema_version=schema),
+        error_type=ProgramCandidateStateError,
+    )
 
 
 def _optional_artifact_path(
@@ -413,12 +423,13 @@ def _load_optional_artifact(
 def _validate_non_authority_false(
     payload: Mapping[str, Any], *, label: str, keys: tuple[str, ...]
 ) -> None:
-    non_authority = _safe_mapping(payload.get("non_authority"))
-    invalid = [key for key in keys if non_authority.get(key) is not False]
-    if invalid:
-        raise ProgramCandidateStateError(
-            f"{label} widens non-authority flags: " + ", ".join(invalid)
-        )
+    require_false_envelope_flags(
+        payload,
+        section="non_authority",
+        keys=keys,
+        label=label,
+        error_type=ProgramCandidateStateError,
+    )
 
 
 def _validate_export_preflight_artifact_hashes(

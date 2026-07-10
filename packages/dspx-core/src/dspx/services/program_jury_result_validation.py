@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any, Mapping
+
+from dspx.services.artifact_boundary import (
+    require_artifact_schema,
+    require_false_envelope_flags,
+    validate_confined_artifact,
+)
 
 PROGRAM_JURY_RESULTS_SCHEMA = "program-jury-results-v2"
 ALLOWED_PROGRAM_JURY_RESULT_STATUSES = frozenset(
@@ -69,10 +74,6 @@ def _first_text(*values: object) -> str | None:
     return None
 
 
-def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def _resolve_valid_manifest_refs(
     valid_manifest_refs: Mapping[Path, str],
 ) -> dict[Path, str]:
@@ -109,10 +110,12 @@ def validate_program_jury_results_contract(
     """
 
     prefix = _label_prefix(label)
-    if payload.get("schema_version") != PROGRAM_JURY_RESULTS_SCHEMA:
-        raise error_type(
-            f"{prefix} schema_version must be {PROGRAM_JURY_RESULTS_SCHEMA}"
-        )
+    require_artifact_schema(
+        payload,
+        label=prefix,
+        schema_version=PROGRAM_JURY_RESULTS_SCHEMA,
+        error_type=error_type,
+    )
     if payload.get("status") not in ALLOWED_PROGRAM_JURY_RESULT_STATUSES:
         raise error_type(
             f"{prefix} must have status executed or insufficient_behavior_evidence"
@@ -121,25 +124,20 @@ def validate_program_jury_results_contract(
     effect = _safe_mapping(payload.get("effect"))
     if effect.get("local_jury_evidence_only") is not True:
         raise error_type(f"{prefix} must be local jury evidence only")
-    invalid_effect = [
-        key
-        for key in REQUIRED_FALSE_PROGRAM_JURY_EFFECT_FLAGS
-        if effect.get(key) is not False
-    ]
-    if invalid_effect:
-        raise error_type(f"{prefix} widens effect flags: " + ", ".join(invalid_effect))
-
-    non_authority = _safe_mapping(payload.get("non_authority"))
-    invalid_non_authority = [
-        key
-        for key in REQUIRED_FALSE_PROGRAM_JURY_NON_AUTHORITY_FLAGS
-        if non_authority.get(key) is not False
-    ]
-    if invalid_non_authority:
-        raise error_type(
-            f"{prefix} widens non-authority flags: " + ", ".join(invalid_non_authority)
-        )
-
+    require_false_envelope_flags(
+        payload,
+        section="effect",
+        keys=REQUIRED_FALSE_PROGRAM_JURY_EFFECT_FLAGS,
+        label=prefix,
+        error_type=error_type,
+    )
+    require_false_envelope_flags(
+        payload,
+        section="non_authority",
+        keys=REQUIRED_FALSE_PROGRAM_JURY_NON_AUTHORITY_FLAGS,
+        label=prefix,
+        error_type=error_type,
+    )
     created_from = _safe_mapping(payload.get("created_from"))
     raw_manifest_path = _first_text(created_from.get("manifest_path"))
     manifest_hash = _first_text(created_from.get("manifest_sha256"))
@@ -174,21 +172,15 @@ def validate_program_jury_results_contract(
             raise error_type(
                 f"{prefix} {hash_key} is required when {path_key} is present"
             )
-        path = Path(raw_path).expanduser().resolve()
-        if path.name != expected_name:
-            raise error_type(f"{prefix} {artifact_label} path must be {expected_name}")
-        try:
-            path.relative_to(manifest_root)
-        except ValueError as exc:
-            raise error_type(
-                f"{prefix} {artifact_label} path is {outside_root_message}"
-            ) from exc
-        if not path.exists():
-            raise error_type(f"{prefix} {artifact_label} path is missing: {path}")
-        if _sha256_file(path) != claimed_hash:
-            raise error_type(
-                f"{prefix} {artifact_label} sha256 does not match current file"
-            )
+        validate_confined_artifact(
+            Path(raw_path),
+            root=manifest_root,
+            label=f"{prefix} {artifact_label}",
+            expected_sha256=claimed_hash,
+            expected_name=expected_name,
+            error_type=error_type,
+            outside_root_message=outside_root_message,
+        )
 
     behavior_evidence = _safe_mapping(payload.get("behavior_evidence"))
     if behavior_evidence.get("behavior_results_present") is True:

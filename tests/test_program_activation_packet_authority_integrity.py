@@ -7,6 +7,11 @@ from pathlib import Path
 import pytest
 
 from dspx.cli.dspx import app
+from dspx.services.artifact_boundary import (
+    ArtifactEnvelopePolicy,
+    validate_artifact_envelope,
+    validate_confined_artifact,
+)
 from program_activation_packet_shared import (
     _candidate_identity,
     _materialize_program,
@@ -17,6 +22,74 @@ from program_activation_packet_shared import (
 )
 
 pytestmark = pytest.mark.slow
+
+
+def test_artifact_envelope_kernel_fails_closed_on_schema_authority_and_effect() -> None:
+    policy = ArtifactEnvelopePolicy(
+        schema_version="test-envelope-v1",
+        required_false_authority=("promotion_authority",),
+        required_false_effect=("external_authority_mutated",),
+    )
+    valid = {
+        "schema_version": "test-envelope-v1",
+        "non_authority": {"promotion_authority": False},
+        "effect": {"external_authority_mutated": False},
+    }
+    validate_artifact_envelope(valid, label="test envelope", policy=policy)
+
+    adversarial = (
+        ({**valid, "schema_version": "spoofed-v2"}, "schema_version must be"),
+        (
+            {**valid, "non_authority": {"promotion_authority": True}},
+            "widens non-authority flags",
+        ),
+        (
+            {**valid, "effect": {"external_authority_mutated": None}},
+            "widens effect flags",
+        ),
+    )
+    for payload, message in adversarial:
+        with pytest.raises(ValueError, match=message):
+            validate_artifact_envelope(payload, label="test envelope", policy=policy)
+
+
+def test_confined_artifact_kernel_rejects_stale_hash_and_symlink_escape(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    artifact = root / "evidence.json"
+    artifact.write_text("{}\n", encoding="utf-8")
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    validated = validate_confined_artifact(
+        artifact,
+        root=root,
+        label="evidence",
+        expected_sha256=digest,
+        expected_name="evidence.json",
+    )
+    assert validated.path == artifact.resolve()
+    assert validated.sha256 == digest
+
+    with pytest.raises(ValueError, match="sha256 does not match current file"):
+        validate_confined_artifact(
+            artifact,
+            root=root,
+            label="evidence",
+            expected_sha256="0" * 64,
+        )
+
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}\n", encoding="utf-8")
+    escape = root / "escape.json"
+    escape.symlink_to(outside)
+    with pytest.raises(ValueError, match="outside the confined artifact root"):
+        validate_confined_artifact(
+            escape,
+            root=root,
+            label="evidence",
+            expected_sha256=hashlib.sha256(outside.read_bytes()).hexdigest(),
+        )
 
 
 def _artifact_ref(path: Path, *, schema_version: str) -> dict[str, object]:
