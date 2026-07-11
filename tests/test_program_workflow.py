@@ -367,18 +367,59 @@ def test_program_loop_shared_publication_opt_in_writes_receipt_as_evidence_only(
     assert receipt["effect"]["shared_oracle_mutated"] is True
     assert receipt["effect"]["ak_called"] is False
     state = json.loads(state_path.read_text(encoding="utf-8"))
-    assert state["truth_summary"]["oracle_publication_ref_present"] is True
+    assert state["truth_summary"]["oracle_publication_ref_present"] is False
     assert state["shared_oracle_publication"] == {
         "preflight_present": True,
         "preflight_ready": True,
         "publication_id": receipt["publication_id"],
-        "evidence_ref_present": True,
+        "evidence_ref_present": False,
         "evidence_only": True,
         "activation_authority": False,
         "promotion_authority": False,
     }
     assert state["truth_summary"]["promotion_applied"] is False
     assert state["truth_summary"]["winner_selected"] is False
+
+
+def test_program_loop_validates_candidate_closure_before_shared_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _loop_env(tmp_path, monkeypatch)
+    intent_path = tmp_path / "intent.yaml"
+    outdir = tmp_path / "candidate"
+    _write_intent(intent_path)
+    store = FakeSharedOracleStore()
+    monkeypatch.setenv("DSPX_ORACLE_STORE", "postgres_pgvector")
+    monkeypatch.setenv(
+        "DSPX_ORACLE_DATABASE_URL",
+        "postgresql://dspx_oracle:secret@example.invalid:55432/dspx_oracle",
+    )
+    monkeypatch.setattr(
+        program_workflow,
+        "snapshot_candidate_artifact_closure",
+        lambda _path: (_ for _ in ()).throw(ValueError("stale candidate closure")),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="invalid before shared Oracle publication",
+    ):
+        run_program_loop_from_intent_path(
+            intent_path,
+            outdir=outdir,
+            publish_to_shared="retained",
+            publisher_id="pi-test",
+            publisher_role="operator",
+            publisher_assertion="share synthetic behavior evidence",
+            redaction_status="checked",
+            retention_class="retained_behavior_memory",
+            shared_publication_store=cast(CoordinateStore, store),
+        )
+
+    assert store.records == {}
+    assert not (outdir / "program_oracle_publication_receipt.json").exists()
+    assert not (outdir / "program_candidate_state.json").exists()
 
 
 def test_program_loop_revalidates_shared_publication_receipt_before_summary(
@@ -425,7 +466,12 @@ def test_program_loop_revalidates_shared_publication_receipt_before_summary(
             shared_publication_store=cast(CoordinateStore, store),
         )
 
-    assert not (outdir / "program_candidate_state.json").exists()
+    state_path = outdir / "program_candidate_state.json"
+    assert state_path.exists()
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["shared_oracle_publication"]["preflight_ready"] is True
+    assert state["shared_oracle_publication"]["evidence_ref_present"] is False
+    assert len(store.records) == 1
     assert not (outdir / "program_loop.json").exists()
 
 

@@ -3,10 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from dspx.services import program_evidence_closure as closure_service
 from dspx.services.program_evidence_closure import (
+    snapshot_candidate_artifact_closure,
     collect_candidate_artifact_declarations,
     validate_candidate_artifact_closure,
 )
@@ -55,6 +58,55 @@ def test_candidate_artifact_closure_validates_unknown_local_surface(
 
     assert declarations[0].kind == "future_local_evidence"
     assert validated[0].path == artifact
+
+
+def test_candidate_snapshot_keeps_opened_ancestor_when_path_is_swapped(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate_root = tmp_path / "candidate"
+    nested = candidate_root / "nested"
+    nested.mkdir(parents=True)
+    artifact = nested / "evidence.json"
+    artifact.write_text('{"source":"candidate"}\n', encoding="utf-8")
+    manifest, manifest_path = _manifest(
+        candidate_root,
+        [
+            {
+                "kind": "future_local_evidence",
+                "path": "nested/evidence.json",
+                "content_hash": _sha256(artifact),
+            }
+        ],
+    )
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "evidence.json").write_text('{"source":"outside"}\n', encoding="utf-8")
+    displaced = candidate_root / "nested-original"
+    real_open = closure_service.os.open
+    swapped = False
+
+    def swapping_open(
+        path: Any,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal swapped
+        if path == "evidence.json" and not swapped:
+            swapped = True
+            nested.rename(displaced)
+            nested.symlink_to(outside, target_is_directory=True)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(closure_service.os, "open", swapping_open)
+
+    snapshot = snapshot_candidate_artifact_closure(manifest_path)
+
+    assert snapshot.manifest == manifest
+    assert snapshot.artifacts[0].sha256 == _sha256(displaced / "evidence.json")
+    assert snapshot.artifacts[0].sha256 != _sha256(outside / "evidence.json")
 
 
 @pytest.mark.parametrize("mutation", ["change", "delete"])
@@ -294,6 +346,23 @@ def test_candidate_artifact_closure_rejects_duplicates_escape_and_symlink(
     )
     with pytest.raises(ValueError, match="kind is duplicated"):
         collect_candidate_artifact_declarations(duplicate_kind)
+
+    normalized_alias, manifest_path = _manifest(
+        tmp_path,
+        [
+            {"kind": "plain", "path": artifact.name, "content_hash": digest},
+            {
+                "kind": "dot_alias",
+                "path": f"./{artifact.name}",
+                "content_hash": digest,
+            },
+        ],
+    )
+    with pytest.raises(ValueError, match="duplicated after normalization"):
+        validate_candidate_artifact_closure(
+            normalized_alias,
+            manifest_path=manifest_path,
+        )
 
     outside = tmp_path.parent / "outside-evidence.json"
     outside.write_text("{}\n", encoding="utf-8")

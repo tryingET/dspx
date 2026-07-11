@@ -4,17 +4,22 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateStore, ExecutionEmbedding, reset_embedding_engine
+from dspx.services import (
+    program_candidate_state as program_candidate_state_service,
+)
 from dspx.services import program_evidence_adjudication_validation
 from dspx.services.program_candidate_state import (
+    ProgramCandidateStateCommitIndeterminateError,
     ProgramCandidateStateError,
     build_program_candidate_state,
+    write_program_candidate_state,
 )
 from dspx.services.program_activation_packet import (
     build_generated_program_activation_packet,
@@ -3614,6 +3619,428 @@ def test_program_candidate_state_fails_closed_on_widened_jury_authority(
             jury_results_path=bad_jury_path,
             comparison_path=paths["comparison"],
         )
+
+
+def _materialize_candidate_for_closure_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, name: str = "program"
+) -> Path:
+    _setup_env(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="ClosureStateProgram",
+            objective="Answer a question.",
+            inputs=["question"],
+            outputs=["answer"],
+        ),
+        outdir=tmp_path / name,
+    )
+    return Path(artifact.root_path)
+
+
+def _declare_future_candidate_surface(root: Path) -> Path:
+    artifact = root / "future_evidence.json"
+    _write_json(artifact, {"status": "local_evidence_only"})
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["candidate_assembly"]["surfaces"].append(
+        {
+            "kind": "future_evidence",
+            "path": artifact.name,
+            "content_hash": _sha256(artifact),
+        }
+    )
+    _write_json(manifest_path, manifest)
+    return artifact
+
+
+def test_program_candidate_state_accepts_current_unknown_candidate_surface(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    artifact = _declare_future_candidate_surface(root)
+    before = _file_hashes(root)
+
+    payload = build_program_candidate_state(manifest_path=root / "manifest.json")
+
+    assert payload["schema_version"] == "program-candidate-state-v1"
+    assert artifact.exists()
+    assert _file_hashes(root) == before
+    assert payload["effect"]["promotion_state_changed"] is False
+    assert payload["effect"]["external_authority_mutated"] is False
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "mutated",
+        "deleted",
+        "duplicate_kind",
+        "duplicate_path",
+        "parent_escape",
+        "absolute_escape",
+        "symlink",
+        "non_regular",
+        "unreadable",
+    ],
+)
+def test_program_candidate_state_fails_closed_on_candidate_surface_closure_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    corruption: str,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    artifact = _declare_future_candidate_surface(root)
+    manifest_path = root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    surfaces = manifest["candidate_assembly"]["surfaces"]
+    future = surfaces[-1]
+
+    if corruption == "mutated":
+        _write_json(artifact, {"status": "substituted"})
+    elif corruption == "deleted":
+        artifact.unlink()
+    elif corruption == "duplicate_kind":
+        duplicate = root / "duplicate.json"
+        _write_json(duplicate, {"status": "duplicate"})
+        surfaces.append(
+            {
+                "kind": future["kind"],
+                "path": duplicate.name,
+                "content_hash": _sha256(duplicate),
+            }
+        )
+        _write_json(manifest_path, manifest)
+    elif corruption == "duplicate_path":
+        surfaces.append(
+            {
+                "kind": "future_evidence_alias",
+                "path": future["path"],
+                "content_hash": future["content_hash"],
+            }
+        )
+        _write_json(manifest_path, manifest)
+    elif corruption in {"parent_escape", "absolute_escape"}:
+        outside = tmp_path / "outside.json"
+        _write_json(outside, {"status": "outside"})
+        future["path"] = (
+            "../outside.json" if corruption == "parent_escape" else str(outside)
+        )
+        future["content_hash"] = _sha256(outside)
+        _write_json(manifest_path, manifest)
+    elif corruption == "symlink":
+        target = root / "future-target.json"
+        artifact.rename(target)
+        artifact.symlink_to(target.name)
+    elif corruption == "non_regular":
+        artifact.unlink()
+        artifact.mkdir()
+    elif corruption == "unreadable":
+        artifact.chmod(0)
+
+    out_path = tmp_path / "state.json"
+    try:
+        with pytest.raises(
+            ProgramCandidateStateError,
+            match="candidate artifact closure is invalid",
+        ):
+            build_program_candidate_state(
+                manifest_path=manifest_path,
+                out_path=out_path,
+            )
+    finally:
+        if artifact.exists() and not artifact.is_symlink():
+            artifact.chmod(0o600)
+    assert not out_path.exists()
+
+
+def test_program_candidate_state_rejects_symlinked_candidate_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    alias = tmp_path / "candidate-alias"
+    alias.symlink_to(root, target_is_directory=True)
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="candidate artifact closure is invalid.*root contains a symlink",
+    ):
+        build_program_candidate_state(manifest_path=alias / "manifest.json")
+
+
+def test_program_candidate_state_validates_source_candidate_artifact_closure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = _materialize_candidate_for_closure_state(
+        tmp_path, monkeypatch, name="candidate"
+    )
+    source = _materialize_candidate_for_closure_state(
+        tmp_path, monkeypatch, name="source"
+    )
+    source_artifact = _declare_future_candidate_surface(source)
+    source_artifact.unlink()
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="source candidate artifact closure is invalid.*artifact is missing",
+    ):
+        build_program_candidate_state(
+            manifest_path=candidate / "manifest.json",
+            source_manifest_path=source / "manifest.json",
+        )
+
+
+def test_program_candidate_state_rechecks_snapshot_before_return(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    future = _declare_future_candidate_surface(root)
+    real_loader = program_candidate_state_service.load_program_behavior_results
+
+    def mutating_loader(
+        manifest: Mapping[str, Any], manifest_path: Path
+    ) -> tuple[dict[str, Any] | None, Path | None, str | None]:
+        result = real_loader(manifest, manifest_path)
+        _write_json(future, {"status": "changed_during_state_build"})
+        return result
+
+    monkeypatch.setattr(
+        program_candidate_state_service,
+        "load_program_behavior_results",
+        mutating_loader,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="artifact closure changed during state construction",
+    ):
+        build_program_candidate_state(manifest_path=root / "manifest.json")
+
+
+def test_program_candidate_state_builder_never_claims_unwritten_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    out_path = tmp_path / "not-written.json"
+
+    payload = build_program_candidate_state(
+        manifest_path=root / "manifest.json",
+        out_path=out_path,
+    )
+
+    assert payload["effect"]["local_state_written"] is False
+    assert not out_path.exists()
+
+
+def test_program_candidate_state_atomic_writer_handles_short_writes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    payload = build_program_candidate_state(manifest_path=root / "manifest.json")
+    out_path = tmp_path / "state.json"
+    real_write = program_candidate_state_service.os.write
+
+    def short_write(descriptor: int, content: bytes) -> int:
+        return real_write(descriptor, content[:7])
+
+    monkeypatch.setattr(program_candidate_state_service.os, "write", short_write)
+
+    written = write_program_candidate_state(payload, out_path)
+
+    assert json.loads(out_path.read_text(encoding="utf-8")) == written
+    assert written["effect"]["local_state_written"] is True
+    assert not list(tmp_path.glob(".state.json.*.tmp"))
+
+
+def test_program_candidate_state_atomic_writer_preserves_existing_output_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    payload = build_program_candidate_state(manifest_path=root / "manifest.json")
+    out_path = tmp_path / "state.json"
+    original = '{"status":"previous-valid-state"}\n'
+    out_path.write_text(original, encoding="utf-8")
+    real_write = program_candidate_state_service.os.write
+    calls = 0
+
+    def fail_after_partial_write(descriptor: int, content: bytes) -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return real_write(descriptor, content[: max(1, len(content) // 2)])
+        raise OSError("injected candidate-state write failure")
+
+    monkeypatch.setattr(
+        program_candidate_state_service.os,
+        "write",
+        fail_after_partial_write,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="failed before atomic replacement",
+    ):
+        write_program_candidate_state(payload, out_path)
+
+    assert out_path.read_text(encoding="utf-8") == original
+    assert not list(tmp_path.glob(".state.json.*.tmp"))
+
+
+def test_program_candidate_state_cleanup_does_not_mask_primary_failure_or_leak_fd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    payload = build_program_candidate_state(manifest_path=root / "manifest.json")
+    captured_parent_fd = -1
+    real_open_parent = program_candidate_state_service.open_directory_no_symlinks
+
+    def capturing_open_parent(path: Path, *, create: bool = False) -> int:
+        nonlocal captured_parent_fd
+        captured_parent_fd = real_open_parent(path, create=create)
+        return captured_parent_fd
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            program_candidate_state_service,
+            "open_directory_no_symlinks",
+            capturing_open_parent,
+        )
+        patch.setattr(
+            program_candidate_state_service.os,
+            "write",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                OSError("primary write failure")
+            ),
+        )
+        patch.setattr(
+            program_candidate_state_service.os,
+            "unlink",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("cleanup failure")),
+        )
+        with pytest.raises(
+            ProgramCandidateStateError,
+            match="primary write failure",
+        ):
+            write_program_candidate_state(payload, tmp_path / "state.json")
+
+    assert captured_parent_fd >= 0
+    with pytest.raises(OSError):
+        program_candidate_state_service.os.fstat(captured_parent_fd)
+
+
+def test_program_candidate_state_reports_post_replace_durability_as_indeterminate(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    payload = build_program_candidate_state(manifest_path=root / "manifest.json")
+    out_path = tmp_path / "state.json"
+    out_path.write_text('{"status":"old"}\n', encoding="utf-8")
+    real_fsync = program_candidate_state_service.os.fsync
+    calls = 0
+
+    def fail_directory_fsync(descriptor: int) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            real_fsync(descriptor)
+            return
+        raise OSError("directory fsync failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            program_candidate_state_service.os,
+            "fsync",
+            fail_directory_fsync,
+        )
+        with pytest.raises(
+            ProgramCandidateStateCommitIndeterminateError,
+            match="replacement committed.*durability",
+        ):
+            write_program_candidate_state(payload, out_path)
+
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["effect"]["local_state_written"] is True
+
+
+@pytest.mark.parametrize("symlink_location", ["leaf", "parent"])
+def test_program_candidate_state_writer_rejects_symlinked_output_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    symlink_location: str,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    payload = build_program_candidate_state(manifest_path=root / "manifest.json")
+    real_output_dir = tmp_path / "external"
+    real_output_dir.mkdir()
+    protected_target = real_output_dir / "state.json"
+    original = '{"status":"must-remain-unchanged"}\n'
+    protected_target.write_text(original, encoding="utf-8")
+
+    if symlink_location == "leaf":
+        out_path = tmp_path / "state-link.json"
+        out_path.symlink_to(protected_target)
+    else:
+        alias_dir = tmp_path / "output-alias"
+        alias_dir.symlink_to(real_output_dir, target_is_directory=True)
+        out_path = alias_dir / "state.json"
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="output path must not resolve through symlink components",
+    ):
+        write_program_candidate_state(payload, out_path)
+
+    assert protected_target.read_text(encoding="utf-8") == original
+    assert not list(real_output_dir.glob(".state.json.*.tmp"))
+
+
+def test_program_candidate_state_writer_rejects_ancestor_swap_after_policy_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _materialize_candidate_for_closure_state(tmp_path, monkeypatch)
+    payload = build_program_candidate_state(manifest_path=root / "manifest.json")
+    safe_ancestor = tmp_path / "safe"
+    intended_parent = safe_ancestor / "parent"
+    intended_parent.mkdir(parents=True)
+    displaced = tmp_path / "safe-original"
+    outside = tmp_path / "outside"
+    (outside / "parent").mkdir(parents=True)
+    outside_target = outside / "parent" / "state.json"
+    outside_target.write_text('{"status":"outside"}\n', encoding="utf-8")
+    real_open_parent = program_candidate_state_service.open_directory_no_symlinks
+    swapped = False
+
+    def swapping_open_parent(path: Path, *, create: bool = False) -> int:
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            safe_ancestor.rename(displaced)
+            safe_ancestor.symlink_to(outside, target_is_directory=True)
+        return real_open_parent(path, create=create)
+
+    monkeypatch.setattr(
+        program_candidate_state_service,
+        "open_directory_no_symlinks",
+        swapping_open_parent,
+    )
+
+    with pytest.raises(
+        ProgramCandidateStateError,
+        match="output directory could not be opened safely",
+    ):
+        write_program_candidate_state(payload, intended_parent / "state.json")
+
+    assert outside_target.read_text(encoding="utf-8") == '{"status":"outside"}\n'
+    assert not (displaced / "parent" / "state.json").exists()
 
 
 def test_program_candidate_state_rejects_noncanonical_output_inside_candidate_root(

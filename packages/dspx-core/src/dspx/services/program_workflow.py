@@ -10,6 +10,9 @@ from dspx.services.program_candidate_state import (
     build_program_candidate_state,
     write_program_candidate_state,
 )
+from dspx.services.program_evidence_closure import (
+    snapshot_candidate_artifact_closure,
+)
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication import (
@@ -309,6 +312,7 @@ def run_program_loop_from_intent_path(
 
     publication_preflight_payload: dict[str, Any] | None = None
     publication_receipt_payload: dict[str, Any] | None = None
+    state_payload: dict[str, Any]
     if publish_to_shared is not None:
         publication_preflight = build_program_oracle_publication_preflight(
             manifest_path=manifest_path,
@@ -338,6 +342,27 @@ def run_program_loop_from_intent_path(
             publication_preflight,
             resolved_publication_preflight_out,
         )
+        try:
+            publication_snapshot = snapshot_candidate_artifact_closure(manifest_path)
+        except (OSError, ValueError) as exc:
+            raise ValueError(
+                "candidate artifact closure is invalid before shared Oracle publication"
+            ) from exc
+        validate_program_oracle_publication_preflight_contract(
+            publication_preflight_payload,
+            expected_manifest_path=manifest_path,
+            expected_manifest_hash=publication_snapshot.manifest_sha256,
+            preflight_path=resolved_publication_preflight_out,
+        )
+        state = build_program_candidate_state(
+            manifest_path=manifest_path,
+            out_path=resolved_state_out,
+            oracle_report_path=resolved_oracle_report_out
+            if oracle_report is not None
+            else None,
+            oracle_publication_preflight_path=resolved_publication_preflight_out,
+        )
+        state_payload = write_program_candidate_state(state, resolved_state_out)
         publication_receipt = publish_program_oracle_preflight(
             preflight_path=resolved_publication_preflight_out,
             store=shared_publication_store,
@@ -345,13 +370,6 @@ def run_program_loop_from_intent_path(
         publication_receipt_payload = write_program_oracle_publication_receipt(
             publication_receipt,
             resolved_publication_receipt_out,
-        )
-        manifest_hash = _sha256_file(manifest_path)
-        validate_program_oracle_publication_preflight_contract(
-            publication_preflight_payload,
-            expected_manifest_path=manifest_path,
-            expected_manifest_hash=manifest_hash,
-            preflight_path=resolved_publication_preflight_out,
         )
         preflight_identity = publication_preflight_payload.get("identity")
         validate_program_oracle_publication_receipt_contract(
@@ -362,21 +380,15 @@ def run_program_loop_from_intent_path(
             preflight=publication_preflight_payload,
             preflight_sha256=_sha256_file(resolved_publication_preflight_out),
         )
-
-    state = build_program_candidate_state(
-        manifest_path=manifest_path,
-        out_path=resolved_state_out,
-        oracle_report_path=resolved_oracle_report_out
-        if oracle_report is not None
-        else None,
-        oracle_publication_preflight_path=resolved_publication_preflight_out
-        if publication_preflight_payload is not None
-        else None,
-        oracle_publication_receipt_path=resolved_publication_receipt_out
-        if publication_receipt_payload is not None
-        else None,
-    )
-    state_payload = write_program_candidate_state(state, resolved_state_out)
+    else:
+        state = build_program_candidate_state(
+            manifest_path=manifest_path,
+            out_path=resolved_state_out,
+            oracle_report_path=resolved_oracle_report_out
+            if oracle_report is not None
+            else None,
+        )
+        state_payload = write_program_candidate_state(state, resolved_state_out)
 
     behavior_evaluation = _workflow_behavior_evaluation(state_payload)
     behavior_status = str(behavior_evaluation["status"])

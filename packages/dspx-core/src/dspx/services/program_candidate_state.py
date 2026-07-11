@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import secrets
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -19,6 +21,11 @@ from dspx.services.program_external_authority_export import (
 )
 from dspx.services.program_evidence_adjudication_validation import (
     validate_program_evidence_adjudication_contract,
+)
+from dspx.services.program_evidence_closure import (
+    CandidateArtifactSnapshot,
+    open_directory_no_symlinks,
+    snapshot_candidate_artifact_closure,
 )
 from dspx.services.program_jury_result_validation import (
     PROGRAM_JURY_RESULTS_SCHEMA,
@@ -63,7 +70,6 @@ from dspx.services.program_refinement_gepa_candidate_contracts import (
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
-    load_program_manifest,
     validate_program_refinement_proposal_contract,
 )
 
@@ -115,6 +121,44 @@ _FORBIDDEN_OUTPUT_NAMES = {
 
 class ProgramCandidateStateError(ValueError):
     """Raised when local program candidate state inputs are invalid."""
+
+
+class ProgramCandidateStateCommitIndeterminateError(ProgramCandidateStateError):
+    """Raised after replacement when directory durability cannot be confirmed."""
+
+
+def _require_snapshot_unchanged(
+    original: CandidateArtifactSnapshot,
+    *,
+    label: str,
+) -> None:
+    try:
+        current = snapshot_candidate_artifact_closure(original.manifest_path)
+    except (OSError, ValueError) as exc:
+        raise ProgramCandidateStateError(
+            f"{label} artifact closure changed during state construction: {exc}"
+        ) from exc
+    if current != original:
+        raise ProgramCandidateStateError(
+            f"{label} artifact closure changed during state construction"
+        )
+
+
+def _require_loaded_hash_matches_snapshot(
+    snapshot: CandidateArtifactSnapshot,
+    *,
+    kind: str,
+    loaded_hash: str | None,
+    label: str,
+) -> None:
+    expected = next(
+        (artifact.sha256 for artifact in snapshot.artifacts if artifact.kind == kind),
+        None,
+    )
+    if expected is not None and loaded_hash != expected:
+        raise ProgramCandidateStateError(
+            f"{label} did not load from the validated candidate snapshot"
+        )
 
 
 def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
@@ -269,28 +313,6 @@ def _optional_hash(path: Path | None) -> str | None:
     if path is None or not path.exists():
         return None
     return _sha256_file(path)
-
-
-def _declared_program_surface_hash(
-    manifest: Mapping[str, Any], manifest_path: Path
-) -> str | None:
-    candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
-    program_path: Path | None = None
-    for surface in _safe_list(candidate_assembly.get("surfaces")):
-        if not isinstance(surface, Mapping) or surface.get("kind") != "program":
-            continue
-        raw_path = _first_text(surface.get("path"))
-        if raw_path:
-            program_path = Path(raw_path)
-            break
-    if program_path is None:
-        program_path = Path("program.py")
-    if not program_path.is_absolute():
-        program_path = _manifest_root(manifest_path) / program_path
-    program_path = program_path.expanduser().resolve()
-    if not program_path.exists():
-        return None
-    return _sha256_file(program_path)
 
 
 def _declared_behavior_episode_path(
@@ -1720,9 +1742,25 @@ def build_program_candidate_state(
 ) -> dict[str, Any]:
     """Build one local truth-state artifact from existing program sidecars."""
 
-    manifest_path = manifest_path.expanduser().resolve()
+    manifest_input_path = manifest_path.expanduser()
     try:
-        manifest = load_program_manifest(manifest_path)
+        candidate_snapshot = snapshot_candidate_artifact_closure(manifest_input_path)
+    except (OSError, ValueError) as exc:
+        raise ProgramCandidateStateError(
+            f"candidate artifact closure is invalid: {exc}"
+        ) from exc
+    manifest_path = candidate_snapshot.manifest_path
+    manifest = candidate_snapshot.manifest
+    manifest_hash = candidate_snapshot.manifest_sha256
+    if manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
+        raise ProgramCandidateStateError(
+            "program manifest schema_version must be " + PROGRAM_MANIFEST_SCHEMA
+        )
+    if not any(_identity_from_manifest(manifest).values()):
+        raise ProgramCandidateStateError(
+            "program manifest does not expose request/candidate/assembly/episode/receipt identity"
+        )
+    try:
         behavior, behavior_path, behavior_hash = load_program_behavior_results(
             manifest,
             manifest_path,
@@ -1732,10 +1770,18 @@ def build_program_candidate_state(
         )
     except ProgramRefinementError as exc:
         raise ProgramCandidateStateError(str(exc)) from exc
-    if manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
-        raise ProgramCandidateStateError(
-            "program manifest schema_version must be " + PROGRAM_MANIFEST_SCHEMA
-        )
+    _require_loaded_hash_matches_snapshot(
+        candidate_snapshot,
+        kind="behavior_results",
+        loaded_hash=behavior_hash,
+        label="program behavior results",
+    )
+    _require_loaded_hash_matches_snapshot(
+        candidate_snapshot,
+        kind="behavior_episode",
+        loaded_hash=behavior_episode_hash,
+        label="program behavior episode",
+    )
     candidate_identity = _identity_from_manifest(manifest)
     source_manifest: dict[str, Any] | None = None
     source_identity: dict[str, str | None] | None = None
@@ -1745,10 +1791,30 @@ def build_program_candidate_state(
     source_behavior_hash: str | None = None
     source_behavior_episode_path: Path | None = None
     source_behavior_episode_hash: str | None = None
+    source_snapshot: CandidateArtifactSnapshot | None = None
     if source_manifest_path is not None:
-        source_manifest_resolved = source_manifest_path.expanduser().resolve()
+        source_manifest_input_path = source_manifest_path.expanduser()
         try:
-            source_manifest = load_program_manifest(source_manifest_resolved)
+            source_snapshot = snapshot_candidate_artifact_closure(
+                source_manifest_input_path
+            )
+        except (OSError, ValueError) as exc:
+            raise ProgramCandidateStateError(
+                f"source candidate artifact closure is invalid: {exc}"
+            ) from exc
+        source_manifest_resolved = source_snapshot.manifest_path
+        source_manifest = source_snapshot.manifest
+        source_manifest_hash = source_snapshot.manifest_sha256
+        if source_manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
+            raise ProgramCandidateStateError(
+                "source program manifest schema_version must be "
+                + PROGRAM_MANIFEST_SCHEMA
+            )
+        if not any(_identity_from_manifest(source_manifest).values()):
+            raise ProgramCandidateStateError(
+                "source program manifest does not expose candidate identity"
+            )
+        try:
             _source_behavior, source_behavior_path, source_behavior_hash = (
                 load_program_behavior_results(source_manifest, source_manifest_resolved)
             )
@@ -1761,8 +1827,19 @@ def build_program_candidate_state(
             )
         except ProgramRefinementError as exc:
             raise ProgramCandidateStateError(str(exc)) from exc
+        _require_loaded_hash_matches_snapshot(
+            source_snapshot,
+            kind="behavior_results",
+            loaded_hash=source_behavior_hash,
+            label="source program behavior results",
+        )
+        _require_loaded_hash_matches_snapshot(
+            source_snapshot,
+            kind="behavior_episode",
+            loaded_hash=source_behavior_episode_hash,
+            label="source program behavior episode",
+        )
         source_identity = _identity_from_manifest(source_manifest)
-        source_manifest_hash = _sha256_file(source_manifest_resolved)
 
     oracle_report, oracle_report_file, oracle_report_hash = _load_optional_artifact(
         oracle_report_path,
@@ -1889,11 +1966,24 @@ def build_program_candidate_state(
         )
     )
 
-    manifest_hash = _sha256_file(manifest_path)
-    current_program_hash = _declared_program_surface_hash(manifest, manifest_path)
+    current_program_hash = next(
+        (
+            artifact.sha256
+            for artifact in candidate_snapshot.artifacts
+            if artifact.kind == "program"
+        ),
+        None,
+    )
     source_program_hash = (
-        _declared_program_surface_hash(source_manifest, source_manifest_resolved)
-        if source_manifest is not None and source_manifest_resolved is not None
+        next(
+            (
+                artifact.sha256
+                for artifact in source_snapshot.artifacts
+                if artifact.kind == "program"
+            ),
+            None,
+        )
+        if source_snapshot is not None
         else None
     )
     activation_sidecar_hashes = {
@@ -2273,7 +2363,7 @@ def build_program_candidate_state(
             ),
         },
         "effect": {
-            "local_state_written": out_path is not None,
+            "local_state_written": False,
             "program_files_mutated": False,
             "sidecar_inputs_mutated": False,
             "oracle_index_mutated": False,
@@ -2317,6 +2407,9 @@ def build_program_candidate_state(
             "Future external apply requires an exact AK target contract, duplicate checks, an apply receipt, and rollback/failure semantics.",
         ],
     }
+    _require_snapshot_unchanged(candidate_snapshot, label="candidate")
+    if source_snapshot is not None:
+        _require_snapshot_unchanged(source_snapshot, label="source candidate")
     return payload
 
 
@@ -2324,11 +2417,12 @@ def write_program_candidate_state(
     state: Mapping[str, Any],
     out_path: Path,
 ) -> dict[str, Any]:
-    """Write the local candidate state sidecar."""
+    """Atomically commit one local state packet through a symlink-safe parent FD."""
 
+    lexical_target = Path(os.path.abspath(out_path.expanduser()))
     try:
         target = prepare_sidecar_output_path(
-            out_path,
+            lexical_target,
             payload=state,
             artifact_label="candidate state",
             protected_names=_FORBIDDEN_OUTPUT_NAMES,
@@ -2337,10 +2431,73 @@ def write_program_candidate_state(
         )
     except ValueError as exc:
         raise ProgramCandidateStateError(str(exc)) from exc
-    target.parent.mkdir(parents=True, exist_ok=True)
+    if target != lexical_target:
+        raise ProgramCandidateStateError(
+            "candidate state output path must not resolve through symlink components"
+        )
+    try:
+        parent_fd = open_directory_no_symlinks(target.parent, create=True)
+    except OSError as exc:
+        raise ProgramCandidateStateError(
+            f"candidate state output directory could not be opened safely: {exc}"
+        ) from exc
+
     payload = dict(state)
     effect = _safe_mapping(payload.get("effect"))
     effect["local_state_written"] = True
     payload["effect"] = effect
-    target.write_text(_json_text(payload), encoding="utf-8")
+    content = _json_text(payload).encode("utf-8")
+    temporary_name = f".{target.name}.{secrets.token_hex(12)}.tmp"
+    descriptor = -1
+    replaced = False
+    try:
+        try:
+            descriptor = os.open(
+                temporary_name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+                dir_fd=parent_fd,
+            )
+            offset = 0
+            while offset < len(content):
+                written = os.write(descriptor, content[offset:])
+                if written <= 0:
+                    raise OSError("candidate state write made no progress")
+                offset += written
+            os.fsync(descriptor)
+            os.close(descriptor)
+            descriptor = -1
+            os.replace(
+                temporary_name,
+                target.name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+            )
+            replaced = True
+        except OSError as exc:
+            raise ProgramCandidateStateError(
+                f"candidate state failed before atomic replacement: {exc}"
+            ) from exc
+        try:
+            os.fsync(parent_fd)
+        except OSError as exc:
+            raise ProgramCandidateStateCommitIndeterminateError(
+                "candidate state replacement committed but directory durability "
+                f"could not be confirmed: {exc}"
+            ) from exc
+    finally:
+        if descriptor >= 0:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if not replaced:
+            try:
+                os.unlink(temporary_name, dir_fd=parent_fd)
+            except OSError:
+                pass
+        try:
+            os.close(parent_fd)
+        except OSError:
+            pass
     return payload
