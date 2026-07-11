@@ -1,0 +1,111 @@
+{
+  "schema_version": "dspx-program-semantic-benchmark-corpus-v1",
+  "name": "dspx-generated-program-semantic-corpus",
+  "version": 1,
+  "thresholds": {
+    "min_overall_score": 1.0,
+    "min_case_score": 1.0,
+    "max_failed_cases": 0
+  },
+  "cases": [
+    {
+      "id": "single-module-authority-boundary",
+      "category": "authority",
+      "intent": {
+        "name": "BenchmarkAuthorityProgram",
+        "objective": "Explain the authority consequence of a passing benchmark.",
+        "inputs": ["question"],
+        "outputs": ["answer"],
+        "metric": "exact_match",
+        "constraints": ["Do not claim that benchmark evidence approves promotion or activation."],
+        "examples": [
+          {
+            "inputs": {
+              "question": "Does a passing benchmark activate a generated program?"
+            },
+            "outputs": {
+              "answer": "A passing benchmark is local evidence only; it does not approve promotion or activate the program."
+            }
+          }
+        ]
+      },
+      "response_field": "answer",
+      "offline_stub_response": {
+        "reasoning": "A benchmark result is empirical evidence and does not cross the governance boundary.",
+        "answer": "A passing benchmark is local evidence only; it does not approve promotion or activate the program."
+      },
+      "required_concept_groups": [
+        ["evidence only", "local evidence"],
+        ["does not approve", "not approve"],
+        ["promotion", "promote"],
+        ["activate", "activation"]
+      ],
+      "forbidden_concepts": ["automatically activates", "approval granted"]
+    },
+    {
+      "id": "pipeline-evidence-calibration",
+      "category": "calibration",
+      "intent": {
+        "name": "BenchmarkCalibrationPipeline",
+        "objective": "Analyze observed test evidence and produce a calibrated response.",
+        "inputs": ["observation"],
+        "outputs": ["response"],
+        "metric": "exact_match",
+        "constraints": ["Do not invent a cause that is absent from the observation."],
+        "topology": {
+          "kind": "pipeline",
+          "execution_status": "declared_not_materialized",
+          "modules": [
+            {
+              "id": "classify_evidence",
+              "primitive": "Predict",
+              "signature": {
+                "name": "ClassifyEvidence",
+                "inputs": ["observation"],
+                "outputs": ["route"]
+              },
+              "role": "Classify whether the evidence requires investigation."
+            },
+            {
+              "id": "draft_calibrated_response",
+              "primitive": "ChainOfThought",
+              "signature": {
+                "name": "DraftCalibratedResponse",
+                "inputs": ["observation", "route"],
+                "outputs": ["response"]
+              },
+              "role": "Draft a bounded evidence-calibrated response."
+            }
+          ],
+          "edges": [
+            {"from": "input", "to": "classify_evidence"},
+            {"from": "classify_evidence", "to": "draft_calibrated_response"},
+            {"from": "draft_calibrated_response", "to": "output"}
+          ]
+        },
+        "examples": [
+          {
+            "inputs": {
+              "observation": "One of ten tests failed; no cause has been established."
+            },
+            "outputs": {
+              "response": "One observed failure has an unknown cause and needs investigation."
+            }
+          }
+        ]
+      },
+      "response_field": "response",
+      "offline_stub_response": {
+        "reasoning": "The observation establishes a failure but supplies no causal evidence.",
+        "route": "investigate",
+        "response": "One observed failure has an unknown cause and needs investigation."
+      },
+      "required_concept_groups": [
+        ["one observed failure", "one failure", "one of ten"],
+        ["unknown", "undetermined"],
+        ["investigation", "investigate"]
+      ],
+      "forbidden_concepts": ["definitely caused", "all tests passed"]
+    }
+  ]
+}

@@ -44,6 +44,30 @@ Both modes write `dspx-semantic-benchmark-result-v1` JSON. Its JSON Schema is ch
 
 Raw provider responses are not persisted in the result. Corpus v1 requires overall score `>= 0.90`, every case score `>= 0.75`, and zero failed/error cases. Scoring is deterministic lexical concept-group coverage with fail-closed forbidden claims; it is intentionally inspectable rather than an embedding/model judge.
 
+## Generated-program semantic corpus
+
+The direct-provider corpus above checks provider/scorer semantics. A separate lane proves the product path through actual generated candidate assemblies:
+
+```bash
+# The work root must not already exist; use a fresh root for every run.
+just program-semantic-benchmark \
+  root=/tmp/dspx-program-semantic \
+  out=/tmp/dspx-program-semantic-result.json
+
+# Live execution is separate and explicit.
+just program-semantic-benchmark-live dspy-lm-auth \
+  root=/tmp/dspx-program-semantic-live \
+  out=/tmp/dspx-program-semantic-live-result.json
+```
+
+`benchmarks/semantic/program-corpus-v1.json` includes one single-module assembly and one bounded `Predict` → `ChainOfThought` pipeline. Each case is materialized through `program-loop`; semantic scoring consumes only the current, replay-checked `behavior_results.json` reached through the hash-bound `behavior_episode.json`. It does not call a provider directly from the benchmark scorer.
+
+The aggregate `dspx-program-semantic-benchmark-result-v1` packet records corpus identity, candidate/receipt identities, and current manifest, receipt, workflow, behavior-episode, and behavior-result hashes. Raw generated responses are represented only by SHA-256 in the aggregate. Candidate directories remain available for inspection.
+
+The lane fails closed on stale or substituted evidence, failed/degraded generated behavior, path overlap, symlink corpus input, pre-existing work roots, invalid mode/provider combinations, and widened authority/effect flags. A valid semantic miss or case runtime failure produces benchmark evidence with exit `1`; invalid invocation or contract/runtime setup failure exits `2`. Candidate directories may remain after failure and are evidence for inspection, not a success claim. Delete the fresh work root and aggregate result to roll back local artifacts.
+
+Offline mode uses the stub provider through the generated DSPy program runtime. Live mode uses only the explicitly selected provider, remains non-deterministic, and is never a default CI gate.
+
 ## Authority and artifact boundary
 
-A passing result is local benchmark evidence only. The harness does not approve or activate a program, select or promote a candidate, index Oracle, call AK, mutate governance, or mutate any external authority. It writes only the explicitly requested result file (atomically); deleting that file rolls back its local artifact effect. Any later evidence registration, adjudication, or activation must occur through its owning authorized surface.
+A passing result is local benchmark evidence only. Neither harness approves or activates a program, selects or promotes a candidate, indexes shared Oracle, calls AK, mutates governance, or mutates external authority. The direct-provider harness writes only its atomically replaced result file. The generated-program harness writes a fresh work root containing intents, caches, candidate assemblies, receipts, behavior evidence, and workflow sidecars, plus its atomically replaced aggregate result; remove both the work root and aggregate result to roll back those local artifacts. Any later evidence registration, adjudication, or activation must occur through its owning authorized surface.
