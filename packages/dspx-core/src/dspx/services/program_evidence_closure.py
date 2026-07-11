@@ -75,6 +75,8 @@ def collect_candidate_artifact_declarations(
                 sha256=raw_hash,
             )
         )
+    if not declarations:
+        raise ValueError("candidate manifest has no concrete artifact surfaces")
     return tuple(declarations)
 
 

@@ -12,7 +12,10 @@ from dspx.services.program_evidence_closure import (
 )
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_service import materialize_program_from_intent
-from dspx.services.run_replay_service import check_run_receipt
+from dspx.services.run_replay_service import (
+    _missing_behavior_episode_declarations,
+    check_run_receipt,
+)
 
 
 def _sha256(path: Path) -> str:
@@ -79,6 +82,126 @@ def test_candidate_artifact_closure_rejects_stale_or_missing_surface(
         validate_candidate_artifact_closure(manifest, manifest_path=manifest_path)
 
 
+def test_behavior_episode_declaration_completeness_covers_every_source() -> None:
+    manifest = {
+        "behavior_episode_artifact": {
+            "path": "behavior_episode.json",
+            "content_hash": "a" * 64,
+        },
+        "candidate_assembly": {
+            "surfaces": [
+                {
+                    "kind": "behavior_episode",
+                    "path": "behavior_episode.json",
+                    "content_hash": "a" * 64,
+                }
+            ]
+        },
+        "receipt_bundle": {
+            "evidence": {
+                "behavior_episode_path": "behavior_episode.json",
+                "behavior_episode_hash": "a" * 64,
+                "surface_hashes": {"behavior_episode.json": "a" * 64},
+            }
+        },
+    }
+    receipt = {
+        "run_summary": {
+            "behavior_episode_path": "behavior_episode.json",
+            "behavior_episode_hash": "a" * 64,
+        },
+        "program_behavior_episode_artifact": {
+            "path": "behavior_episode.json",
+            "content_hash": "a" * 64,
+        },
+    }
+    mutations = [
+        lambda m, r: m["behavior_episode_artifact"].pop("content_hash"),
+        lambda m, r: m["candidate_assembly"]["surfaces"][0].pop("content_hash"),
+        lambda m, r: m["receipt_bundle"]["evidence"].pop("behavior_episode_hash"),
+        lambda m, r: m["receipt_bundle"]["evidence"]["surface_hashes"].pop(
+            "behavior_episode.json"
+        ),
+        lambda m, r: r["run_summary"].pop("behavior_episode_hash"),
+        lambda m, r: r["program_behavior_episode_artifact"].pop("content_hash"),
+    ]
+    for mutate in mutations:
+        current_manifest = json.loads(json.dumps(manifest))
+        current_receipt = json.loads(json.dumps(receipt))
+        mutate(current_manifest, current_receipt)
+        assert _missing_behavior_episode_declarations(
+            manifest=current_manifest, receipt=current_receipt
+        )
+
+    assert not _missing_behavior_episode_declarations(
+        manifest={"candidate_assembly": {"surfaces": []}}, receipt={}
+    )
+    sole_indicators = [
+        (
+            {
+                "behavior_episode_artifact": {
+                    "path": "behavior_episode.json",
+                    "content_hash": "a" * 64,
+                },
+                "candidate_assembly": {"surfaces": []},
+            },
+            {},
+        ),
+        (
+            {
+                "candidate_assembly": {
+                    "surfaces": [
+                        {
+                            "kind": "behavior_episode",
+                            "path": "behavior_episode.json",
+                            "content_hash": "a" * 64,
+                        }
+                    ]
+                }
+            },
+            {},
+        ),
+        (
+            {
+                "candidate_assembly": {"surfaces": []},
+                "receipt_bundle": {
+                    "evidence": {
+                        "behavior_episode_path": "behavior_episode.json",
+                        "behavior_episode_hash": "a" * 64,
+                    }
+                },
+            },
+            {},
+        ),
+        (
+            {
+                "candidate_assembly": {"surfaces": []},
+                "receipt_bundle": {
+                    "evidence": {"surface_hashes": {"behavior_episode.json": "a" * 64}}
+                },
+            },
+            {},
+        ),
+        (
+            {"candidate_assembly": {"surfaces": []}},
+            {"run_summary": {"behavior_episode_hash": "a" * 64}},
+        ),
+        (
+            {"candidate_assembly": {"surfaces": []}},
+            {
+                "program_behavior_episode_artifact": {
+                    "path": "behavior_episode.json",
+                    "content_hash": "a" * 64,
+                }
+            },
+        ),
+    ]
+    for sole_manifest, sole_receipt in sole_indicators:
+        assert _missing_behavior_episode_declarations(
+            manifest=sole_manifest, receipt=sole_receipt
+        )
+
+
 def test_program_receipt_fails_after_behavior_episode_mutation_or_deletion(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -105,6 +228,32 @@ def test_program_receipt_fails_after_behavior_episode_mutation_or_deletion(
     receipt = root / "manifest.json.meta.json"
     episode = root / "behavior_episode.json"
     assert check_run_receipt(receipt)["status"] == "ok"
+
+    receipt_payload = json.loads(receipt.read_text(encoding="utf-8"))
+    original_receipt = dict(receipt_payload)
+    receipt_payload["program_behavior_episode_artifact"] = dict(
+        receipt_payload["program_behavior_episode_artifact"]
+    )
+    receipt_payload["program_behavior_episode_artifact"]["content_hash"] = "f" * 64
+    receipt.write_text(json.dumps(receipt_payload), encoding="utf-8")
+    declaration_drift = check_run_receipt(receipt)
+    assert declaration_drift["status"] != "ok"
+    assert (
+        declaration_drift["checks"]["program_behavior_episode_declaration_consistent"]
+        is False
+    )
+    receipt.write_text(json.dumps(original_receipt), encoding="utf-8")
+    assert check_run_receipt(receipt)["status"] == "ok"
+
+    missing_receipt_declaration = json.loads(receipt.read_text(encoding="utf-8"))
+    del missing_receipt_declaration["program_behavior_episode_artifact"]["content_hash"]
+    receipt.write_text(json.dumps(missing_receipt_declaration), encoding="utf-8")
+    incomplete = check_run_receipt(receipt)
+    assert incomplete["status"] != "ok"
+    assert (
+        incomplete["checks"]["program_behavior_episode_declarations_complete"] is False
+    )
+    receipt.write_text(json.dumps(original_receipt), encoding="utf-8")
 
     original = episode.read_text(encoding="utf-8")
     episode.write_text(original + " ", encoding="utf-8")

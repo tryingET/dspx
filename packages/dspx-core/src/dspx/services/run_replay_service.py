@@ -19,7 +19,10 @@ from dspx.run_receipts import (
     load_run_receipt,
 )
 from dspx.services.program_contracts import sanitize_ident
-from dspx.services.program_evidence_closure import validate_candidate_artifact_closure
+from dspx.services.program_evidence_closure import (
+    collect_candidate_artifact_declarations,
+    validate_candidate_artifact_closure,
+)
 from dspx.services.program_runtime_traces import validate_program_runtime_traces
 
 
@@ -920,6 +923,13 @@ def _program_evidence_declarations(
         content_hash=execution_episode_artifact.get("content_hash"),
         source="manifest.execution_episode_artifact",
     )
+    behavior_episode_artifact = _nested_dict(manifest, "behavior_episode_artifact")
+    add(
+        "behavior_episode",
+        path=behavior_episode_artifact.get("path"),
+        content_hash=behavior_episode_artifact.get("content_hash"),
+        source="manifest.behavior_episode_artifact",
+    )
     dataset_manifest_artifact = _nested_dict(manifest, "dataset_manifest_artifact")
     add(
         "dataset_manifest",
@@ -966,17 +976,16 @@ def _program_evidence_declarations(
         source="manifest.execution_episode.oracle_evidence",
     )
 
-    candidate_assembly = _nested_dict(manifest, "candidate_assembly")
-    for raw_surface in _as_list(candidate_assembly.get("surfaces")):
-        if not isinstance(raw_surface, Mapping):
-            continue
-        surface = dict(raw_surface)
-        kind = str(surface.get("kind") or "")
+    try:
+        candidate_declarations = collect_candidate_artifact_declarations(manifest)
+    except ValueError:
+        candidate_declarations = ()
+    for declaration in candidate_declarations:
         add(
-            kind,
-            path=surface.get("path"),
-            content_hash=surface.get("content_hash"),
-            source=f"manifest.candidate_assembly.surfaces.{kind}",
+            declaration.kind,
+            path=declaration.path,
+            content_hash=declaration.sha256,
+            source=("manifest.candidate_assembly.surfaces." + declaration.kind),
         )
 
     contract_verification_artifact = _nested_dict(
@@ -1045,6 +1054,12 @@ def _program_evidence_declarations(
         path="behavior_results.json",
         content_hash=evidence.get("behavior_results_hash"),
         source="manifest.receipt_bundle.evidence.behavior_results_hash",
+    )
+    add(
+        "behavior_episode",
+        path=evidence.get("behavior_episode_path") or "behavior_episode.json",
+        content_hash=evidence.get("behavior_episode_hash"),
+        source="manifest.receipt_bundle.evidence.behavior_episode_hash",
     )
     add(
         "oracle_evidence",
@@ -1137,6 +1152,12 @@ def _program_evidence_declarations(
         path="behavior_results.json",
         content_hash=surface_hashes.get("behavior_results.json"),
         source="manifest.receipt_bundle.evidence.surface_hashes.behavior_results.json",
+    )
+    add(
+        "behavior_episode",
+        path="behavior_episode.json",
+        content_hash=surface_hashes.get("behavior_episode.json"),
+        source="manifest.receipt_bundle.evidence.surface_hashes.behavior_episode.json",
     )
     add(
         "oracle_evidence",
@@ -1235,6 +1256,12 @@ def _program_evidence_declarations(
         source="receipt.run_summary.behavior_results_hash",
     )
     add(
+        "behavior_episode",
+        path=run_summary.get("behavior_episode_path") or "behavior_episode.json",
+        content_hash=run_summary.get("behavior_episode_hash"),
+        source="receipt.run_summary.behavior_episode_hash",
+    )
+    add(
         "oracle_evidence",
         path="oracle_evidence.json",
         content_hash=run_summary.get("oracle_evidence_hash"),
@@ -1272,6 +1299,16 @@ def _program_evidence_declarations(
             ),
         )
 
+    receipt_behavior_episode = _nested_dict(
+        receipt, "program_behavior_episode_artifact"
+    )
+    add(
+        "behavior_episode",
+        path=receipt_behavior_episode.get("path"),
+        content_hash=receipt_behavior_episode.get("content_hash"),
+        source="receipt.program_behavior_episode_artifact",
+    )
+
     grouped: list[dict[str, Any]] = []
     for kind in sorted(declarations_by_kind):
         declarations = declarations_by_kind[kind]
@@ -1284,6 +1321,70 @@ def _program_evidence_declarations(
             }
         )
     return grouped
+
+
+def _missing_behavior_episode_declarations(
+    *, manifest: Mapping[str, Any], receipt: Mapping[str, Any]
+) -> list[str]:
+    artifact = _nested_dict(manifest, "behavior_episode_artifact")
+    surfaces = _as_list(_nested_dict(manifest, "candidate_assembly").get("surfaces"))
+    episode_surfaces = [
+        item
+        for item in surfaces
+        if isinstance(item, Mapping) and item.get("kind") == "behavior_episode"
+    ]
+    evidence = _nested_dict(manifest, "receipt_bundle", "evidence")
+    surface_hashes = _nested_dict(evidence, "surface_hashes")
+    run_summary = _as_dict(receipt.get("run_summary"))
+    receipt_artifact = _nested_dict(receipt, "program_behavior_episode_artifact")
+    episode_expected = bool(
+        artifact
+        or episode_surfaces
+        or evidence.get("behavior_episode_path")
+        or evidence.get("behavior_episode_hash")
+        or surface_hashes.get("behavior_episode.json")
+        or run_summary.get("behavior_episode_path")
+        or run_summary.get("behavior_episode_hash")
+        or receipt_artifact
+    )
+    if not episode_expected:
+        return []
+
+    missing: list[str] = []
+    requirements = {
+        "manifest.behavior_episode_artifact": (
+            artifact.get("path"),
+            artifact.get("content_hash"),
+        ),
+        "manifest.candidate_assembly.surfaces.behavior_episode": (
+            episode_surfaces[0].get("path") if len(episode_surfaces) == 1 else None,
+            episode_surfaces[0].get("content_hash")
+            if len(episode_surfaces) == 1
+            else None,
+        ),
+        "manifest.receipt_bundle.evidence.behavior_episode": (
+            evidence.get("behavior_episode_path"),
+            evidence.get("behavior_episode_hash"),
+        ),
+        "manifest.receipt_bundle.evidence.surface_hashes.behavior_episode.json": (
+            "behavior_episode.json",
+            surface_hashes.get("behavior_episode.json"),
+        ),
+        "receipt.run_summary.behavior_episode": (
+            run_summary.get("behavior_episode_path"),
+            run_summary.get("behavior_episode_hash"),
+        ),
+        "receipt.program_behavior_episode_artifact": (
+            receipt_artifact.get("path"),
+            receipt_artifact.get("content_hash"),
+        ),
+    }
+    for source, (path, content_hash) in requirements.items():
+        if not isinstance(path, str) or not path.strip():
+            missing.append(source + ".path")
+        if not isinstance(content_hash, str) or not content_hash.strip():
+            missing.append(source + ".content_hash")
+    return missing
 
 
 def _check_program_evidence_artifacts(
@@ -1307,6 +1408,22 @@ def _check_program_evidence_artifacts(
             check="program_manifest_json_object",
         )
         return
+
+    episode_declarations_check = "program_behavior_episode_declarations_complete"
+    missing_episode_declarations = _missing_behavior_episode_declarations(
+        manifest=manifest, receipt=receipt
+    )
+    checks[episode_declarations_check] = not missing_episode_declarations
+    if missing_episode_declarations:
+        _add_error(
+            report,
+            code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+            message=(
+                "program behavior episode declarations are incomplete: "
+                + ", ".join(missing_episode_declarations)
+            ),
+            check=episode_declarations_check,
+        )
 
     closure_check = "program_candidate_artifact_closure_valid"
     try:
