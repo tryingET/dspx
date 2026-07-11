@@ -466,6 +466,31 @@ def test_program_semantic_evidence_files_reject_escape_symlink_and_oversize(
         benchmark._read_json_object(huge, label="behavior results")
 
 
+def test_program_semantic_private_json_writer_handles_short_and_zero_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_write = benchmark.os.write
+    calls = 0
+
+    def short_once(descriptor: int, content: bytes) -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return original_write(descriptor, content[: max(1, len(content) // 2)])
+        return original_write(descriptor, content)
+
+    target = tmp_path / "short.json"
+    monkeypatch.setattr(benchmark.os, "write", short_once)
+    benchmark._write_private_json_exclusive(target, {"inputs": {"value": "x" * 100}})
+    assert json.loads(target.read_text()) == {"inputs": {"value": "x" * 100}}
+
+    blocked = tmp_path / "blocked.json"
+    monkeypatch.setattr(benchmark.os, "write", lambda descriptor, content: 0)
+    with pytest.raises(OSError, match="made no progress"):
+        benchmark._write_private_json_exclusive(blocked, {"inputs": {"x": 1}})
+    assert not blocked.exists()
+
+
 def test_program_semantic_benchmark_preflights_output_overlap_symlinks_and_existing_root(
     tmp_path: Path,
 ) -> None:

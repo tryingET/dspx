@@ -19,6 +19,7 @@ from dspx.run_receipts import (
     load_run_receipt,
 )
 from dspx.services.program_contracts import sanitize_ident
+from dspx.services.program_evidence_closure import validate_candidate_artifact_closure
 from dspx.services.program_runtime_traces import validate_program_runtime_traces
 
 
@@ -971,30 +972,6 @@ def _program_evidence_declarations(
             continue
         surface = dict(raw_surface)
         kind = str(surface.get("kind") or "")
-        if kind not in {
-            "module_surfaces",
-            "runtime_outcomes",
-            "runtime_traces",
-            "tool_contracts",
-            "capability_registry",
-            "generated_module_policy",
-            "intent_normalization",
-            "contract_verification",
-            "execution_episode",
-            "behavior_results",
-            "oracle_evidence",
-            "dataset_manifest",
-            "dataset_split_train",
-            "dataset_split_validation",
-            "dataset_split_test",
-            "dataset_split_harness_train",
-            "dataset_split_harness_validation",
-            "dataset_split_harness_test",
-            "dataset_split_behavior_results_train",
-            "dataset_split_behavior_results_validation",
-            "dataset_split_behavior_results_test",
-        }:
-            continue
         add(
             kind,
             path=surface.get("path"),
@@ -1330,6 +1307,25 @@ def _check_program_evidence_artifacts(
             check="program_manifest_json_object",
         )
         return
+
+    closure_check = "program_candidate_artifact_closure_valid"
+    try:
+        closure = validate_candidate_artifact_closure(
+            manifest, manifest_path=output_path
+        )
+        checks[closure_check] = True
+        report["program_candidate_artifact_closure"] = [
+            {"kind": item.kind, "path": str(item.path), "sha256": item.sha256}
+            for item in closure
+        ]
+    except ValueError as exc:
+        checks[closure_check] = False
+        _add_error(
+            report,
+            code=_ISSUE_PROGRAM_EVIDENCE_DECLARATION_MISMATCH,
+            message=str(exc),
+            check=closure_check,
+        )
 
     declarations = _program_evidence_declarations(manifest=manifest, receipt=receipt)
     report["program_evidence_artifacts"] = declarations

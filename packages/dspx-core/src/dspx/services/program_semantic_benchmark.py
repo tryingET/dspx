@@ -15,6 +15,7 @@ from typing import Any, Iterator, Mapping, cast
 from jsonschema import Draft202012Validator
 
 from dspx.provider_runtime import sanitize_text
+from dspx.services.program_evidence_closure import validate_candidate_artifact_closure
 from dspx.services.program_quality_evaluation import (
     evaluate_declared_quality,
     normalize_quality_criteria,
@@ -629,6 +630,8 @@ def _load_case_evidence(
 
 def _candidate_evidence_hashes(root: Path) -> dict[str, str]:
     _preflight_candidate_tree(root)
+    manifest = _read_json_object(root / "manifest.json", label="candidate manifest")
+    validate_candidate_artifact_closure(manifest, manifest_path=root / "manifest.json")
     return {
         name: _read_file_hash(root / name, label=f"candidate {name}")
         for name in (
@@ -649,10 +652,21 @@ def _write_private_json_exclusive(path: Path, payload: Mapping[str, Any]) -> Non
     )
     try:
         content = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
-        os.write(descriptor, content)
+        written = 0
+        while written < len(content):
+            count = os.write(descriptor, content[written:])
+            if count <= 0:
+                raise OSError("private JSON write made no progress")
+            written += count
         os.fsync(descriptor)
-    finally:
+    except Exception:
         os.close(descriptor)
+        descriptor = -1
+        path.unlink(missing_ok=True)
+        raise
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
 
 
 def _run_and_load_runtime_replay(

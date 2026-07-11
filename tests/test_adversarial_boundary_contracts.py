@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 from dspx.cli.dspx import app
 from dspx.services import program_service
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_quality_evaluation import evaluate_declared_quality
 from dspx.services.program_runtime_episode import _generated_program_module
 from dspx.services.program_surfaces import (
     render_direct_run_code,
@@ -520,12 +521,20 @@ def test_generated_eval_behavior_rejects_quality_summary_record_drift(
 ) -> None:
     program_dir = tmp_path / "program-quality-drift"
     program_dir.mkdir()
+    criterion = {
+        "id": "declared",
+        "output_field": "answer",
+        "evaluator": "concept_coverage",
+        "required_concept_groups": [["safe"]],
+        "forbidden_concepts": [],
+        "min_score": 1.0,
+    }
     intent = SimpleNamespace(
         examples=[{"inputs": {"q": "x"}, "outputs": {"answer": "ok"}}],
         examples_path=None,
         dataset=None,
         datasets=None,
-        quality_criteria=[{"id": "declared", "output_field": "answer"}],
+        quality_criteria=[criterion],
     )
     (program_dir / "eval_behavior.py").write_text(
         render_eval_behavior(intent), encoding="utf-8"
@@ -535,14 +544,6 @@ def test_generated_eval_behavior_rejects_quality_summary_record_drift(
         "def end_observability_run(started, status='FINISHED'): pass\n",
         encoding="utf-8",
     )
-    criterion = {
-        "id": "declared",
-        "output_field": "answer",
-        "evaluator": "concept_coverage",
-        "required_concept_groups": [["safe"]],
-        "forbidden_concepts": [],
-        "min_score": 1.0,
-    }
     fake_passed_record = {
         "schema_version": "program-quality-evaluation-v1",
         "status": "passed",
@@ -584,6 +585,69 @@ def test_generated_eval_behavior_rejects_quality_summary_record_drift(
     assert result.returncode != 0
     assert "quality drifts from observed outputs" in result.stderr
     assert not (program_dir / "behavior_episode.json").exists()
+
+
+def test_generated_eval_behavior_rejects_child_criteria_substitution(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "criteria-substitution"
+    root.mkdir()
+    strict = {
+        "id": "strict",
+        "output_field": "answer",
+        "evaluator": "concept_coverage",
+        "required_concept_groups": [["must-appear"]],
+        "forbidden_concepts": [],
+        "min_score": 1.0,
+    }
+    weak = {**strict, "id": "weak", "required_concept_groups": [["safe"]]}
+    intent = SimpleNamespace(
+        examples=[{"inputs": {"q": "x"}, "outputs": {"answer": "x"}}],
+        examples_path=None,
+        dataset=None,
+        datasets=None,
+        quality_criteria=[strict],
+    )
+    (root / "eval_behavior.py").write_text(render_eval_behavior(intent))
+    (root / "program.py").write_text(
+        "def configure_observability(**kw): return False\n"
+        "def end_observability_run(started, status='FINISHED'): pass\n"
+    )
+    record_quality = evaluate_declared_quality([weak], {"answer": "safe"})
+    payload = {
+        "intent": {"quality_criteria": [weak]},
+        "examples": [
+            {
+                "observed_outputs": {"answer": "safe"},
+                "quality_evaluation": record_quality,
+            }
+        ],
+        "summary": {"status": "passed", "total": 1},
+        "quality_evaluation": {
+            "status": "passed",
+            "criteria_declared": True,
+            "evaluations_total": 1,
+            "evaluations_passed": 1,
+            "evaluations_failed": 0,
+            "quality_approved": False,
+        },
+    }
+    (root / "eval_examples.py").write_text(
+        "import json\nfrom pathlib import Path\n"
+        f"Path('behavior_results.json').write_text(json.dumps({payload!r}))\n"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "eval_behavior.py"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "criteria drift from candidate intent" in result.stderr
+    assert not (root / "behavior_episode.json").exists()
 
 
 @pytest.mark.parametrize(

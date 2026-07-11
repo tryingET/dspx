@@ -52,6 +52,14 @@ The generated-program semantic corpus now declares the same intent-native criter
 
 This closes the hidden-success and cross-consumer drift seams for the first inspectable lexical evaluator. The executable v2 corpus now includes the planned mixed-output review-only quality-and-replay ratchet. It does not provide model-judged semantic truth, domain acceptance, general metric execution, candidate ranking, jury/adjudicator authority, promotion, activation, or external apply. Before adding another evaluator, require a distinct product need and declare its per-output comparison policy plus runtime/Oracle/replay status compatibility up front.
 
+## Manifest-bound candidate evidence closure posture — 2026-07-11
+
+DSPx now validates candidate-local evidence as a manifest-bound closure instead of silently filtering candidate surfaces through a hand-maintained kind allowlist. Every concrete `candidate_assembly.surfaces` entry with a path/hash is validated generically for unique kind/path identity, candidate-root confinement, non-symlink traversal, existence, and current SHA-256. `check_run_receipt` and the generated-program semantic benchmark consume the same closure; jury and comparison retain their narrower domain-specific behavior-episode validators to preserve their established semantic failure contracts. Unknown future local surface kinds therefore gain integrity coverage automatically; malformed, duplicate, escaped, missing, or stale surfaces fail closed.
+
+Generated behavior orchestration also binds declared quality to generation-time normalized criteria embedded by the owning generator. A child result cannot substitute weaker copied criteria while keeping internally consistent pass-shaped records and summaries. Benchmark private JSON publication now handles short writes through a progress loop, rejects zero progress, and removes partial files on failure.
+
+Proof exists in `tests/test_program_evidence_closure.py`, adversarial generated-evaluation tests, semantic benchmark writer tests, and the focused receipt/jury/comparison suites. The closure validates local artifact integrity only: it does not grant quality approval, domain acceptance, promotion, activation, governance authority, shared-Oracle mutation, or external apply. The next frontier should route additional candidate-evidence consumers through this shared closure before adding new local artifact families or multi-episode replay.
+
 ## Target-fidelity gate posture — 2026-05-10
 
 The target-protocol fidelity gate is now partly shipped for `program-gen` and the Obsidian/PDF review adapter.
