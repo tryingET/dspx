@@ -1,0 +1,20 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "b6f10a49fcf33e6133f1ea107fc88b4aa8aa5177"
+created_at: "2026-07-11T12:03:08Z"
+intent: "Refresh the program evidence-closure product frontier and validation posture"
+files:
+  - "docs/project/product-posture.md"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "node /home/tryinget/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "The sole docs-only change records the completed evidence-closure frontier."
