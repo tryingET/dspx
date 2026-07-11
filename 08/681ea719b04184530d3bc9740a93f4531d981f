@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "08681ea719b04184530d3bc9740a93f4531d981f"
-created_at: "2026-07-11T15:25:10Z"
+created_at: "2026-07-11T17:53:42Z"
 intent: "Bind candidate-state evidence and publication to descriptor-backed artifact snapshots"
 files:
   - "docs/project/product-posture.md"
@@ -18,8 +18,8 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "LOOP_WIDE_REASON='delegated commit workflow wide validation for candidate snapshot nexus' just loop-impact-wide"
-    status: "fail"
+    command: "detached worktree @ 08681ea719b04184530d3bc9740a93f4531d981f; task-scope-check task_id=3717 mode=head rev_range=08681ea^..08681ea; uv run --no-sync python scripts/ci/verify_changed.py --files docs/project/product-posture.md packages/dspx-core/src/dspx/services/program_candidate_state.py packages/dspx-core/src/dspx/services/program_evidence_closure.py packages/dspx-core/src/dspx/services/program_workflow.py tests/test_program_candidate_state.py tests/test_program_evidence_closure.py tests/test_program_workflow.py --run --allow-wide"
+    status: "pass"
 group:
   index: 1
   total: 1
