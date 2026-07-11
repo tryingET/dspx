@@ -1745,6 +1745,37 @@ def test_refined_review_contract_rejects_symlinked_external_evidence(
         validate_program_promotion_review_refined_contract(packet)
 
 
+@pytest.mark.parametrize("linked_input", ["manifest", "oracle", "proposal"])
+def test_program_promotion_refinement_rejects_symlinked_build_inputs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    linked_input: str,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    paths = {
+        "manifest": program_root / "manifest.json",
+        "oracle": report_path,
+        "proposal": proposal_path,
+    }
+    link = tmp_path / f"{linked_input}-link.json"
+    link.symlink_to(paths[linked_input])
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="symlink|symbolic links",
+    ):
+        build_program_promotion_refinement(
+            manifest_path=link if linked_input == "manifest" else paths["manifest"],
+            oracle_report_path=link if linked_input == "oracle" else paths["oracle"],
+            refinement_proposal_path=link
+            if linked_input == "proposal"
+            else paths["proposal"],
+        )
+
+
 def test_stable_evidence_read_wraps_descriptor_failures(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -1209,9 +1209,11 @@ def load_program_promotion_inputs(
 ) -> dict[str, Any]:
     """Load and validate all existing evidence for local promotion-review refinement."""
 
-    manifest_path = manifest_path.expanduser().resolve()
-    oracle_report_path = oracle_report_path.expanduser().resolve()
-    refinement_proposal_path = refinement_proposal_path.expanduser().resolve()
+    manifest_path = Path(os.path.abspath(manifest_path.expanduser()))
+    oracle_report_path = Path(os.path.abspath(oracle_report_path.expanduser()))
+    refinement_proposal_path = Path(
+        os.path.abspath(refinement_proposal_path.expanduser())
+    )
     candidate_snapshot = _snapshot_candidate_for_promotion_review(manifest_path)
     try:
         manifest = load_program_manifest(manifest_path)
