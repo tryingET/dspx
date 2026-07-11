@@ -1,3 +1,7 @@
+# summary: "Tests isolated runtime episodes for generated programs and their evidence contracts."
+# read_when:
+#   - "Changing program-run execution, runtime validation, input handling, or generated-code safety."
+
 from __future__ import annotations
 
 import hashlib

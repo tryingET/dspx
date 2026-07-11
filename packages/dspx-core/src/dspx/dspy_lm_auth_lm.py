@@ -1,3 +1,7 @@
+# summary: "DSPx provider wrapper for authenticated dspy-lm-auth model routing and response adaptation."
+# read_when:
+#   - "Changing auth-backed LM setup, Codex streaming, health checks, redaction, or DSPy responses."
+
 from __future__ import annotations
 
 import importlib

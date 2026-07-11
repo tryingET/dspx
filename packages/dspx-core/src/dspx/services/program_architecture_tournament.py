@@ -1,3 +1,7 @@
+# summary: "Materializes architecture candidates locally and records replay-backed tournament evidence without selecting a winner."
+# read_when:
+#   - "Changing architecture tournament validation, materialization, replay, or evidence matrices."
+
 from __future__ import annotations
 
 import json

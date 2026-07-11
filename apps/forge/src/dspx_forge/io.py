@@ -1,3 +1,7 @@
+# summary: "Reads and writes Forge JSON and YAML artifacts."
+# read_when:
+#   - "Changing Forge artifact serialization or filesystem output behavior."
+
 from __future__ import annotations
 
 import json

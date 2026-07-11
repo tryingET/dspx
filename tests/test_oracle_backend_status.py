@@ -1,3 +1,7 @@
+# summary: "Tests Oracle backend posture reporting, redaction, and no-effect status checks."
+# read_when:
+#   - "Changing Oracle backend diagnostics or publication configuration reporting."
+
 from __future__ import annotations
 
 import json

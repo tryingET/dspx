@@ -1,3 +1,7 @@
+# summary: "Tests replay detection of drift across generated program evidence and declarations."
+# read_when:
+#   - "Changing run-receipt integrity checks for program surfaces, behavior, Oracle, or episodes."
+
 from __future__ import annotations
 
 import json

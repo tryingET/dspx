@@ -1,3 +1,7 @@
+# summary: "Registers policy-wrapped tools and implements bounded builtin data, web, and repository helpers."
+# read_when:
+#   - "Changing tool registration, OpenAPI tool adapters, capability gates, or builtin helpers."
+
 from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional, Mapping

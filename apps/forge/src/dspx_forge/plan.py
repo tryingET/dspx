@@ -1,3 +1,7 @@
+# summary: "Builds Forge execution plans from capability implementation, configuration, and policy status."
+# read_when:
+#   - "Changing Forge capability checks, reported gaps, plan steps, or plan.json output."
+
 from __future__ import annotations
 
 from pathlib import Path

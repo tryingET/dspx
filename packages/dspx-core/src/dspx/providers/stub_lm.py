@@ -1,3 +1,7 @@
+# summary: "Provides the documented deterministic local stub LM for tests."
+# read_when:
+#   - "Changing the documented stub LM path or deterministic response behavior."
+
 from __future__ import annotations
 
 from ..dtos import LMRequest, LMResponse

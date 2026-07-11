@@ -1,3 +1,7 @@
+# summary: "Explains run receipts from local replay facts with bounded optional MLflow correlation and explicit degradation reasons."
+# read_when:
+#   - "Changing run explanation fields, MLflow lookup/linkage, or degradation reason precedence."
+
 from __future__ import annotations
 
 from contextlib import contextmanager

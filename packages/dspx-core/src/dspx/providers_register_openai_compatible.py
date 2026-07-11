@@ -1,3 +1,7 @@
+# summary: "Registers OpenAI-compatible and local vLLM providers from environment-backed configuration."
+# read_when:
+#   - "Changing OpenAI-compatible or vLLM defaults, strictness, JSON mode, or registry capabilities."
+
 from __future__ import annotations
 
 import os

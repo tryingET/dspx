@@ -1,3 +1,7 @@
+# summary: "Generates code through deterministic templates or configured LMs with caching, receipts, and MLflow logging."
+# read_when:
+#   - "Changing code-generation prompts, template routing, provider budgets, cache identity, receipts, or observability."
+
 from __future__ import annotations
 
 import os

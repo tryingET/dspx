@@ -1,3 +1,6 @@
+# summary: "Builds and validates atomic local refined promotion-review packets over current candidate, Oracle, refinement, jury, and runtime evidence."
+# read_when:
+#   - "Changing refined promotion-review evidence binding, readiness, candidate closure, or atomic sidecar publication."
 from __future__ import annotations
 
 import hashlib

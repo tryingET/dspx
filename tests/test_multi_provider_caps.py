@@ -1,3 +1,7 @@
+# summary: "Tests conservative capability aggregation across MultiProviderLM child providers."
+# read_when:
+#   - "Changing multi-provider capability defaults, aggregation rules, structured output, or immutability."
+
 """Tests for MultiProviderLM capability aggregation."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# summary: "Renders tool descriptors, OpenAPI schemas, and deterministic example values."
+# read_when:
+#   - "Changing CLI tool list/describe output or schema example generation."
+
 from __future__ import annotations
 
 from typing import Dict, Any, List, Mapping

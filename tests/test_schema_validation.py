@@ -1,3 +1,7 @@
+# summary: "Tests YAML schema validation, template-adapter configuration, and structured validation errors."
+# read_when:
+#   - "Changing schema loading, YAML validation, template-adapter config fields, defaults, or validation error formatting."
+
 """Tests for dspx.schema_validation module."""
 
 from pathlib import Path

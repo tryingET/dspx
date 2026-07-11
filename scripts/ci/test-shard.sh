@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Partition offline pytest coverage into deterministic core, Forge, and slow shards."
+# read_when:
+#   - "Changing CI test sharding, marker selection, parallelism, or coverage collection."
+# ---
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"

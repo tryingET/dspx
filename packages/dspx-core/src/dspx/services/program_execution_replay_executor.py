@@ -1,3 +1,7 @@
+# summary: "Executes receipt-bound generated-program runtime replay in an isolated temporary sandbox."
+# read_when:
+#   - "Changing replay subprocess isolation, reproduction checks, or unexpected-effect detection."
+
 from __future__ import annotations
 
 import hashlib

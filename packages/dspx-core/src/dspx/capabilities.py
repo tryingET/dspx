@@ -1,3 +1,7 @@
+# summary: "Defines the immutable capability model shared by DSPx language-model providers."
+# read_when:
+#   - "You are declaring provider features or adding capability-aware behavior."
+
 from __future__ import annotations
 
 from typing import Literal, TypeAlias

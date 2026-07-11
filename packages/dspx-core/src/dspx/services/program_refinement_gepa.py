@@ -1,3 +1,6 @@
+# summary: "Runs a bounded local GEPA refinement attempt and records hash-bound optimizer evidence without claiming a program candidate."
+# read_when:
+#   - "Changing GEPA evidence selection, optimizer inputs, output classification, path isolation, or non-authority posture."
 from __future__ import annotations
 
 import csv

@@ -1,3 +1,7 @@
+# summary: "Provides path confinement, identity matching, URL policy, and bounded response and file reads."
+# read_when:
+#   - "Changing filesystem trust boundaries, artifact identity checks, URL allowlists, or byte-limited reads."
+
 """Path-confinement and error-bearing primitives for dspx.
 
 These utilities enforce that user/receipt/config-supplied paths cannot

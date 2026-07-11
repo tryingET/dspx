@@ -1,3 +1,7 @@
+# summary: "Tests adversarial security, boundary, provenance, and evidence-binding regressions across DSPx and Forge."
+# read_when:
+#   - "Changing secret sanitization, path confinement, provider races, coordinate lookup, OpenAPI boundaries, replay, or program evidence identity."
+
 """Tests for adversarial review fixes.
 
 Validates each bug fix from the NEXUS implementation:

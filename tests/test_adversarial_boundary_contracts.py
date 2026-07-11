@@ -1,3 +1,7 @@
+# summary: "Exercises adversarial safety boundaries for generated programs, CLIs, diagnostics, and sidecar artifacts."
+# read_when:
+#   - "You are hardening generated-program execution, error redaction, output confinement, or CLI boundary failures."
+
 from __future__ import annotations
 
 import ast

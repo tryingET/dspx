@@ -1,3 +1,7 @@
+# summary: "Reports the read-only Oracle SQLite and opt-in shared Postgres backend posture."
+# read_when:
+#   - "Changing Oracle backend status reporting, DS1621 posture, or publication configuration checks."
+
 from __future__ import annotations
 
 import os

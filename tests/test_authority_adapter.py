@@ -1,3 +1,7 @@
+# summary: "Tests non-mutating Agent Kernel authority export planning and its CLI receipt."
+# read_when:
+#   - "You are changing authority adapter plans, external references, non-authority guarantees, or plan receipts."
+
 from __future__ import annotations
 
 import hashlib

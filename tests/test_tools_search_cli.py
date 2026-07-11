@@ -1,3 +1,7 @@
+# summary: "Tests tool search by name and OpenAPI tag in text and JSON output modes."
+# read_when:
+#   - "Changing tools search matching, tag filters, JSON output, or OpenAPI tool discovery."
+
 from __future__ import annotations
 
 import json

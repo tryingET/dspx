@@ -1,3 +1,7 @@
+# summary: "Builds descriptor-only tool contracts and hash-bound, non-executable adapter artifacts for generated programs."
+# read_when:
+#   - "Changing generated-program tool schemas, adapter readiness, materialization, or no-execution policy."
+
 from __future__ import annotations
 
 from pathlib import Path

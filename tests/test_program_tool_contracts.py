@@ -1,3 +1,7 @@
+# summary: "Tests descriptor-only tool contracts, generated adapter artifacts, and replay validation."
+# read_when:
+#   - "Changing program tool schemas, adapter materialization, ReActV2 readiness, or replay checks."
+
 from __future__ import annotations
 
 import hashlib

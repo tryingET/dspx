@@ -1,3 +1,7 @@
+# summary: "Provides the legacy SQLite-backed Six-E schema setup and record insertion helpers."
+# read_when:
+#   - "Changing SIXE database URL resolution, SQLite schema creation, or Six-E persistence fields."
+
 from __future__ import annotations
 
 import os

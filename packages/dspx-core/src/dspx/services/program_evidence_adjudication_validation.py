@@ -1,3 +1,7 @@
+# summary: "Validates consumed program evidence adjudication sidecars against current hash-bound artifacts."
+# read_when:
+#   - "Changing adjudication evidence contracts, runtime bindings, or target-fidelity judgment checks."
+
 from __future__ import annotations
 
 import hashlib

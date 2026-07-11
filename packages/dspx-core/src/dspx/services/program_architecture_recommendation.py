@@ -1,3 +1,7 @@
+# summary: "Builds non-authoritative architecture recommendations from validated local tournament evidence."
+# read_when:
+#   - "Changing tournament interpretation, candidate advisories, or architecture next-move recommendations."
+
 from __future__ import annotations
 
 import hashlib

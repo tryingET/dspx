@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# ---
+# summary: "Plan and optionally run deterministic verification selected from changed paths."
+# read_when:
+#   - "Changing impact-map rules, verification command selection, or local result receipts."
+# ---
 """Deterministic impact-aware verification planner for DSPx.
 
 This script is intentionally table-driven. It selects existing verification

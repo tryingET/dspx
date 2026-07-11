@@ -1,3 +1,7 @@
+# summary: "Verifies the adapters list JSON mode returns the registered adapter-name array."
+# read_when:
+#   - "Changing adapter registry names or JSON list output."
+
 from __future__ import annotations
 
 import json

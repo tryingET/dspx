@@ -1,3 +1,7 @@
+# summary: "Formats code-generation prompts and renders deterministic minimal programs."
+# read_when:
+#   - "Changing codegen prompt wording or minimal program golden output."
+
 from __future__ import annotations
 
 from typing import Optional

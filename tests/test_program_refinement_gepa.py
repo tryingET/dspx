@@ -1,3 +1,7 @@
+# summary: "Tests GEPA refinement optimization inputs, output readiness, and local-only boundaries."
+# read_when:
+#   - "Changing program GEPA optimization, dataset preparation, path safety, or result sidecars."
+
 from __future__ import annotations
 
 import hashlib

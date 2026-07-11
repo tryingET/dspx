@@ -1,3 +1,7 @@
+# summary: "Defines CLI commands for listing, resolving, probing, and benchmarking model providers."
+# read_when:
+#   - "Changing provider discovery, capability display, health checks, smoke probes, or benchmarks."
+
 """Provider utilities commands.
 
 Commands for listing, inspecting, testing, and benchmarking providers.

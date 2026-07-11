@@ -1,3 +1,7 @@
+# summary: "Builds the non-authoritative execution episode assembled from program materialization and behavior evidence."
+# read_when:
+#   - "Changing execution episode checks, topology reporting, or evidence summaries."
+
 from __future__ import annotations
 
 from typing import Any, Mapping

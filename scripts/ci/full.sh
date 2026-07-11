@@ -1,4 +1,9 @@
 #!/bin/sh
+# ---
+# summary: "Run CI smoke, replay provenance, and available ROCS ontology validation."
+# read_when:
+#   - "Changing the legacy full CI sequence or ROCS validation integration."
+# ---
 set -eu
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"

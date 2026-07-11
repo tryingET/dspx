@@ -1,3 +1,7 @@
+# summary: "Registers the environment-configured Claude CLI provider and capabilities."
+# read_when:
+#   - "Changing Claude CLI provider environment mapping or advertised capabilities."
+
 from __future__ import annotations
 
 import os

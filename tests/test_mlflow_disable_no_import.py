@@ -1,3 +1,7 @@
+# summary: "Tests that disabled MLflow stays unimported and creates no local store."
+# read_when:
+#   - "Changing disabled tracing startup or MLflow import behavior."
+
 from __future__ import annotations
 
 import os

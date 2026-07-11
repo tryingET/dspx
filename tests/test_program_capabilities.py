@@ -1,3 +1,7 @@
+# summary: "Tests program capability descriptors, declarations, and fail-closed primitive materialization policies."
+# read_when:
+#   - "Changing capability registries, ReActV2 safety predicates, retrievers, or custom declarations."
+
 from __future__ import annotations
 
 import json

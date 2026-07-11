@@ -1,3 +1,7 @@
+# summary: "Tests OpenAPI object additional-properties and nullable-body validation."
+# read_when:
+#   - "Changing OpenAPI object schema validation."
+
 from __future__ import annotations
 
 import json

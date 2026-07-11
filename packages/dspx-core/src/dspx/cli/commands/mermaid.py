@@ -1,3 +1,7 @@
+# summary: "Implements Typer commands that turn Mermaid workflows into DSPy programs or signatures."
+# read_when:
+#   - "You are generating DSPy artifacts from Mermaid or changing Mermaid CLI options."
+
 """Mermaid workflow commands.
 
 Commands for generating DSPy programs and signatures from Mermaid diagrams.

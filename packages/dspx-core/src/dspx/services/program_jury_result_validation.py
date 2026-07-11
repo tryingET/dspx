@@ -1,3 +1,7 @@
+# summary: "Validates hash-bound deterministic program jury sidecars and their non-authority semantics."
+# read_when:
+#   - "Changing jury-result schemas, confined artifact refs, or behavior evidence binding."
+
 from __future__ import annotations
 
 from pathlib import Path

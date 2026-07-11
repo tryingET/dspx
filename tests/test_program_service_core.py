@@ -1,3 +1,7 @@
+# summary: "Tests core program candidate assembly, generated surfaces, receipts, and intent validation."
+# read_when:
+#   - "Changing program materialization, candidate manifests, generated surfaces, or replay metadata."
+
 from __future__ import annotations
 
 import hashlib

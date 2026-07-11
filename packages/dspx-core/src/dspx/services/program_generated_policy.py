@@ -1,3 +1,7 @@
+# summary: "Statically enforces the strict no-effect policy for generated program module source."
+# read_when:
+#   - "Changing allowed generated imports, DSPy primitives, calls, or module-surface effects."
+
 from __future__ import annotations
 
 import ast

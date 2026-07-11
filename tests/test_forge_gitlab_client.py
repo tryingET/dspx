@@ -1,3 +1,7 @@
+# summary: "Tests Forge GitLab origin safety, pagination, authentication, and mutation gates."
+# read_when:
+#   - "Changing GitLab configuration, redirect handling, requests, or network policy."
+
 from __future__ import annotations
 
 import httpx

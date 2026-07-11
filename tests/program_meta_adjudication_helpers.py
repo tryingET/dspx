@@ -1,3 +1,7 @@
+# summary: "Shared fixtures for target-fidelity, traceability, and activation evidence in program meta-adjudication tests."
+# read_when:
+#   - "Testing program meta-adjudication, PDF transition review, or target-fidelity sidecars."
+
 from __future__ import annotations
 
 import hashlib

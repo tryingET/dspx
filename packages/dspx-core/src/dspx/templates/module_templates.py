@@ -1,3 +1,7 @@
+# summary: "Renders deterministic DSPy module source, demos, and focused JSON-bundle runtimes."
+# read_when:
+#   - "Changing generated module structure, demo wiring, or output normalization."
+
 from __future__ import annotations
 
 from typing import Iterable, List, Optional

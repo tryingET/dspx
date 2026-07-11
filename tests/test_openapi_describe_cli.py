@@ -1,3 +1,7 @@
+# summary: "Tests OpenAPI CLI operation listing, filtering, descriptions, schema output, JSON output, and array parameter coercion."
+# read_when:
+#   - "Changing OpenAPI ops or describe commands, filters, displayed schemas, JSON shape, or CLI parameter coercion."
+
 from __future__ import annotations
 
 import json

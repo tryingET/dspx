@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Report repositories, branches, and dirty state beneath a bounded scope."
+# read_when:
+#   - "Using or changing the local fallback repository census before multi-repo work."
+# ---
 set -euo pipefail
 
 # Deterministic repo census fallback for environments without ~/.pi/agent/scripts/preflight-repo-census.sh

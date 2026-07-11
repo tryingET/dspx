@@ -1,3 +1,7 @@
+# summary: "Tests web tool origin allowlists, secret-safe denials, response size limits, scraping, and redirect confinement."
+# read_when:
+#   - "Changing web fetch or scrape allowlists, URL redaction, HTTP size limits, TLS defaults, or redirect handling."
+
 from __future__ import annotations
 
 import httpx

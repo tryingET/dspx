@@ -1,3 +1,7 @@
+# summary: "DSPy-compatible LM provider that executes prompts through the Codex CLI."
+# read_when:
+#   - "Changing Codex CLI invocation, subprocess isolation, async execution, or DSPy response adaptation."
+
 """
 CodexExecLM: A minimal DSPy-compatible wrapper around the Codex CLI
 (`codex exec`) so you can use Codex Exec as the active LM in DSPy.

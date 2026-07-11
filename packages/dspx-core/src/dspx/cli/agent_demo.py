@@ -1,3 +1,7 @@
+# summary: "Provides a minimal argparse entry point for running the DSPx ReAct agent service."
+# read_when:
+#   - "You are using or changing the standalone agent demo CLI."
+
 from __future__ import annotations
 
 import argparse

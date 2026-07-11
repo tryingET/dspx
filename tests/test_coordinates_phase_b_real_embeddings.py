@@ -1,3 +1,7 @@
+# summary: "Exercises Phase B territory, convergence, and contract analysis with optional real embeddings."
+# read_when:
+#   - "You are changing real embedding integration or validating Phase B topology against semantic vectors."
+
 """Phase B integration tests with real embedding backends."""
 
 from __future__ import annotations

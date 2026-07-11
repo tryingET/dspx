@@ -1,3 +1,7 @@
+# summary: "Tests the golden module-synthesis quality corpus, gate profile, and JSONL event round trip."
+# read_when:
+#   - "Changing synthesis corpus cases, quality-event generation, gate thresholds, or quality-log serialization."
+
 from __future__ import annotations
 
 from pathlib import Path

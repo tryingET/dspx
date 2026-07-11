@@ -1,3 +1,7 @@
+# summary: "Tests prompt-to-intent normalization, capability previews, topology hints, support levels, and topology validation."
+# read_when:
+#   - "Changing intent normalization, capability assumptions, support classification, normalized-intent CLI output, or topology contracts."
+
 from __future__ import annotations
 
 import json

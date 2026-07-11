@@ -1,3 +1,7 @@
+# summary: "Unit tests for CSV, Parquet, path-dispatched, spec-built, and MLflow dataset adapters."
+# read_when:
+#   - "Changing dataset adapter loading, dispatch, specs, or MLflow descriptors."
+
 import importlib.util
 from pathlib import Path
 

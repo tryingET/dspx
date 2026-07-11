@@ -1,3 +1,6 @@
+# summary: "Composes explicit local refinement or GEPA candidate materialization with behavior comparison and workflow receipts."
+# read_when:
+#   - "Changing generate-and-compare workflows, output overlap guards, comparison summaries, or GEPA workflow validation."
 from __future__ import annotations
 
 import json

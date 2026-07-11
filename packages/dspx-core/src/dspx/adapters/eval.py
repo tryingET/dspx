@@ -1,3 +1,7 @@
+# summary: "Implements deterministic classification, ranking, calibration, and text-similarity evaluation metrics."
+# read_when:
+#   - "You are evaluating DSPx predictions or changing metric definitions and edge-case handling."
+
 from __future__ import annotations
 
 import math

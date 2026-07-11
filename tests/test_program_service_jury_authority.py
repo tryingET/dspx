@@ -1,3 +1,7 @@
+# summary: "Tests generated jury contracts and separation of adjudicators from external authority refs."
+# read_when:
+#   - "Changing jury selection, promotion adjudicators, or external authority metadata boundaries."
+
 from __future__ import annotations
 
 import json

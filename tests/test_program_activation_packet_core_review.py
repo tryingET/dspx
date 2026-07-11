@@ -1,3 +1,7 @@
+# summary: "Tests activation-packet review evidence, runtime episodes, jury inputs, and non-activation guarantees."
+# read_when:
+#   - "Changing activation-packet review admission, runtime evidence, jury validation, or output confinement."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Tests Layer 12 advisory aggregation and signed DSPx shadow-evidence contracts against binding and authority laundering."
+# read_when:
+#   - "Changing Layer 12 policy checks, shadow evidence, signed receipts, temporal validation, or cross-language fixtures."
+
 from __future__ import annotations
 
 import base64

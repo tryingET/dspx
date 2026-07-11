@@ -1,3 +1,7 @@
+# summary: "Verifies dataset split dry runs report paths and counts without writing split files."
+# read_when:
+#   - "Changing dataset split dry-run semantics or summary output."
+
 from __future__ import annotations
 
 import json

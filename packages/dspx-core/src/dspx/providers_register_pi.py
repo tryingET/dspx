@@ -1,3 +1,7 @@
+# summary: "Registers the Pi RPC LM provider with subprocess, session, tool, and timeout controls."
+# read_when:
+#   - "Changing Pi RPC environment flags, execution defaults, or provider capabilities."
+
 from __future__ import annotations
 
 import os

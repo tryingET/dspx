@@ -1,3 +1,7 @@
+# summary: "Verifies the adapters list text mode renders registered names with descriptions."
+# read_when:
+#   - "Changing adapter registry descriptions or human-readable list output."
+
 from __future__ import annotations
 
 from typer.testing import CliRunner

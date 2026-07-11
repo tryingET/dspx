@@ -1,3 +1,7 @@
+# summary: "Parses Mermaid workflows and emits runnable DSPy program variants plus manifests and graph artifacts."
+# read_when:
+#   - "Changing Mermaid parsing, generated runtime code, variant implementations, workflow artifacts, or MLflow logging."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Tests receipt and Oracle evidence retrieval for module synthesis diagnostics."
+# read_when:
+#   - "Changing module evidence matching, receipt validation, replay, or Oracle lookup."
+
 from __future__ import annotations
 
 import json

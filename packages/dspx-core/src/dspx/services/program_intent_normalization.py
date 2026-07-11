@@ -1,3 +1,7 @@
+# summary: "Normalizes program requests into intents with assumptions, evidence gaps, risks, and support-level previews."
+# read_when:
+#   - "Changing prompt-to-intent inference, support classifications, normalization output, or safe write paths."
+
 from __future__ import annotations
 
 import json

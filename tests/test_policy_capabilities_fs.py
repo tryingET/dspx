@@ -1,3 +1,7 @@
+# summary: "Tests that filesystem capabilities and tool reads remain root-confined."
+# read_when:
+#   - "Changing tool capability or filesystem policy."
+
 from __future__ import annotations
 
 from pathlib import Path

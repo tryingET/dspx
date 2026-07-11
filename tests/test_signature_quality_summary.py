@@ -1,3 +1,7 @@
+# summary: "Tests signature quality event logging, aggregation, threshold gates, and human-readable summaries."
+# read_when:
+#   - "You are changing signature quality telemetry, summary statistics, gate thresholds, or report formatting."
+
 from __future__ import annotations
 
 from pathlib import Path

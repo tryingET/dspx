@@ -1,3 +1,7 @@
+# summary: "Tests provider-backed model jury execution, evidence binding, contract validation, redaction, and safe output boundaries."
+# read_when:
+#   - "Changing model-jury provider execution, juror aggregation, evidence limits, validation, diagnostics redaction, or CLI output safety."
+
 from __future__ import annotations
 
 import hashlib

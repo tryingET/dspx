@@ -1,3 +1,7 @@
+# summary: "Tests that network-read capability permits GET operations while blocking mutation."
+# read_when:
+#   - "Changing network capability enforcement for tools or OpenAPI calls."
+
 from __future__ import annotations
 
 from pathlib import Path

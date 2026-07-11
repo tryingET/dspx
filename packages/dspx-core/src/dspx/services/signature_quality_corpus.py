@@ -1,3 +1,7 @@
+# summary: "Converts provider corpus fixtures into deterministic signature-quality events and JSONL output."
+# read_when:
+#   - "Changing provider corpus loading, fixture evaluation, quality gates, or emitted event records."
+
 """Deterministic signature-quality events from provider corpus fixtures."""
 
 from __future__ import annotations

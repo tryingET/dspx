@@ -1,3 +1,7 @@
+# summary: "Registers the authenticated DSPy LM provider from validated environment settings."
+# read_when:
+#   - "Changing LM auth model settings, Codex reasoning validation, or capabilities."
+
 from __future__ import annotations
 
 import os

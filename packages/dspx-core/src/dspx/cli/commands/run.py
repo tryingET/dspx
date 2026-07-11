@@ -1,3 +1,7 @@
+# summary: "Defines local receipt replay verification and execution-explanation commands."
+# read_when:
+#   - "Changing replay safety, receipt checks, deterministic execution, MLflow enrichment, or CLI reporting."
+
 """Run replay and explain commands.
 
 Commands for replaying and explaining past executions from receipts.

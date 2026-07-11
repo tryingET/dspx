@@ -1,3 +1,7 @@
+# summary: "Tests the program execution-episode builder's runtime evidence and non-authority contract."
+# read_when:
+#   - "Changing execution-episode structure, evaluation-source copying, runtime conditions, or authority flags."
+
 from __future__ import annotations
 
 from dspx.services.program_execution_episode import build_program_execution_episode

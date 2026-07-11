@@ -1,3 +1,7 @@
+# summary: "Extracts, summarizes, and drafts six-element boundary documents with DSPy."
+# read_when:
+#   - "Changing 6E fields, extraction behavior, summaries, or document generation."
+
 from __future__ import annotations
 
 from typing import Dict

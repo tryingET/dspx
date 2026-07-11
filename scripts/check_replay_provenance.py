@@ -1,3 +1,8 @@
+# ---
+# summary: "Exercise replay provenance success and cache-code drift detection end to end."
+# read_when:
+#   - "Changing replay receipts, cache provenance checks, or the replay verification gate."
+# ---
 from __future__ import annotations
 
 import json

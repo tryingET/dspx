@@ -1,3 +1,7 @@
+# summary: "Evaluates advisory Layer 1/2 transition proposals through Agent Kernel's deterministic read-only verifier."
+# read_when:
+#   - "Changing Layer 1/2 fixtures, AK verifier commands, proposal metrics, authority boundaries, or evaluation output."
+
 from __future__ import annotations
 
 import json

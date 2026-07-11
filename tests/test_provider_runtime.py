@@ -1,3 +1,7 @@
+# summary: "Tests provider runtime metadata, health probes, benchmarks, and diagnostic redaction."
+# read_when:
+#   - "Changing provider runtime inspection, health or benchmark output, secret sanitization, or persisted prompt/text limits."
+
 from __future__ import annotations
 
 import json

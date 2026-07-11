@@ -1,3 +1,7 @@
+# summary: "Tests HTTP origin constraints, response byte limits, and authentication boundaries."
+# read_when:
+#   - "Changing HTTP allowlists, provider response handling, or bearer-token validation."
+
 from __future__ import annotations
 
 import httpx

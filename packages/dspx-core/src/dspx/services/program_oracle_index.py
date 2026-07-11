@@ -1,3 +1,7 @@
+# summary: "Validates, embeds, and indexes generated-program Oracle evidence into a candidate-local coordinate store."
+# read_when:
+#   - "Changing program Oracle evidence discovery, non-authority validation, embedding text, or local indexing."
+
 from __future__ import annotations
 
 import hashlib

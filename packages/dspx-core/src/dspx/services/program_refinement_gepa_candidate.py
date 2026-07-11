@@ -1,3 +1,6 @@
+# summary: "Materializes a local program candidate from validated GEPA optimizer output and refreshes candidate behavior evidence."
+# read_when:
+#   - "Changing GEPA candidate rendering, lineage, optimizer copying, manifest updates, or post-rewrite behavior refresh."
 from __future__ import annotations
 
 import json

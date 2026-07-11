@@ -1,3 +1,7 @@
+# summary: "Tests fail-closed OpenAPI oneOf/anyOf validation and repeated reference handling."
+# read_when:
+#   - "Changing OpenAPI schema combinators or reference traversal."
+
 from __future__ import annotations
 
 import json

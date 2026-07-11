@@ -1,3 +1,7 @@
+# summary: "Run-scoped cache that replays deterministic generated-program harness and module-smoke validation effects."
+# read_when:
+#   - "Changing generated-program test caching, cache keys, or replayed file-effect isolation."
+
 from __future__ import annotations
 
 import base64

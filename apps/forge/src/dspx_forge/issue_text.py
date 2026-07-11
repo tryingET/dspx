@@ -1,3 +1,7 @@
+# summary: "Builds and updates the Forge-managed section of GitLab issue descriptions."
+# read_when:
+#   - "Changing managed issue markers, rendered context, or preservation of human-authored issue text."
+
 from __future__ import annotations
 
 import re

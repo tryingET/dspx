@@ -1,3 +1,6 @@
+# summary: "Loads indexed program Oracle evidence and builds deterministic non-authoritative behavior reports and interpretations."
+# read_when:
+#   - "Changing program Oracle report records, aggregate counters, interpretation, or local index loading."
 from __future__ import annotations
 
 from collections import Counter

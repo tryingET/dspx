@@ -1,3 +1,7 @@
+# summary: "Runs bounded semantic benchmarks through generated program loops and rebinds scores to current evidence."
+# read_when:
+#   - "Changing program semantic corpus validation, candidate evidence checks, runtime replay, or result writing."
+
 """Semantic benchmark lane over generated DSPx program-loop behavior evidence."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# summary: "DSPy-compatible LM provider that executes prompts through Gemini CLI headless mode."
+# read_when:
+#   - "Changing Gemini CLI invocation, subprocess lifecycle, capabilities, or DSPy response adaptation."
+
 """
 GeminiCLILM: DSPy-compatible wrapper around the `gemini` CLI headless mode.
 

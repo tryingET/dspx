@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# ---
+# summary: "Run the semantic corpus with offline fixtures or an explicit live provider."
+# read_when:
+#   - "Changing semantic benchmark inputs, live-provider controls, or result emission."
+# ---
 """Run the DSPx semantic corpus offline or with an explicitly selected provider."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# summary: "Tests generated module-surface and capability-registry contracts for single modules, pipelines, and replay drift detection."
+# read_when:
+#   - "Changing generated module surfaces, topology materialization, capability registry bindings, or replay evidence checks."
+
 from __future__ import annotations
 
 import hashlib

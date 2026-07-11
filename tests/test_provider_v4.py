@@ -1,3 +1,7 @@
+# summary: "Tests v4 provider registration, dspy-lm-auth integration, Codex response handling, CLI provider surfaces, and optimize bindings."
+# read_when:
+#   - "Changing v4 provider capabilities, dspy-lm-auth or Codex behavior, provider CLI commands, runtime metadata, or optimization provider selection."
+
 from __future__ import annotations
 
 import builtins

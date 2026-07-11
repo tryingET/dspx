@@ -1,3 +1,7 @@
+# summary: "Builds Forge issue specs and manifests, then safely creates, updates, or closes GitLab issues."
+# read_when:
+#   - "Changing issue identity, manifests, apply resumption, duplicate closure, or GitLab mutation safeguards."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

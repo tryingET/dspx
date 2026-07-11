@@ -1,3 +1,7 @@
+# summary: "Defines the CLI command for running bounded GEPA optimization on DSPy programs."
+# read_when:
+#   - "Changing optimizer provider resolution, budget selection, dataset options, metrics, or output weights."
+
 """Program optimization commands.
 
 Commands for running DSPy optimizers like GEPA.

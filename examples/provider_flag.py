@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# summary: "Demonstrates a required provider flag by printing the selected provider's success message."
+# read_when:
+#   - "Using or changing the standalone provider-flag CLI example."
 import argparse
 
 

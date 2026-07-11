@@ -1,4 +1,9 @@
 #!/usr/bin/env sh
+# ---
+# summary: "Resolve and launch ROCS through an override, workspace checkout, or PATH."
+# read_when:
+#   - "Changing ROCS discovery precedence, diagnostics, or repository ontology commands."
+# ---
 set -eu
 
 repo_root="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"

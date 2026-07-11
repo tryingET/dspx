@@ -1,3 +1,7 @@
+# summary: "Tests artifact cleanup dry runs, confirmation gates, plan integrity, and symlink-safe deletion."
+# read_when:
+#   - "You are changing cleanup candidate selection, apply confirmations, plan IDs, or filesystem safety."
+
 from __future__ import annotations
 
 import os

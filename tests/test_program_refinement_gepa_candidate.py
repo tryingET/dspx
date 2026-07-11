@@ -1,3 +1,7 @@
+# summary: "Tests materializing and comparing hash-bound GEPA refinement candidates."
+# read_when:
+#   - "Changing GEPA candidate materialization, payload integrity, comparison, or replay safeguards."
+
 from __future__ import annotations
 
 import hashlib

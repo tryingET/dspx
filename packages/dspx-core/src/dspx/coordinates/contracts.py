@@ -1,3 +1,7 @@
+# summary: "Defines, evaluates, persists, and safely interprets Oracle behavioral contracts."
+# read_when:
+#   - "Changing contract validators, registries, safe expressions, violations, or contract persistence."
+
 """Behavioral contracts for Oracle.
 
 Contracts define invariants that should hold true across executions.

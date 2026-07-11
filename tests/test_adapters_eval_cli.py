@@ -1,3 +1,7 @@
+# summary: "CLI tests for adapter evaluation metrics, JSON results, and invalid string-label F1 input."
+# read_when:
+#   - "Changing adapters eval run arguments, metric dispatch, or CLI error handling."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,6 @@
+# summary: "Loads hash-bound candidate behavior and Oracle reports, then builds bounded non-authoritative program refinement proposals."
+# read_when:
+#   - "Changing refinement proposal validation, behavior failure signals, Oracle identity matching, or bounded intent patches."
 from __future__ import annotations
 
 import hashlib

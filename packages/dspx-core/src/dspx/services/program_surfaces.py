@@ -1,3 +1,7 @@
+# summary: "Renders generated program, direct-runner, and evaluation-harness source surfaces from a program intent."
+# read_when:
+#   - "Changing generated Python surfaces, direct execution behavior, or local evaluation harnesses."
+
 from __future__ import annotations
 
 from typing import Any

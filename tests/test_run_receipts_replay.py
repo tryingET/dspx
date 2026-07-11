@@ -1,3 +1,7 @@
+# summary: "Tests receipt persistence, local replay verification, cache provenance, and confined execution replay."
+# read_when:
+#   - "Changing receipt schemas, replay path resolution, cache validation, execution replay identity/effects, or confined output publication."
+
 from __future__ import annotations
 
 import hashlib

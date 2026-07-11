@@ -1,3 +1,7 @@
+# summary: "Generates per-node DSPy signatures and executable workflow artifacts from Mermaid diagrams."
+# read_when:
+#   - "Changing native Mermaid signature generation, emitted workflow code, manifests, or MLflow artifacts."
+
 from __future__ import annotations
 
 import argparse

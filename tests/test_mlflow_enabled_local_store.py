@@ -1,3 +1,7 @@
+# summary: "Tests that enabled MLflow still requires an explicit tracking URI."
+# read_when:
+#   - "Changing MLflow defaults, run creation, or local-store safeguards."
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,3 +1,7 @@
+# summary: "Shared fixtures for generating, indexing, and modeling module-synthesis receipt and replay evidence."
+# read_when:
+#   - "Testing module-synthesis evidence retrieval, readiness diagnostics, or receipt indexing."
+
 from __future__ import annotations
 
 from pathlib import Path

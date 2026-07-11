@@ -1,3 +1,7 @@
+# summary: "Defines receipt-bound local replay helpers and evidence for deterministic generated-program runtime episodes."
+# read_when:
+#   - "Changing runtime replay identity checks, output publication, or replay evidence."
+
 """Receipt-bound local replay for deterministic generated-program runtime episodes."""
 
 from __future__ import annotations

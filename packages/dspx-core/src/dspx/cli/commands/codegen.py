@@ -1,3 +1,7 @@
+# summary: "Implements the Typer codegen command, artifact receipts, cache reporting, and optional MLflow logging."
+# read_when:
+#   - "You are changing code generation CLI behavior or its output evidence and observability."
+
 """Code generation command.
 
 Command for generating code from specifications.

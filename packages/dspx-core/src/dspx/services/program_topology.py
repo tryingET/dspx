@@ -1,3 +1,7 @@
+# summary: "Infers, validates, schedules, and renders bounded materializable topologies for generated DSPy programs."
+# read_when:
+#   - "Changing topology inference, graph validation, supported primitives, or generated pipeline code."
+
 from __future__ import annotations
 
 from typing import Any, Mapping

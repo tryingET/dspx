@@ -1,3 +1,7 @@
+# summary: "Tests provider-corpus normalization into valid, class-name-constrained signature candidates."
+# read_when:
+#   - "You are changing raw provider response parsing, signature candidate normalization, or provider corpus fixtures."
+
 from __future__ import annotations
 
 import json

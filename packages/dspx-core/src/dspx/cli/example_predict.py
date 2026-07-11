@@ -1,3 +1,7 @@
+# summary: "Provides a minimal CodexExecLM-backed DSPy prediction example."
+# read_when:
+#   - "Changing the direct Codex execution demo, its default model, prompt, or debug output."
+
 import dspy
 import os
 

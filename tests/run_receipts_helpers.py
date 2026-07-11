@@ -1,3 +1,7 @@
+# summary: "Shared helpers for constructing local and SQLite-backed MLflow runs and DSPx run receipts."
+# read_when:
+#   - "Testing run-receipt ingestion, MLflow artifacts, tracking setup, or signature receipts."
+
 from __future__ import annotations
 
 from pathlib import Path

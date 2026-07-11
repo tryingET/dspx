@@ -1,3 +1,7 @@
+# summary: "Tests that tracked repository files exclude Python caches and backup artifacts."
+# read_when:
+#   - "Changing repository hygiene rules, generated-artifact exclusions, or tracked-file validation."
+
 from __future__ import annotations
 
 import re

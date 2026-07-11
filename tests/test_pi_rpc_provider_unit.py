@@ -1,3 +1,7 @@
+# summary: "Unit tests for Pi RPC framing, stale-output isolation, restart, and provider integration."
+# read_when:
+#   - "Changing Pi RPC client lifecycle or provider behavior."
+
 from __future__ import annotations
 
 import json

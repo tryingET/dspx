@@ -1,3 +1,7 @@
+# summary: "Tests external-authority export preflight validation, identity binding, activation evidence, and non-mutation guarantees."
+# read_when:
+#   - "You are changing Agent Kernel export preflights, activation packets, evidence hashes, or authority boundaries."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Tests MultiProviderLM request propagation, policy restoration, parallel-first completion, isolation, timeout, and cleanup semantics."
+# read_when:
+#   - "Changing multi-provider dispatch, runtime options, concurrency, isolated working directories, error handling, or loser cleanup."
+
 from __future__ import annotations
 
 import subprocess

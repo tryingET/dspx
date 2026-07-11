@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Verify a clean checkout can install, launch both CLIs, and run the test suite."
+# read_when:
+#   - "Changing clean-clone setup, primary CLI smoke checks, or baseline test invocation."
+# ---
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

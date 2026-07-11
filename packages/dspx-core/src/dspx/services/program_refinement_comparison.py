@@ -1,3 +1,6 @@
+# summary: "Builds and revalidates non-authoritative source-versus-candidate comparisons over generated and optional runtime behavior evidence."
+# read_when:
+#   - "Changing refinement comparison deltas, runtime evidence rebinding, interpretation, lineage, or final-consumer validation."
 from __future__ import annotations
 
 import hashlib

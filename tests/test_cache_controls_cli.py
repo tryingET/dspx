@@ -1,3 +1,7 @@
+# summary: "Tests that generation CLI receipts retain cache keys and cache-control metadata."
+# read_when:
+#   - "You are changing signature, codegen, or module generation cache controls and receipts."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Tests explicit, inferred-name, routed, retriever, and bounded-reasoning topology materialization and runtime behavior."
+# read_when:
+#   - "Changing pipeline DAG rendering, scheduling, retriever adapters, named topology execution, or bounded reasoning primitives."
+
 from __future__ import annotations
 
 import importlib.util

@@ -1,3 +1,7 @@
+# summary: "Deterministic k-means clustering utilities for execution embeddings."
+# read_when:
+#   - "Changing coordinate centroids, cluster assignment, distance aggregation, or embedding classification."
+
 """Clustering utilities for semantic coordinates.
 
 Groups similar executions together to identify patterns, behaviors,

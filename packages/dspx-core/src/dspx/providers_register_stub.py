@@ -1,3 +1,7 @@
+# summary: "Registers the deterministic DSPy stub LM used for local and offline execution."
+# read_when:
+#   - "Changing stub-provider construction, registration, or advertised capabilities."
+
 from __future__ import annotations
 
 from .capabilities import ProviderCapabilities

@@ -1,3 +1,6 @@
+# summary: "Validates 1Password publisher references and rejects secret-shaped content from Oracle publication assertions."
+# read_when:
+#   - "Changing shared Oracle publisher secret-reference handling, redaction descriptors, or secret detection."
 from __future__ import annotations
 
 import hashlib

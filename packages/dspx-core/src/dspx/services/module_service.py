@@ -1,3 +1,7 @@
+# summary: "Keeps module generation as a stable facade over rendering, synthesis, evidence, caching, and telemetry."
+# read_when:
+#   - "Changing reusable DSPy module generation or its public service boundary."
+
 from __future__ import annotations
 
 from pathlib import Path

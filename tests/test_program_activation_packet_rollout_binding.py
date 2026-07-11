@@ -1,3 +1,7 @@
+# summary: "Tests canonical binding verification and rollout-readiness gating for activation packets."
+# read_when:
+#   - "Changing activation-packet rollout ownership, canonical bindings, or rollout preflight transitions."
+
 from __future__ import annotations
 
 import json

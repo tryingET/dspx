@@ -1,3 +1,7 @@
+# summary: "Determines tool confirmation needs and builds redacted operation previews."
+# read_when:
+#   - "Changing mutation confirmation policy or tool preview rendering."
+
 from __future__ import annotations
 
 from typing import Any, Mapping, Tuple

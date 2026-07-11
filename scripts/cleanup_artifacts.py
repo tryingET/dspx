@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# ---
+# summary: "Plan and safely delete aged files within an explicitly confirmed artifact root."
+# read_when:
+#   - "Changing artifact retention, cleanup confinement, or plan-confirmation safeguards."
+# ---
 """Inspect or remove aged files below an explicitly confirmed artifact root."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# summary: "Tests synthesis runtime smoke checks for valid modules, side effects, unsafe calls, and IO mapping drift."
+# read_when:
+#   - "You are changing generated-module smoke validation, AST safety restrictions, helper contracts, or forward input mapping."
+
 from __future__ import annotations
 
 from pathlib import Path

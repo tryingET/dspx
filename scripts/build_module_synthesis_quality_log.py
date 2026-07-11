@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# summary: "Builds and gates the bounded module-synthesis quality corpus JSONL log."
+# read_when:
+#   - "Changing module-synthesis corpus execution, CI budgets, output, or quality gates."
+
 from __future__ import annotations
 
 import argparse

@@ -1,3 +1,7 @@
+# summary: "Materializes declared program dataset splits and renders their behavior-evaluation harnesses."
+# read_when:
+#   - "Changing dataset declarations, split manifests, or generated split evaluation behavior."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Checks Python imports for dspx-core-to-app and cross-app boundary violations."
+# read_when:
+#   - "Changing monorepo dependency direction rules or import scanning."
+
 from __future__ import annotations
 
 import argparse

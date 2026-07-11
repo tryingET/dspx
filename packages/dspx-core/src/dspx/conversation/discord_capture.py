@@ -1,3 +1,7 @@
+# summary: "Extracts a likely intent and acceptance signal from Discord-style transcript text."
+# read_when:
+#   - "Changing transcript ingestion, intent heuristics, or acceptance-token detection."
+
 from __future__ import annotations
 
 import os

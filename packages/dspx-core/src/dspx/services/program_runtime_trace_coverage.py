@@ -1,3 +1,7 @@
+# summary: "Computes and verifies record-level source coverage for generated-program runtime traces."
+# read_when:
+#   - "Changing runtime trace coverage statuses, per-record gaps, or coverage validation."
+
 from __future__ import annotations
 
 from typing import Any, Mapping

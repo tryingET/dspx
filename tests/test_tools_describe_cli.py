@@ -1,3 +1,7 @@
+# summary: "Tests JSON descriptions for built-in and registered OpenAPI tools."
+# read_when:
+#   - "Changing the tools describe CLI, capability descriptions, or OpenAPI operation metadata."
+
 from __future__ import annotations
 
 import json

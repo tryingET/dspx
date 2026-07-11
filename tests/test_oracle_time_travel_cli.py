@@ -1,3 +1,7 @@
+# summary: "Tests receipt-backed Oracle branch timelines, diffs, indexing, and failure bisection."
+# read_when:
+#   - "Changing Oracle behavioral time-travel commands or lineage semantics."
+
 from __future__ import annotations
 
 import json

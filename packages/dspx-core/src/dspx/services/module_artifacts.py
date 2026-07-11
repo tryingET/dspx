@@ -1,3 +1,7 @@
+# summary: "Validates module specs and builds deterministic, traceable, and explainable synthesis candidate artifacts."
+# read_when:
+#   - "Changing module identifiers, cache keys, template rendering, candidate variants, or selected-candidate loading."
+
 from __future__ import annotations
 
 from pathlib import Path

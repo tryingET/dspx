@@ -1,3 +1,7 @@
+# summary: "Tests program-intent schema and topology validation, including graph, retriever, named-stage, and bounded-primitive safety."
+# read_when:
+#   - "Changing program-intent-v2 validation, topology graph invariants, retriever contracts, named topology semantics, or primitive safety limits."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Provides deterministic JSON hashing, slug generation, and work-order identifier construction."
+# read_when:
+#   - "Changing Forge fingerprints, slugs, or work-order ID stability."
+
 from __future__ import annotations
 
 import hashlib

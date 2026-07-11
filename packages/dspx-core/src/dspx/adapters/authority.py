@@ -1,3 +1,7 @@
+# summary: "Builds receipt-backed Agent Kernel export plans without invoking or mutating external authority."
+# read_when:
+#   - "You are planning how DSPx program evidence can be handed to Agent Kernel for separate review."
+
 from __future__ import annotations
 
 import hashlib

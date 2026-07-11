@@ -1,3 +1,6 @@
+# summary: "Validates and records local program promotion decisions from refined reviews, comparisons, or delegated adjudication evidence."
+# read_when:
+#   - "Changing promotion decision outcomes, identity binding, delegation, comparison decisions, or non-authority guarantees."
 from __future__ import annotations
 
 import hashlib

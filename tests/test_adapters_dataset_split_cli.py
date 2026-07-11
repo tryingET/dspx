@@ -1,3 +1,7 @@
+# summary: "CLI tests for dataset split sizes, three-way ratios, group balancing, and minimum label counts."
+# read_when:
+#   - "Changing adapter dataset split options, allocation rules, or emitted split paths."
+
 from __future__ import annotations
 
 import json

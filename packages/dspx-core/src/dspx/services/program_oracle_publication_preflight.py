@@ -1,3 +1,6 @@
+# summary: "Builds fail-closed local preflight packets for explicit shared publication of program Oracle evidence."
+# read_when:
+#   - "Changing Oracle publication eligibility, identity/hash binding, labels, redaction, retention, or publisher custody fields."
 from __future__ import annotations
 
 import hashlib

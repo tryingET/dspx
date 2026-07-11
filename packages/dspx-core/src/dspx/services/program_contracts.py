@@ -1,3 +1,7 @@
+# summary: "Normalizes generated program identifiers, descriptions, surface names, and field specifications."
+# read_when:
+#   - "Changing shared naming or IO-field contracts used by program renderers."
+
 from __future__ import annotations
 
 from typing import Any

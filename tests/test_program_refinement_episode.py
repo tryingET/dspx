@@ -1,3 +1,7 @@
+# summary: "Tests guided refinement episodes, evidence sidecars, candidate state, and rollback safety."
+# read_when:
+#   - "Changing refinement episode orchestration, optional evidence plans, or transactional cleanup."
+
 from __future__ import annotations
 
 import hashlib

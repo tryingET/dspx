@@ -1,3 +1,7 @@
+# summary: "CLI tests for requirements intake, generation-gate preparation, target-fidelity artifacts, and gated program generation."
+# read_when:
+#   - "Changing program-gen prepare, requirements-intake, target-contract, fitness, traceability, or gate CLI behavior."
+
 from __future__ import annotations
 
 import hashlib

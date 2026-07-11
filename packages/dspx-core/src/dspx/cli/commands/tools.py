@@ -1,3 +1,7 @@
+# summary: "Defines CLI commands to list, describe, search, preview, confirm, and execute registered tools."
+# read_when:
+#   - "Changing tool invocation shapes, parameter parsing, mutation confirmation, previews, or tool discovery."
+
 """Tool inspection and execution commands.
 
 Commands for listing, describing, searching, and running tools.

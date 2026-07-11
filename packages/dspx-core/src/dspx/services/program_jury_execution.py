@@ -1,3 +1,7 @@
+# summary: "Builds local deterministic jury-result evidence from a generated program assembly and its behavior artifacts."
+# read_when:
+#   - "Changing deterministic jury evidence binding, judgments, aggregation, or result sidecars."
+
 from __future__ import annotations
 
 import hashlib

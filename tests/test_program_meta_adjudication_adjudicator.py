@@ -1,3 +1,7 @@
+# summary: "Tests program-adjudicator formation, verification, delegation, provenance binding, and non-authority safeguards."
+# read_when:
+#   - "Changing meta-adjudicator formation, program-adjudicator verification, delegation CLI flows, or authority-boundary checks."
+
 from __future__ import annotations
 
 import json

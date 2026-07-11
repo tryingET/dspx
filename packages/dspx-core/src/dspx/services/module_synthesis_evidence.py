@@ -1,3 +1,7 @@
+# summary: "Retrieves and validates module-synthesis receipt and Oracle evidence for bounded historical advisories."
+# read_when:
+#   - "Changing module synthesis evidence contracts, candidate priors, or governance-only policy evaluation."
+
 from __future__ import annotations
 
 import json

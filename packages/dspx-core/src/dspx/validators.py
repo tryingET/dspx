@@ -1,3 +1,7 @@
+# summary: "Provides composable text, JSON, regex, and metric-backed validator factories."
+# read_when:
+#   - "Changing validation semantics or adding reusable validator combinators."
+
 from __future__ import annotations
 
 import json

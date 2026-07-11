@@ -1,3 +1,7 @@
+# summary: "Tests local-first run explanation, replay drift reporting, and bounded MLflow context discovery."
+# read_when:
+#   - "Changing run explain output, replay diagnostics, MLflow lookup modes, tag matching, related-run discovery, or degradation codes."
+
 from __future__ import annotations
 
 import json

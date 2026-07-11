@@ -1,3 +1,7 @@
+# summary: "Defines non-authoritative program architecture planning, tournament, verification, and recommendation commands."
+# read_when:
+#   - "Changing architecture candidate planning, contract drafts, tournaments, guided loops, or recommendations."
+
 from __future__ import annotations
 
 import json

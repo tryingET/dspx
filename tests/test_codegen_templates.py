@@ -1,3 +1,7 @@
+# summary: "Tests minimal Python program rendering and code-generation prompt formatting."
+# read_when:
+#   - "You are changing deterministic codegen templates or formatted generation specifications."
+
 from __future__ import annotations
 
 from dspx.templates import render_minimal_program, format_codegen_spec

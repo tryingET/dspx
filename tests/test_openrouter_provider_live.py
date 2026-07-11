@@ -1,3 +1,7 @@
+# summary: "Live-gated smoke test for OpenRouter text generation."
+# read_when:
+#   - "Changing the live OpenRouter provider contract."
+
 from __future__ import annotations
 
 import os

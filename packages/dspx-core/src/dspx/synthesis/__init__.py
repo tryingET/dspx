@@ -1,3 +1,7 @@
+# summary: "Exports the public module-synthesis contracts and runtime operations."
+# read_when:
+#   - "Changing the supported import surface for dspx.synthesis consumers."
+
 from .contracts import (
     CandidateArtifact,
     CandidateRecord,

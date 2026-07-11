@@ -1,3 +1,7 @@
+# summary: "Tests cache round trips, permissions, enablement parsing, malformed payloads, and path confinement."
+# read_when:
+#   - "You are changing DSPx cache storage, permissions, environment controls, or path validation."
+
 from __future__ import annotations
 
 from pathlib import Path

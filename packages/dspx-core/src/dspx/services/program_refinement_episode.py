@@ -1,3 +1,6 @@
+# summary: "Orchestrates a guarded local refinement episode across proposals, reviews, decisions, optional candidates, comparisons, plans, and state sidecars."
+# read_when:
+#   - "Changing the guided refinement workflow, output isolation, rollback, optional evidence steps, or episode summary validation."
 from __future__ import annotations
 
 import hashlib

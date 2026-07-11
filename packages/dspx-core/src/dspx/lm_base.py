@@ -1,3 +1,7 @@
+# summary: "Defines the minimal internal language-model provider interface."
+# read_when:
+#   - "Implementing or changing DSPx provider generation contracts."
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

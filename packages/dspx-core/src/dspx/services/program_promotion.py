@@ -1,3 +1,6 @@
+# summary: "Builds non-authoritative program promotion review shells and adjudication requests from intent policy and local evidence."
+# read_when:
+#   - "Changing promotion adjudicators, evidence requirements, blocking conditions, or adjudication request contracts."
 from __future__ import annotations
 
 from typing import Any, Mapping, Sequence

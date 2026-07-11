@@ -1,3 +1,7 @@
+# summary: "Provides a deterministic local stub provider for internal LM requests."
+# read_when:
+#   - "Changing the legacy stub provider response contract."
+
 from __future__ import annotations
 
 from ..dtos import LMRequest, LMResponse

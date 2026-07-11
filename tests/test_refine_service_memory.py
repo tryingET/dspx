@@ -1,3 +1,7 @@
+# summary: "Tests signature refinement attempt budgets, interactive feedback memory, and fail-closed TTY requirements."
+# read_when:
+#   - "Changing refine-service retry budgets, feedback accumulation, interactive prompting, or non-interactive behavior."
+
 from __future__ import annotations
 
 from typing import Any, cast

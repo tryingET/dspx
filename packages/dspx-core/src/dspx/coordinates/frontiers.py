@@ -1,3 +1,7 @@
+# summary: "Finds sparse behavioral frontiers and ranks suggested semantic-space exploration targets."
+# read_when:
+#   - "Changing frontier detection, coverage heuristics, sparse-region analysis, or exploration suggestions."
+
 """Frontier detection for behavioral topology.
 
 Frontiers represent the edges of explored behavioral space.

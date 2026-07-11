@@ -1,3 +1,7 @@
+# summary: "Tests request-size parsing, middleware limits, malformed lengths, endpoint coverage, and rejection metrics."
+# read_when:
+#   - "You are changing server body-size configuration, request rejection behavior, or HTTP 413 metrics."
+
 """Tests for request body size limit middleware (AK-800)."""
 
 from __future__ import annotations

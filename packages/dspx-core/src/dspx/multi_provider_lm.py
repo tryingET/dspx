@@ -1,3 +1,7 @@
+# summary: "Coordinates sequential, parallel, and reduced execution across multiple LM providers."
+# read_when:
+#   - "Changing multi-provider strategies, isolation, policy propagation, or cleanup."
+
 from __future__ import annotations
 
 import inspect

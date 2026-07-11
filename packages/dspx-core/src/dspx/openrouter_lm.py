@@ -1,3 +1,7 @@
+# summary: "Implements the DSPy-compatible OpenRouter chat-completions provider."
+# read_when:
+#   - "Changing OpenRouter authentication, request options, or response handling."
+
 from __future__ import annotations
 
 import os

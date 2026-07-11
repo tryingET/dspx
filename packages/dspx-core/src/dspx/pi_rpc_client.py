@@ -1,3 +1,7 @@
+# summary: "Manages serialized prompts over a long-lived Pi JSON-RPC subprocess."
+# read_when:
+#   - "Changing Pi RPC process lifecycle, event parsing, timeout recovery, or text extraction."
+
 from __future__ import annotations
 
 import json

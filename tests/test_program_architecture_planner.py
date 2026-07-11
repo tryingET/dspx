@@ -1,3 +1,7 @@
+# summary: "Tests non-authoritative architecture planning and materializability classification for program candidates."
+# read_when:
+#   - "Changing architecture candidate inference, capability previews, or declared-topology classification."
+
 from __future__ import annotations
 
 

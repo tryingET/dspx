@@ -1,3 +1,7 @@
+# summary: "Records module-synthesis quality events and evaluates receipt, selection, and corpus gates."
+# read_when:
+#   - "Changing module runtime invariants, quality metrics, summaries, or gate thresholds."
+
 from __future__ import annotations
 
 import json

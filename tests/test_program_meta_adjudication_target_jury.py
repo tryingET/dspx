@@ -1,3 +1,7 @@
+# summary: "Tests target-sensitive meta-adjudication profiles, jury requirements, jury selection, and verification sidecars."
+# read_when:
+#   - "Changing target-profile risk derivation, meta-jury requirements, panel selection, verification, or related CLI flows."
+
 from __future__ import annotations
 
 import json

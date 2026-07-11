@@ -1,3 +1,7 @@
+# summary: "Tests GEPA example curation and fail-closed meta-adjudication plan validation across evidence sidecar graphs."
+# read_when:
+#   - "Changing adjudication GEPA examples, meta-adjudication planning, sidecar discovery, graph binding, or plan contract validation."
+
 from __future__ import annotations
 
 import hashlib

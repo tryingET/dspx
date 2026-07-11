@@ -1,3 +1,7 @@
+# summary: "Loads local tabular datasets and provides deterministic random, stratified, and group-aware splits."
+# read_when:
+#   - "You are loading CSV, Parquet, or MLflow-referenced data or changing dataset split behavior."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

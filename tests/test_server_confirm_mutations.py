@@ -1,3 +1,7 @@
+# summary: "Tests optional confirmation gates for mutating server generation endpoints."
+# read_when:
+#   - "You are changing server mutation confirmation settings, headers, or protected generation endpoints."
+
 from __future__ import annotations
 
 from pathlib import Path

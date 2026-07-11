@@ -1,3 +1,7 @@
+# summary: "Runs deterministic module-synthesis corpus cases and emits quality-event evidence."
+# read_when:
+#   - "Changing module-synthesis regression cases, selection checks, or corpus quality output."
+
 """Deterministic module-synthesis regression corpus helpers."""
 
 from __future__ import annotations

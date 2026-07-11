@@ -1,3 +1,7 @@
+# summary: "Tests local preflight conversion of autoresearch campaign evidence into bounded shared-Oracle publication candidates."
+# read_when:
+#   - "Changing autoresearch Oracle evidence validation, publication labels, redaction, idempotency, or secret-reference handling."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Preflights and explicitly publishes adjudication behavior traces to shared Oracle empirical memory."
+# read_when:
+#   - "Changing adjudication-trace validation, publication policy, redaction, or shared-store receipts."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Adapts the Pi RPC client to DSPy and internal DSPx language-model calls."
+# read_when:
+#   - "Changing Pi RPC provider configuration, retry behavior, or LM response mapping."
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,7 @@
+# summary: "Computes vector similarity, semantic distance, behavioral drift, and embedding outliers."
+# read_when:
+#   - "Changing coordinate distance math, drift scoring or thresholds, or outlier detection."
+
 """Distance and similarity metrics for semantic coordinates.
 
 Provides functions for measuring semantic distance between executions,

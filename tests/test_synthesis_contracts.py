@@ -1,3 +1,7 @@
+# summary: "Tests module synthesis IR, request and bundle contracts, workspace evidence, ranking, and selected-candidate promotion."
+# read_when:
+#   - "You are changing module synthesis contracts, candidate materialization, evaluation lineage, selection, or promotion mechanics."
+
 from __future__ import annotations
 
 from pathlib import Path

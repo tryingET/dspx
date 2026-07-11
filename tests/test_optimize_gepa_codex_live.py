@@ -1,3 +1,7 @@
+# summary: "Live-gated Codex GEPA optimization smoke test with a loadable DSPy artifact."
+# read_when:
+#   - "Changing live Codex-backed GEPA optimization."
+
 from __future__ import annotations
 
 import csv

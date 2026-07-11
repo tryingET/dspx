@@ -1,3 +1,7 @@
+# summary: "Implements server authentication, rate limiting, request-size enforcement, and in-memory request metrics."
+# read_when:
+#   - "Changing bearer authentication, proxy-aware identities, rate policies, body limits, or request counters."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,3 +1,7 @@
+# summary: "Defines the normalized metadata model for an extracted OpenAPI operation."
+# read_when:
+#   - "Changing operation descriptors shared by OpenAPI loading and tool registration."
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional

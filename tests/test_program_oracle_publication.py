@@ -1,3 +1,7 @@
+# summary: "Tests shared Oracle publication from validated program-evidence preflights, including receipts, drift checks, and safe retries."
+# read_when:
+#   - "Changing shared program Oracle publication, preflight verification, idempotency, receipts, backend gating, or secret handling."
+
 from __future__ import annotations
 
 import hashlib

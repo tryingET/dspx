@@ -1,3 +1,7 @@
+# summary: "Implements Typer commands to inspect, list, show, clear, and prune DSPx cache entries."
+# read_when:
+#   - "You are operating or changing the DSPx cache CLI."
+
 """Cache inspection and management commands.
 
 Commands for inspecting, listing, and managing the on-disk cache.

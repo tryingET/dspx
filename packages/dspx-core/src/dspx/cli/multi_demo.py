@@ -1,3 +1,7 @@
+# summary: "Demonstrates multi-provider DSPy execution strategies, validation, reduction, isolation, and MLflow logging."
+# read_when:
+#   - "Changing the multi-provider comparison demo, strategy options, validators, reducers, or timing reports."
+
 from __future__ import annotations
 
 import argparse

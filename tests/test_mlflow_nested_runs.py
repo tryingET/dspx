@@ -1,3 +1,7 @@
+# summary: "Tests that nested MLflow runs restore rather than end their parent run."
+# read_when:
+#   - "Changing nested tracing contexts or MLflow run lifecycle handling."
+
 from __future__ import annotations
 
 from pathlib import Path

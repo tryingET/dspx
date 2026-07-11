@@ -1,3 +1,7 @@
+# summary: "Builds local preflight packets for publishing pi-autoresearch empirical evidence to shared Oracle storage."
+# read_when:
+#   - "Changing autoresearch packet validation, publication labels, custody fields, or idempotency."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Tests Forge CLI network-mutation gates and configuration failures."
+# read_when:
+#   - "Changing Forge apply flags, mutation policy, or DSPX configuration handling."
+
 from __future__ import annotations
 
 import os

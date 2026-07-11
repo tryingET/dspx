@@ -1,3 +1,7 @@
+# summary: "Tests registration and guarded execution of OpenAPI operations as DSPx tools."
+# read_when:
+#   - "Changing OpenAPI tool registration, operation immutability, allowed hosts, request bodies, or response decoding."
+
 from __future__ import annotations
 
 import json

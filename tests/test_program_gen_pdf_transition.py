@@ -1,3 +1,7 @@
+# summary: "End-to-end tests for PDF-transition program generation, review artifacts, replay evidence, and MLflow observability."
+# read_when:
+#   - "Changing the PDF-transition generation scenario, generated artifact contract, replay checks, or program observability."
+
 from __future__ import annotations
 
 import hashlib

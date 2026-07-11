@@ -1,3 +1,7 @@
+# summary: "Defines module-synthesis IR, candidate/runtime/promotion models, stable identities, and contract builders."
+# read_when:
+#   - "Changing synthesis bundle schemas, lineage fields, selection policy, or promotion contract construction."
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional

@@ -1,3 +1,7 @@
+# summary: "Tests repository workflow-contract alignment, stale guidance detection, standardized recipe bodies, and side-effect-free commands."
+# read_when:
+#   - "Changing workflow contract checks, Just recipes, engineering-lane policy, contributor guidance, or standardized command behavior."
+
 from __future__ import annotations
 
 import importlib.util

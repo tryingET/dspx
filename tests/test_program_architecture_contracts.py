@@ -1,3 +1,7 @@
+# summary: "Tests architecture contract drafts and verification for bounded retrievers, ReActV2, and tool references."
+# read_when:
+#   - "Changing architecture contract drafting, verification gates, or bounded capability policies."
+
 from __future__ import annotations
 
 import json

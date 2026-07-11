@@ -1,3 +1,7 @@
+# summary: "Tests verify-full aggregation across parallel runtime and test branches."
+# read_when:
+#   - "Changing the verify-full shell orchestrator, non-overlap environment contracts, or branch failure reporting."
+
 from __future__ import annotations
 
 import os

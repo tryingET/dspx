@@ -1,3 +1,7 @@
+# summary: "Tests deterministic random, stratified, group-aware, and minimum-per-label dataset splits."
+# read_when:
+#   - "You are changing dataset split ratios, stratification, grouping, balancing, or label coverage."
+
 from __future__ import annotations
 
 from dspx.adapters.datasets import (

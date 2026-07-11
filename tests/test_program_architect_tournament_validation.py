@@ -1,3 +1,7 @@
+# summary: "Tests fail-closed validation and collision preflights for architecture tournaments."
+# read_when:
+#   - "Changing tournament plan validation, candidate identity binding, or output-path safety."
+
 from __future__ import annotations
 
 import json

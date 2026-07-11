@@ -1,3 +1,7 @@
+# summary: "Builds, normalizes, persists, and replay-binds versioned DSPx run receipts and lineage."
+# read_when:
+#   - "Changing receipt identity, provenance, replay policy, execution context, provider details, or MLflow hints."
+
 from __future__ import annotations
 
 import hashlib

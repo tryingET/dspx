@@ -1,3 +1,7 @@
+# summary: "Tests bounded second-candidate materialization from refinement proposals and decisions."
+# read_when:
+#   - "Changing refinement candidate generation, lineage, dataset paths, or decision gates."
+
 from __future__ import annotations
 
 import hashlib

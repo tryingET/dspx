@@ -1,3 +1,7 @@
+# summary: "Tests repository monorepo boundary checks and rejection of core imports from the Forge application."
+# read_when:
+#   - "Changing package boundaries, the monorepo boundary checker, or allowed core-to-Forge dependencies."
+
 from __future__ import annotations
 
 import subprocess

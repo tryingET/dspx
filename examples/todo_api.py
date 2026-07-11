@@ -1,3 +1,8 @@
+# ---
+# summary: "DSPy signature modeling CRUD and list operations for a todo API."
+# read_when:
+#   - "Changing the todo API signature example."
+# ---
 import dspy
 from typing import Any, Literal, Optional
 

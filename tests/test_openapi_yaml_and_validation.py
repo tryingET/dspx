@@ -1,3 +1,7 @@
+# summary: "Tests YAML OpenAPI loading and required parameter and request-body validation."
+# read_when:
+#   - "Changing YAML spec support or required OpenAPI inputs."
+
 from __future__ import annotations
 
 from pathlib import Path

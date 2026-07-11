@@ -1,3 +1,7 @@
+# summary: "Git-backed helper routines for creating task-scope test repositories, commits, and snapshot fixtures."
+# read_when:
+#   - "Testing task-scope validation, snapshot handling, or synthetic repository history."
+
 from __future__ import annotations
 
 import json

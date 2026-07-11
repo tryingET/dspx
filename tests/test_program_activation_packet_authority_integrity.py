@@ -1,3 +1,7 @@
+# summary: "Tests activation-packet artifact integrity, identity binding, and fail-closed authority boundaries."
+# read_when:
+#   - "Changing activation-packet evidence validation, confinement, or target-adjudication checks."
+
 from __future__ import annotations
 
 import hashlib

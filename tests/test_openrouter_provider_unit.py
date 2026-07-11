@@ -1,3 +1,7 @@
+# summary: "Unit tests for OpenRouter registration, capabilities, requests, and response extraction."
+# read_when:
+#   - "Changing the OpenRouter provider adapter or registry entry."
+
 from __future__ import annotations
 
 import httpx

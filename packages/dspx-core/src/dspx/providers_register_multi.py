@@ -1,3 +1,7 @@
+# summary: "Registers the configurable multi-provider LM factory and its isolation and policy options."
+# read_when:
+#   - "Changing multi-provider selection, environment settings, isolation, or registry capabilities."
+
 from __future__ import annotations
 
 import os

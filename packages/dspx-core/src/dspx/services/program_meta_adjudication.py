@@ -1,3 +1,7 @@
+# summary: "Plans and validates the local generated-program meta-adjudication, jury, and evidence-decision chain."
+# read_when:
+#   - "Changing meta-adjudication sidecars, adjudicator formation, evidence judgments, or behavior traces."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Tests advisory architecture recommendations and fail-closed tournament authority validation."
+# read_when:
+#   - "Changing program-architect recommendations, evidence-matrix validation, or non-authority flags."
+
 from __future__ import annotations
 
 import json

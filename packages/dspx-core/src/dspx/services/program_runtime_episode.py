@@ -1,3 +1,6 @@
+# summary: "Executes immutable generated program candidates on explicit inputs and emits validated local runtime, trace, receipt, and Oracle evidence bundles."
+# read_when:
+#   - "Changing program runtime safety, input materialization, quality evaluation, evidence contracts, replay, or Oracle preflight integration."
 from __future__ import annotations
 
 import ast

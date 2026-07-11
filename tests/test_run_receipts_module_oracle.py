@@ -1,3 +1,7 @@
+# summary: "Tests module-generation receipts against canonical Oracle index discovery across output and working-directory roots."
+# read_when:
+#   - "Changing module synthesis evidence paths, default Oracle index resolution, or receipt-root alignment."
+
 from __future__ import annotations
 
 import json

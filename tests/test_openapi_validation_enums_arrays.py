@@ -1,3 +1,7 @@
+# summary: "Tests OpenAPI enum, array, union, string, and nested-body validation."
+# read_when:
+#   - "Changing OpenAPI parameter or JSON value validation."
+
 from __future__ import annotations
 
 import json

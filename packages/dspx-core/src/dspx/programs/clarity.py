@@ -1,3 +1,7 @@
+# summary: "Implements CLARITY phase signatures and DSPy modules for structured decisions."
+# read_when:
+#   - "Changing CLARITY policy, phase prompts, outputs, or decision composition."
+
 from __future__ import annotations
 
 import dspy

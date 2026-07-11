@@ -1,3 +1,8 @@
+# ---
+# summary: "Assert that signature-refinement runs publish expected MLflow tags and artifacts."
+# read_when:
+#   - "Changing MLflow signature-refinement observability or artifact naming contracts."
+# ---
 from __future__ import annotations
 
 import os

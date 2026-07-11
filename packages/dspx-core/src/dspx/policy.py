@@ -1,3 +1,7 @@
+# summary: "Enforces environment-configured provider, tool, capability, and timeout policy."
+# read_when:
+#   - "Changing DSPx policy environment variables, bypass auditing, or allow and deny checks."
+
 from __future__ import annotations
 
 import logging

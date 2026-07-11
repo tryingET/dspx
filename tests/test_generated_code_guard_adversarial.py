@@ -1,3 +1,7 @@
+# summary: "Adversarial tests for generated signature and module code safety guards."
+# read_when:
+#   - "Changing generated-code AST validation, smoke isolation, or error redaction."
+
 from __future__ import annotations
 
 from pathlib import Path

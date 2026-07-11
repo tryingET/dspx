@@ -1,3 +1,7 @@
+# summary: "Loads secret-free DSPx TOML configuration into managed environment variables."
+# read_when:
+#   - "Changing config discovery, TOML sections, secret rejection, or environment precedence."
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,7 @@
+# summary: "Registers provider factories and lazily ensures DSPx built-in providers are available."
+# read_when:
+#   - "Changing provider registration, default ownership, lookup, or environment selection."
+
 from __future__ import annotations
 
 import os

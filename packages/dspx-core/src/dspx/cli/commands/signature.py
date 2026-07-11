@@ -1,3 +1,7 @@
+# summary: "Defines DSPy signature generation, template preview, refinement, receipt, and quality-summary commands."
+# read_when:
+#   - "Changing signature validation, generation options, template adapters, refinement, receipts, or quality gates."
+
 """Signature generation and refinement commands.
 
 Commands for generating, refining, and analyzing DSPy signatures.

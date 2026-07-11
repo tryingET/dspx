@@ -1,3 +1,7 @@
+# summary: "Tests SQLite discovery and schema previews plus symlink confinement for repository, knowledge-base, and ontology summaries."
+# read_when:
+#   - "Changing database URL precedence, SQLite schema sampling, identifier handling, or filesystem summary confinement."
+
 from __future__ import annotations
 
 import sqlite3

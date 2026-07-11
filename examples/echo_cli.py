@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# summary: "Provides a minimal CLI that echoes one positional message and handles broken output pipes."
+# read_when:
+#   - "Using or changing the standalone echo CLI example."
 import argparse
 import sys
 

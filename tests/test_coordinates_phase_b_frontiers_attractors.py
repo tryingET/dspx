@@ -1,3 +1,7 @@
+# summary: "Tests Phase B frontier discovery, attractor detection, exploration suggestions, and health reporting."
+# read_when:
+#   - "You are changing Oracle frontier or attractor models, topology analysis, or exploration guidance."
+
 """Phase B behavioral topology frontier and attractor tests."""
 
 from __future__ import annotations

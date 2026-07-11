@@ -1,3 +1,7 @@
+# summary: "Tests comprehensive candidate-state construction, evidence binding, authority boundaries, and atomic writes."
+# read_when:
+#   - "Changing program candidate-state inputs, truth summaries, evidence validation, or output durability."
+
 from __future__ import annotations
 
 import hashlib

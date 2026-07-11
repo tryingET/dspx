@@ -1,3 +1,7 @@
+# summary: "Tests CLI exports for precision-recall and ROC evaluation artifacts."
+# read_when:
+#   - "Changing evaluation metrics, CSV inputs, or curve export filenames."
+
 from __future__ import annotations
 
 from pathlib import Path

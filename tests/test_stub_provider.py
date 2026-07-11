@@ -1,3 +1,7 @@
+# summary: "Tests registration and environment-driven construction of the DSPy-compatible stub provider."
+# read_when:
+#   - "You are changing default provider registration, stub provider selection, or provider construction."
+
 from __future__ import annotations
 
 from dspx.provider_registry import ensure_default_providers, available, create_from_env

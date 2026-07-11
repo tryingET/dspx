@@ -1,3 +1,7 @@
+# summary: "Redacts secrets from URLs, headers, and bounded diagnostic text previews."
+# read_when:
+#   - "Changing sensitive-key detection, diagnostic sanitization, URL redaction, or preview limits."
+
 from __future__ import annotations
 
 import re

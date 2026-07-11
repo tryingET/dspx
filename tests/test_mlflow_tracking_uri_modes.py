@@ -1,3 +1,7 @@
+# summary: "Tests explicit MLflow tracking modes, experiment setup, runs, and tags."
+# read_when:
+#   - "Changing MLflow URI policy, experiment creation, run names, or standard tags."
+
 from __future__ import annotations
 
 import os

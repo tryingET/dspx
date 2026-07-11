@@ -1,3 +1,7 @@
+# summary: "Tests that Forge declares a bounded dspx-core dependency range."
+# read_when:
+#   - "Changing Forge packaging or its dspx-core compatibility bounds."
+
 from __future__ import annotations
 
 import tomllib

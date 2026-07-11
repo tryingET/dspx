@@ -1,3 +1,7 @@
+# summary: "Defines Oracle CLI commands for indexing, searching, comparing, and publishing behavioral evidence."
+# read_when:
+#   - "Changing Oracle command surfaces, behavioral reports, contracts, publication preflights, or coordinate analysis."
+
 """Oracle CLI commands for behavioral intelligence.
 
 The Oracle provides semantic coordinate space operations for understanding

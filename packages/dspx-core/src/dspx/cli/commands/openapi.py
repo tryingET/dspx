@@ -1,3 +1,7 @@
+# summary: "Defines CLI commands for loading, inspecting, mapping, and safely calling OpenAPI operations."
+# read_when:
+#   - "Changing OpenAPI parameter coercion, operation discovery, call confirmation, mappings, or shell exports."
+
 """OpenAPI tool commands.
 
 Commands for loading, inspecting, and calling OpenAPI operations.

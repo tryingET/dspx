@@ -1,3 +1,7 @@
+# summary: "Tests deterministic offline test defaults and the complete, disjoint partitioning of parallel test lanes."
+# read_when:
+#   - "Changing pytest environment defaults, MLflow test isolation, xdist scheduling, markers, or full-gate test recipes."
+
 from __future__ import annotations
 
 import itertools

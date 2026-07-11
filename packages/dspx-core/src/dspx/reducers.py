@@ -1,3 +1,7 @@
+# summary: "Defines heuristic scoring and winner selection for multi-provider response candidates."
+# read_when:
+#   - "Changing reducer scores, JSON requirements, keyword coverage, length weighting, or winner selection."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

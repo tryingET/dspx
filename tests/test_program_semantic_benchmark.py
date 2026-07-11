@@ -1,3 +1,7 @@
+# summary: "Tests offline semantic benchmarks for generated candidates and review replay evidence."
+# read_when:
+#   - "Changing semantic benchmark corpora, execution, scoring, schemas, or artifact safety."
+
 from __future__ import annotations
 
 import json

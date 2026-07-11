@@ -1,3 +1,7 @@
+# summary: "Tests Forge work-order identity, redaction, path safety, and managed issue behavior."
+# read_when:
+#   - "Changing Forge work orders, issue specs, overlap handling, or GitLab reconciliation."
+
 from __future__ import annotations
 
 import json

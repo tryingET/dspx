@@ -1,3 +1,7 @@
+# summary: "Tests secret redaction at OpenAPI denial, redirect, response-header, and MLflow hint boundaries."
+# read_when:
+#   - "Changing OpenAPI error surfaces, redirect policy, response-header handling, or MLflow tracking URI persistence."
+
 from __future__ import annotations
 
 from pathlib import Path

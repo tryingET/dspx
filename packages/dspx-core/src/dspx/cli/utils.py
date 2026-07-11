@@ -1,3 +1,7 @@
+# summary: "Provides shared CLI environment, template-adapter, output, receipt, and MLflow utility helpers."
+# read_when:
+#   - "Changing command setup decorators, adapter validation, JSON output, receipt writing, or MLflow lifecycle helpers."
+
 from __future__ import annotations
 
 import json

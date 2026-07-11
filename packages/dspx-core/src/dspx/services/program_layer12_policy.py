@@ -1,3 +1,7 @@
+# summary: "Checks advisory SF14 Layer-12 generated-program policy, compatibility, shadow evidence, and signed receipts."
+# read_when:
+#   - "Changing Layer-12 aggregate policy, shadow predicates, receipt signatures, or authority boundaries."
+
 """DSPx-owned advisory contracts for the SF14 Layer-12 generated-program boundary.
 
 These pure checkers produce empirical evidence only. They never establish AK legality,

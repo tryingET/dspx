@@ -1,3 +1,7 @@
+# summary: "Tests deterministic signature rendering against validation tokens and golden source hashes."
+# read_when:
+#   - "You are changing signature templates, renderer output, validation, or the signature golden corpus."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,6 @@
+# summary: "Validates GEPA refinement and materialized-candidate contracts, optimizer payload inventories, identity lineage, and path isolation."
+# read_when:
+#   - "Changing GEPA result readiness, optimizer hash binding, candidate validation, payload copying, or non-authority flags."
 from __future__ import annotations
 
 import hashlib

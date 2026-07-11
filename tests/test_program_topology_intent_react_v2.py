@@ -1,3 +1,7 @@
+# summary: "Tests experimental ReActV2 topology opt-in, DSPy capability checks, and fail-closed no-tool materialization."
+# read_when:
+#   - "Changing ReActV2 availability detection, explicit opt-in, tool-reference handling, or generated capability metadata."
+
 from __future__ import annotations
 
 from pathlib import Path

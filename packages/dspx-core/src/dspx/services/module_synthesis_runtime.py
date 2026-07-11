@@ -1,3 +1,7 @@
+# summary: "Executes module-synthesis candidates and assembles selected-code metadata, diagnostics, and quality evidence."
+# read_when:
+#   - "Changing the module-synthesis execution spine or generated artifact metadata."
+
 from __future__ import annotations
 
 from pathlib import Path

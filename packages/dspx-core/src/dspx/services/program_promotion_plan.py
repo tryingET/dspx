@@ -1,3 +1,6 @@
+# summary: "Builds and validates hash-bound local promotion plans without applying promotion or external authority."
+# read_when:
+#   - "Changing promotion-plan eligibility, evidence rebinding, local targets, audit trails, or apply prohibitions."
 from __future__ import annotations
 
 import hashlib

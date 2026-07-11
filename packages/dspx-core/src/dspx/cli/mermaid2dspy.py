@@ -1,3 +1,7 @@
+# summary: "Provides the lightweight CLI for generating DSPy workflow variants from Mermaid flowcharts."
+# read_when:
+#   - "Changing Mermaid input handling, variant selection, output paths, or generation hints."
+
 from __future__ import annotations
 
 import argparse

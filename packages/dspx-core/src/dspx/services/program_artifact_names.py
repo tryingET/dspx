@@ -1,3 +1,7 @@
+# summary: "Defines generated program artifact names protected from sidecar overwrites."
+# read_when:
+#   - "Adding generated program files or tightening sidecar output collision protection."
+
 from __future__ import annotations
 
 # Generated candidate artifact basenames that sidecar-writing commands must not

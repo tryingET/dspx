@@ -1,3 +1,7 @@
+# summary: "Tests Oracle publication preflight evidence and alignment in generated-program activation packets."
+# read_when:
+#   - "Changing activation-packet handling of Oracle publication preflights or candidate-state alignment."
+
 from __future__ import annotations
 
 import json

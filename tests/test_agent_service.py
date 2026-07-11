@@ -1,3 +1,7 @@
+# summary: "Tests agent-service ReAct construction, invocation, and answer extraction."
+# read_when:
+#   - "You are changing the DSPx agent service signature, tool wiring, iteration controls, or return handling."
+
 from __future__ import annotations
 
 from typing import Any

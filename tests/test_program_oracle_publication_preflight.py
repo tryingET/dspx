@@ -1,3 +1,7 @@
+# summary: "Tests local shared-Oracle publication preflights for program evidence, runtime-trace binding, and authority-safe metadata."
+# read_when:
+#   - "Changing program Oracle publication preflight validation, runtime-trace summaries, labels, retention, redaction, or secret references."
+
 from __future__ import annotations
 
 import json

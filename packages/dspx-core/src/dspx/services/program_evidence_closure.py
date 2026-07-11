@@ -1,3 +1,7 @@
+# summary: "Safely validates and snapshots the complete candidate artifact closure declared by a program manifest."
+# read_when:
+#   - "Changing candidate artifact path confinement, hash validation, or snapshot reads."
+
 from __future__ import annotations
 
 import hashlib

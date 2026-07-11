@@ -1,3 +1,7 @@
+# summary: "Tests read-only Layer 12 proposal evaluation against AK controller authority."
+# read_when:
+#   - "Changing Layer 12 proposal evaluation, candidate scoring, or its CLI output."
+
 from __future__ import annotations
 
 import json

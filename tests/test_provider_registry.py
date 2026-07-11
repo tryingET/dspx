@@ -1,3 +1,7 @@
+# summary: "Tests default provider registration, environment-based creation, capability posture, and multi-provider resolution."
+# read_when:
+#   - "Changing provider registry defaults, provider factories, capability declarations, or multi-provider fallback behavior."
+
 from __future__ import annotations
 
 import dspx.providers_register_multi as providers_register_multi

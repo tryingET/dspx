@@ -1,3 +1,7 @@
+# summary: "Detects stable behavioral attractors and predicts convergence in semantic coordinate space."
+# read_when:
+#   - "Changing attractor clustering, stability scoring, basin membership, health, or convergence prediction."
+
 """Attractor detection for behavioral topology.
 
 Attractors are regions of behavioral space where executions

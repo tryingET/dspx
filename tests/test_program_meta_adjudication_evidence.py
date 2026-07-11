@@ -1,3 +1,7 @@
+# summary: "Tests program evidence adjudication, runtime evidence binding, decision records, behavior traces, and GEPA inputs."
+# read_when:
+#   - "Changing evidence adjudication, runtime-episode consumption, generated adjudicator decisions, behavior traces, or their CLI sidecars."
+
 from __future__ import annotations
 
 import hashlib

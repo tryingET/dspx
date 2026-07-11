@@ -1,3 +1,7 @@
+# summary: "Tests Phase A semantic coordinates across embeddings, metrics, storage, clustering, and receipt indexing."
+# read_when:
+#   - "You are changing Oracle coordinate embeddings, similarity metrics, stores, clustering, or receipt identity."
+
 """Tests for semantic coordinates module (Phase A: Oracle)."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# summary: "Builds and protects a session-shared immutable candidate-state graph with private mutable test overrides."
+# read_when:
+#   - "Testing candidate-state consumers, shared production fixtures, or GEPA artifact isolation."
+
 from __future__ import annotations
 
 import fcntl

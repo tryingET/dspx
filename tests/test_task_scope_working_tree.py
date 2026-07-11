@@ -1,3 +1,7 @@
+# summary: "Tests working-tree task-scope discovery for tracked, untracked, and provenance-grouped changes."
+# read_when:
+#   - "Changing dirty-tree path parsing, auto-mode selection, uncommitted scope artifacts, claim binding, or required-path provenance."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "CLI entrypoint for generating DSPy signatures with an optional Codex Exec script wrapper."
+# read_when:
+#   - "Changing vibegen arguments, provider selection, generated output, or script wrapping."
+
 import argparse
 from pathlib import Path
 from typing import Optional

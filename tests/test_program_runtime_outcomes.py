@@ -1,3 +1,7 @@
+# summary: "Tests declared runtime outcome contracts for generated DSPy module primitives."
+# read_when:
+#   - "Changing runtime outcome declarations, primitive trace contracts, effects, or replay checks."
+
 from __future__ import annotations
 
 import json

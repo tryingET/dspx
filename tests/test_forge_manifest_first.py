@@ -1,3 +1,7 @@
+# summary: "Tests that Forge persists its manifest before issuing network requests."
+# read_when:
+#   - "Changing Forge issue application ordering or manifest persistence."
+
 from __future__ import annotations
 
 from pathlib import Path

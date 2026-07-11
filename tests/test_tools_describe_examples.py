@@ -1,3 +1,7 @@
+# summary: "Tests example generation in JSON descriptions for built-in and OpenAPI tools."
+# read_when:
+#   - "Changing tools describe --examples output or built-in and OpenAPI invocation examples."
+
 from __future__ import annotations
 
 import json

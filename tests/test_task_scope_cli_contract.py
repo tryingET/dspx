@@ -1,3 +1,7 @@
+# summary: "Tests task-scope CLI help, assignment-style arguments, dirty-tree defaults, and explicit snapshot selection."
+# read_when:
+#   - "You are changing task-scope CLI arguments, Just recipes, scope artifact discovery, or working-tree validation."
+
 from __future__ import annotations
 
 import json

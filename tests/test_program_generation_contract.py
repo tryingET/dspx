@@ -1,3 +1,7 @@
+# summary: "Tests generation target contracts, DesignMD requirements intake, fitness gates, traceability, and safe review eligibility."
+# read_when:
+#   - "Changing program-generation requirements intake, target-fidelity contracts, gate validation, traceability, or fitness results."
+
 from __future__ import annotations
 
 import json

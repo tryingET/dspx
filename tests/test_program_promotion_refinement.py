@@ -1,3 +1,7 @@
+# summary: "Tests refined promotion review packets across behavior, Oracle, runtime, and jury evidence."
+# read_when:
+#   - "Changing promotion review refinement contracts, evidence validation, or safe publication."
+
 from __future__ import annotations
 
 from collections.abc import Mapping

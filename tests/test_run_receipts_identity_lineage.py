@@ -1,3 +1,7 @@
+# summary: "Tests run-receipt identity, causal lineage normalization, execution context capture, and CLI provenance fields."
+# read_when:
+#   - "Changing receipt identity precedence, lineage fields, execution-context hashing, environment redaction, or provenance normalization."
+
 from __future__ import annotations
 
 import json

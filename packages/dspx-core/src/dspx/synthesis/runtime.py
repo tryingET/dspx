@@ -1,3 +1,7 @@
+# summary: "Materializes, validates, ranks, summarizes, and optionally copies explicitly selected module-synthesis candidates to a caller-provided local target."
+# read_when:
+#   - "Changing synthesis workspaces, runtime evaluation, candidate ranking, receipts, or local candidate materialization."
+
 from __future__ import annotations
 
 import ast

@@ -1,3 +1,7 @@
+# summary: "Tests the program-loop workflow from intent generation through behavior evidence, Oracle reporting, publication, and candidate state."
+# read_when:
+#   - "Changing program-loop CLI orchestration, behavior evaluation, Oracle indexing/publication, candidate state, or output-path confinement."
+
 from __future__ import annotations
 
 import json

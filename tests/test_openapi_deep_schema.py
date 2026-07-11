@@ -1,3 +1,7 @@
+# summary: "Tests fail-closed OpenAPI request-body validation for deep, cyclic, nested, array, required, type, and enum schemas."
+# read_when:
+#   - "Changing OpenAPI schema traversal, reference-cycle detection, validation depth, or nested request-body validation."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Builds, confines, persists, and reloads sanitized Forge WorkOrder documents and cards."
+# read_when:
+#   - "Changing Forge WorkOrder defaults, fingerprints, output paths, persistence, or loading."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

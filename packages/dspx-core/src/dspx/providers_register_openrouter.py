@@ -1,3 +1,7 @@
+# summary: "Registers the OpenRouter LM provider with model, endpoint, timeout, and attribution-header configuration."
+# read_when:
+#   - "Changing OpenRouter environment settings, request attribution, defaults, or capabilities."
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,7 @@
+# summary: "Tests generated-program runtime trace capture, coverage, lineage, and semantic validation."
+# read_when:
+#   - "Changing runtime trace construction, coverage accounting, tool intents, or replay integrity."
+
 from __future__ import annotations
 
 import json

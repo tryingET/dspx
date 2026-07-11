@@ -1,3 +1,7 @@
+# summary: "Maps clustered execution embeddings into stable, unstable, unknown, and danger regions."
+# read_when:
+#   - "Changing territory classification, region confidence, neighbors, coverage, or danger-zone detection."
+
 """Territory mapping for behavioral topology.
 
 Maps semantic space into regions: stable, unstable, and unknown.

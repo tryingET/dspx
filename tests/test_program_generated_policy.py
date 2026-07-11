@@ -1,3 +1,7 @@
+# summary: "Tests fail-closed policy enforcement and replay binding for generated Python module surfaces."
+# read_when:
+#   - "Changing generated-module safety policy, permitted DSPy constructs, policy sidecars, or replay validation."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Materializes complete generated-program candidate assemblies, evidence sidecars, manifests, and receipts from program intents."
+# read_when:
+#   - "Changing program-gen planning, surface materialization, behavior evaluation, evidence binding, or receipt contents."
+
 from __future__ import annotations
 
 import json

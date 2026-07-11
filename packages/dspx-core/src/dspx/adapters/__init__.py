@@ -1,3 +1,7 @@
+# summary: "Offline-friendly adapter package for datasets, evaluation, local stores, and authority export planning."
+# read_when:
+#   - "You are choosing or extending a DSPx adapter boundary."
+
 from __future__ import annotations
 
 """

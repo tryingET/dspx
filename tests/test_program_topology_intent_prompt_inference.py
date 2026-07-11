@@ -1,3 +1,7 @@
+# summary: "Tests prompt-driven topology inference, richer module selection, opt-out behavior, and single-module fallback."
+# read_when:
+#   - "Changing prompt-to-topology inference cues, inferred module primitives, renderer selection, or default topology behavior."
+
 from __future__ import annotations
 
 import json

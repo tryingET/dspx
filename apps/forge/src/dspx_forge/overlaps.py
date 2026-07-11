@@ -1,3 +1,7 @@
+# summary: "Finds Forge issue overlap candidates by stable label while retaining an offline-safe result."
+# read_when:
+#   - "Changing overlap lookup, candidate evidence, offline fallback, or overlaps.json output."
+
 from __future__ import annotations
 
 from pathlib import Path

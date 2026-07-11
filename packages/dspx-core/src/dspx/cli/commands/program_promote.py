@@ -1,3 +1,7 @@
+# summary: "Defines local program promotion-review, jury, adjudication, decision, and activation-evidence commands."
+# read_when:
+#   - "Changing generated-program review evidence, adjudicator workflows, candidate state, or activation readiness."
+
 from __future__ import annotations
 
 import json

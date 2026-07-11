@@ -1,3 +1,7 @@
+# summary: "Records, summarizes, gates, and formats signature-generation quality events."
+# read_when:
+#   - "Changing signature quality logging, aggregation metrics, thresholds, or summary output."
+
 from __future__ import annotations
 
 import json

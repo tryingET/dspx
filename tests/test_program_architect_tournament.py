@@ -1,3 +1,7 @@
+# summary: "Tests local architecture tournaments, candidate materialization, replay evidence, and optional Oracle reports."
+# read_when:
+#   - "Changing program-architect tournament materialization, evidence matrices, replay, or candidate-local Oracle behavior."
+
 from __future__ import annotations
 
 import json

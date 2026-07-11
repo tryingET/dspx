@@ -1,3 +1,7 @@
+# summary: "Tests signature service DTO generation for templates and providers, explicit IO validation, and quality logs."
+# read_when:
+#   - "You are changing SignatureGenRequest handling, template or native generation metadata, IO validation, or quality events."
+
 from __future__ import annotations
 
 from pathlib import Path

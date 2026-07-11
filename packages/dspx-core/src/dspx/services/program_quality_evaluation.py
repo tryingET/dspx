@@ -1,3 +1,6 @@
+# summary: "Normalizes and evaluates bounded intent-native concept-coverage quality criteria for generated program outputs."
+# read_when:
+#   - "Changing quality-criteria validation, concept matching, scoring, or runtime status projection."
 """Bounded intent-native quality criteria for generated program behavior."""
 
 from __future__ import annotations

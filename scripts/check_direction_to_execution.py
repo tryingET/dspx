@@ -1,3 +1,7 @@
+# summary: "Checks repo direction projections for required AK references and retired artifacts."
+# read_when:
+#   - "Changing direction read-order requirements or retired direction-file detection."
+
 from __future__ import annotations
 
 import argparse

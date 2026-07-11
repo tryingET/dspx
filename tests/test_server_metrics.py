@@ -1,3 +1,7 @@
+# summary: "Tests server metrics enablement, authentication, response counters, and rate-limit accounting."
+# read_when:
+#   - "You are changing server metrics endpoints, request counters, auth protection, or rate-limit instrumentation."
+
 from __future__ import annotations
 
 import pytest

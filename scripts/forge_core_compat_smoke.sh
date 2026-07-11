@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Test current Forge against latest or minimum-supported DSPx Core wheels."
+# read_when:
+#   - "Changing Forge/Core compatibility bounds, wheel builds, or compatibility smoke tests."
+# ---
 set -euo pipefail
 
 MODE="${1:-latest}"

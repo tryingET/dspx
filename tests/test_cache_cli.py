@@ -1,3 +1,7 @@
+# summary: "Tests cache CLI inspection, listing, pruning, display, and deletion workflows."
+# read_when:
+#   - "You are changing cache CLI commands, dry-run pruning, or cache reporting."
+
 from __future__ import annotations
 
 import json

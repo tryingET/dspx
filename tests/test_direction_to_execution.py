@@ -1,3 +1,7 @@
+# summary: "Tests the AK-native direction-to-execution repository contract."
+# read_when:
+#   - "Changing direction-file retirement checks or AGENTS direction requirements."
+
 from __future__ import annotations
 
 import importlib.util

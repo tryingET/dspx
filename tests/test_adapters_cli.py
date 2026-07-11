@@ -1,3 +1,7 @@
+# summary: "CLI integration tests for adapter listing, CSV description, and stratified group dataset splitting."
+# read_when:
+#   - "Changing the adapters CLI, dataset describe output, or grouped split behavior."
+
 from __future__ import annotations
 
 import json

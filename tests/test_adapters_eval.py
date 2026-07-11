@@ -1,3 +1,7 @@
+# summary: "Unit tests for adapter classification, text, curve, calibration, and finite-score evaluation metrics."
+# read_when:
+#   - "Changing adapter metric formulas, edge cases, or score validation."
+
 from typing import Any, cast
 
 import pytest

@@ -1,3 +1,7 @@
+# summary: "Builds replayable contracts describing generated single-module and pipeline module surfaces."
+# read_when:
+#   - "Changing generated module-surface IO, capability refs, effects, or topology composition."
+
 from __future__ import annotations
 
 from typing import Any, Mapping

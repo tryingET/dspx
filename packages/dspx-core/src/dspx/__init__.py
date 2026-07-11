@@ -1,3 +1,7 @@
+# summary: "Public DSPx package exports for supported LM wrappers and validation helpers."
+# read_when:
+#   - "You are importing DSPx's top-level Python API or changing its public exports."
+
 from .codex_exec_lm import CodexExecLM
 from .claude_cli_lm import ClaudeHeadlessLM
 from .multi_provider_lm import MultiProviderLM

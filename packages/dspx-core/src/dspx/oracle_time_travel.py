@@ -1,3 +1,7 @@
+# summary: "Builds receipt-backed branch timelines, diffs, and regression-boundary reports."
+# read_when:
+#   - "Changing Oracle time-travel receipt loading, lineage comparison, or bisect output."
+
 from __future__ import annotations
 
 from collections import Counter, defaultdict

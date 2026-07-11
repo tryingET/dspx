@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# summary: "Builds the deterministic provider corpus log and evaluates signature quality gates."
+# read_when:
+#   - "Changing signature provider corpus inputs, event output, or gate reporting."
+
 from __future__ import annotations
 
 import argparse

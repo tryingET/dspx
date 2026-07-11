@@ -1,3 +1,7 @@
+# summary: "Adapts generic OpenAI-compatible chat endpoints to DSPy and DSPx LM interfaces."
+# read_when:
+#   - "Changing OpenAI-compatible payloads, health checks, response bounds, or metadata."
+
 from __future__ import annotations
 
 import time

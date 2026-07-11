@@ -1,3 +1,7 @@
+# summary: "Tests the guided local program-architect loop and its non-authoritative outputs."
+# read_when:
+#   - "Changing the program-architect loop, candidate filtering, output preflights, or Oracle report options."
+
 from __future__ import annotations
 
 import json

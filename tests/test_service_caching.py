@@ -1,3 +1,7 @@
+# summary: "Tests cache materialization for signature, codegen, and module service calls."
+# read_when:
+#   - "You are changing service-level cache controls, cache directories, or generated artifact persistence."
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,3 +1,7 @@
+# summary: "Runs provider-backed program jurors over bounded evidence and emits non-authoritative review results."
+# read_when:
+#   - "Changing model-jury evidence loading, prompts, provider calls, aggregation, or output safety."
+
 from __future__ import annotations
 
 import hashlib

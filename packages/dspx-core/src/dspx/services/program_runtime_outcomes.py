@@ -1,3 +1,6 @@
+# summary: "Builds non-authoritative expected runtime outcome and trajectory contracts for generated program module surfaces."
+# read_when:
+#   - "Changing primitive outcome shapes, trace contracts, effect declarations, or generated runtime policy."
 from __future__ import annotations
 
 from importlib import metadata

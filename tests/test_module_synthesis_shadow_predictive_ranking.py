@@ -1,3 +1,7 @@
+# summary: "Tests shadow predictive ranking advisories across alternative, matching, sparse, mixed, and invalid evidence states."
+# read_when:
+#   - "Changing shadow ranking policy, prior evidence comparison, preferred-candidate selection, or drift validation."
+
 from __future__ import annotations
 
 

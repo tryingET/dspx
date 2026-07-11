@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Smoke-test local program refinement from Oracle evidence through candidate comparison."
+# read_when:
+#   - "Changing refinement proposals, promotion decisions, second-candidate generation, or comparison."
+# ---
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

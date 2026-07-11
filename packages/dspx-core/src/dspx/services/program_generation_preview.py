@@ -1,3 +1,7 @@
+# summary: "Produces deterministic topology, capability, and safety previews before program materialization."
+# read_when:
+#   - "Changing intent cue inference, topology candidates, or previewed capability boundaries."
+
 from __future__ import annotations
 
 import re

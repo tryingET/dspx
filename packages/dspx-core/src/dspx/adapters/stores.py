@@ -1,3 +1,7 @@
+# summary: "Provides a capability-checked local text object store confined to a configured root."
+# read_when:
+#   - "You are storing local adapter artifacts or reviewing filesystem confinement and capability checks."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

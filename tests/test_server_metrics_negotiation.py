@@ -1,3 +1,7 @@
+# summary: "Tests JSON and Prometheus metrics content negotiation, including body-size rejection counters."
+# read_when:
+#   - "You are changing metrics formats, Accept or query negotiation, Prometheus output, or HTTP 413 accounting."
+
 from __future__ import annotations
 
 import pytest

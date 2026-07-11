@@ -1,3 +1,7 @@
+# summary: "Defines, normalizes, and loads the structured program-intent contract used by program generation."
+# read_when:
+#   - "Changing intent fields, topology graph validation, primitive configuration, or intent loading."
+
 from __future__ import annotations
 
 from pathlib import Path

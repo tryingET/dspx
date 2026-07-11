@@ -1,3 +1,7 @@
+# summary: "Tests changed-file impact planning, risk escalation, targeted command routing, execution, and verification receipts."
+# read_when:
+#   - "Changing verification impact maps, path matching, command selection, wide-risk thresholds, or impact result receipts."
+
 from __future__ import annotations
 
 import importlib.util

@@ -1,3 +1,7 @@
+# summary: "Integration tests for OpenAPI loading, operation registration, validation, and invocation."
+# read_when:
+#   - "Changing the OpenAPI tool boundary."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Tests Oracle publication receipt validation and evidence-only use in activation packets."
+# read_when:
+#   - "Changing activation-packet publication receipts, idempotency checks, or Oracle authority boundaries."
+
 from __future__ import annotations
 
 import json

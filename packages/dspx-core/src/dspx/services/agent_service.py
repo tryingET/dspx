@@ -1,3 +1,7 @@
+# summary: "Runs a minimal DSPy ReAct question-answering agent with optional registered tools."
+# read_when:
+#   - "Changing agent signatures, provider setup, tool resolution, iteration limits, or answer extraction."
+
 from __future__ import annotations
 
 from typing import List, Optional

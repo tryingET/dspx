@@ -1,3 +1,7 @@
+# summary: "Tests that registered tool wrappers enforce each tool's declared capability policy before invocation."
+# read_when:
+#   - "Changing tool registration wrappers, capability declarations, or policy denial behavior."
+
 from __future__ import annotations
 
 import pytest

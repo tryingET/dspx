@@ -1,3 +1,7 @@
+# summary: "Ranks Forge project-route candidates from configured project keys and keyword matches."
+# read_when:
+#   - "Changing Forge project-map discovery, keyword routing, or default route ranking."
+
 from __future__ import annotations
 
 import json

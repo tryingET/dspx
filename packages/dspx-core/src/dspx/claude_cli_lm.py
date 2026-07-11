@@ -1,3 +1,7 @@
+# summary: "Adapts the headless Claude CLI to DSPy's LM interface and DSPx's internal request DTOs."
+# read_when:
+#   - "You are configuring Claude CLI execution, sessions, tools, output parsing, or DSPy integration."
+
 """
 ClaudeHeadlessLM: A DSPy-compatible wrapper around the "Claude Code" CLI
 ("claude") headless mode, so you can run it programmatically as an LM.

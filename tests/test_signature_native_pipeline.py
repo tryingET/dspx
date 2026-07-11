@@ -1,3 +1,7 @@
+# summary: "Tests native signature prompting, candidate retries and fallback, IO constraints, scoring, and smoke safety."
+# read_when:
+#   - "You are changing native signature generation, candidate selection, JSON mode, metadata, or generated-code safety checks."
+
 from __future__ import annotations
 
 import json

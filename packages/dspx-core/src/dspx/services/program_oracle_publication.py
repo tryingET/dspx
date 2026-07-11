@@ -1,3 +1,6 @@
+# summary: "Validates and publishes preflighted program Oracle evidence to an explicit shared coordinate store, returning a local receipt."
+# read_when:
+#   - "Changing shared Oracle publication validation, idempotency, target posture, or receipt semantics."
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Aggregates Typer sub-apps that compose the main DSPx command-line interface."
+# read_when:
+#   - "You are registering, renaming, or removing a DSPx CLI command group."
+
 """Command modules for dspx CLI.
 
 Each module exports a Typer app that is registered in the main dspx.py.

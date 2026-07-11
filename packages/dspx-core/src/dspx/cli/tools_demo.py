@@ -1,3 +1,7 @@
+# summary: "Provides an argparse demo for registered web and data-preview tools."
+# read_when:
+#   - "Changing the tools demo commands, arguments, output truncation, or registry invocation."
+
 import argparse
 import json
 from typing import Optional

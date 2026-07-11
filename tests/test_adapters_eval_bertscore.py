@@ -1,3 +1,7 @@
+# summary: "Optional dependency smoke test for the adapter BERTScore F1 metric."
+# read_when:
+#   - "Changing BERTScore adapter integration or its optional dependency behavior."
+
 import pytest
 
 

@@ -1,3 +1,7 @@
+# summary: "Registers the environment-configured Gemini CLI provider and capabilities."
+# read_when:
+#   - "Changing Gemini CLI provider environment mapping or advertised capabilities."
+
 from __future__ import annotations
 
 import os

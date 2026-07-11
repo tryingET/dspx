@@ -1,3 +1,7 @@
+# summary: "Configures opt-in MLflow tracing, normalized tags, and explicit run lifecycles."
+# read_when:
+#   - "Changing MLflow enablement, tracking backend policy, tags, or nested runs."
+
 """
 MLflow tracing helper for DSPx + DSPy.
 

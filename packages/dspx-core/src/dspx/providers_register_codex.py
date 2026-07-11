@@ -1,3 +1,7 @@
+# summary: "Registers the Codex exec provider with optional ephemeral workspace isolation."
+# read_when:
+#   - "Changing Codex provider environment mapping, sandbox setup, or capabilities."
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,7 @@
+# summary: "Explicit opt-in Postgres and pgvector backend for Oracle coordinate storage and search."
+# read_when:
+#   - "Changing shared coordinate persistence, pgvector queries, database configuration, or redaction."
+
 """Postgres + pgvector coordinate store scaffold for Oracle.
 
 The dependency is intentionally optional in this slice.  SQLite remains the default

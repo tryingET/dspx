@@ -1,3 +1,7 @@
+# summary: "Tests FastAPI signature, module, and Mermaid generation endpoints, artifact persistence, and request validation."
+# read_when:
+#   - "Changing server generation endpoints, response artifact paths, receipt persistence, Mermaid variants, or API error handling."
+
 from __future__ import annotations
 
 import json

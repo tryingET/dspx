@@ -1,3 +1,7 @@
+# summary: "Tests HEAD-mode task-scope resolution across manifests, snapshots, commit ranges, claims, and provenance groups."
+# read_when:
+#   - "Changing HEAD task-scope binding, changed-file ranges, required-path checks, root commits, or provenance-note grouping."
+
 from __future__ import annotations
 
 import json

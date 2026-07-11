@@ -1,3 +1,7 @@
+# summary: "Tests declared program quality criteria, scoring, and generated harness integration."
+# read_when:
+#   - "Changing quality criterion normalization, evaluation, or runtime status mapping."
+
 from __future__ import annotations
 
 import json

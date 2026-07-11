@@ -1,3 +1,7 @@
+# summary: "Tests non-authoritative local promotion plans built from candidate comparison evidence."
+# read_when:
+#   - "Changing program promotion plan eligibility, integrity checks, outputs, or CLI behavior."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Tests GEPA metric weighting, normalization hooks, and predictor feedback."
+# read_when:
+#   - "Changing default GEPA metric composition."
+
 from __future__ import annotations
 
 from types import SimpleNamespace

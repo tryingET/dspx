@@ -1,3 +1,7 @@
+# summary: "Defines bounded local program refinement, GEPA candidate, comparison, and guided episode commands."
+# read_when:
+#   - "Changing refinement proposals, candidate materialization, GEPA workflows, comparisons, or episode orchestration."
+
 from __future__ import annotations
 
 import json

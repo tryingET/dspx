@@ -1,3 +1,7 @@
+# summary: "Builds validated semantic embeddings from text, executions, and replay receipts."
+# read_when:
+#   - "Changing embedding backends, execution vectors, receipt extraction, validation, or engine caching."
+
 """Embedding engine for semantic coordinates.
 
 Converts execution data (inputs, outputs, config) into dense vector representations

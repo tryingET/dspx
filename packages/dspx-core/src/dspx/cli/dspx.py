@@ -1,3 +1,7 @@
+# summary: "Wires the main DSPx CLI, program generation/runtime workflows, inline generators, and global policy setup."
+# read_when:
+#   - "Changing top-level commands, program workflows, generation gates, artifact logging, or global CLI policy options."
+
 """Main dspx CLI entrypoint.
 
 This is a thin orchestrator that wires up command groups from

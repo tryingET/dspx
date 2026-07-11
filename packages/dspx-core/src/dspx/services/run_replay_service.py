@@ -1,3 +1,7 @@
+# summary: "Validates DSPx run receipts, bound program evidence, and supported deterministic local execution replays."
+# read_when:
+#   - "Changing receipt integrity checks, program evidence closure, tool-adapter validation, or execution replay policy."
+
 from __future__ import annotations
 
 import ast

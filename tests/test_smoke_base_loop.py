@@ -1,3 +1,7 @@
+# summary: "Tests the base-loop smoke workflow materializes local exploratory artifacts without invoking external authority."
+# read_when:
+#   - "You are changing the base-loop smoke script, generated program artifacts, manifests, or non-authority export plans."
+
 from __future__ import annotations
 
 import json

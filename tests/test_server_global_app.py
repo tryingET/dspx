@@ -1,3 +1,7 @@
+# summary: "Tests that the global server app defers environment-sensitive configuration until first use."
+# read_when:
+#   - "You are changing global FastAPI app initialization, lazy configuration, or authentication environment loading."
+
 from __future__ import annotations
 
 import importlib

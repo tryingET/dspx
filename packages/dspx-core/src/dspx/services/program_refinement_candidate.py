@@ -1,3 +1,6 @@
+# summary: "Materializes one explicit local second candidate by applying a bounded refinement proposal after a request-more-evidence decision."
+# read_when:
+#   - "Changing second-candidate eligibility, refinement lineage, intent patching, or source identity checks."
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Optimizes trusted DSPy programs with GEPA and writes reproducibility-bound output manifests."
+# read_when:
+#   - "Changing GEPA program loading, datasets, metrics, provider setup, or optimizer artifacts."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

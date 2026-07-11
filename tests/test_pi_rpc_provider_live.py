@@ -1,3 +1,7 @@
+# summary: "Live-gated smoke test for the Pi RPC language-model provider."
+# read_when:
+#   - "Changing live Pi RPC provider invocation."
+
 from __future__ import annotations
 
 import os

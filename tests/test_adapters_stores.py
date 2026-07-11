@@ -1,3 +1,7 @@
+# summary: "Tests LocalObjectStore text round trips and relative-root confinement."
+# read_when:
+#   - "You are changing local adapter store paths, reads, writes, or existence checks."
+
 from pathlib import Path
 
 from dspx.adapters.stores import LocalObjectStore

@@ -1,3 +1,7 @@
+# summary: "Implements CLI commands for adapter discovery, dataset operations, evaluation, and authority export planning."
+# read_when:
+#   - "You are changing the adapters CLI, data splits, metric execution, or non-mutating authority handoff."
+
 """Adapter commands for datasets and evaluation.
 
 Commands for dataset loading, splitting, and evaluation metrics.

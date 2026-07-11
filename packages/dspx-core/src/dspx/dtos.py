@@ -1,3 +1,7 @@
+# summary: "Pydantic request, response, template, generation, program, and OpenAPI data contracts."
+# read_when:
+#   - "Changing service payloads, provider messages, template adapters, or generated-artifact contracts."
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional

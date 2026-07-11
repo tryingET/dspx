@@ -1,3 +1,7 @@
+# summary: "Tests module synthesis generation, diagnostics, evidence degradation, and safety."
+# read_when:
+#   - "Changing module generation, candidate selection, diagnostics, or quality events."
+
 from __future__ import annotations
 
 import json

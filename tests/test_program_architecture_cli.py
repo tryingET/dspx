@@ -1,3 +1,7 @@
+# summary: "Tests program-architecture CLI planning, portfolio and contract-draft outputs, and write guards."
+# read_when:
+#   - "Changing program-architect plan or verify-contract commands and their output boundaries."
+
 from __future__ import annotations
 
 import json

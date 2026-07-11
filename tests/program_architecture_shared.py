@@ -1,3 +1,7 @@
+# summary: "Shared intent and non-authority fixtures for program architecture recommendation and tournament tests."
+# read_when:
+#   - "Testing architecture candidates, tournaments, recommendations, or their non-authority contract."
+
 from __future__ import annotations
 
 from pathlib import Path

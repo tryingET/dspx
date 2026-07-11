@@ -1,3 +1,7 @@
+# summary: "Tests strict OpenAPI numeric validation for query, path, and request-body values and bounds."
+# read_when:
+#   - "Changing numeric coercion, integer strictness, finite-number checks, minimum or maximum semantics, or multipleOf validation."
+
 from __future__ import annotations
 
 import json

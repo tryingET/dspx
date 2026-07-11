@@ -1,3 +1,7 @@
+# summary: "Validates program sidecars and atomically summarizes one candidate's local non-authoritative evidence state."
+# read_when:
+#   - "Changing candidate evidence aggregation, sidecar freshness checks, or state commits."
+
 from __future__ import annotations
 
 import hashlib

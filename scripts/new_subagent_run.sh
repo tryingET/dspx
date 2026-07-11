@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Create a dated subagent-run directory from the repository template."
+# read_when:
+#   - "Changing subagent-run scaffolding, identifiers, or manifest initialization."
+# ---
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then

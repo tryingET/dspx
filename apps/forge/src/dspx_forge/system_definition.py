@@ -1,3 +1,7 @@
+# summary: "Renders a Forge WorkOrder as the Markdown system-definition card written with its plan."
+# read_when:
+#   - "Changing Forge system-definition card sections or WorkOrder field presentation."
+
 from __future__ import annotations
 
 from dspx_forge.models import WorkOrder

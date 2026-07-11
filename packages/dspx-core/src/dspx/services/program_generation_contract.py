@@ -1,3 +1,7 @@
+# summary: "Builds and validates target-fidelity, fitness, traceability, and gate contracts for program generation."
+# read_when:
+#   - "Changing generation gate artifacts, target profiles, fitness validation, or requirements intake."
+
 from __future__ import annotations
 
 import hashlib

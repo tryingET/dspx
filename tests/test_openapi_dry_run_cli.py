@@ -1,3 +1,7 @@
+# summary: "Tests OpenAPI CLI host allowlisting and side-effect-free dry-run request previews."
+# read_when:
+#   - "Changing OpenAPI call host policy, path parameter expansion, or dry-run CLI output."
+
 from __future__ import annotations
 
 import json

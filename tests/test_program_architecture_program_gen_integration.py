@@ -1,3 +1,7 @@
+# summary: "Tests architecture contract and intent-portfolio integration with program generation and replay."
+# read_when:
+#   - "Changing program-gen contract verification or architecture portfolio materialization."
+
 from __future__ import annotations
 
 import json

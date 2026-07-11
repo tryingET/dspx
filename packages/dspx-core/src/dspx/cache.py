@@ -1,3 +1,7 @@
+# summary: "Manages DSPx's validated, permission-restricted on-disk JSON cache."
+# read_when:
+#   - "You are changing cache keys, locations, path validation, or file access behavior."
+
 from __future__ import annotations
 
 import hashlib

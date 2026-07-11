@@ -1,3 +1,7 @@
+# summary: "Tests confined relative-path rejection for empty, dot, and parent-traversal components."
+# read_when:
+#   - "Changing filesystem path confinement or unsafe path-component validation."
+
 from __future__ import annotations
 
 from pathlib import Path

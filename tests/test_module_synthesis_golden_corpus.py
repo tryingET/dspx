@@ -1,3 +1,7 @@
+# summary: "Tests deterministic module synthesis outputs against the golden corpus."
+# read_when:
+#   - "Changing module synthesis templates, ranking, hashes, or promotion receipts."
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,4 +1,9 @@
 #!/bin/sh
+# ---
+# summary: "Run the full DSPx gate with runtime and test verification in parallel."
+# read_when:
+#   - "Changing full verification sequencing, parallel gate execution, or failure reporting."
+# ---
 set -eu
 
 say() { printf '%s\n' "$*"; }

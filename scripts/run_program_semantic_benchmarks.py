@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# ---
+# summary: "Run generated-program semantic benchmarks in offline or explicit live mode."
+# read_when:
+#   - "Changing program semantic corpora, provider gating, result schemas, or thresholds."
+# ---
 """Run semantic benchmarks through generated DSPx program-loop candidates."""
 
 from __future__ import annotations

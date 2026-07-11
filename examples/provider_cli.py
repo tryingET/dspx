@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# summary: "Demonstrates an argparse provider CLI with default print, custom message, and version modes."
+# read_when:
+#   - "Using or changing the standalone provider CLI example."
 import sys
 import argparse
 

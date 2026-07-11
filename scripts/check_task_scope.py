@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# ---
+# summary: "Expose task-scope attestation checks as a normalized command-line interface."
+# read_when:
+#   - "Changing AK scope snapshots, legacy scope fallback, or task-scope CLI arguments."
+# ---
 from __future__ import annotations
 
 import argparse

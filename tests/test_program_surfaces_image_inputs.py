@@ -1,3 +1,7 @@
+# summary: "Tests direct-run template support for DesignMD visual image input materialization."
+# read_when:
+#   - "Changing generated direct-run image adapters or missing-image preflight behavior."
+
 from __future__ import annotations
 
 from dspx.services.program_surfaces import render_direct_run_code

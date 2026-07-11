@@ -1,3 +1,7 @@
+# summary: "Tests safe preflight and publication of program adjudication behavior traces to shared Oracle storage."
+# read_when:
+#   - "Changing adjudication-trace publication, linked-artifact validation, receipts, or authority boundaries."
+
 from __future__ import annotations
 
 import hashlib

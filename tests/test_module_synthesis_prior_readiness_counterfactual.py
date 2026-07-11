@@ -1,3 +1,7 @@
+# summary: "Tests module-synthesis prior-readiness and counterfactual advisories, including strict evidence and identity validation."
+# read_when:
+#   - "Changing readiness aggregation, counterfactual signal statuses, comparison truth, or fail-closed advisory inputs."
+
 from __future__ import annotations
 
 

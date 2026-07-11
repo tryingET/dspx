@@ -1,3 +1,7 @@
+# summary: "Loads, scores, and writes bounded evidence-only semantic benchmark corpora and results."
+# read_when:
+#   - "Changing generic semantic corpus validation, concept scoring, benchmark execution, or result persistence."
+
 """Reproducible, evidence-only semantic benchmark harness."""
 
 from __future__ import annotations

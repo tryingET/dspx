@@ -1,3 +1,7 @@
+# summary: "Validates HTTP request and redirect hosts against an origin allowlist."
+# read_when:
+#   - "Changing guarded HTTP sends, host allowlists, or redirect validation."
+
 from __future__ import annotations
 
 from typing import Mapping, Optional

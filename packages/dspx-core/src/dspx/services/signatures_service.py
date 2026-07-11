@@ -1,3 +1,7 @@
+# summary: "Generates, normalizes, validates, scores, caches, and observes DSPy signature source from templates or language models."
+# read_when:
+#   - "Changing signature generation strategies, validation/scoring, caching, provider use, or quality telemetry."
+
 from __future__ import annotations
 
 import ast

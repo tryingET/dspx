@@ -1,3 +1,7 @@
+# summary: "Tests fail-closed server authentication, bearer tokens, token files, and local development bypasses."
+# read_when:
+#   - "You are changing server authentication configuration, token handling, or development-only auth bypass rules."
+
 from __future__ import annotations
 
 from typing import Iterator

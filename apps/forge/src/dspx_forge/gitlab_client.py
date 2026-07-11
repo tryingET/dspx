@@ -1,3 +1,7 @@
+# summary: "Implements policy-guarded GitLab configuration, request handling, and issue CRUD for Forge."
+# read_when:
+#   - "Changing Forge GitLab authentication, allowlists, network policy, retries, or issue operations."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Defines coordinate-store contracts and the default SQLite execution-embedding index."
+# read_when:
+#   - "Changing Oracle persistence, similarity search, schema migration, filtering, health, or backend selection."
+
 """Storage layer for semantic coordinate index.
 
 Provides SQLite-based persistence for execution embeddings with

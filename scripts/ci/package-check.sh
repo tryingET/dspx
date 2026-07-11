@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Build, inspect, install, and smoke-test all distributable DSPx packages."
+# read_when:
+#   - "Changing package metadata, console entry points, or release artifact validation."
+# ---
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"

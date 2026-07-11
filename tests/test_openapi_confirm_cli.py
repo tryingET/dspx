@@ -1,3 +1,7 @@
+# summary: "Tests OpenAPI CLI mutation confirmation, explicit approval, policy override, and environment restoration."
+# read_when:
+#   - "Changing OpenAPI call confirmation prompts, --yes behavior, mutation policy, or policy environment handling."
+
 from __future__ import annotations
 
 import json

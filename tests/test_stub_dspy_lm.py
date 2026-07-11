@@ -1,3 +1,7 @@
+# summary: "Tests deterministic DSPy stub responses and rejection of malformed response fixtures."
+# read_when:
+#   - "You are changing DSpyStubLM response fixtures, semantic output mapping, or stub validation."
+
 from __future__ import annotations
 
 import dspy

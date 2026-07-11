@@ -1,3 +1,7 @@
+# summary: "Validates DSPx YAML configuration against packaged JSON schemas with contextual errors."
+# read_when:
+#   - "Changing schema lookup, marked YAML loading, validation diagnostics, or template-adapter config validation."
+
 """Schema validation utilities for DSPx configuration files.
 
 Provides validation of YAML config files against JSON schemas with

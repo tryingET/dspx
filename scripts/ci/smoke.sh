@@ -1,4 +1,9 @@
 #!/bin/sh
+# ---
+# summary: "Run lightweight CI checks for protected paths and workflow/direction contracts."
+# read_when:
+#   - "Changing CI base-ref resolution, protected paths, or smoke-gate dependencies."
+# ---
 set -eu
 
 say() { printf '%s\n' "$*"; }

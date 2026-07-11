@@ -1,3 +1,7 @@
+# summary: "Tests local source-versus-refinement candidate comparisons and evidence integrity."
+# read_when:
+#   - "Changing candidate comparison, runtime evidence interpretation, lineage, or workflow sidecars."
+
 from __future__ import annotations
 
 import hashlib

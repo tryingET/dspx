@@ -1,3 +1,7 @@
+# summary: "Implements a deterministic echo LM compatible with DSPy and DSPx request/response interfaces for offline testing."
+# read_when:
+#   - "Changing stub-provider responses, DSPy LM compatibility, or offline fixture injection."
+
 from __future__ import annotations
 
 from dataclasses import dataclass

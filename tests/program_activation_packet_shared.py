@@ -1,3 +1,7 @@
+# summary: "Shared builders for materialized program evidence chains used by activation-packet contract tests."
+# read_when:
+#   - "Testing activation packets, canonical binding, Oracle publication, or review-chain evidence."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Tests evidence-backed program refinement proposals and their non-authoritative boundaries."
+# read_when:
+#   - "Changing refinement proposal inputs, Oracle matching, degradation, or output safeguards."
+
 from __future__ import annotations
 
 import hashlib

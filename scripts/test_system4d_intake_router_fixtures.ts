@@ -1,3 +1,9 @@
+/**
+summary: "Executable fixture checks for the System4D intake router's parsing, synthesis, quoting, and recovery helpers."
+read_when:
+  - "Changing the 4D intake router or its kickoff and recovery contracts."
+*/
+
 import {
 	buildDbClarifyCommand,
 	buildKickoffArgs,

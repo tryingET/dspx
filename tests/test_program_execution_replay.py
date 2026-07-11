@@ -1,3 +1,7 @@
+# summary: "Tests confined local replay of program runtime receipts, including contract and quality semantics."
+# read_when:
+#   - "Changing program runtime replay policy, fixture security, contract modes, or replay evidence."
+
 from __future__ import annotations
 
 import hashlib

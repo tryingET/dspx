@@ -1,3 +1,7 @@
+# summary: "Tests template-adapter DTO validation, aliases, defaults, and request integration."
+# read_when:
+#   - "Changing template message, adapter config, or generation request DTOs."
+
 """Tests for dspx.dtos DTOs."""
 
 from typing import Any, Literal, cast

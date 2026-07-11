@@ -1,3 +1,7 @@
+# summary: "Public exports for DSPx Oracle semantic coordinates and behavioral topology."
+# read_when:
+#   - "Adding or consuming coordinate, territory, contract, frontier, or attractor APIs."
+
 """Semantic coordinates for DSPx behavioral oracle.
 
 This module provides the foundation layer for transforming execution receipts

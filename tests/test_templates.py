@@ -1,3 +1,7 @@
+# summary: "Tests minimal DSPy signature rendering and signature-generation prompt formatting."
+# read_when:
+#   - "Changing simple signature templates, their default fields, or signature prompt wording."
+
 from __future__ import annotations
 
 from dspx.templates import render_simple_signature, format_signature_prompt

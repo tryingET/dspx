@@ -1,3 +1,7 @@
+# summary: "Builds signature-generation prompts and deterministic DSPy Signature source."
+# read_when:
+#   - "Changing signature prompt contracts, field sanitization, or rendered classes."
+
 from __future__ import annotations
 
 import re

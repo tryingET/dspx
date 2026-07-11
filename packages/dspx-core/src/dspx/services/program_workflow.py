@@ -1,3 +1,7 @@
+# summary: "Composes program generation, replay checks, local Oracle evidence, candidate state, and optional shared publication into one workflow."
+# read_when:
+#   - "Changing the program-loop workflow, sidecar preflight, publication path, or aggregate status semantics."
+
 from __future__ import annotations
 
 import hashlib

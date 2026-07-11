@@ -1,3 +1,7 @@
+# summary: "Validates and safely executes fixed-identity OpenAPI operations under policy limits."
+# read_when:
+#   - "Changing OpenAPI request validation, schema handling, host policy, or response bounds."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Provides sanitized provider inspection, health checks, invocation, and benchmarks."
+# read_when:
+#   - "Changing provider diagnostics, payload sanitization, health probes, or benchmarks."
+
 from __future__ import annotations
 
 import statistics

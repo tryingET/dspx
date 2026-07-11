@@ -1,3 +1,7 @@
+# summary: "Runs interactive or non-interactive signature refinement with feedback memory, receipts, and optional MLflow logging."
+# read_when:
+#   - "Changing signature refinement prompts, interaction flow, output receipts, or observability."
+
 from __future__ import annotations
 
 import builtins

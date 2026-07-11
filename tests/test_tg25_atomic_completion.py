@@ -1,3 +1,7 @@
+# summary: "Tests TG25 hardening for policy audit logs, Pi RPC retries, and bounded data previews."
+# read_when:
+#   - "Changing policy-bypass auditing, Pi RPC failure handling, or CSV, JSON, and Parquet preview resource limits."
+
 from __future__ import annotations
 
 import csv

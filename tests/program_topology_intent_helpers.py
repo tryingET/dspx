@@ -1,3 +1,7 @@
+# summary: "Reusable explicit pipeline and ReActV2 program intents for topology materialization tests."
+# read_when:
+#   - "Testing declared program topology, pipeline rendering, or experimental ReActV2 opt-in."
+
 from __future__ import annotations
 
 from typing import Any

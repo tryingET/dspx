@@ -1,3 +1,7 @@
+# summary: "Builds and validates hash-bound, non-authoritative runtime trace evidence for generated programs."
+# read_when:
+#   - "Changing generated-program trace capture, linkage, coverage, or safety validation."
+
 from __future__ import annotations
 
 import hashlib

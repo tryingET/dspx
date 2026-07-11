@@ -1,3 +1,7 @@
+# summary: "Tests explanations for module-synthesis candidate-prior divergence and their fail-closed comparison validation."
+# read_when:
+#   - "Changing prior-divergence statuses, ranked comparison metadata, identity checks, or incomplete-input handling."
+
 from __future__ import annotations
 
 

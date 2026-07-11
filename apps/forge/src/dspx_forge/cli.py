@@ -1,3 +1,7 @@
+# summary: "Defines Forge CLI commands for work-order intake, planning, routing, overlap review, and GitLab issue operations."
+# read_when:
+#   - "Changing Forge commands, options, environment setup, or mutation gates."
+
 from __future__ import annotations
 
 from contextlib import contextmanager

@@ -1,3 +1,7 @@
+# summary: "Tests governed policy evaluation receipts and promotion-eligibility nominations for module synthesis."
+# read_when:
+#   - "Changing module-synthesis governance evaluations, nomination outcomes, runtime-spine references, or fail-closed behavior."
+
 from __future__ import annotations
 
 

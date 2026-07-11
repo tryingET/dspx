@@ -1,3 +1,7 @@
+# summary: "Tests deterministic local program-jury evidence, aggregation, degraded evidence handling, and non-authoritative CLI sidecars."
+# read_when:
+#   - "Changing program-promote jury execution, behavior-evidence binding, juror aggregation, or jury sidecar authority boundaries."
+
 from __future__ import annotations
 
 import hashlib

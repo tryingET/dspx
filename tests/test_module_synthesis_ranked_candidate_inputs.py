@@ -1,3 +1,7 @@
+# summary: "Tests extraction and auditing of ranked module-synthesis candidate inputs without fabricating comparison metadata."
+# read_when:
+#   - "Changing ranked-candidate extraction, variant enrichment, rank fallback, or candidate-prior audit context."
+
 from __future__ import annotations
 
 

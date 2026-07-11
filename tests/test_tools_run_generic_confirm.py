@@ -1,3 +1,7 @@
+# summary: "Tests confirmation, approval, dry-run, and native-argument behavior for generic tool execution."
+# read_when:
+#   - "Changing tools run confirmation policy, filesystem-write capabilities, dry-run rendering, or built-in parameter handling."
+
 from __future__ import annotations
 
 from pathlib import Path

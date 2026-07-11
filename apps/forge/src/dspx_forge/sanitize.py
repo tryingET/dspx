@@ -1,3 +1,7 @@
+# summary: "Redacts supported credential patterns from Forge input and reports detected secret kinds."
+# read_when:
+#   - "Changing Forge input sanitization, secret-pattern coverage, or redaction notes."
+
 from __future__ import annotations
 
 import re

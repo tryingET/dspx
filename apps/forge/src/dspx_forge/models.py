@@ -1,3 +1,7 @@
+# summary: "Defines Pydantic contracts for Forge work orders, issue specs, plans, and manifests."
+# read_when:
+#   - "Changing Forge artifact schemas, routing fields, requirements, or capability status models."
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional

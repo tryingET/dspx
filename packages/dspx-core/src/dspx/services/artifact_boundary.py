@@ -1,3 +1,7 @@
+# summary: "Enforces stable reads, atomic publication, identity envelopes, confinement, and sidecar output boundaries."
+# read_when:
+#   - "Changing artifact hashing, safe JSON reads, atomic writes, envelope validation, or protected output policy."
+
 from __future__ import annotations
 
 import hashlib

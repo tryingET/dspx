@@ -1,3 +1,7 @@
+# summary: "Tests program dataset split materialization, behavior evidence, quality aggregation, and replay integrity."
+# read_when:
+#   - "Changing dataset ingestion, split strategies, evaluation artifacts, or dataset replay checks."
+
 from __future__ import annotations
 
 import hashlib

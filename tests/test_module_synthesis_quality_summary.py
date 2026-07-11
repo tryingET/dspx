@@ -1,3 +1,7 @@
+# summary: "Tests module-synthesis quality aggregation, configurable gates, and human-readable summary formatting."
+# read_when:
+#   - "Changing quality summary metrics, gate evaluation, promotion coverage, or formatted quality output."
+
 from __future__ import annotations
 
 from dspx.services.module_synthesis_quality import (

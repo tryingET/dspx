@@ -1,3 +1,7 @@
+# summary: "Strict scalar parsers for policy- and authority-bearing contract values."
+# read_when:
+#   - "Parsing boolean values from YAML, JSON, configuration, or governance contracts."
+
 from __future__ import annotations
 
 from typing import Any

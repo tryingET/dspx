@@ -1,3 +1,6 @@
+# summary: "Resolves bounded local retriever corpora into deterministic inline snapshots embedded in generated program intents."
+# read_when:
+#   - "Changing local corpus retriever materialization, corpus bounds, snapshot normalization, or runtime isolation policy."
 from __future__ import annotations
 
 import json

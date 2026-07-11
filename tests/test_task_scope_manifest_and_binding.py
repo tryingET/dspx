@@ -1,3 +1,7 @@
+# summary: "Tests task-scope manifest and AK snapshot parsing, forbidden-path checks, claimed-task discovery, and artifact preference."
+# read_when:
+#   - "Changing scope artifact schemas, default forbidden patterns, AK claim binding, or snapshot-versus-legacy resolution."
+
 from __future__ import annotations
 
 import json

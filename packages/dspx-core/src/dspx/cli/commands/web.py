@@ -1,3 +1,7 @@
+# summary: "Defines terminal-friendly web fetch and scrape CLI commands over the registered tool runtime."
+# read_when:
+#   - "Changing web command options, host allowlisting, timeouts, selectors, or output truncation."
+
 """Web tool commands.
 
 Commands for fetching and scraping web content.

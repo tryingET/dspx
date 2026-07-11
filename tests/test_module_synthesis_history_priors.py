@@ -1,3 +1,7 @@
+# summary: "Tests module-synthesis history advisories, winner priors, and candidate-prior audits across healthy and degraded receipts."
+# read_when:
+#   - "Changing synthesis evidence retrieval, historical winner matching, prior statuses, or audit outcomes."
+
 from __future__ import annotations
 
 import json

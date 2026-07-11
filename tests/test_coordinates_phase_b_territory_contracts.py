@@ -1,3 +1,7 @@
+# summary: "Tests Phase B territory mapping, danger zones, behavioral contracts, and safe expression evaluation."
+# read_when:
+#   - "You are changing Oracle territory analysis, contract validation, PII checks, or expression safety."
+
 """Phase B behavioral topology territory and contract tests."""
 
 from __future__ import annotations

@@ -1,3 +1,7 @@
+# summary: "Validates provider-backed program jury results, aggregates, evidence hashes, and non-authority envelopes."
+# read_when:
+#   - "Changing model-jury result schemas, aggregate consistency, or hash-bound evidence validation."
+
 from __future__ import annotations
 
 import hashlib

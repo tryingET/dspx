@@ -1,3 +1,7 @@
+# summary: "Tests non-authoritative reports over indexed program Oracle evidence, including behavior and runtime-trace summaries."
+# read_when:
+#   - "Changing program Oracle evidence reporting, status normalization, dataset-source summaries, interpretations, or report CLI behavior."
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,7 @@
+# summary: "Plans deterministic program jury pools, selections, and perspective-specific rubrics without model calls."
+# read_when:
+#   - "Changing juror inference, selection defaults, perspectives, or jury rubric criteria."
+
 from __future__ import annotations
 
 from typing import Any, Mapping

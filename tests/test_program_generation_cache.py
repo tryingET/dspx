@@ -1,3 +1,7 @@
+# summary: "Tests program-generation validation cache keys, path rebasing, effect replay, and private result copies."
+# read_when:
+#   - "Changing cached generation harness execution, module-smoke caching, or cache isolation semantics."
+
 from __future__ import annotations
 
 import json

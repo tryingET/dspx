@@ -1,3 +1,7 @@
+# summary: "Tests OpenAPI tool execution confirmation, temporary mutation-policy approval, and typed parameter coercion."
+# read_when:
+#   - "Changing tools run OpenAPI confirmation, --yes behavior, mutation environment restoration, or parameter coercion."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Builds non-authoritative generated-program activation packets and verifies canonical decision bindings."
+# read_when:
+#   - "Changing activation evidence requirements, rollout blockers, or canonical binding verification."
+
 from __future__ import annotations
 
 import json

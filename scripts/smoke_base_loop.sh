@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# ---
+# summary: "Exercise the local generation-to-evaluation base loop with stubbed behavior."
+# read_when:
+#   - "Changing signature, module, program-loop, evaluation, or authority-plan smoke paths."
+# ---
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

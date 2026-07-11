@@ -1,3 +1,7 @@
+# summary: "CLI entrypoint for interactive or automatic DSPy signature refinement."
+# read_when:
+#   - "Changing viberefine arguments, provider overrides, refinement attempts, or output handling."
+
 import argparse
 import os
 from typing import Optional

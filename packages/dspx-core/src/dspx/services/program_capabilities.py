@@ -1,3 +1,7 @@
+# summary: "Defines and normalizes generated-program capability contracts and bounded materialization policy."
+# read_when:
+#   - "Changing supported DSPy primitives, retriever adapters, declarations, or capability registries."
+
 from __future__ import annotations
 
 from typing import Any, Mapping

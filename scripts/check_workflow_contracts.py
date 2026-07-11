@@ -1,3 +1,8 @@
+# ---
+# summary: "Validate DSPx workflow documentation, commands, and engineering-lane contract surfaces."
+# read_when:
+#   - "Changing workflow docs, Just recipes, CI entrypoints, or loop-validation policy."
+# ---
 from __future__ import annotations
 
 import argparse

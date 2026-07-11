@@ -1,3 +1,7 @@
+# summary: "Validates and smoke-tests generated DSPy code in an isolated, capability-denied subprocess."
+# read_when:
+#   - "Changing generated-code AST policy, runtime guards, smoke workers, or isolation behavior."
+
 from __future__ import annotations
 
 import ast

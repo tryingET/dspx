@@ -1,3 +1,7 @@
+# summary: "Validates changed files against AK task-scope snapshots and legacy manifests."
+# read_when:
+#   - "Changing task-scope resolution, provenance-linked slices, or path validation."
+
 from __future__ import annotations
 
 import json

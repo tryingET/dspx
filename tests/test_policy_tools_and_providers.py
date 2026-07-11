@@ -1,3 +1,7 @@
+# summary: "Tests provider/tool policy, OpenAPI mutation gates, and safe Codex defaults."
+# read_when:
+#   - "Changing provider or tool allowlists, mutation policy, or Codex execution safety."
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,7 @@
+# summary: "Builds and validates local-only preflight packets for future generated-program evidence export to external authority."
+# read_when:
+#   - "Changing external authority export identity, idempotency, evidence refs, or non-mutation boundaries."
+
 from __future__ import annotations
 
 import hashlib

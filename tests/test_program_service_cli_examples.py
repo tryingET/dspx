@@ -1,3 +1,7 @@
+# summary: "Tests program-gen CLI materialization and example-backed behavioral evidence artifacts."
+# read_when:
+#   - "Changing program-gen CLI output, example binding, behavior evidence, or receipt contents."
+
 from __future__ import annotations
 
 import hashlib

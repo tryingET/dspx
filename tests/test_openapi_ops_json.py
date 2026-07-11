@@ -1,3 +1,7 @@
+# summary: "Tests machine-readable OpenAPI operation listing output from the CLI."
+# read_when:
+#   - "Changing OpenAPI ops JSON output, operation metadata fields, or CLI serialization."
+
 from __future__ import annotations
 
 import json

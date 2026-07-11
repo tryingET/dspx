@@ -1,3 +1,7 @@
+# summary: "Tests Mermaid program generation validation and canonical CLI artifacts."
+# read_when:
+#   - "Changing Mermaid workflow variants, output files, or CLI behavior."
+
 from __future__ import annotations
 
 from pathlib import Path

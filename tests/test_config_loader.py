@@ -1,3 +1,7 @@
+# summary: "Tests TOML configuration loading, environment projection, refresh behavior, and secret-safe validation."
+# read_when:
+#   - "You are changing config sections, environment mappings, override precedence, or configuration safety checks."
+
 from __future__ import annotations
 
 import os

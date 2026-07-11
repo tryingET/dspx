@@ -1,3 +1,7 @@
+# summary: "Tests Oracle publication secret policy for redacted 1Password references and secret-free publisher assertions."
+# read_when:
+#   - "Changing Oracle publisher secret-reference descriptors or secret-shaped assertion detection."
+
 from __future__ import annotations
 
 import pytest

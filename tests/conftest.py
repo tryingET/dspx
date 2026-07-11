@@ -1,3 +1,7 @@
+# summary: "Global pytest setup that isolates providers and MLflow while caching deterministic generated-program validation."
+# read_when:
+#   - "Changing suite-wide test isolation, generated-program caching, or module-evidence defaults."
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,7 @@
+# summary: "Locks in Phase B topology regressions for stability, serialization, contracts, confidence, and exploration state."
+# read_when:
+#   - "You are fixing or refactoring Oracle Phase B behavioral-topology edge cases and persisted models."
+
 """Regression coverage for Phase B behavioral topology bug fixes."""
 
 from __future__ import annotations

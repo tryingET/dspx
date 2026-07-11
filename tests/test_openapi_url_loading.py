@@ -1,3 +1,7 @@
+# summary: "Tests remote OpenAPI loading, allowlists, redirects, cache fallback, and byte limits."
+# read_when:
+#   - "Changing OpenAPI URL ingestion or remote-spec caching."
+
 from __future__ import annotations
 
 import json

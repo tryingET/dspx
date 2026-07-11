@@ -1,3 +1,7 @@
+# summary: "Tests URL, header, and diagnostic-text secret redaction and bounded truncation."
+# read_when:
+#   - "Changing redaction key coverage, URL userinfo handling, sensitive headers, diagnostic sanitization, or truncation behavior."
+
 from __future__ import annotations
 
 from dspx.redaction import redact_url, redact_headers, sanitize_diagnostic_text

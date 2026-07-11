@@ -1,3 +1,7 @@
+# summary: "Tests GEPA optimization tracing without noisy MLflow span failures."
+# read_when:
+#   - "Changing GEPA optimization or MLflow DSPy tracing integration."
+
 from __future__ import annotations
 
 import csv

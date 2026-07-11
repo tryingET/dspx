@@ -1,3 +1,7 @@
+# summary: "Defines the authenticated DSPx FastAPI generation server, artifact persistence, metrics, and launcher."
+# read_when:
+#   - "Changing server endpoints, request models, mutation confirmation, artifact persistence, metrics, or ASGI startup."
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, cast

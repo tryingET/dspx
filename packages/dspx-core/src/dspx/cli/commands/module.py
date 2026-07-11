@@ -1,3 +1,7 @@
+# summary: "Defines the CLI command for generating DSPy module scaffolds and recording local receipts."
+# read_when:
+#   - "Changing module-gen validation, generation options, output receipts, caching, or MLflow logging."
+
 """Module generation command.
 
 Command for generating DSPy module scaffolds.

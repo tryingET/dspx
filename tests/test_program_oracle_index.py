@@ -1,3 +1,7 @@
+# summary: "Tests indexing program Oracle evidence into local coordinates with validation, idempotency, and non-authority preservation."
+# read_when:
+#   - "Changing Oracle indexing modes, program-evidence embeddings, receipt ingestion validation, limits, or authority safeguards."
+
 from __future__ import annotations
 
 import json

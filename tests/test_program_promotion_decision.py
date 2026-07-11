@@ -1,3 +1,7 @@
+# summary: "Tests local generated-program promotion decision records and fail-closed authority boundaries."
+# read_when:
+#   - "Changing promotion decision construction, validation, writing, or CLI behavior."
+
 from __future__ import annotations
 
 from collections.abc import Mapping

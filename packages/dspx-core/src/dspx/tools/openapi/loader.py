@@ -1,3 +1,7 @@
+# summary: "Loads bounded OpenAPI documents and extracts normalized operation descriptors."
+# read_when:
+#   - "Changing remote spec safety, local refs, servers, parameters, or operation extraction."
+
 from __future__ import annotations
 
 import json

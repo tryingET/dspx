@@ -1,3 +1,7 @@
+# summary: "Offline tests for trusted GEPA program imports and loadable optimized artifacts."
+# read_when:
+#   - "Changing GEPA program trust roots or optimization output publication."
+
 from __future__ import annotations
 
 import csv

@@ -1,3 +1,7 @@
+# summary: "Tests candidate artifact closure snapshots, declaration completeness, and tamper-resistant receipt checks."
+# read_when:
+#   - "Changing candidate evidence closure, artifact declarations, path confinement, or behavior-episode replay validation."
+
 from __future__ import annotations
 
 import hashlib

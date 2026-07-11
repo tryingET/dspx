@@ -1,3 +1,7 @@
+# summary: "Provides shared CLI configuration loading and MLflow tracing initialization."
+# read_when:
+#   - "Changing common command startup, config-file error handling, or tracing enablement."
+
 from __future__ import annotations
 
 import typer

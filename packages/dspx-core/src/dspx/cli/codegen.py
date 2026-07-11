@@ -1,3 +1,7 @@
+# summary: "Provides the legacy argparse entry point for DSPx code generation."
+# read_when:
+#   - "You are maintaining the standalone codegen CLI or its provider and output options."
+
 import argparse
 from typing import Optional
 

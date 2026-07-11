@@ -1,3 +1,7 @@
+# summary: "Orchestrates the local intent-normalization, architecture, tournament, and recommendation workflow."
+# read_when:
+#   - "Changing the guided program-architecture loop, its sidecars, or workflow boundaries."
+
 from __future__ import annotations
 
 import json

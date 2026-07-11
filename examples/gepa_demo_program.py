@@ -1,3 +1,7 @@
+# summary: "Defines the minimal question-answering DSPy student and I/O specification used by the GEPA demo."
+# read_when:
+#   - "Running or changing the documented GEPA optimization demo program."
+
 from __future__ import annotations
 
 import dspy

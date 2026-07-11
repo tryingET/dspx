@@ -1,3 +1,7 @@
+# summary: "Assembles module-synthesis evidence diagnostics and governance-only historical advisories."
+# read_when:
+#   - "Changing module evidence retrieval controls, prior diagnostics, or governed policy nominations."
+
 from __future__ import annotations
 
 from pathlib import Path

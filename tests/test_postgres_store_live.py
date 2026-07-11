@@ -1,3 +1,7 @@
+# summary: "Live-gated round-trip tests for the Postgres/pgvector Oracle coordinate store."
+# read_when:
+#   - "Changing optional Postgres Oracle persistence, search, or diagnostics."
+
 from __future__ import annotations
 
 import importlib.util

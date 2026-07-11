@@ -1,3 +1,7 @@
+# summary: "Tests runtime emission of module-synthesis quality events and detection of receipt and output-hash drift."
+# read_when:
+#   - "Changing module generation quality logging, receipt invariants, selection integrity, or output hash checks."
+
 from __future__ import annotations
 
 from pathlib import Path

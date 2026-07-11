@@ -1,3 +1,7 @@
+# summary: "Tests OpenAPI reference resolution, allOf constraints, and JSON Pointer escaping."
+# read_when:
+#   - "Changing OpenAPI schema reference or allOf validation."
+
 from __future__ import annotations
 
 import json

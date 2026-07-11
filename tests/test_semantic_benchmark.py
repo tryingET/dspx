@@ -1,3 +1,7 @@
+# summary: "Tests deterministic semantic benchmarking, live provider evidence, scoring safety, corpus validation, and result schemas."
+# read_when:
+#   - "Changing semantic benchmark corpus contracts, scoring thresholds, provider execution posture, sanitization, or result persistence."
+
 from __future__ import annotations
 
 import json

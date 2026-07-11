@@ -1,3 +1,7 @@
+# summary: "Tests security boundaries for cache paths, OpenAPI inputs, rate limits, and provider diagnostics."
+# read_when:
+#   - "You are changing filesystem confinement, OpenAPI handling, rate-limit buckets, or provider error sanitization."
+
 from __future__ import annotations
 
 import json

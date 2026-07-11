@@ -1,3 +1,7 @@
+# summary: "Tests core DSPx CLI generation commands, configuration adapters, receipts, quality gates, and dry runs."
+# read_when:
+#   - "You are changing signature, module, codegen, Mermaid, provider, or template-config CLI behavior."
+
 from __future__ import annotations
 
 from pathlib import Path

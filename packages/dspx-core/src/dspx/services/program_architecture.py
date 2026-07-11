@@ -1,3 +1,7 @@
+# summary: "Plans, verifies, and materializes non-authoritative program architecture candidate intents."
+# read_when:
+#   - "Changing architecture candidate planning, contract verification, or intent portfolios."
+
 from __future__ import annotations
 
 import json

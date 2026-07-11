@@ -1,3 +1,7 @@
+# summary: "Tests provider-corpus quality events, per-provider coverage, gate evaluation, and JSONL round trips."
+# read_when:
+#   - "You are changing signature provider corpus quality events, quality gates, summaries, or log serialization."
+
 from __future__ import annotations
 
 from pathlib import Path

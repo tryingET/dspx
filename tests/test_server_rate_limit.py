@@ -1,3 +1,7 @@
+# summary: "Tests server rate parsing, token and IP identities, trusted proxies, and atomic bucket consumption."
+# read_when:
+#   - "You are changing rate-limit configuration, identity resolution, proxy trust, or local and global bucket behavior."
+
 from __future__ import annotations
 
 import asyncio
