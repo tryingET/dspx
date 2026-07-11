@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "layer12-dspx-policy-contracts.v1.schema.json",
+  "title": "DSPx-owned SF14 Layer-12 advisory contracts",
+  "description": "Closed pre-activation contracts. Conformance is empirical evidence only and never grants AK legality, policy selection, recommendation, apply, promotion, or activation authority.",
+  "oneOf": [
+    {"$ref": "#/$defs/score"},
+    {"$ref": "#/$defs/policy"},
+    {"$ref": "#/$defs/compatibility"},
+    {"$ref": "#/$defs/cohort"},
+    {"$ref": "#/$defs/metricReceipt"},
+    {"$ref": "#/$defs/comparisonReceipt"},
+    {"$ref": "#/$defs/shadowPreregistration"},
+    {"$ref": "#/$defs/shadowResult"}
+  ],
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "minLength": 1},
+    "time": {"type": "string", "format": "date-time"},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_version", "transition_token", "family_id", "spec_digest", "candidate_id", "ak_eval_receipt_id"],
+      "properties": {
+        "protocol_version": {"const": "layer12-v1"},
+        "transition_token": {"$ref": "#/$defs/nonEmpty"},
+        "family_id": {"$ref": "#/$defs/nonEmpty"},
+        "spec_digest": {"$ref": "#/$defs/digest"},
+        "candidate_id": {"$ref": "#/$defs/nonEmpty"},
+        "ak_eval_receipt_id": {"$ref": "#/$defs/nonEmpty"}
+      }
+    },
+    "score": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "raw_score", "sample_count"],
+      "properties": {
+        "schema_version": {"const": "layer12-advisory-score-vector-v1"},
+        "raw_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "sample_count": {"type": "integer", "minimum": 1}
+      }
+    },
+    "policy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "policy_id", "metric_weights", "minimum_receipts", "aggregation", "non_authority"],
+      "properties": {
+        "schema_version": {"const": "layer12-advisory-aggregate-policy-v1"},
+        "policy_id": {"$ref": "#/$defs/nonEmpty"},
+        "metric_weights": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "number", "exclusiveMinimum": 0}},
+        "minimum_receipts": {"type": "integer", "minimum": 1},
+        "aggregation": {"const": "weighted_mean"},
+        "non_authority": {"const": true}
+      }
+    },
+    "compatibility": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "identity", "runtime_digest", "dataset_digest", "metric_set_digest", "observed_at", "expires_at", "live_evaluation_replayable"],
+      "properties": {
+        "schema_version": {"const": "layer12-execution-compatibility-v1"},
+        "identity": {"$ref": "#/$defs/identity"},
+        "runtime_digest": {"$ref": "#/$defs/digest"}, "dataset_digest": {"$ref": "#/$defs/digest"}, "metric_set_digest": {"$ref": "#/$defs/digest"},
+        "observed_at": {"$ref": "#/$defs/time"}, "expires_at": {"$ref": "#/$defs/time"},
+        "live_evaluation_replayable": {"const": false}
+      }
+    },
+    "cohort": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "identity", "cohort_id", "candidate_ids", "compatibility_digest"],
+      "properties": {
+        "schema_version": {"const": "layer12-comparison-cohort-v1"}, "identity": {"$ref": "#/$defs/identity"},
+        "cohort_id": {"$ref": "#/$defs/nonEmpty"},
+        "candidate_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/nonEmpty"}},
+        "compatibility_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "metricReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "identity", "metric_id", "score_vector", "compatibility_digest", "measured_at", "authoritative"],
+      "properties": {
+        "schema_version": {"const": "layer12-dspx-metric-receipt-v1"}, "identity": {"$ref": "#/$defs/identity"},
+        "metric_id": {"$ref": "#/$defs/nonEmpty"}, "score_vector": {"$ref": "#/$defs/score"},
+        "compatibility_digest": {"$ref": "#/$defs/digest"}, "measured_at": {"$ref": "#/$defs/time"}, "authoritative": {"const": false}
+      }
+    },
+    "comparisonReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "identity", "cohort_id", "cohort_digest", "metric_receipt_digests", "winner_selected", "authoritative"],
+      "properties": {
+        "schema_version": {"const": "layer12-comparison-receipt-v1"}, "identity": {"$ref": "#/$defs/identity"},
+        "cohort_id": {"$ref": "#/$defs/nonEmpty"}, "cohort_digest": {"$ref": "#/$defs/digest"},
+        "metric_receipt_digests": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/digest"}},
+        "winner_selected": {"const": false}, "authoritative": {"const": false}
+      }
+    },
+    "shadowPreregistration": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "evidence_id", "policy_digest", "cohort_digest", "metric_set_digest", "passing_threshold", "minimum_observations", "registered_at", "expires_at", "shadow_only"],
+      "properties": {
+        "schema_version": {"const": "layer12-dspx-policy-shadow-evidence-v1"}, "evidence_id": {"$ref": "#/$defs/nonEmpty"},
+        "policy_digest": {"$ref": "#/$defs/digest"}, "cohort_digest": {"$ref": "#/$defs/digest"}, "metric_set_digest": {"$ref": "#/$defs/digest"},
+        "passing_threshold": {"type": "number", "minimum": 0, "maximum": 1}, "minimum_observations": {"type": "integer", "minimum": 1},
+        "registered_at": {"$ref": "#/$defs/time"}, "expires_at": {"$ref": "#/$defs/time"}, "shadow_only": {"const": true}
+      }
+    },
+    "shadowResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "evidence_id", "preregistration_digest", "policy_digest", "cohort_digest", "metric_set_digest", "observed_aggregate", "observation_count", "observed_at", "predicate_passed", "policy_selected", "selection_authorization_ref"],
+      "properties": {
+        "schema_version": {"const": "layer12-dspx-policy-shadow-evidence-v1"}, "evidence_id": {"$ref": "#/$defs/nonEmpty"},
+        "preregistration_digest": {"$ref": "#/$defs/digest"}, "policy_digest": {"$ref": "#/$defs/digest"}, "cohort_digest": {"$ref": "#/$defs/digest"}, "metric_set_digest": {"$ref": "#/$defs/digest"},
+        "observed_aggregate": {"type": "number", "minimum": 0, "maximum": 1}, "observation_count": {"type": "integer", "minimum": 0},
+        "observed_at": {"$ref": "#/$defs/time"}, "predicate_passed": {"type": "boolean"}, "policy_selected": {"const": false}, "selection_authorization_ref": {"type": "null"}
+      }
+    }
+  }
+}

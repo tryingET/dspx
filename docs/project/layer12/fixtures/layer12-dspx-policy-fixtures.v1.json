@@ -1,0 +1,168 @@
+{
+  "negative_mutations": [
+    {
+      "expected_error": "stale",
+      "id": "stale_compatibility",
+      "path": "positive.compatibility.expires_at",
+      "value": "2026-07-11T12:00:00Z"
+    },
+    {
+      "expected_error": "identity mismatch",
+      "id": "mixed_token",
+      "path": "positive.metric_receipts[0].identity.transition_token",
+      "value": "ak.task.complete"
+    },
+    {
+      "expected_error": "external binding",
+      "id": "winner_laundering",
+      "path": "positive.comparison_receipt.winner_selected",
+      "value": true
+    },
+    {
+      "expected_error": "cannot select policy",
+      "id": "selection_laundering",
+      "path": "shadow.result.policy_selected",
+      "value": true
+    }
+  ],
+  "now": "2026-07-11T12:00:00Z",
+  "positive": {
+    "cohort": {
+      "candidate_ids": [
+        "candidate:001",
+        "candidate:002"
+      ],
+      "cohort_id": "cohort:001",
+      "compatibility_digest": "d263ae04414993c9186840b941557c89807a30ca56b33c627e6c97438e7dae13",
+      "identity": {
+        "ak_eval_receipt_id": "ak-eval:001",
+        "candidate_id": "candidate:001",
+        "family_id": "family:claim:v1",
+        "protocol_version": "layer12-v1",
+        "spec_digest": "sha256:spec",
+        "transition_token": "ak.task.claim"
+      },
+      "schema_version": "layer12-comparison-cohort-v1"
+    },
+    "comparison_receipt": {
+      "authoritative": false,
+      "cohort_digest": "27c49cf4e1f14f5a4a2c539d964f67cb4382c64f5ff72edb7f6f7dc366110466",
+      "cohort_id": "cohort:001",
+      "identity": {
+        "ak_eval_receipt_id": "ak-eval:001",
+        "candidate_id": "candidate:001",
+        "family_id": "family:claim:v1",
+        "protocol_version": "layer12-v1",
+        "spec_digest": "sha256:spec",
+        "transition_token": "ak.task.claim"
+      },
+      "metric_receipt_digests": [
+        "419c27797fc085bac768d05e7d5aa67b91acfe98d29dfbcd8b0c17756def3165",
+        "71017811e33bd180c99dff983da8f0087db0faf1fb32e6da2212fcbac7c416f4"
+      ],
+      "schema_version": "layer12-comparison-receipt-v1",
+      "winner_selected": false
+    },
+    "compatibility": {
+      "dataset_digest": "sha256:dataset",
+      "expires_at": "2026-07-11T13:00:00Z",
+      "identity": {
+        "ak_eval_receipt_id": "ak-eval:001",
+        "candidate_id": "candidate:001",
+        "family_id": "family:claim:v1",
+        "protocol_version": "layer12-v1",
+        "spec_digest": "sha256:spec",
+        "transition_token": "ak.task.claim"
+      },
+      "live_evaluation_replayable": false,
+      "metric_set_digest": "sha256:metric-set",
+      "observed_at": "2026-07-11T11:00:00Z",
+      "runtime_digest": "sha256:runtime",
+      "schema_version": "layer12-execution-compatibility-v1"
+    },
+    "expected_aggregate": "0.85",
+    "metric_receipts": [
+      {
+        "authoritative": false,
+        "compatibility_digest": "d263ae04414993c9186840b941557c89807a30ca56b33c627e6c97438e7dae13",
+        "identity": {
+          "ak_eval_receipt_id": "ak-eval:001",
+          "candidate_id": "candidate:001",
+          "family_id": "family:claim:v1",
+          "protocol_version": "layer12-v1",
+          "spec_digest": "sha256:spec",
+          "transition_token": "ak.task.claim"
+        },
+        "measured_at": "2026-07-11T11:15:00Z",
+        "metric_id": "quality",
+        "schema_version": "layer12-dspx-metric-receipt-v1",
+        "score_vector": {
+          "raw_score": 0.8,
+          "sample_count": 12,
+          "schema_version": "layer12-advisory-score-vector-v1"
+        }
+      },
+      {
+        "authoritative": false,
+        "compatibility_digest": "d263ae04414993c9186840b941557c89807a30ca56b33c627e6c97438e7dae13",
+        "identity": {
+          "ak_eval_receipt_id": "ak-eval:001",
+          "candidate_id": "candidate:001",
+          "family_id": "family:claim:v1",
+          "protocol_version": "layer12-v1",
+          "spec_digest": "sha256:spec",
+          "transition_token": "ak.task.claim"
+        },
+        "measured_at": "2026-07-11T11:15:00Z",
+        "metric_id": "safety",
+        "schema_version": "layer12-dspx-metric-receipt-v1",
+        "score_vector": {
+          "raw_score": 1.0,
+          "sample_count": 12,
+          "schema_version": "layer12-advisory-score-vector-v1"
+        }
+      }
+    ],
+    "policy": {
+      "aggregation": "weighted_mean",
+      "metric_weights": {
+        "quality": 0.75,
+        "safety": 0.25
+      },
+      "minimum_receipts": 2,
+      "non_authority": true,
+      "policy_id": "policy:fixture",
+      "schema_version": "layer12-advisory-aggregate-policy-v1"
+    }
+  },
+  "schema_version": "layer12-dspx-policy-fixtures-v1",
+  "shadow": {
+    "expected_status": "passing_unselected",
+    "preregistration": {
+      "cohort_digest": "27c49cf4e1f14f5a4a2c539d964f67cb4382c64f5ff72edb7f6f7dc366110466",
+      "evidence_id": "shadow:001",
+      "expires_at": "2026-07-12T10:00:00Z",
+      "metric_set_digest": "sha256:metric-set",
+      "minimum_observations": 20,
+      "passing_threshold": 0.8,
+      "policy_digest": "2128580c1e829f5b61b7683819d7a3df18b3fd3b9a1ab1f7390ada4872e452fc",
+      "registered_at": "2026-07-11T10:00:00Z",
+      "schema_version": "layer12-dspx-policy-shadow-evidence-v1",
+      "shadow_only": true
+    },
+    "result": {
+      "cohort_digest": "27c49cf4e1f14f5a4a2c539d964f67cb4382c64f5ff72edb7f6f7dc366110466",
+      "evidence_id": "shadow:001",
+      "metric_set_digest": "sha256:metric-set",
+      "observation_count": 25,
+      "observed_aggregate": 0.9,
+      "observed_at": "2026-07-11T11:30:00Z",
+      "policy_digest": "2128580c1e829f5b61b7683819d7a3df18b3fd3b9a1ab1f7390ada4872e452fc",
+      "policy_selected": false,
+      "predicate_passed": true,
+      "preregistration_digest": "bd018574b18914d5c97f102d1e36342f474b41bcdceaa5db3a90af6a04e2244b",
+      "schema_version": "layer12-dspx-policy-shadow-evidence-v1",
+      "selection_authorization_ref": null
+    }
+  }
+}
