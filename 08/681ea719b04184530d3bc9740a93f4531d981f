@@ -1,0 +1,30 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "08681ea719b04184530d3bc9740a93f4531d981f"
+created_at: "2026-07-11T15:20:27Z"
+intent: "Bind candidate-state evidence and publication to descriptor-backed artifact snapshots"
+files:
+  - "docs/project/product-posture.md"
+  - "packages/dspx-core/src/dspx/services/program_candidate_state.py"
+  - "packages/dspx-core/src/dspx/services/program_evidence_closure.py"
+  - "packages/dspx-core/src/dspx/services/program_workflow.py"
+  - "tests/test_program_candidate_state.py"
+  - "tests/test_program_evidence_closure.py"
+  - "tests/test_program_workflow.py"
+validation:
+  fast_gate:
+    command: "just loop-verify-fast"
+    status: "pass"
+  full_gate:
+    command: "just loop-impact-wide"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "One coherent candidate snapshot and commit-boundary fix"
+links:
+  task_ids:
+    - 3659
+    - 3717
