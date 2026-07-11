@@ -4,6 +4,8 @@ import ast
 import hashlib
 import importlib
 import json
+import os
+import secrets
 import sys
 import threading
 from contextlib import contextmanager
@@ -12,6 +14,8 @@ from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any, Iterator, Mapping, TypeGuard, cast
 
+from dspx.cache import make_key
+from dspx.run_receipts import build_run_receipt, write_run_receipt
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication_preflight import (
     build_program_oracle_publication_preflight,
@@ -31,10 +35,13 @@ PROGRAM_RUNTIME_EPISODE_SCHEMA = "program-runtime-episode-v1"
 PROGRAM_BEHAVIOR_RESULTS_SCHEMA = "program-behavior-results-v1"
 PROGRAM_ORACLE_EVIDENCE_SCHEMA = "program-oracle-evidence-v1"
 PROGRAM_MANIFEST_SCHEMA = "program-candidate-assembly-v1"
+PROGRAM_RUNTIME_RECEIPT_TEMPLATE = "program-runtime-v1"
+PROGRAM_RUNTIME_REPLAY_FIXTURE_SCHEMA = "program-runtime-replay-fixture-v1"
 _RUNTIME_EPISODE_PROTECTED_ARTIFACT_NAMES = {
     *PROTECTED_PROGRAM_ARTIFACT_NAMES,
     "runtime_inputs.json",
     "runtime_episode.json",
+    "runtime_replay_fixture.json",
     "program_oracle_report.json",
 }
 
@@ -131,6 +138,80 @@ def _sha256_file(path: Path) -> str:
 
 def _sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _canonical_hash(value: object) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def _write_private_json_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    parent_fd = os.open(path.parent, flags)
+    temporary_name = f".{path.name}.{secrets.token_hex(12)}.tmp"
+    descriptor = -1
+    published = False
+    try:
+        descriptor = os.open(
+            temporary_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+            dir_fd=parent_fd,
+        )
+        content = _json_text(payload).encode("utf-8")
+        written = 0
+        while written < len(content):
+            count = os.write(descriptor, content[written:])
+            if count <= 0:
+                raise OSError("runtime replay fixture write made no progress")
+            written += count
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+        os.link(
+            temporary_name,
+            path.name,
+            src_dir_fd=parent_fd,
+            dst_dir_fd=parent_fd,
+            follow_symlinks=False,
+        )
+        published = True
+        os.unlink(temporary_name, dir_fd=parent_fd)
+        os.fsync(parent_fd)
+    except Exception:
+        if published:
+            try:
+                os.unlink(path.name, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+        raise
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            os.unlink(temporary_name, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        os.close(parent_fd)
+
+
+def _safe_stub_response_for_replay() -> dict[str, Any] | None:
+    raw = os.getenv("DSPX_STUB_RESPONSE_JSON")
+    if raw is None or len(raw) > 20_000:
+        return None
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    if sanitize_diagnostic_text(canonical, limit=len(canonical) + 1) != canonical:
+        return None
+    return {str(key): _jsonable(value) for key, value in payload.items()}
 
 
 def _first_text(*values: object) -> str | None:
@@ -1527,6 +1608,7 @@ def run_program_runtime_episode(
     publisher_assertion: str | None = None,
     redaction_status: str | None = None,
     retention_class: str | None = None,
+    capture_replay_fixture: bool = False,
 ) -> dict[str, Any]:
     """Run an existing generated program candidate on explicit runtime inputs.
 
@@ -1560,6 +1642,10 @@ def run_program_runtime_episode(
     candidate_root = source_manifest_path.parent
     manifest = _validated_manifest(source_manifest_path)
     _verify_candidate_integrity(source_manifest_path, manifest)
+    candidate_receipt_path = source_manifest_path.with_name(
+        f"{source_manifest_path.name}.meta.json"
+    )
+    candidate_receipt_hash = _sha256_file(candidate_receipt_path)
     manifest_identity = _manifest_identity(manifest)
     runtime_inputs = _load_inputs(inputs_path)
     materialized_runtime_inputs = _materialize_runtime_inputs(
@@ -1574,9 +1660,51 @@ def run_program_runtime_episode(
         contract_mode=contract_mode,
     )
 
+    replay_fixture_payload: dict[str, Any] | None = None
+    if capture_replay_fixture:
+        stub_response = _safe_stub_response_for_replay()
+        serialized_inputs = json.dumps(
+            runtime_inputs, ensure_ascii=False, sort_keys=True
+        )
+        if stub_response is None:
+            raise ValueError(
+                "replay fixture capture requires a bounded redaction-safe stub response"
+            )
+        if (
+            sanitize_diagnostic_text(
+                serialized_inputs, limit=len(serialized_inputs) + 1
+            )
+            != serialized_inputs
+        ):
+            raise ValueError(
+                "replay fixture capture rejects secret-shaped runtime inputs"
+            )
+        replay_fixture_payload = {
+            "schema_version": PROGRAM_RUNTIME_REPLAY_FIXTURE_SCHEMA,
+            "runtime_inputs": _jsonable(runtime_inputs),
+            "stub_response": stub_response,
+            "redaction_status": "checked",
+            "retention_class": "explicit_local_replay_fixture",
+            "authority": "local_replay_input_only",
+        }
+
     root = outdir.expanduser().resolve()
+    if (
+        root == candidate_root
+        or root in candidate_root.parents
+        or candidate_root in root.parents
+    ):
+        raise ValueError(
+            "runtime episode output directory must be disjoint from the candidate root"
+        )
     root.mkdir(parents=True, exist_ok=True)
     (root / "runtime_inputs.json").write_text(source_inputs_text, encoding="utf-8")
+    replay_fixture_path: Path | None = None
+    replay_fixture_hash: str | None = None
+    if replay_fixture_payload is not None:
+        replay_fixture_path = root / "runtime_replay_fixture.json"
+        _write_private_json_exclusive(replay_fixture_path, replay_fixture_payload)
+        replay_fixture_hash = _sha256_file(replay_fixture_path)
 
     provider = _configure_provider()
     observed: dict[str, object] = {}
@@ -1770,9 +1898,57 @@ def run_program_runtime_episode(
             "shared_oracle_mutated": False,
         },
     }
-    (root / "runtime_episode.json").write_text(
-        _json_text(runtime_episode), encoding="utf-8"
+    runtime_episode_path = root / "runtime_episode.json"
+    runtime_episode_path.write_text(_json_text(runtime_episode), encoding="utf-8")
+    runtime_episode_hash = _sha256_file(runtime_episode_path)
+    replay_inputs: dict[str, Any] = {
+        "candidate_manifest_path": str(source_manifest_path),
+        "candidate_manifest_sha256": manifest_hash,
+        "candidate_receipt_path": str(candidate_receipt_path),
+        "candidate_receipt_sha256": candidate_receipt_hash,
+        "runtime_inputs_sha256": inputs_hash,
+        "replay_fixture_path": str(replay_fixture_path)
+        if replay_fixture_path is not None
+        else None,
+        "replay_fixture_sha256": replay_fixture_hash,
+        "contract_mode": contract_mode,
+        "skip_oracle_index": skip_oracle_index,
+        "publication_preflight_requested": publication_preflight_out is not None,
+        "expected_episode": {
+            "runtime_episode_id": runtime_episode_id,
+            "status": status,
+            "observed_outputs_sha256": _canonical_hash(observed),
+            "behavior_results_sha256": behavior_hash,
+            "oracle_evidence_sha256": _sha256_file(oracle_path),
+            "program_runtime_traces_sha256": runtime_traces_hash,
+            "runtime_episode_sha256": runtime_episode_hash,
+        },
+    }
+    cache_payload = {"kind": "program-runtime", "replay_inputs": replay_inputs}
+    cache_key = make_key(cache_payload)
+    receipt = build_run_receipt(
+        output_path=runtime_episode_path,
+        output_hash=runtime_episode_hash,
+        run_kind="program-runtime",
+        template_version=PROGRAM_RUNTIME_RECEIPT_TEMPLATE,
+        cache_key=cache_key,
+        cache_file=str(root / ".cache" / "program-runtime" / f"{cache_key}.json"),
+        cache_enabled=False,
+        replay_inputs=replay_inputs,
+        run_summary={
+            "runtime_episode_id": runtime_episode_id,
+            "runtime_status": status,
+            "behavior_results_sha256": behavior_hash,
+            "program_runtime_traces_sha256": runtime_traces_hash,
+            "oracle_evidence_sha256": _sha256_file(oracle_path),
+            "replay_fixture_captured": replay_fixture_path is not None,
+            "evidence_only": True,
+        },
+        outcome="success"
+        if status in {"executed", "executed_valid_review_only"}
+        else "failure",
     )
+    runtime_receipt_path = write_run_receipt(runtime_episode_path, receipt)
 
     oracle_index_result: dict[str, Any] | None = None
     oracle_report: dict[str, Any] | None = None
@@ -1813,6 +1989,8 @@ def run_program_runtime_episode(
         "runtime_episode_id": runtime_episode_id,
         "candidate_manifest_path": str(source_manifest_path),
         "runtime_root": str(root),
+        "runtime_episode_path": str(runtime_episode_path),
+        "runtime_receipt_path": str(runtime_receipt_path),
         "manifest_path": str(runtime_manifest_path),
         "behavior_results_path": str(behavior_path),
         "oracle_evidence_path": str(oracle_path),
@@ -1829,6 +2007,14 @@ def run_program_runtime_episode(
                 "provider": provider,
                 "notes": notes,
                 "output_files": output_files,
+            },
+            "runtime_receipt": {
+                "status": "written",
+                "path": str(runtime_receipt_path),
+                "execution_replay_supported": bool(
+                    _safe_mapping(receipt.get("execution_replay")).get("supported")
+                ),
+                "evidence_only": True,
             },
             "oracle_index": {
                 "status": "skipped"
@@ -1857,6 +2043,8 @@ def run_program_runtime_episode(
         "effect": {
             "candidate_manifest_mutated": False,
             "runtime_episode_written": True,
+            "runtime_receipt_written": True,
+            "runtime_replay_fixture_written": replay_fixture_path is not None,
             "behavior_results_written": True,
             "oracle_evidence_written": True,
             "oracle_index_mutated": not skip_oracle_index,

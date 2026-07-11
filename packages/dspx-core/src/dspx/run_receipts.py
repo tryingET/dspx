@@ -31,6 +31,19 @@ _EXECUTION_REPLAY_EFFECTS = {
     "external_authority_mutation_requested": False,
     "explicit_replay_output_write": True,
 }
+_EXECUTION_REPLAY_PROGRAM_RUNTIME_KEYS = {
+    "candidate_manifest_path",
+    "candidate_manifest_sha256",
+    "candidate_receipt_path",
+    "candidate_receipt_sha256",
+    "runtime_inputs_sha256",
+    "replay_fixture_path",
+    "replay_fixture_sha256",
+    "contract_mode",
+    "skip_oracle_index",
+    "publication_preflight_requested",
+    "expected_episode",
+}
 _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS = {
     "class_name",
     "constraints",
@@ -366,17 +379,38 @@ def build_execution_replay_policy(
     template_version = str(inputs.get("template_version") or "")
 
     unsupported_reasons: list[str] = []
-    if run_kind_norm != "signature-gen":
-        unsupported_reasons.append("unsupported_run_kind")
+    strategy: str | None = None
     if provider_norm != "stub":
         unsupported_reasons.append("unsupported_provider")
-    if not template_version.startswith("simple-"):
-        unsupported_reasons.append("unsupported_template")
-    if (
-        not isinstance(options, Mapping)
-        or set(options) - _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS
-    ):
-        unsupported_reasons.append("unsupported_options")
+    if run_kind_norm == "signature-gen":
+        strategy = "signature-gen-local-reexecution"
+        if not template_version.startswith("simple-"):
+            unsupported_reasons.append("unsupported_template")
+        if (
+            not isinstance(options, Mapping)
+            or set(options) - _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS
+        ):
+            unsupported_reasons.append("unsupported_options")
+    elif run_kind_norm == "program-runtime":
+        strategy = "program-runtime-local-reexecution"
+        if set(inputs) != _EXECUTION_REPLAY_PROGRAM_RUNTIME_KEYS:
+            unsupported_reasons.append("unsupported_inputs")
+        if inputs.get("contract_mode") != "none":
+            unsupported_reasons.append("unsupported_contract_mode")
+        if inputs.get("skip_oracle_index") is not True:
+            unsupported_reasons.append("oracle_index_not_skipped")
+        if inputs.get("publication_preflight_requested") is not False:
+            unsupported_reasons.append("publication_preflight_requested")
+        fixture_path = inputs.get("replay_fixture_path")
+        fixture_hash = inputs.get("replay_fixture_sha256")
+        if not isinstance(fixture_path, str) or not fixture_path:
+            unsupported_reasons.append("missing_replay_fixture")
+        if not isinstance(fixture_hash, str) or len(fixture_hash) != 64:
+            unsupported_reasons.append("missing_replay_fixture_hash")
+        if not isinstance(inputs.get("expected_episode"), Mapping):
+            unsupported_reasons.append("missing_expected_episode")
+    else:
+        unsupported_reasons.append("unsupported_run_kind")
     if os.name != "posix" or not all(
         hasattr(os, name) for name in ("O_DIRECTORY", "O_NOFOLLOW")
     ):
@@ -386,7 +420,7 @@ def build_execution_replay_policy(
     return {
         "schema_version": EXECUTION_REPLAY_POLICY_VERSION,
         "supported": supported,
-        "strategy": "signature-gen-local-reexecution" if supported else None,
+        "strategy": strategy if supported else None,
         "unsupported_reasons": unsupported_reasons,
         "local_only": True,
         "input_hash": canonical_replay_identity_hash(inputs),

@@ -41,6 +41,7 @@ _RUN_KIND_TO_CACHE_KIND: dict[str, str] = {
     "signature-refine": "signature",
     "module-gen": "module",
     "program-gen": "program",
+    "program-runtime": "program-runtime",
     "codegen": "codegen",
 }
 
@@ -64,6 +65,19 @@ _REQUIRED_REPLAY_INPUTS: dict[str, tuple[str, ...]] = {
         "template_version",
     ),
     "program-gen": ("intent",),
+    "program-runtime": (
+        "candidate_manifest_path",
+        "candidate_manifest_sha256",
+        "candidate_receipt_path",
+        "candidate_receipt_sha256",
+        "runtime_inputs_sha256",
+        "replay_fixture_path",
+        "replay_fixture_sha256",
+        "contract_mode",
+        "skip_oracle_index",
+        "publication_preflight_requested",
+        "expected_episode",
+    ),
     "codegen": ("spec", "language", "template_version", "options"),
 }
 
@@ -1958,6 +1972,12 @@ def _expected_cache_payload(receipt: Mapping[str, Any]) -> dict[str, Any] | None
             "intent": _as_dict(replay_inputs.get("intent")),
         }
 
+    if run_kind == "program-runtime":
+        return {
+            "kind": "program-runtime",
+            "replay_inputs": replay_inputs,
+        }
+
     if run_kind == "codegen":
         return {
             "kind": "codegen",
@@ -2266,6 +2286,16 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
     and only then exclusively publishes it to ``replay_output``.
     """
     report = check_run_receipt(meta_path)
+    initial_receipt = load_run_receipt(meta_path)
+    if (
+        isinstance(initial_receipt, Mapping)
+        and initial_receipt.get("run_kind") == "program-runtime"
+    ):
+        from dspx.services.program_execution_replay import (
+            execute_program_runtime_receipt,
+        )
+
+        return execute_program_runtime_receipt(meta_path, replay_output, report)
     report["replay_mode"] = "execute"
     report["execution"] = {
         "attempted": False,

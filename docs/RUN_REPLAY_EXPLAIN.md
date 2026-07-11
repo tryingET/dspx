@@ -72,6 +72,7 @@ Current writers using this contract:
 - `dspx signature refine` (service emits receipt)
 - `dspx module-gen`
 - `dspx codegen`
+- `dspx program-run` (`program-runtime`; replay support requires explicit fixture capture)
 - legacy `dspx.cli.codegen` service path
 
 ## Replay command (implemented MVP)
@@ -150,6 +151,35 @@ The v1 strategy is `signature-gen-local-reexecution`. The child uses isolated Py
 
 Check-only remains the default and does not require execution replay support, so
 all existing supported receipt kinds retain their non-mutating verification path.
+
+### Receipt-bound generated-program execution replay
+
+`program-run` now always writes `runtime_episode.json.meta.json`. By default the receipt contains hashes, paths, runtime identity, behavior status, and non-authority posture but is **not execution-replay enabled**, because runtime inputs and provider output can be sensitive.
+
+For an explicitly replayable, local stub-backed episode, the operator must opt in:
+
+```bash
+DSPX_PROVIDER=stub \
+DSPX_STUB_RESPONSE_JSON='{"reasoning":"...","answer":"..."}' \
+  dspx program-run \
+  --manifest /path/to/candidate/manifest.json \
+  --inputs /path/to/inputs.json \
+  --outdir /path/to/runtime \
+  --contract-mode none \
+  --skip-oracle-index \
+  --capture-replay-fixture
+
+dspx run replay \
+  --from /path/to/runtime/runtime_episode.json.meta.json \
+  --no-check-only \
+  --to replay-evidence.json
+```
+
+`--capture-replay-fixture` is an explicit retention decision. It writes `runtime_replay_fixture.json` with mode `0600`, containing the bounded runtime inputs and stub response required for deterministic reproduction. The receipt stores only the fixture path/hash, never those raw payloads. Secret-shaped inputs or stub diagnostics fail closed before fixture creation. Delete the fixture to revoke execution replay; check-only receipt verification remains available but execution replay then fails current-evidence validation.
+
+The `program-runtime-local-reexecution` strategy is limited to provider `stub`, `contract_mode=none`, `--skip-oracle-index`, no publication preflight, and a current mode-0600 receipt-local replay fixture. It validates the original candidate receipt and runtime bundle, copies and revalidates the candidate in a private sandbox, executes only that snapshot under isolated Python with a scrubbed environment, and exclusively writes a receipt-local `program-execution-replay-evidence-v1` packet. The child requests no network, shared Oracle, MLflow, AK, governance, promotion, activation, or external-authority effects. OS network/external-filesystem isolation is not claimed as enforced.
+
+Execution reproduction and behavior quality remain separate. Evidence may truthfully report `status: execution_reproduced` with `behavior_status: error` or another non-success state; `behavior_quality_approved` always remains false. Replaying an episode never approves promotion or activation.
 
 Exit codes:
 - `0`: verification passed or execution replay completed

@@ -860,6 +860,7 @@ def test_program_run_cli_help_describes_inputs_as_file_path() -> None:
 
     assert result.exit_code == 0, result.output
     assert "Path to a JSON file" in result.output
+    assert "--capture-replay-fixture" in result.output
 
 
 def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:
@@ -891,4 +892,7 @@ def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:
     assert payload["status"] == "ok"
     assert payload["runtime_root"] == str(outdir)
     assert payload["steps"]["runtime_execution"]["status"] == "executed"
+    assert payload["steps"]["runtime_receipt"]["status"] == "written"
+    assert payload["steps"]["runtime_receipt"]["execution_replay_supported"] is False
+    assert (outdir / "runtime_episode.json.meta.json").is_file()
     assert (outdir / "oracle" / "coordinates.db").exists()

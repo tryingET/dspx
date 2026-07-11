@@ -1327,6 +1327,11 @@ def program_run(
         "--retention-class",
         help="Required with --publication-preflight-out: retention class",
     ),
+    capture_replay_fixture: bool = typer.Option(
+        False,
+        "--capture-replay-fixture",
+        help="Explicitly persist a mode-0600 local stub/input replay fixture; may contain sensitive runtime data",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print runtime workflow JSON"),
 ) -> None:
     """Run an existing generated program on explicit runtime inputs."""
@@ -1356,6 +1361,7 @@ def program_run(
             publisher_assertion=publisher_assertion,
             redaction_status=redaction_status,
             retention_class=retention_class,
+            capture_replay_fixture=capture_replay_fixture,
         )
     except Exception as exc:
         typer.echo(f"Error: program runtime episode failed: {exc}", err=True)
