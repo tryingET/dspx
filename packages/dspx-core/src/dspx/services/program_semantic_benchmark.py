@@ -19,12 +19,25 @@ from dspx.services.program_quality_evaluation import (
     evaluate_declared_quality,
     normalize_quality_criteria,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 from dspx.services.program_workflow import run_program_loop_from_intent_path
-from dspx.services.run_replay_service import check_run_receipt
+from dspx.services.run_replay_service import check_run_receipt, execute_run_receipt
 from dspx.services.semantic_benchmark import score_semantic_response
 
-CORPUS_SCHEMA = "dspx-program-semantic-benchmark-corpus-v1"
-RESULT_SCHEMA = "dspx-program-semantic-benchmark-result-v1"
+CORPUS_SCHEMA_V1 = "dspx-program-semantic-benchmark-corpus-v1"
+CORPUS_SCHEMA_V2 = "dspx-program-semantic-benchmark-corpus-v2"
+RESULT_SCHEMA_V1 = "dspx-program-semantic-benchmark-result-v1"
+RESULT_SCHEMA_V2 = "dspx-program-semantic-benchmark-result-v2"
+CORPUS_SCHEMA = CORPUS_SCHEMA_V2
+RESULT_SCHEMA = RESULT_SCHEMA_V2
+_PDF_REVIEW_OUTPUTS = {
+    "section_units_json",
+    "distillation_frames_json",
+    "evidence_cards_json",
+    "merge_create_proposals_json",
+    "review_packet_json",
+    "artifact_contract_manifest_json",
+}
 _MAX_CASES = 20
 _MAX_CORPUS_BYTES = 1_000_000
 _MAX_TEXT_CHARS = 20_000
@@ -172,7 +185,8 @@ def _validate_program_semantic_corpus_payload(
     if not isinstance(raw, dict):
         raise ValueError(f"unsupported program semantic benchmark corpus: {source}")
     payload = cast(dict[str, Any], raw)
-    if payload.get("schema_version") != CORPUS_SCHEMA:
+    schema_version = payload.get("schema_version")
+    if schema_version not in {CORPUS_SCHEMA_V1, CORPUS_SCHEMA_V2}:
         raise ValueError(f"unsupported program semantic benchmark corpus: {source}")
     allowed = {"schema_version", "name", "version", "thresholds", "cases"}
     unknown = set(payload) - allowed
@@ -182,8 +196,11 @@ def _validate_program_semantic_corpus_payload(
         )
     _required_string(payload.get("name"), field="corpus name")
     version = payload.get("version")
-    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
-        raise ValueError("corpus version must be a positive integer")
+    expected_version = 2 if schema_version == CORPUS_SCHEMA_V2 else 1
+    if version != expected_version:
+        raise ValueError(
+            f"corpus version must match the {expected_version} schema contract"
+        )
     thresholds = payload.get("thresholds")
     if not isinstance(thresholds, dict) or set(thresholds) != {
         "min_overall_score",
@@ -223,8 +240,11 @@ def _validate_program_semantic_corpus_payload(
             "required_concept_groups",
             "forbidden_concepts",
         }
+        if schema_version == CORPUS_SCHEMA_V2:
+            expected_fields.add("runtime_contract")
         if set(item) != expected_fields:
-            raise ValueError(f"case {index} fields do not match the v1 contract")
+            version = "v2" if schema_version == CORPUS_SCHEMA_V2 else "v1"
+            raise ValueError(f"case {index} fields do not match the {version} contract")
         case_id = _required_string(item.get("id"), field=f"case {index} id")
         if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", case_id):
             raise ValueError(f"case {index} has invalid id")
@@ -253,6 +273,38 @@ def _validate_program_semantic_corpus_payload(
             raise ValueError(
                 f"case {case_id} offline_stub_response must contain response_field"
             )
+        runtime_contract = item.get("runtime_contract")
+        if runtime_contract is not None:
+            if schema_version != CORPUS_SCHEMA_V2 or not isinstance(
+                runtime_contract, dict
+            ):
+                raise ValueError(f"case {case_id} runtime_contract is unsupported")
+            if runtime_contract != {
+                "contract_mode": "pdf_transition_review",
+                "offline_execution_replay_required": True,
+            }:
+                raise ValueError(f"case {case_id} runtime_contract is invalid")
+            input_fields = intent.get("inputs")
+            example = examples[0]
+            example_inputs = (
+                example.get("inputs") if isinstance(example, dict) else None
+            )
+            if (
+                not isinstance(input_fields, list)
+                or not isinstance(example_inputs, dict)
+                or set(str(field) for field in input_fields) != set(example_inputs)
+            ):
+                raise ValueError(
+                    f"case {case_id} runtime inputs must match the inline example"
+                )
+            if set(str(field) for field in outputs) != _PDF_REVIEW_OUTPUTS:
+                raise ValueError(
+                    f"case {case_id} runtime outputs must match the PDF review contract"
+                )
+            if not _PDF_REVIEW_OUTPUTS.issubset(stub):
+                raise ValueError(
+                    f"case {case_id} stub must contain every PDF review output"
+                )
         groups = item.get("required_concept_groups")
         if not isinstance(groups, list) or not groups:
             raise ValueError(f"case {case_id} requires concept groups")
@@ -566,6 +618,189 @@ def _load_case_evidence(
     }
 
 
+def _candidate_evidence_hashes(root: Path) -> dict[str, str]:
+    _preflight_candidate_tree(root)
+    return {
+        name: _read_file_hash(root / name, label=f"candidate {name}")
+        for name in (
+            "manifest.json",
+            "manifest.json.meta.json",
+            "program_loop.json",
+            "behavior_episode.json",
+            "behavior_results.json",
+        )
+    }
+
+
+def _write_private_json_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
+    descriptor = os.open(
+        path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    try:
+        content = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+        os.write(descriptor, content)
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _run_and_load_runtime_replay(
+    *,
+    case: Mapping[str, Any],
+    case_root: Path,
+    benchmark_root: Path,
+    candidate_evidence: Mapping[str, Any],
+) -> dict[str, Any]:
+    runtime_root = benchmark_root / f"{case['id']}.runtime"
+    inputs_path = benchmark_root / f"{case['id']}.runtime-inputs.json"
+    if runtime_root.exists() or runtime_root.is_symlink() or inputs_path.exists():
+        raise ValueError("benchmark runtime paths must be fresh")
+    intent = cast(Mapping[str, Any], case["intent"])
+    examples = cast(list[Mapping[str, Any]], intent["examples"])
+    runtime_inputs = examples[0].get("inputs")
+    if not isinstance(runtime_inputs, Mapping):
+        raise ValueError("benchmark runtime inputs are missing")
+    candidate_evidence_before = _candidate_evidence_hashes(case_root)
+    _write_private_json_exclusive(inputs_path, {"inputs": dict(runtime_inputs)})
+    if stat.S_IMODE(inputs_path.stat().st_mode) != 0o600:
+        raise ValueError("benchmark runtime inputs mode must be 0600")
+    workflow = run_program_runtime_episode(
+        manifest_path=case_root / "manifest.json",
+        inputs_path=inputs_path,
+        outdir=runtime_root,
+        contract_mode="pdf_transition_review",
+        skip_oracle_index=True,
+        capture_replay_fixture=True,
+    )
+    if workflow.get("status") != "ok":
+        raise ValueError(
+            f"benchmark review runtime status is {workflow.get('status')!r}"
+        )
+    effect = workflow.get("effect")
+    if not isinstance(effect, Mapping) or any(
+        effect.get(key) is not False
+        for key in (
+            "candidate_manifest_mutated",
+            "oracle_index_mutated",
+            "oracle_report_written",
+            "oracle_publication_preflight_written",
+            "shared_oracle_mutated",
+            "ak_called",
+            "external_authority_mutated",
+            "governance_mutated",
+            "canonical_notes_mutated",
+            "promotion_applied",
+        )
+    ):
+        raise ValueError("benchmark runtime widened authority or external effects")
+    _preflight_candidate_tree(runtime_root)
+    episode = _confined_file(
+        runtime_root,
+        workflow.get("runtime_episode_path"),
+        expected_name="runtime_episode.json",
+        label="runtime episode",
+    )
+    receipt = _confined_file(
+        runtime_root,
+        workflow.get("runtime_receipt_path"),
+        expected_name="runtime_episode.json.meta.json",
+        label="runtime receipt",
+    )
+    fixture = _confined_file(
+        runtime_root,
+        str(runtime_root / "runtime_replay_fixture.json"),
+        expected_name="runtime_replay_fixture.json",
+        label="runtime replay fixture",
+    )
+    if stat.S_IMODE(fixture.stat().st_mode) != 0o600:
+        raise ValueError("benchmark runtime replay fixture mode must be 0600")
+    episode_payload, episode_hash = _read_json_and_hash(
+        episode, label="runtime episode"
+    )
+    receipt_payload, receipt_hash = _read_json_and_hash(
+        receipt, label="runtime receipt"
+    )
+    if check_run_receipt(receipt).get("status") != "ok":
+        raise ValueError("benchmark runtime receipt failed integrity checks")
+    replay_report = execute_run_receipt(receipt, Path("benchmark-replay-evidence.json"))
+    if replay_report.get("status") != "executed":
+        raise ValueError("benchmark runtime receipt execution replay failed")
+    replay_path = _confined_file(
+        runtime_root,
+        str(runtime_root / "benchmark-replay-evidence.json"),
+        expected_name="benchmark-replay-evidence.json",
+        label="runtime replay evidence",
+    )
+    replay_payload, replay_hash = _read_json_and_hash(
+        replay_path, label="runtime replay evidence"
+    )
+    execution = replay_report.get("execution")
+    if (
+        not isinstance(execution, Mapping)
+        or replay_payload != execution.get("evidence")
+        or replay_payload.get("schema_version")
+        != "program-execution-replay-evidence-v2"
+        or replay_payload.get("status") != "execution_reproduced"
+        or replay_payload.get("contract_mode") != "pdf_transition_review"
+        or replay_payload.get("execution_status") != "executed_valid_review_only"
+        or replay_payload.get("behavior_status") != "executed_valid_review_only"
+        or replay_payload.get("quality_status") != "passed"
+        or replay_payload.get("behavior_quality_approved") is not False
+    ):
+        raise ValueError("benchmark replay evidence semantics are inconsistent")
+    non_authority = replay_payload.get("non_authority")
+    if not isinstance(non_authority, Mapping) or any(non_authority.values()):
+        raise ValueError("benchmark replay evidence widened authority")
+    candidate_manifest_hash = cast(Mapping[str, Any], candidate_evidence["artifacts"])[
+        "manifest_sha256"
+    ]
+    replay_inputs = receipt_payload.get("replay_inputs")
+    artifact_hashes = episode_payload.get("artifact_hashes")
+    if (
+        episode_payload.get("contract_mode") != "pdf_transition_review"
+        or episode_payload.get("execution_status") != "executed_valid_review_only"
+        or episode_payload.get("status") != "executed_valid_review_only"
+        or not isinstance(artifact_hashes, Mapping)
+        or artifact_hashes.get("source_manifest_sha256") != candidate_manifest_hash
+        or not isinstance(replay_inputs, Mapping)
+        or replay_inputs.get("candidate_manifest_sha256") != candidate_manifest_hash
+        or replay_payload.get("candidate_manifest_sha256") != candidate_manifest_hash
+    ):
+        raise ValueError("benchmark runtime episode/candidate binding is inconsistent")
+    _preflight_candidate_tree(runtime_root)
+    current = {
+        "runtime_episode_sha256": _read_file_hash(episode, label="runtime episode"),
+        "runtime_receipt_sha256": _read_file_hash(receipt, label="runtime receipt"),
+        "replay_fixture_sha256": _read_file_hash(
+            fixture, label="runtime replay fixture"
+        ),
+        "replay_evidence_sha256": _read_file_hash(
+            replay_path, label="runtime replay evidence"
+        ),
+    }
+    if (
+        current["runtime_episode_sha256"] != episode_hash
+        or current["runtime_receipt_sha256"] != receipt_hash
+        or current["replay_evidence_sha256"] != replay_hash
+    ):
+        raise ValueError("benchmark runtime evidence changed before aggregation")
+    if _candidate_evidence_hashes(case_root) != candidate_evidence_before:
+        raise ValueError("benchmark candidate evidence changed during runtime replay")
+    return {
+        "runtime_root": runtime_root.name,
+        "runtime_episode_id": episode_payload.get("runtime_episode_id"),
+        "candidate_manifest_sha256": candidate_manifest_hash,
+        "contract_mode": "pdf_transition_review",
+        "execution_status": "executed_valid_review_only",
+        "behavior_status": "executed_valid_review_only",
+        "quality_status": "passed",
+        "replay_status": "execution_reproduced",
+        **current,
+    }
+
+
 @contextmanager
 def _case_environment(
     *, mode: str, provider: str | None, stub: Mapping[str, Any], cache_dir: Path
@@ -694,6 +929,21 @@ def run_program_semantic_benchmark(
                 evidence = _load_case_evidence(
                     case=case, workflow=workflow, case_root=case_root
                 )
+                runtime_replay = None
+                runtime_replay_status = "not_required"
+                if case.get("runtime_contract") is not None:
+                    runtime_replay_status = "not_run_live_unsupported"
+                    if mode == "offline":
+                        runtime_replay_status = "failed"
+                        runtime_replay = _run_and_load_runtime_replay(
+                            case=case,
+                            case_root=case_root,
+                            benchmark_root=root,
+                            candidate_evidence=evidence,
+                        )
+                        runtime_replay_status = "passed"
+                evidence["runtime_replay"] = runtime_replay
+                evidence["runtime_replay_status"] = runtime_replay_status
             response = str(evidence.pop("response"))
             scored = score_semantic_response(case, response)
         except Exception as exc:
@@ -712,22 +962,38 @@ def run_program_semantic_benchmark(
             and scored["score"] >= thresholds["min_case_score"]
             and not scored["forbidden_hits"]
         )
-        rows.append(
-            {
-                "id": case["id"],
-                "category": case["category"],
-                "status": "passed" if passed else ("error" if error else "failed"),
-                **scored,
-                "response_sha256": hashlib.sha256(response.encode("utf-8")).hexdigest(),
-                "error": error,
-                "candidate": evidence["candidate"] if evidence else None,
-                "artifacts": evidence["artifacts"] if evidence else None,
-            }
-        )
+        row = {
+            "id": case["id"],
+            "category": case["category"],
+            "status": "passed" if passed else ("error" if error else "failed"),
+            **scored,
+            "response_sha256": hashlib.sha256(response.encode("utf-8")).hexdigest(),
+            "error": error,
+            "candidate": evidence["candidate"] if evidence else None,
+            "artifacts": evidence["artifacts"] if evidence else None,
+        }
+        if corpus["schema_version"] == CORPUS_SCHEMA_V2:
+            row["runtime_replay"] = evidence.get("runtime_replay") if evidence else None
+            if evidence:
+                row["runtime_replay_status"] = evidence.get(
+                    "runtime_replay_status", "failed"
+                )
+            elif case.get("runtime_contract") is None:
+                row["runtime_replay_status"] = "not_required"
+            elif mode == "live":
+                row["runtime_replay_status"] = "not_run_live_unsupported"
+            else:
+                row["runtime_replay_status"] = "failed"
+        rows.append(row)
     score = round(sum(row["score"] for row in rows) / len(rows), 6)
     failed = sum(row["status"] != "passed" for row in rows)
+    result_schema = (
+        RESULT_SCHEMA_V2
+        if corpus["schema_version"] == CORPUS_SCHEMA_V2
+        else RESULT_SCHEMA_V1
+    )
     return {
-        "schema_version": RESULT_SCHEMA,
+        "schema_version": result_schema,
         "corpus": {
             "schema_version": corpus["schema_version"],
             "name": corpus["name"],

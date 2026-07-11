@@ -1,0 +1,461 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dspx.local/schemas/program-semantic-benchmark-result-v2.json",
+  "title": "DSPx generated-program semantic benchmark result v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "corpus",
+    "execution",
+    "thresholds",
+    "summary",
+    "cases",
+    "authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "dspx-program-semantic-benchmark-result-v2"
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "name",
+        "version",
+        "sha256"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "dspx-program-semantic-benchmark-corpus-v2"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "const": 2
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "provider",
+        "network_allowed",
+        "deterministic",
+        "generated_program_path",
+        "oracle_indexed"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "offline",
+            "live"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "network_allowed": {
+          "type": "boolean"
+        },
+        "deterministic": {
+          "type": "boolean"
+        },
+        "generated_program_path": {
+          "const": true
+        },
+        "oracle_indexed": {
+          "const": false
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min_overall_score",
+        "min_case_score",
+        "max_failed_cases"
+      ],
+      "properties": {
+        "min_overall_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "min_case_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_failed_cases": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases_total",
+        "cases_passed",
+        "cases_failed",
+        "overall_score",
+        "threshold_pass"
+      ],
+      "properties": {
+        "cases_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cases_passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cases_failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "overall_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "threshold_pass": {
+          "type": "boolean"
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "category",
+          "status",
+          "score",
+          "required_groups_total",
+          "required_groups_matched",
+          "missing_group_indexes",
+          "forbidden_hits",
+          "response_sha256",
+          "error",
+          "candidate",
+          "artifacts",
+          "runtime_replay",
+          "runtime_replay_status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "error"
+            ]
+          },
+          "score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "required_groups_total": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "required_groups_matched": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "missing_group_indexes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "forbidden_hits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "response_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "candidate": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "assembly_id",
+                  "candidate_id",
+                  "receipt_bundle_id"
+                ],
+                "properties": {
+                  "assembly_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "candidate_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "receipt_bundle_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "artifacts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "candidate_root",
+                  "manifest_sha256",
+                  "receipt_sha256",
+                  "workflow_sha256",
+                  "behavior_episode_sha256",
+                  "behavior_results_sha256"
+                ],
+                "properties": {
+                  "candidate_root": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "manifest_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "workflow_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "behavior_episode_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "behavior_results_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "runtime_replay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "runtime_root",
+                  "runtime_episode_id",
+                  "contract_mode",
+                  "execution_status",
+                  "behavior_status",
+                  "quality_status",
+                  "replay_status",
+                  "runtime_episode_sha256",
+                  "runtime_receipt_sha256",
+                  "replay_fixture_sha256",
+                  "replay_evidence_sha256",
+                  "candidate_manifest_sha256"
+                ],
+                "properties": {
+                  "runtime_root": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "runtime_episode_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "contract_mode": {
+                    "const": "pdf_transition_review"
+                  },
+                  "execution_status": {
+                    "const": "executed_valid_review_only"
+                  },
+                  "behavior_status": {
+                    "const": "executed_valid_review_only"
+                  },
+                  "quality_status": {
+                    "const": "passed"
+                  },
+                  "replay_status": {
+                    "const": "execution_reproduced"
+                  },
+                  "runtime_episode_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "runtime_receipt_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "replay_fixture_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "replay_evidence_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "candidate_manifest_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "runtime_replay_status": {
+            "enum": [
+              "not_required",
+              "not_run_live_unsupported",
+              "passed",
+              "failed"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "runtime_replay_status": {
+                  "const": "passed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "runtime_replay": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "runtime_replay_status": {
+                  "enum": [
+                    "not_required",
+                    "not_run_live_unsupported",
+                    "failed"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "runtime_replay": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_only",
+        "authoritative_decision",
+        "promotion_approved",
+        "activation_applied",
+        "shared_oracle_mutated",
+        "external_authority_mutated",
+        "governance_mutated",
+        "ak_called",
+        "winner_selected"
+      ],
+      "properties": {
+        "evidence_only": {
+          "const": true
+        },
+        "authoritative_decision": {
+          "const": false
+        },
+        "promotion_approved": {
+          "const": false
+        },
+        "activation_applied": {
+          "const": false
+        },
+        "shared_oracle_mutated": {
+          "const": false
+        },
+        "external_authority_mutated": {
+          "const": false
+        },
+        "governance_mutated": {
+          "const": false
+        },
+        "ak_called": {
+          "const": false
+        },
+        "winner_selected": {
+          "const": false
+        }
+      }
+    }
+  }
+}

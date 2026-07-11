@@ -1791,7 +1791,9 @@ def run_program_runtime_episode(
             "runtime episode output directory must be disjoint from the candidate root"
         )
     root.mkdir(parents=True, exist_ok=True)
-    (root / "runtime_inputs.json").write_text(source_inputs_text, encoding="utf-8")
+    _write_private_json_exclusive(
+        root / "runtime_inputs.json", {"inputs": runtime_inputs}
+    )
     replay_fixture_path: Path | None = None
     replay_fixture_hash: str | None = None
     if replay_fixture_payload is not None:

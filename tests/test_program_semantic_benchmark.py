@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import stat
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -16,8 +19,10 @@ from dspx.services.program_semantic_benchmark import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CORPUS_PATH = REPO_ROOT / "benchmarks/semantic/program-corpus-v1.json"
-SCHEMA_PATH = REPO_ROOT / "benchmarks/semantic/program-result-schema-v1.json"
+CORPUS_PATH = REPO_ROOT / "benchmarks/semantic/program-corpus-v2.json"
+SCHEMA_PATH = REPO_ROOT / "benchmarks/semantic/program-result-schema-v2.json"
+V1_CORPUS_PATH = REPO_ROOT / "benchmarks/semantic/program-corpus-v1.json"
+V1_SCHEMA_PATH = REPO_ROOT / "benchmarks/semantic/program-result-schema-v1.json"
 
 
 def _single_case_corpus() -> dict[str, Any]:
@@ -26,7 +31,13 @@ def _single_case_corpus() -> dict[str, Any]:
     return corpus
 
 
-def test_program_semantic_benchmark_runs_generated_single_and_pipeline_candidates(
+def _review_case_corpus() -> dict[str, Any]:
+    corpus = load_program_semantic_corpus(CORPUS_PATH)
+    corpus["cases"] = [corpus["cases"][-1]]
+    return corpus
+
+
+def test_program_semantic_benchmark_runs_generated_candidates_and_review_replay(
     tmp_path: Path,
 ) -> None:
     corpus = load_program_semantic_corpus(CORPUS_PATH)
@@ -41,8 +52,8 @@ def test_program_semantic_benchmark_runs_generated_single_and_pipeline_candidate
     write_program_semantic_result(result, result_path, result_schema_path=SCHEMA_PATH)
 
     assert result["summary"] == {
-        "cases_total": 2,
-        "cases_passed": 2,
+        "cases_total": 3,
+        "cases_passed": 3,
         "cases_failed": 0,
         "overall_score": 1.0,
         "threshold_pass": True,
@@ -66,7 +77,11 @@ def test_program_semantic_benchmark_runs_generated_single_and_pipeline_candidate
         "ak_called": False,
         "winner_selected": False,
     }
-    assert [row["status"] for row in result["cases"]] == ["passed", "passed"]
+    assert [row["status"] for row in result["cases"]] == [
+        "passed",
+        "passed",
+        "passed",
+    ]
     assert all(row["artifacts"]["manifest_sha256"] for row in result["cases"])
     assert all(row["candidate"]["candidate_id"] for row in result["cases"])
     assert result_path.is_file()
@@ -89,13 +104,37 @@ def test_program_semantic_benchmark_runs_generated_single_and_pipeline_candidate
     )
     assert behavior["quality_evaluation"]["status"] == "passed"
     assert behavior["quality_evaluation"]["quality_approved"] is False
+    review_row = result["cases"][2]
+    assert review_row["runtime_replay_status"] == "passed"
+    assert review_row["runtime_replay"]["contract_mode"] == "pdf_transition_review"
+    assert (
+        review_row["runtime_replay"]["execution_status"] == "executed_valid_review_only"
+    )
+    assert review_row["runtime_replay"]["quality_status"] == "passed"
+    assert review_row["runtime_replay"]["replay_status"] == "execution_reproduced"
+    runtime_root = tmp_path / "work/pdf-transition-review-runtime-replay.runtime"
+    assert (runtime_root / "benchmark-replay-evidence.json").is_file()
+    assert stat.S_IMODE((runtime_root / "runtime_inputs.json").stat().st_mode) == 0o600
+    assert (
+        stat.S_IMODE(
+            (tmp_path / "work/pdf-transition-review-runtime-replay.runtime-inputs.json")
+            .stat()
+            .st_mode
+        )
+        == 0o600
+    )
 
 
-def test_program_semantic_benchmark_v1_preserves_legacy_no_quality_intent(
+def test_program_semantic_benchmark_review_case_rejects_boundary_failure(
     tmp_path: Path,
 ) -> None:
-    corpus = _single_case_corpus()
-    corpus["cases"][0]["intent"].pop("quality_criteria")
+    corpus = _review_case_corpus()
+    case = corpus["cases"][0]
+    unsafe = json.loads(case["offline_stub_response"]["review_packet_json"])
+    unsafe["canonical_mutation_performed"] = True
+    unsafe_text = json.dumps(unsafe, separators=(",", ":"), sort_keys=True)
+    case["offline_stub_response"]["review_packet_json"] = unsafe_text
+    case["intent"]["examples"][0]["outputs"]["review_packet_json"] = unsafe_text
 
     result = run_program_semantic_benchmark(
         corpus,
@@ -104,7 +143,111 @@ def test_program_semantic_benchmark_v1_preserves_legacy_no_quality_intent(
         result_path=tmp_path / "result.json",
     )
 
+    row = result["cases"][0]
+    assert row["status"] == "error"
+    assert "runtime status is 'degraded'" in row["error"]
+    assert row["runtime_replay"] is None
+    assert row["runtime_replay_status"] == "failed"
+    assert result["summary"]["threshold_pass"] is False
+
+
+def test_program_semantic_benchmark_rejects_tampered_replay_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = benchmark.execute_run_receipt
+
+    def tamper(receipt: Path, output: Path) -> dict[str, Any]:
+        report = original(receipt, output)
+        replay_path = receipt.parent / output
+        payload = json.loads(replay_path.read_text(encoding="utf-8"))
+        payload["contract_mode"] = "none"
+        replay_path.write_text(json.dumps(payload), encoding="utf-8")
+        return report
+
+    monkeypatch.setattr(benchmark, "execute_run_receipt", tamper)
+    result = run_program_semantic_benchmark(
+        _review_case_corpus(),
+        corpus_path=CORPUS_PATH,
+        work_root=tmp_path / "work",
+        result_path=tmp_path / "result.json",
+    )
+
+    row = result["cases"][0]
+    assert row["status"] == "error"
+    assert "replay evidence" in row["error"]
+    assert row["runtime_replay"] is None
+    assert row["runtime_replay_status"] == "failed"
+
+
+def test_program_semantic_benchmark_rejects_candidate_mutation_during_runtime(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = benchmark.run_program_runtime_episode
+
+    def mutate(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        result = original(*args, **kwargs)
+        manifest = Path(kwargs["manifest_path"])
+        manifest.write_text(manifest.read_text() + " ", encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(benchmark, "run_program_runtime_episode", mutate)
+    result = run_program_semantic_benchmark(
+        _review_case_corpus(),
+        corpus_path=CORPUS_PATH,
+        work_root=tmp_path / "work",
+        result_path=tmp_path / "result.json",
+    )
+    assert result["cases"][0]["status"] == "error"
+    assert any(
+        marker in result["cases"][0]["error"]
+        for marker in ("candidate evidence changed", "execution replay failed")
+    )
+
+
+def test_program_semantic_benchmark_v1_cli_derives_result_schema(
+    tmp_path: Path,
+) -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "scripts/run_program_semantic_benchmarks.py",
+            "--corpus",
+            str(V1_CORPUS_PATH),
+            "--work-root",
+            str(tmp_path / "v1-work"),
+            "--out",
+            str(tmp_path / "v1-result.json"),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads((tmp_path / "v1-result.json").read_text())
+    assert result["schema_version"] == benchmark.RESULT_SCHEMA_V1
+
+
+def test_program_semantic_benchmark_v1_preserves_legacy_no_quality_intent(
+    tmp_path: Path,
+) -> None:
+    corpus = load_program_semantic_corpus(V1_CORPUS_PATH)
+    corpus["cases"] = [corpus["cases"][0]]
+    corpus["cases"][0]["intent"].pop("quality_criteria")
+
+    result = run_program_semantic_benchmark(
+        corpus,
+        corpus_path=V1_CORPUS_PATH,
+        work_root=tmp_path / "work",
+        result_path=tmp_path / "result.json",
+    )
+
+    assert result["schema_version"] == benchmark.RESULT_SCHEMA_V1
     assert result["summary"]["threshold_pass"] is True
+    write_program_semantic_result(
+        result, tmp_path / "v1-result.json", result_schema_path=V1_SCHEMA_PATH
+    )
     behavior = json.loads(
         (
             tmp_path / "work/single-module-authority-boundary/behavior_results.json"
@@ -225,6 +368,32 @@ def test_program_semantic_corpus_rejects_unknown_fields_and_oversize(
     oversized.write_bytes(b" " * 1_000_001)
     with pytest.raises(ValueError, match="1000000-byte limit"):
         load_program_semantic_corpus(oversized)
+
+
+def test_program_semantic_corpus_v2_rejects_runtime_contract_drift(
+    tmp_path: Path,
+) -> None:
+    corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    review = corpus["cases"][-1]
+    review["runtime_contract"]["contract_mode"] = "none"
+    invalid = tmp_path / "invalid-runtime.json"
+    invalid.write_text(json.dumps(corpus), encoding="utf-8")
+    with pytest.raises(ValueError, match="runtime_contract is invalid"):
+        load_program_semantic_corpus(invalid)
+
+    corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    review = corpus["cases"][-1]
+    review["intent"]["outputs"].remove("evidence_cards_json")
+    invalid.write_text(json.dumps(corpus), encoding="utf-8")
+    with pytest.raises(ValueError, match="outputs must match the PDF review contract"):
+        load_program_semantic_corpus(invalid)
+
+    corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    review = corpus["cases"][-1]
+    del review["offline_stub_response"]["artifact_contract_manifest_json"]
+    invalid.write_text(json.dumps(corpus), encoding="utf-8")
+    with pytest.raises(ValueError, match="stub must contain every PDF review output"):
+        load_program_semantic_corpus(invalid)
 
 
 def test_program_semantic_corpus_rejects_symlink_and_external_intent_paths(
@@ -390,7 +559,7 @@ def test_program_semantic_result_schema_rejects_authority_widening(
         "corpus": {
             "schema_version": benchmark.CORPUS_SCHEMA,
             "name": "x",
-            "version": 1,
+            "version": 2,
             "sha256": "a" * 64,
         },
         "execution": {
@@ -427,6 +596,8 @@ def test_program_semantic_result_schema_rejects_authority_widening(
                 "error": "failed",
                 "candidate": None,
                 "artifacts": None,
+                "runtime_replay": None,
+                "runtime_replay_status": "not_required",
             }
         ],
         "authority": {

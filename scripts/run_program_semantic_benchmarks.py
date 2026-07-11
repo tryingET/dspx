@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--corpus",
         type=Path,
-        default=Path("benchmarks/semantic/program-corpus-v1.json"),
+        default=Path("benchmarks/semantic/program-corpus-v2.json"),
     )
     parser.add_argument(
         "--work-root",
@@ -35,7 +35,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--result-schema",
         type=Path,
-        default=Path("benchmarks/semantic/program-result-schema-v1.json"),
+        default=None,
+        help="Explicit result schema override; defaults from the loaded corpus version",
     )
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--provider")
@@ -60,8 +61,13 @@ def main() -> int:
             mode="live" if args.live else "offline",
             provider=args.provider,
         )
+        result_schema = args.result_schema or Path(
+            "benchmarks/semantic/program-result-schema-v2.json"
+            if corpus["schema_version"].endswith("-v2")
+            else "benchmarks/semantic/program-result-schema-v1.json"
+        )
         write_program_semantic_result(
-            result, args.out, result_schema_path=args.result_schema
+            result, args.out, result_schema_path=result_schema
         )
     except Exception as exc:
         from dspx.provider_runtime import sanitize_text
