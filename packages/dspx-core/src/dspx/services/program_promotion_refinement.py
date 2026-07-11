@@ -7,6 +7,11 @@ from typing import Any, Mapping
 
 from dspx.security import confine_path, identity_matches_exact, identity_mismatch_keys
 from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.program_evidence_closure import (
+    CandidateArtifactSnapshot,
+    read_candidate_snapshot_artifact,
+    snapshot_candidate_artifact_closure,
+)
 from dspx.services.program_model_jury_validation import (
     validate_program_model_jury_results_contract,
 )
@@ -69,6 +74,86 @@ _FORBIDDEN_SOURCE_OUTPUT_NAMES = {
 
 class ProgramPromotionRefinementError(ValueError):
     """Raised when promotion-review refinement inputs are malformed."""
+
+
+def _snapshot_candidate_for_promotion_review(
+    manifest_path: Path,
+) -> CandidateArtifactSnapshot:
+    try:
+        return snapshot_candidate_artifact_closure(manifest_path)
+    except (OSError, ValueError) as exc:
+        raise ProgramPromotionRefinementError(
+            f"candidate artifact closure is invalid: {exc}"
+        ) from exc
+
+
+def _load_snapshot_json_object(
+    snapshot: CandidateArtifactSnapshot,
+    *,
+    kind: str,
+    label: str,
+) -> tuple[dict[str, Any], Path, str]:
+    try:
+        artifact, content = read_candidate_snapshot_artifact(snapshot, kind=kind)
+    except (OSError, ValueError) as exc:
+        raise ProgramPromotionRefinementError(
+            f"{label} is not current in the validated candidate artifact closure: {exc}"
+        ) from exc
+    try:
+        payload = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProgramPromotionRefinementError(
+            f"{label} must contain valid UTF-8 JSON: {artifact.path}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ProgramPromotionRefinementError(
+            f"{label} must contain a JSON object: {artifact.path}"
+        )
+    return payload, artifact.path, artifact.sha256
+
+
+def _require_snapshot_artifact(
+    snapshot: CandidateArtifactSnapshot,
+    *,
+    kind: str,
+    loaded_path: Path | None,
+    loaded_hash: str | None,
+    loaded_payload: Mapping[str, Any] | None,
+    label: str,
+) -> None:
+    snapshot_payload, snapshot_path, snapshot_hash = _load_snapshot_json_object(
+        snapshot,
+        kind=kind,
+        label=label,
+    )
+    if loaded_path is None or loaded_hash is None or loaded_payload is None:
+        raise ProgramPromotionRefinementError(
+            f"{label} was not loaded from the validated candidate artifact closure"
+        )
+    if (
+        loaded_path.expanduser().resolve() != snapshot_path
+        or loaded_hash != snapshot_hash
+        or dict(loaded_payload or {}) != snapshot_payload
+    ):
+        raise ProgramPromotionRefinementError(
+            f"{label} did not load from the validated candidate artifact closure"
+        )
+
+
+def _require_candidate_snapshot_unchanged(
+    original: CandidateArtifactSnapshot,
+) -> None:
+    try:
+        current = snapshot_candidate_artifact_closure(original.manifest_path)
+    except (OSError, ValueError) as exc:
+        raise ProgramPromotionRefinementError(
+            "candidate artifact closure changed during promotion review construction: "
+            f"{exc}"
+        ) from exc
+    if current != original:
+        raise ProgramPromotionRefinementError(
+            "candidate artifact closure changed during promotion review construction"
+        )
 
 
 def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
@@ -958,22 +1043,47 @@ def load_program_promotion_inputs(
     manifest_path = manifest_path.expanduser().resolve()
     oracle_report_path = oracle_report_path.expanduser().resolve()
     refinement_proposal_path = refinement_proposal_path.expanduser().resolve()
+    candidate_snapshot = _snapshot_candidate_for_promotion_review(manifest_path)
     try:
         manifest = load_program_manifest(manifest_path)
+        if manifest != candidate_snapshot.manifest:
+            raise ProgramPromotionRefinementError(
+                "candidate manifest changed after the artifact closure was validated"
+            )
         behavior, behavior_path, behavior_hash = load_program_behavior_results(
             manifest,
             manifest_path,
         )
+        if behavior_path is not None or behavior_hash is not None:
+            _require_snapshot_artifact(
+                candidate_snapshot,
+                kind="behavior_results",
+                loaded_path=behavior_path,
+                loaded_hash=behavior_hash,
+                loaded_payload=behavior if isinstance(behavior, Mapping) else None,
+                label="program behavior results",
+            )
         behavior_episode, behavior_episode_path, behavior_episode_hash = (
             _load_program_behavior_episode(manifest, manifest_path)
         )
+        if behavior_episode_path is not None or behavior_episode_hash is not None:
+            _require_snapshot_artifact(
+                candidate_snapshot,
+                kind="behavior_episode",
+                loaded_path=behavior_episode_path,
+                loaded_hash=behavior_episode_hash,
+                loaded_payload=behavior_episode
+                if isinstance(behavior_episode, Mapping)
+                else None,
+                label="program behavior episode",
+            )
         report = load_program_oracle_report(oracle_report_path)
         validate_program_oracle_report_non_authority(report)
     except ProgramRefinementError as exc:
         raise ProgramPromotionRefinementError(str(exc)) from exc
     identity = _identity_from_manifest(manifest)
     oracle_record, oracle_matched = _validate_oracle_report_identity(report, identity)
-    manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    manifest_hash = candidate_snapshot.manifest_sha256
     oracle_report_hash = hashlib.sha256(oracle_report_path.read_bytes()).hexdigest()
     proposal = _load_refinement_proposal(
         refinement_proposal_path,
@@ -1021,9 +1131,44 @@ def load_program_promotion_inputs(
             manifest_path,
         )
     )
+    promotion_hashes: dict[str, str] = {}
+    for kind, path_key, label, loaded_payload in (
+        (
+            "promotion_review",
+            "original_promotion_review_path",
+            "original promotion review",
+            review,
+        ),
+        (
+            "promotion_adjudication_request",
+            "original_promotion_adjudication_request_path",
+            "original promotion adjudication request",
+            request,
+        ),
+        (
+            "promotion_decision_template",
+            "original_promotion_decision_template_path",
+            "original promotion decision template",
+            decision_template,
+        ),
+    ):
+        loaded_path = promotion_paths[path_key]
+        loaded_hash = _sha256_file(loaded_path)
+        _require_snapshot_artifact(
+            candidate_snapshot,
+            kind=kind,
+            loaded_path=loaded_path,
+            loaded_hash=loaded_hash,
+            loaded_payload=loaded_payload,
+            label=label,
+        )
+        promotion_hashes[path_key] = loaded_hash
+    _require_candidate_snapshot_unchanged(candidate_snapshot)
     return {
         "manifest_path": manifest_path,
         "manifest": manifest,
+        "candidate_snapshot": candidate_snapshot,
+        "manifest_hash": manifest_hash,
         "identity": identity,
         "behavior": behavior,
         "behavior_path": behavior_path,
@@ -1047,6 +1192,7 @@ def load_program_promotion_inputs(
         "promotion_adjudication_request": request,
         "promotion_decision_template": decision_template,
         "promotion_paths": promotion_paths,
+        "promotion_hashes": promotion_hashes,
     }
 
 
@@ -1163,6 +1309,7 @@ def build_program_promotion_refinement(
     original_promotion_decision_template_path = Path(
         promotion_paths["original_promotion_decision_template_path"]
     ).resolve()
+    promotion_hashes = _safe_mapping(inputs.get("promotion_hashes"))
 
     packet = {
         "schema_version": PROGRAM_PROMOTION_REVIEW_REFINED_SCHEMA,
@@ -1176,7 +1323,7 @@ def build_program_promotion_refinement(
         "identity": identity,
         "created_from": {
             "manifest_path": str(manifest_path),
-            "manifest_sha256": _sha256_file(manifest_path),
+            "manifest_sha256": inputs.get("manifest_hash"),
             "behavior_results_path": behavior_path_text,
             "behavior_results_sha256": inputs.get("behavior_hash")
             if behavior_path_text is not None
@@ -1198,20 +1345,20 @@ def build_program_promotion_refinement(
             if runtime_episode_path_text is not None
             else None,
             "original_promotion_review_path": str(original_promotion_review_path),
-            "original_promotion_review_sha256": _sha256_file(
-                original_promotion_review_path
+            "original_promotion_review_sha256": promotion_hashes.get(
+                "original_promotion_review_path"
             ),
             "original_promotion_adjudication_request_path": str(
                 original_promotion_adjudication_request_path
             ),
-            "original_promotion_adjudication_request_sha256": _sha256_file(
-                original_promotion_adjudication_request_path
+            "original_promotion_adjudication_request_sha256": promotion_hashes.get(
+                "original_promotion_adjudication_request_path"
             ),
             "original_promotion_decision_template_path": str(
                 original_promotion_decision_template_path
             ),
-            "original_promotion_decision_template_sha256": _sha256_file(
-                original_promotion_decision_template_path
+            "original_promotion_decision_template_sha256": promotion_hashes.get(
+                "original_promotion_decision_template_path"
             ),
         },
         "evidence_summary": {
@@ -1308,6 +1455,12 @@ def build_program_promotion_refinement(
             "Oracle interpretation remains non-authoritative and cannot rank, prune, promote, or block candidates.",
         ],
     }
+    candidate_snapshot = inputs.get("candidate_snapshot")
+    if not isinstance(candidate_snapshot, CandidateArtifactSnapshot):
+        raise ProgramPromotionRefinementError(
+            "promotion review inputs are missing the validated candidate artifact snapshot"
+        )
+    _require_candidate_snapshot_unchanged(candidate_snapshot)
     return packet
 
 
@@ -1324,12 +1477,80 @@ def _prepare_refinement_output_path(packet: Mapping[str, Any], out_path: Path) -
         raise ProgramPromotionRefinementError(str(exc)) from exc
 
 
+def _validate_packet_candidate_closure(packet: Mapping[str, Any]) -> None:
+    created_from = _safe_mapping(packet.get("created_from"))
+    manifest_path_text = _first_text(created_from.get("manifest_path"))
+    manifest_hash = _first_text(created_from.get("manifest_sha256"))
+    if manifest_path_text is None or manifest_hash is None:
+        raise ProgramPromotionRefinementError(
+            "promotion review packet must include manifest path and hash provenance"
+        )
+    snapshot = _snapshot_candidate_for_promotion_review(Path(manifest_path_text))
+    if snapshot.manifest_sha256 != manifest_hash:
+        raise ProgramPromotionRefinementError(
+            "promotion review packet manifest hash is stale at publication"
+        )
+    for kind, path_key, hash_key, required in (
+        (
+            "behavior_results",
+            "behavior_results_path",
+            "behavior_results_sha256",
+            False,
+        ),
+        (
+            "behavior_episode",
+            "behavior_episode_path",
+            "behavior_episode_sha256",
+            False,
+        ),
+        (
+            "promotion_review",
+            "original_promotion_review_path",
+            "original_promotion_review_sha256",
+            True,
+        ),
+        (
+            "promotion_adjudication_request",
+            "original_promotion_adjudication_request_path",
+            "original_promotion_adjudication_request_sha256",
+            True,
+        ),
+        (
+            "promotion_decision_template",
+            "original_promotion_decision_template_path",
+            "original_promotion_decision_template_sha256",
+            True,
+        ),
+    ):
+        path_text = _first_text(created_from.get(path_key))
+        content_hash = _first_text(created_from.get(hash_key))
+        if path_text is None and content_hash is None and not required:
+            continue
+        if path_text is None or content_hash is None:
+            raise ProgramPromotionRefinementError(
+                f"promotion review packet has incomplete {kind} provenance"
+            )
+        artifact = next(
+            (candidate for candidate in snapshot.artifacts if candidate.kind == kind),
+            None,
+        )
+        if (
+            artifact is None
+            or Path(path_text).expanduser().resolve() != artifact.path
+            or content_hash != artifact.sha256
+        ):
+            raise ProgramPromotionRefinementError(
+                f"promotion review packet {kind} provenance is stale at publication"
+            )
+
+
 def write_program_promotion_refinement(
     packet: Mapping[str, Any], out_path: Path
 ) -> dict[str, Any]:
     """Write the refined local promotion-review packet and return its payload."""
 
     out_path = _prepare_refinement_output_path(packet, out_path)
+    _validate_packet_candidate_closure(packet)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(packet)
     out_path.write_text(

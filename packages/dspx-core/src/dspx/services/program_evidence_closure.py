@@ -267,6 +267,59 @@ def snapshot_candidate_artifact_closure(
         os.close(root_fd)
 
 
+def read_candidate_snapshot_artifact(
+    snapshot: CandidateArtifactSnapshot,
+    *,
+    kind: str,
+) -> tuple[ValidatedCandidateArtifact, bytes]:
+    """Read one snapshot artifact through confined descriptors and rebind its hash."""
+
+    artifact = next(
+        (candidate for candidate in snapshot.artifacts if candidate.kind == kind),
+        None,
+    )
+    if artifact is None:
+        raise ValueError(f"candidate snapshot has no artifact surface of kind: {kind}")
+    root = snapshot.manifest_path.parent
+    try:
+        relative = artifact.path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"candidate surface {kind} escapes candidate root") from exc
+    try:
+        root_fd = open_directory_no_symlinks(root)
+    except OSError as exc:
+        raise ValueError(
+            f"candidate artifact root contains a symlink component or is not a directory: {root}"
+        ) from exc
+    try:
+        try:
+            descriptor = _open_relative_file(
+                root_fd,
+                relative,
+                display_path=artifact.path,
+            )
+        except OSError as exc:
+            raise ValueError(
+                f"candidate surface {kind} artifact is missing or contains a symlink component: {artifact.path}"
+            ) from exc
+        try:
+            actual_hash, content = _read_regular_descriptor(
+                descriptor,
+                path=artifact.path,
+                capture=True,
+            )
+        finally:
+            os.close(descriptor)
+    finally:
+        os.close(root_fd)
+    if actual_hash != artifact.sha256:
+        raise ValueError(
+            f"candidate surface {kind} hash changed after snapshot: {artifact.path}"
+        )
+    assert content is not None
+    return artifact, content
+
+
 def validate_candidate_artifact_closure(
     manifest: Mapping[str, Any],
     *,

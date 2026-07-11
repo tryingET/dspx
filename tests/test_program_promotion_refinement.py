@@ -15,6 +15,7 @@ from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_refinement import build_program_refinement_proposal
+from dspx.services import program_promotion_refinement
 from dspx.services.program_promotion_refinement import (
     ProgramPromotionRefinementError,
     _identity_matches,
@@ -48,6 +49,232 @@ def _setup_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 def _write_json(path: Path, payload: Mapping[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _write_minimal_candidate_closure(root: Path) -> tuple[Path, Path]:
+    decision_template: dict[str, object] = {
+        "schema_version": "program-promotion-decision-v1"
+    }
+    artifacts: dict[str, tuple[str, dict[str, object] | str]] = {
+        "promotion_review": (
+            "promotion_review.json",
+            {
+                "schema_version": "program-promotion-review-v1",
+                "promotion_state": "not_promoted",
+            },
+        ),
+        "promotion_adjudication_request": (
+            "promotion_adjudication_request.json",
+            {
+                "schema_version": "program-promotion-adjudication-request-v1",
+                "decision_record_template": decision_template,
+            },
+        ),
+        "promotion_decision_template": (
+            "promotion_decision_template.json",
+            decision_template,
+        ),
+        "future_surface": ("future.json", {"value": "current"}),
+    }
+    surfaces: list[dict[str, str]] = []
+    for kind, (name, payload) in artifacts.items():
+        path = root / name
+        if isinstance(payload, str):
+            path.write_text(payload, encoding="utf-8")
+        else:
+            _write_json(path, payload)
+        surfaces.append(
+            {
+                "kind": kind,
+                "path": name,
+                "content_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+    manifest_path = root / "manifest.json"
+    _write_json(
+        manifest_path,
+        {
+            "schema_version": "program-candidate-assembly-v1",
+            "candidate_assembly": {"surfaces": surfaces},
+        },
+    )
+    return manifest_path, root / "future.json"
+
+
+def _mock_minimal_promotion_sources(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    manifest: dict[str, Any],
+) -> None:
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "load_program_manifest",
+        lambda _path: manifest,
+    )
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "load_program_behavior_results",
+        lambda _manifest, _path: (None, None, None),
+    )
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "load_program_oracle_report",
+        lambda _path: {
+            "schema_version": "program-oracle-evidence-report-v1",
+            "status": "empty",
+            "total_records": 0,
+        },
+    )
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "validate_program_oracle_report_non_authority",
+        lambda _report: None,
+    )
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "_validate_oracle_report_identity",
+        lambda _report, _identity: ({}, False),
+    )
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "_load_refinement_proposal",
+        lambda *_args, **_kwargs: {
+            "schema_version": "program-refinement-proposal-v1",
+            "status": "insufficient_behavior_evidence",
+        },
+    )
+
+
+def test_program_promotion_refinement_rejects_stale_unknown_candidate_surface(
+    tmp_path: Path,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    manifest_path, future_path = _write_minimal_candidate_closure(candidate)
+    future_path.write_text('{"value":"substituted"}\n', encoding="utf-8")
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="candidate artifact closure is invalid.*future_surface hash",
+    ):
+        program_promotion_refinement.load_program_promotion_inputs(
+            manifest_path=manifest_path,
+            oracle_report_path=tmp_path / "unused-report.json",
+            refinement_proposal_path=tmp_path / "unused-proposal.json",
+        )
+
+
+def test_program_promotion_refinement_rechecks_candidate_during_input_loading(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    manifest_path, future_path = _write_minimal_candidate_closure(candidate)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    _mock_minimal_promotion_sources(monkeypatch, manifest=manifest)
+    report_path = tmp_path / "report.json"
+    _write_json(report_path, {})
+
+    def mutate_during_proposal_load(
+        *_args: object, **_kwargs: object
+    ) -> dict[str, str]:
+        future_path.write_text('{"value":"raced"}\n', encoding="utf-8")
+        return {
+            "schema_version": "program-refinement-proposal-v1",
+            "status": "insufficient_behavior_evidence",
+        }
+
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "_load_refinement_proposal",
+        mutate_during_proposal_load,
+    )
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="changed during promotion review construction.*future_surface hash",
+    ):
+        program_promotion_refinement.load_program_promotion_inputs(
+            manifest_path=manifest_path,
+            oracle_report_path=report_path,
+            refinement_proposal_path=tmp_path / "proposal.json",
+        )
+
+
+def test_program_promotion_refinement_rechecks_candidate_before_packet_return(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    manifest_path, future_path = _write_minimal_candidate_closure(candidate)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    _mock_minimal_promotion_sources(monkeypatch, manifest=manifest)
+    report_path = tmp_path / "report.json"
+    _write_json(report_path, {})
+    proposal_path = tmp_path / "proposal.json"
+    _write_json(proposal_path, {})
+    original_status = program_promotion_refinement._status_for_packet
+
+    def mutate_during_packet_build(
+        *,
+        behavior_present: bool,
+        oracle_matched: bool,
+        proposal: Mapping[str, Any],
+    ) -> str:
+        future_path.write_text('{"value":"late-race"}\n', encoding="utf-8")
+        return original_status(
+            behavior_present=behavior_present,
+            oracle_matched=oracle_matched,
+            proposal=proposal,
+        )
+
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "_status_for_packet",
+        mutate_during_packet_build,
+    )
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="changed during promotion review construction.*future_surface hash",
+    ):
+        build_program_promotion_refinement(
+            manifest_path=manifest_path,
+            oracle_report_path=report_path,
+            refinement_proposal_path=proposal_path,
+        )
+
+
+def test_program_promotion_refinement_rechecks_candidate_before_publication(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    manifest_path, future_path = _write_minimal_candidate_closure(candidate)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    _mock_minimal_promotion_sources(monkeypatch, manifest=manifest)
+    report_path = tmp_path / "report.json"
+    proposal_path = tmp_path / "proposal.json"
+    _write_json(report_path, {})
+    _write_json(proposal_path, {})
+    packet = build_program_promotion_refinement(
+        manifest_path=manifest_path,
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    future_path.write_text('{"value":"post-build-race"}\n', encoding="utf-8")
+    out_path = tmp_path / "promotion" / "review.json"
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="candidate artifact closure is invalid.*future_surface hash",
+    ):
+        write_program_promotion_refinement(packet, out_path)
+
+    assert not out_path.exists()
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
