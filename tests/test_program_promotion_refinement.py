@@ -15,11 +15,12 @@ from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_refinement import build_program_refinement_proposal
-from dspx.services import program_promotion_refinement
+from dspx.services import artifact_boundary, program_promotion_refinement
 from dspx.services.program_promotion_refinement import (
     ProgramPromotionRefinementError,
     _identity_matches,
     _load_program_behavior_episode,
+    validate_program_promotion_review_refined_contract,
     build_program_promotion_refinement,
     write_program_promotion_refinement,
 )
@@ -116,14 +117,33 @@ def _mock_minimal_promotion_sources(
         "load_program_behavior_results",
         lambda _manifest, _path: (None, None, None),
     )
+
+    def stable_observation(path: Path, *, label: str, **_kwargs: object) -> object:
+        payload = (
+            {
+                "schema_version": "program-oracle-evidence-report-v1",
+                "status": "empty",
+                "total_records": 0,
+            }
+            if "Oracle" in label
+            else {
+                "schema_version": "program-refinement-proposal-v1",
+                "status": "insufficient_behavior_evidence",
+            }
+        )
+        content_hash = (
+            hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else "0" * 64
+        )
+        return program_promotion_refinement.StableJsonArtifact(
+            path=path.resolve(),
+            sha256=content_hash,
+            payload=payload,
+        )
+
     monkeypatch.setattr(
         program_promotion_refinement,
-        "load_program_oracle_report",
-        lambda _path: {
-            "schema_version": "program-oracle-evidence-report-v1",
-            "status": "empty",
-            "total_records": 0,
-        },
+        "read_stable_json_artifact",
+        stable_observation,
     )
     monkeypatch.setattr(
         program_promotion_refinement,
@@ -137,7 +157,7 @@ def _mock_minimal_promotion_sources(
     )
     monkeypatch.setattr(
         program_promotion_refinement,
-        "_load_refinement_proposal",
+        "_validate_refinement_proposal",
         lambda *_args, **_kwargs: {
             "schema_version": "program-refinement-proposal-v1",
             "status": "insufficient_behavior_evidence",
@@ -187,7 +207,7 @@ def test_program_promotion_refinement_rechecks_candidate_during_input_loading(
 
     monkeypatch.setattr(
         program_promotion_refinement,
-        "_load_refinement_proposal",
+        "_validate_refinement_proposal",
         mutate_during_proposal_load,
     )
 
@@ -1532,3 +1552,259 @@ def test_program_promotion_refinement_degrades_without_behavior_results(
     assert payload["non_authority"]["automatic_promotion"] is False
     assert _file_hashes(program_root) == before
     assert not (tmp_path / "oracle" / "coordinates.db").exists()
+
+
+def test_refined_review_contract_rejects_forged_evidence_summaries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    packet = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    forged_oracle = json.loads(json.dumps(packet))
+    forged_oracle["evidence_summary"]["oracle_report"]["status"] = "forged-success"
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="Oracle summary does not match current evidence",
+    ):
+        validate_program_promotion_review_refined_contract(forged_oracle)
+
+    forged_runtime = json.loads(json.dumps(packet))
+    forged_runtime["created_from"]["runtime_episode_path"] = str(
+        tmp_path / "missing-runtime.json"
+    )
+    forged_runtime["created_from"]["runtime_episode_sha256"] = "0" * 64
+    forged_runtime["evidence_summary"]["runtime_episode"] = {
+        "present": True,
+        "status": "executed_quality_passed",
+        "runtime_episode_id": "forged",
+    }
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="runtime-episode ref not found",
+    ):
+        validate_program_promotion_review_refined_contract(forged_runtime)
+
+
+def test_program_promotion_refinement_rejects_symlink_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    packet = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    victim = tmp_path / "victim.json"
+    victim.write_text("preserve me\n", encoding="utf-8")
+    out_path = tmp_path / "review-link.json"
+    out_path.symlink_to(victim)
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="must not resolve through symlink components",
+    ):
+        write_program_promotion_refinement(packet, out_path)
+
+    assert victim.read_text(encoding="utf-8") == "preserve me\n"
+
+
+def test_program_promotion_refinement_atomic_write_preserves_existing_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    packet = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    out_path = tmp_path / "promotion" / "review.json"
+    out_path.parent.mkdir()
+    out_path.write_text("existing packet\n", encoding="utf-8")
+    real_write = artifact_boundary.os.write
+    calls = 0
+
+    def fail_after_short_write(descriptor: int, content: bytes) -> int:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return real_write(descriptor, content[:7])
+        raise OSError("simulated output failure")
+
+    monkeypatch.setattr(artifact_boundary.os, "write", fail_after_short_write)
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="failed before atomic replacement",
+    ):
+        write_program_promotion_refinement(packet, out_path)
+
+    assert out_path.read_text(encoding="utf-8") == "existing packet\n"
+    assert list(out_path.parent.glob(".*.tmp")) == []
+
+
+def test_program_promotion_refinement_rejects_output_parent_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    packet = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    parent = tmp_path / "safe-output"
+    parent.mkdir()
+    parked_parent = tmp_path / "parked-output"
+    out_path = parent / "review.json"
+    real_validate = program_promotion_refinement._validate_packet_candidate_closure
+    validation_calls = 0
+
+    def validate_then_swap(value: Mapping[str, Any]) -> None:
+        nonlocal validation_calls
+        validation_calls += 1
+        real_validate(value)
+        if validation_calls == 2:
+            parent.rename(parked_parent)
+            parent.symlink_to(program_root, target_is_directory=True)
+
+    monkeypatch.setattr(
+        program_promotion_refinement,
+        "_validate_packet_candidate_closure",
+        validate_then_swap,
+    )
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="failed before atomic replacement",
+    ):
+        write_program_promotion_refinement(packet, out_path)
+
+    assert not (program_root / "review.json").exists()
+    assert not (parked_parent / "review.json").exists()
+    assert list(parked_parent.glob(".*.tmp")) == []
+
+
+def test_program_promotion_refinement_rejects_oversized_oracle_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    report_path.write_bytes(b"{" + b" " * (16 * 1024 * 1024) + b"}")
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="exceeds the .* size limit",
+    ):
+        build_program_promotion_refinement(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            refinement_proposal_path=proposal_path,
+        )
+
+
+def test_refined_review_contract_rejects_symlinked_external_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    packet = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    report_link = tmp_path / "oracle-report-link.json"
+    report_link.symlink_to(report_path)
+    packet["created_from"]["oracle_report_path"] = str(report_link)
+
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="descriptor read failed.*symbolic links",
+    ):
+        validate_program_promotion_review_refined_contract(packet)
+
+
+def test_stable_evidence_read_wraps_descriptor_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    real_read = artifact_boundary.os.read
+    failed = False
+
+    def fail_first_read(descriptor: int, size: int) -> bytes:
+        nonlocal failed
+        descriptor_path = Path(f"/proc/self/fd/{descriptor}").resolve()
+        if not failed and descriptor_path == report_path:
+            failed = True
+            raise OSError("simulated descriptor failure")
+        return real_read(descriptor, size)
+
+    monkeypatch.setattr(artifact_boundary.os, "read", fail_first_read)
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="descriptor read failed",
+    ):
+        build_program_promotion_refinement(
+            manifest_path=program_root / "manifest.json",
+            oracle_report_path=report_path,
+            refinement_proposal_path=proposal_path,
+        )
+
+
+def test_atomic_publication_surfaces_temporary_cleanup_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    program_root, report_path, proposal_path = _materialize_program_report_and_proposal(
+        tmp_path,
+        monkeypatch,
+    )
+    packet = build_program_promotion_refinement(
+        manifest_path=program_root / "manifest.json",
+        oracle_report_path=report_path,
+        refinement_proposal_path=proposal_path,
+    )
+    out_path = tmp_path / "promotion" / "review.json"
+    real_write = artifact_boundary.os.write
+
+    def fail_write(descriptor: int, content: bytes) -> int:
+        real_write(descriptor, content[:3])
+        raise OSError("simulated write failure")
+
+    def fail_unlink(*_args: object, **_kwargs: object) -> None:
+        raise OSError("simulated cleanup failure")
+
+    monkeypatch.setattr(artifact_boundary.os, "write", fail_write)
+    monkeypatch.setattr(artifact_boundary.os, "unlink", fail_unlink)
+    with pytest.raises(
+        ProgramPromotionRefinementError,
+        match="cleanup also failed",
+    ):
+        write_program_promotion_refinement(packet, out_path)
+
+    assert not out_path.exists()

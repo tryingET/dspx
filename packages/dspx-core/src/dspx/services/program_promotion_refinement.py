@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any, Mapping
 
 from dspx.security import confine_path, identity_matches_exact, identity_mismatch_keys
-from dspx.services.artifact_boundary import prepare_sidecar_output_path
+from dspx.services.artifact_boundary import (
+    StableJsonArtifact,
+    atomic_publish_bytes,
+    prepare_sidecar_output_path,
+    read_stable_json_artifact,
+)
 from dspx.services.program_evidence_closure import (
     CandidateArtifactSnapshot,
     read_candidate_snapshot_artifact,
@@ -23,7 +29,6 @@ from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
     load_program_manifest,
-    load_program_oracle_report,
     validate_program_oracle_report_non_authority,
     validate_program_refinement_proposal_contract,
 )
@@ -74,6 +79,12 @@ _FORBIDDEN_SOURCE_OUTPUT_NAMES = {
 
 class ProgramPromotionRefinementError(ValueError):
     """Raised when promotion-review refinement inputs are malformed."""
+
+
+class ProgramPromotionRefinementCommitIndeterminateError(
+    ProgramPromotionRefinementError
+):
+    """Raised after replacement when directory durability cannot be confirmed."""
 
 
 def _snapshot_candidate_for_promotion_review(
@@ -423,7 +434,7 @@ def _created_from_path(
     path = Path(raw_path).expanduser()
     if not path.is_absolute() and base_path is not None:
         path = base_path.parent / path
-    return path.resolve()
+    return Path(os.path.abspath(path))
 
 
 def _validate_created_from_hash(
@@ -517,7 +528,8 @@ def validate_program_promotion_review_refined_contract(
     valid_behavior_results_refs: Mapping[Path, str] | None = None,
     valid_behavior_episode_refs: Mapping[Path, str] | None = None,
     valid_model_jury_results_refs: Mapping[Path, str] | None = None,
-    error_type: type[Exception] = ProgramPromotionRefinementError,
+    valid_runtime_episode_refs: Mapping[Path, str] | None = None,
+    error_type: type[ValueError] = ProgramPromotionRefinementError,
 ) -> None:
     """Validate a refined promotion-review sidecar before downstream consumption."""
 
@@ -575,7 +587,7 @@ def validate_program_promotion_review_refined_contract(
                 + ", ".join(sorted(expected_mismatches)),
             )
 
-    _validate_created_from_expected_ref(
+    oracle_report_path, oracle_report_hash = _validate_created_from_expected_ref(
         created_from,
         path_key="oracle_report_path",
         hash_key="oracle_report_sha256",
@@ -585,15 +597,17 @@ def validate_program_promotion_review_refined_contract(
         error_type=error_type,
         required=True,
     )
-    _validate_created_from_expected_ref(
-        created_from,
-        path_key="refinement_proposal_path",
-        hash_key="refinement_proposal_sha256",
-        label="refined promotion review proposal ref",
-        valid_refs=valid_refinement_proposal_refs,
-        base_path=refined_review_path,
-        error_type=error_type,
-        required=True,
+    refinement_proposal_path, refinement_proposal_hash = (
+        _validate_created_from_expected_ref(
+            created_from,
+            path_key="refinement_proposal_path",
+            hash_key="refinement_proposal_sha256",
+            label="refined promotion review proposal ref",
+            valid_refs=valid_refinement_proposal_refs,
+            base_path=refined_review_path,
+            error_type=error_type,
+            required=True,
+        )
     )
     for path_key, hash_key, label in (
         (
@@ -641,12 +655,24 @@ def validate_program_promotion_review_refined_contract(
         error_type=error_type,
         required=False,
     )
-    _validate_created_from_expected_ref(
+    model_jury_results_path, model_jury_results_hash = (
+        _validate_created_from_expected_ref(
+            created_from,
+            path_key="model_jury_results_path",
+            hash_key="model_jury_results_sha256",
+            label="refined promotion review model-jury ref",
+            valid_refs=valid_model_jury_results_refs,
+            base_path=refined_review_path,
+            error_type=error_type,
+            required=False,
+        )
+    )
+    runtime_episode_path, runtime_episode_hash = _validate_created_from_expected_ref(
         created_from,
-        path_key="model_jury_results_path",
-        hash_key="model_jury_results_sha256",
-        label="refined promotion review model-jury ref",
-        valid_refs=valid_model_jury_results_refs,
+        path_key="runtime_episode_path",
+        hash_key="runtime_episode_sha256",
+        label="refined promotion review runtime-episode ref",
+        valid_refs=valid_runtime_episode_refs,
         base_path=refined_review_path,
         error_type=error_type,
         required=False,
@@ -669,6 +695,158 @@ def validate_program_promotion_review_refined_contract(
                 "refined promotion review model-jury summary hash does not match created_from",
             )
 
+    contract_observations: list[StableJsonArtifact] = []
+
+    def observe_contract(
+        path: Path | None,
+        content_hash: str | None,
+        *,
+        label: str,
+    ) -> StableJsonArtifact | None:
+        if path is None:
+            return None
+        try:
+            observation = read_stable_json_artifact(
+                path,
+                label=label,
+                error_type=ProgramPromotionRefinementError,
+            )
+        except ProgramPromotionRefinementError as exc:
+            _raise_contract_error(error_type, str(exc), exc)
+        if observation.sha256 != content_hash:
+            _raise_contract_error(error_type, f"{label} hash changed while validating")
+        contract_observations.append(observation)
+        return observation
+
+    oracle_observation = observe_contract(
+        oracle_report_path,
+        oracle_report_hash,
+        label="refined promotion review Oracle report",
+    )
+    proposal_observation = observe_contract(
+        refinement_proposal_path,
+        refinement_proposal_hash,
+        label="refined promotion review proposal",
+    )
+    assert oracle_observation is not None and proposal_observation is not None
+    oracle_report = oracle_observation.payload
+    try:
+        if oracle_report.get("schema_version") != "program-oracle-evidence-report-v1":
+            raise ProgramPromotionRefinementError(
+                "program Oracle evidence report schema_version must be program-oracle-evidence-report-v1"
+            )
+        validate_program_oracle_report_non_authority(oracle_report)
+        _, oracle_matched = _validate_oracle_report_identity(
+            oracle_report,
+            manifest_identity,
+        )
+        _validate_refinement_proposal(
+            proposal_observation.payload,
+            identity=manifest_identity,
+            manifest_path=manifest_path,
+            manifest_hash=manifest_hash,
+            oracle_report_path=oracle_observation.path,
+            oracle_report_hash=oracle_observation.sha256,
+            behavior_path=_created_from_path(
+                created_from,
+                "behavior_results_path",
+                label="refined promotion review behavior results",
+                base_path=refined_review_path,
+                error_type=ProgramPromotionRefinementError,
+                required=False,
+            ),
+            behavior_hash=_first_text(created_from.get("behavior_results_sha256")),
+        )
+    except (ProgramRefinementError, ProgramPromotionRefinementError) as exc:
+        _raise_contract_error(error_type, str(exc), exc)
+    evidence_summary = _safe_mapping(refined_review.get("evidence_summary"))
+    expected_oracle_summary = {
+        "present": True,
+        "status": oracle_report.get("status"),
+        "total_records": int(oracle_report.get("total_records") or 0),
+        "record_matched": oracle_matched,
+    }
+    if _safe_mapping(evidence_summary.get("oracle_report")) != expected_oracle_summary:
+        _raise_contract_error(
+            error_type,
+            "refined promotion review Oracle summary does not match current evidence",
+        )
+    expected_proposal_summary = {
+        "present": True,
+        "status": proposal_observation.payload.get("status"),
+        "proposal_id": proposal_observation.payload.get("proposal_id"),
+    }
+    if (
+        _safe_mapping(evidence_summary.get("refinement_proposal"))
+        != expected_proposal_summary
+    ):
+        _raise_contract_error(
+            error_type,
+            "refined promotion review proposal summary does not match current evidence",
+        )
+    model_observation = observe_contract(
+        model_jury_results_path,
+        model_jury_results_hash,
+        label="refined promotion review model-jury results",
+    )
+    if model_observation is not None:
+        validate_program_model_jury_results_contract(
+            model_observation.payload,
+            label="refined promotion review model-jury results",
+            error_type=error_type,
+            valid_manifest_refs={manifest_path: manifest_hash},
+        )
+        model_identity_mismatches = identity_mismatch_keys(
+            _safe_mapping(model_observation.payload.get("identity")),
+            manifest_identity,
+        )
+        if model_identity_mismatches:
+            _raise_contract_error(
+                error_type,
+                "refined promotion review model-jury identity does not match manifest identity: "
+                + ", ".join(sorted(model_identity_mismatches)),
+            )
+    expected_model_summary = _model_jury_summary(
+        model_observation.payload if model_observation else None,
+        path=model_observation.path if model_observation else None,
+        content_hash=model_observation.sha256 if model_observation else None,
+    )
+    if (
+        _safe_mapping(evidence_summary.get("model_jury_results"))
+        != expected_model_summary
+    ):
+        _raise_contract_error(
+            error_type,
+            "refined promotion review model-jury summary does not match current evidence",
+        )
+    runtime_observation = observe_contract(
+        runtime_episode_path,
+        runtime_episode_hash,
+        label="refined promotion review runtime episode",
+    )
+    if runtime_observation is not None:
+        validate_program_runtime_episode_contract(
+            runtime_observation.payload,
+            runtime_episode_path=runtime_observation.path,
+            expected_manifest_path=manifest_path,
+            expected_manifest=manifest,
+            expected_manifest_sha256=manifest_hash,
+            error_type=error_type,
+        )
+    expected_runtime_summary = _runtime_episode_summary(
+        runtime_observation.payload if runtime_observation else None,
+        path=runtime_observation.path if runtime_observation else None,
+        content_hash=runtime_observation.sha256 if runtime_observation else None,
+    )
+    if (
+        _safe_mapping(evidence_summary.get("runtime_episode"))
+        != expected_runtime_summary
+    ):
+        _raise_contract_error(
+            error_type,
+            "refined promotion review runtime summary does not match current evidence",
+        )
+
     non_authority = _safe_mapping(refined_review.get("non_authority"))
     if non_authority.get("local_review_packet_only") is not True:
         _raise_contract_error(
@@ -685,6 +863,20 @@ def validate_program_promotion_review_refined_contract(
             "refined promotion review widens non-authority flags: "
             + ", ".join(invalid),
         )
+    for observation in contract_observations:
+        try:
+            current = read_stable_json_artifact(
+                observation.path,
+                label="refined promotion review input recheck",
+                error_type=ProgramPromotionRefinementError,
+            )
+        except ProgramPromotionRefinementError as exc:
+            _raise_contract_error(error_type, str(exc), exc)
+        if current.sha256 != observation.sha256:
+            _raise_contract_error(
+                error_type,
+                "refined promotion review input changed during contract validation",
+            )
 
 
 def _validate_oracle_report_identity(
@@ -704,8 +896,8 @@ def _validate_oracle_report_identity(
     )
 
 
-def _load_refinement_proposal(
-    path: Path,
+def _validate_refinement_proposal(
+    proposal: Mapping[str, Any],
     *,
     identity: Mapping[str, Any],
     manifest_path: Path,
@@ -715,7 +907,6 @@ def _load_refinement_proposal(
     behavior_path: Path | None,
     behavior_hash: str | None,
 ) -> dict[str, Any]:
-    proposal = _load_json_object(path, label="program refinement proposal")
     valid_behavior_refs = (
         {behavior_path: behavior_hash}
         if behavior_path is not None and behavior_hash is not None
@@ -732,41 +923,19 @@ def _load_refinement_proposal(
         )
     except ProgramRefinementError as exc:
         raise ProgramPromotionRefinementError(str(exc)) from exc
-    return proposal
+    return dict(proposal)
 
 
 def _load_model_jury_results(
-    path: Path | None,
+    observation: StableJsonArtifact | None,
     *,
     identity: Mapping[str, str | None],
     manifest_path: Path,
     manifest_hash: str,
 ) -> tuple[dict[str, Any] | None, Path | None, str | None]:
-    if path is None:
+    if observation is None:
         return None, None, None
-    source = path.expanduser().resolve()
-    try:
-        raw = source.read_bytes()
-    except FileNotFoundError as exc:
-        raise ProgramPromotionRefinementError(
-            f"program model jury results not found: {source}"
-        ) from exc
-    try:
-        payload_raw = json.loads(raw.decode("utf-8"))
-    except UnicodeDecodeError as exc:
-        raise ProgramPromotionRefinementError(
-            f"program model jury results must be UTF-8 JSON: {source}"
-        ) from exc
-    except json.JSONDecodeError as exc:
-        raise ProgramPromotionRefinementError(
-            f"program model jury results must be valid JSON: {source}"
-        ) from exc
-    if not isinstance(payload_raw, dict):
-        raise ProgramPromotionRefinementError(
-            f"program model jury results must contain a JSON object: {source}"
-        )
-    payload = dict(payload_raw)
-    content_hash = hashlib.sha256(raw).hexdigest()
+    payload = observation.payload
     validate_program_model_jury_results_contract(
         payload,
         label="program model jury results",
@@ -778,7 +947,7 @@ def _load_model_jury_results(
         identity,
         label="program model jury results",
     )
-    return payload, source, content_hash
+    return payload, observation.path, observation.sha256
 
 
 def _runtime_episode_summary(
@@ -1077,41 +1246,69 @@ def load_program_promotion_inputs(
                 else None,
                 label="program behavior episode",
             )
-        report = load_program_oracle_report(oracle_report_path)
+        oracle_observation = read_stable_json_artifact(
+            oracle_report_path,
+            label="program Oracle evidence report",
+            error_type=ProgramPromotionRefinementError,
+        )
+        report = oracle_observation.payload
+        if report.get("schema_version") != "program-oracle-evidence-report-v1":
+            raise ProgramPromotionRefinementError(
+                "program Oracle evidence report schema_version must be program-oracle-evidence-report-v1"
+            )
         validate_program_oracle_report_non_authority(report)
     except ProgramRefinementError as exc:
         raise ProgramPromotionRefinementError(str(exc)) from exc
     identity = _identity_from_manifest(manifest)
     oracle_record, oracle_matched = _validate_oracle_report_identity(report, identity)
     manifest_hash = candidate_snapshot.manifest_sha256
-    oracle_report_hash = hashlib.sha256(oracle_report_path.read_bytes()).hexdigest()
-    proposal = _load_refinement_proposal(
+    proposal_observation = read_stable_json_artifact(
         refinement_proposal_path,
+        label="program refinement proposal",
+        error_type=ProgramPromotionRefinementError,
+    )
+    proposal = _validate_refinement_proposal(
+        proposal_observation.payload,
         identity=identity,
         manifest_path=manifest_path,
         manifest_hash=manifest_hash,
-        oracle_report_path=oracle_report_path,
-        oracle_report_hash=oracle_report_hash,
+        oracle_report_path=oracle_observation.path,
+        oracle_report_hash=oracle_observation.sha256,
         behavior_path=behavior_path,
         behavior_hash=behavior_hash,
     )
+    model_jury_observation = (
+        read_stable_json_artifact(
+            model_jury_results_path,
+            label="program model jury results",
+            error_type=ProgramPromotionRefinementError,
+        )
+        if model_jury_results_path is not None
+        else None
+    )
     model_jury_results, model_jury_results_file, model_jury_results_hash = (
         _load_model_jury_results(
-            model_jury_results_path,
+            model_jury_observation,
             identity=identity,
             manifest_path=manifest_path,
             manifest_hash=manifest_hash,
         )
     )
+    runtime_observation = (
+        read_stable_json_artifact(
+            runtime_episode_path,
+            label="program runtime episode",
+            error_type=ProgramPromotionRefinementError,
+        )
+        if runtime_episode_path is not None
+        else None
+    )
     runtime_episode: dict[str, Any] | None = None
     runtime_episode_file: Path | None = None
     runtime_episode_hash: str | None = None
-    if runtime_episode_path is not None:
-        runtime_episode_file = runtime_episode_path.expanduser().resolve()
-        runtime_episode = _load_json_object(
-            runtime_episode_file,
-            label="program runtime episode",
-        )
+    if runtime_observation is not None:
+        runtime_episode_file = runtime_observation.path
+        runtime_episode = runtime_observation.payload
         if runtime_episode.get("schema_version") != PROGRAM_RUNTIME_EPISODE_SCHEMA:
             raise ProgramPromotionRefinementError(
                 f"program runtime episode schema_version must be {PROGRAM_RUNTIME_EPISODE_SCHEMA}"
@@ -1124,7 +1321,7 @@ def load_program_promotion_inputs(
             expected_manifest_sha256=manifest_hash,
             error_type=ProgramPromotionRefinementError,
         )
-        runtime_episode_hash = _sha256_file(runtime_episode_file)
+        runtime_episode_hash = runtime_observation.sha256
     review, request, decision_template, promotion_paths = (
         _load_original_promotion_artifacts(
             manifest,
@@ -1178,10 +1375,12 @@ def load_program_promotion_inputs(
         "behavior_episode_hash": behavior_episode_hash,
         "oracle_report_path": oracle_report_path,
         "oracle_report": report,
+        "oracle_report_hash": oracle_observation.sha256,
         "oracle_record": oracle_record,
         "oracle_matched": oracle_matched,
         "refinement_proposal_path": refinement_proposal_path,
         "refinement_proposal": proposal,
+        "refinement_proposal_hash": proposal_observation.sha256,
         "model_jury_results": model_jury_results,
         "model_jury_results_path": model_jury_results_file,
         "model_jury_results_hash": model_jury_results_hash,
@@ -1333,9 +1532,9 @@ def build_program_promotion_refinement(
             if behavior_episode_path_text is not None
             else None,
             "oracle_report_path": str(oracle_report_path),
-            "oracle_report_sha256": _sha256_file(oracle_report_path),
+            "oracle_report_sha256": inputs.get("oracle_report_hash"),
             "refinement_proposal_path": str(refinement_proposal_path),
-            "refinement_proposal_sha256": _sha256_file(refinement_proposal_path),
+            "refinement_proposal_sha256": inputs.get("refinement_proposal_hash"),
             "model_jury_results_path": model_jury_results_path_text,
             "model_jury_results_sha256": inputs.get("model_jury_results_hash")
             if model_jury_results_path_text is not None
@@ -1479,6 +1678,10 @@ def _prepare_refinement_output_path(packet: Mapping[str, Any], out_path: Path) -
 
 def _validate_packet_candidate_closure(packet: Mapping[str, Any]) -> None:
     created_from = _safe_mapping(packet.get("created_from"))
+    validate_program_promotion_review_refined_contract(
+        packet,
+        error_type=ProgramPromotionRefinementError,
+    )
     manifest_path_text = _first_text(created_from.get("manifest_path"))
     manifest_hash = _first_text(created_from.get("manifest_sha256"))
     if manifest_path_text is None or manifest_hash is None:
@@ -1543,18 +1746,29 @@ def _validate_packet_candidate_closure(packet: Mapping[str, Any]) -> None:
                 f"promotion review packet {kind} provenance is stale at publication"
             )
 
+    _require_candidate_snapshot_unchanged(snapshot)
+
 
 def write_program_promotion_refinement(
     packet: Mapping[str, Any], out_path: Path
 ) -> dict[str, Any]:
     """Write the refined local promotion-review packet and return its payload."""
 
-    out_path = _prepare_refinement_output_path(packet, out_path)
-    _validate_packet_candidate_closure(packet)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    lexical_target = Path(os.path.abspath(out_path.expanduser()))
+    target = _prepare_refinement_output_path(packet, lexical_target)
+    if target != lexical_target:
+        raise ProgramPromotionRefinementError(
+            "promotion review output path must not resolve through symlink components"
+        )
     payload = dict(packet)
-    out_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    _validate_packet_candidate_closure(payload)
+    content = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    atomic_publish_bytes(
+        target,
+        content,
+        label="promotion review",
+        precommit=lambda: _validate_packet_candidate_closure(payload),
+        error_type=ProgramPromotionRefinementError,
+        indeterminate_error_type=ProgramPromotionRefinementCommitIndeterminateError,
     )
     return payload

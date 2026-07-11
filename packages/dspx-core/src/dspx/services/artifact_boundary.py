@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
+import secrets
+import stat
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Literal, Mapping
+from typing import Any, Callable, Iterable, Literal, Mapping
 
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
+from dspx.services.program_evidence_closure import open_directory_no_symlinks
 
 PayloadArtifactRootPolicy = Literal["ignore", "forbid", "allow_named"]
 
@@ -25,6 +30,217 @@ class ConfinedArtifact:
 
     path: Path
     sha256: str
+
+
+@dataclass(frozen=True)
+class StableJsonArtifact:
+    """One exact-byte, descriptor-read local JSON object observation."""
+
+    path: Path
+    sha256: str
+    payload: dict[str, Any]
+
+
+def read_stable_json_artifact(
+    path: Path,
+    *,
+    label: str,
+    error_type: type[ValueError] = ValueError,
+    max_bytes: int = 16 * 1024 * 1024,
+) -> StableJsonArtifact:
+    """Read, bind, and parse one regular JSON file without following symlinks."""
+
+    lexical = Path(os.path.abspath(path.expanduser()))
+    if max_bytes <= 0:
+        raise error_type(f"{label} maximum size must be positive")
+    try:
+        parent_fd = open_directory_no_symlinks(lexical.parent)
+    except OSError as exc:
+        raise error_type(f"{label} parent could not be opened safely: {exc}") from exc
+    descriptor = -1
+    failure: BaseException | None = None
+    cleanup_errors: list[OSError] = []
+    digest = hashlib.sha256()
+    chunks: list[bytes] = []
+    try:
+        descriptor = os.open(
+            lexical.name,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=parent_fd,
+        )
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise error_type(f"{label} must be a regular file: {lexical}")
+        if before.st_size > max_bytes:
+            raise error_type(f"{label} exceeds the {max_bytes}-byte size limit")
+        total = 0
+        while chunk := os.read(descriptor, min(64 * 1024, max_bytes + 1 - total)):
+            total += len(chunk)
+            if total > max_bytes:
+                raise error_type(f"{label} exceeds the {max_bytes}-byte size limit")
+            digest.update(chunk)
+            chunks.append(chunk)
+        after = os.fstat(descriptor)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ):
+            raise error_type(f"{label} changed while reading: {lexical}")
+    except BaseException as exc:
+        failure = exc
+    finally:
+        for candidate in (descriptor, parent_fd):
+            if candidate < 0:
+                continue
+            try:
+                os.close(candidate)
+            except OSError as exc:
+                cleanup_errors.append(exc)
+    if failure is not None:
+        if isinstance(failure, OSError):
+            message = f"{label} descriptor read failed: {failure}"
+            if cleanup_errors:
+                message += f"; cleanup also failed: {cleanup_errors[0]}"
+            raise error_type(message) from failure
+        if cleanup_errors:
+            raise error_type(
+                f"{label} validation failed and descriptor cleanup also failed: {cleanup_errors[0]}"
+            ) from failure
+        raise failure
+    if cleanup_errors:
+        raise error_type(f"{label} descriptor cleanup failed: {cleanup_errors[0]}")
+    raw = b"".join(chunks)
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise error_type(f"{label} must contain valid UTF-8 JSON: {lexical}") from exc
+    if not isinstance(payload, dict):
+        raise error_type(f"{label} must contain a JSON object: {lexical}")
+    return StableJsonArtifact(
+        path=lexical,
+        sha256=digest.hexdigest(),
+        payload=payload,
+    )
+
+
+def atomic_publish_bytes(
+    target: Path,
+    content: bytes,
+    *,
+    label: str,
+    precommit: Callable[[], None],
+    error_type: type[ValueError] = ValueError,
+    indeterminate_error_type: type[ValueError] | None = None,
+) -> None:
+    """Stage bytes safely, run final validation, then atomically replace the target."""
+
+    lexical = Path(os.path.abspath(target.expanduser()))
+    try:
+        parent_fd = open_directory_no_symlinks(lexical.parent, create=True)
+    except OSError as exc:
+        raise error_type(
+            f"{label} output directory could not be opened safely: {exc}"
+        ) from exc
+    temporary_name = f".{lexical.name}.{secrets.token_hex(12)}.tmp"
+    descriptor = -1
+    replaced = False
+    primary_error: BaseException | None = None
+    cleanup_errors: list[OSError] = []
+    try:
+        try:
+            descriptor = os.open(
+                temporary_name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+                dir_fd=parent_fd,
+            )
+            offset = 0
+            while offset < len(content):
+                written = os.write(descriptor, content[offset:])
+                if written <= 0:
+                    raise OSError(f"{label} write made no progress")
+                offset += written
+            os.fsync(descriptor)
+            os.close(descriptor)
+            descriptor = -1
+        except OSError as exc:
+            raise error_type(
+                f"{label} failed before atomic replacement: {exc}"
+            ) from exc
+        precommit()
+        verification_fd = -1
+        try:
+            verification_fd = open_directory_no_symlinks(lexical.parent)
+            pinned = os.fstat(parent_fd)
+            current = os.fstat(verification_fd)
+            if (pinned.st_dev, pinned.st_ino) != (current.st_dev, current.st_ino):
+                raise OSError(f"{label} output directory changed before replacement")
+        except OSError as exc:
+            raise error_type(
+                f"{label} failed before atomic replacement: {exc}"
+            ) from exc
+        finally:
+            if verification_fd >= 0:
+                try:
+                    os.close(verification_fd)
+                except OSError as exc:
+                    cleanup_errors.append(exc)
+        if cleanup_errors:
+            raise error_type(
+                f"{label} failed before atomic replacement: {cleanup_errors[0]}"
+            )
+        try:
+            os.replace(
+                temporary_name,
+                lexical.name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+            )
+            replaced = True
+        except OSError as exc:
+            raise error_type(
+                f"{label} failed before atomic replacement: {exc}"
+            ) from exc
+        try:
+            os.fsync(parent_fd)
+        except OSError as exc:
+            commit_error = indeterminate_error_type or error_type
+            raise commit_error(
+                f"{label} replacement committed but directory durability could not be confirmed: {exc}"
+            ) from exc
+    except BaseException as exc:
+        primary_error = exc
+    finally:
+        if descriptor >= 0:
+            try:
+                os.close(descriptor)
+            except OSError as exc:
+                cleanup_errors.append(exc)
+        if not replaced:
+            try:
+                os.unlink(temporary_name, dir_fd=parent_fd)
+            except OSError as exc:
+                cleanup_errors.append(exc)
+        try:
+            os.close(parent_fd)
+        except OSError as exc:
+            cleanup_errors.append(exc)
+    if primary_error is not None:
+        if cleanup_errors:
+            message = f"{primary_error}; cleanup also failed: {cleanup_errors[0]}"
+            if isinstance(primary_error, ValueError):
+                raise type(primary_error)(message) from primary_error
+            raise error_type(message) from primary_error
+        raise primary_error
+    if cleanup_errors:
+        raise error_type(f"{label} cleanup failed: {cleanup_errors[0]}")
 
 
 def sha256_file(path: Path) -> str:

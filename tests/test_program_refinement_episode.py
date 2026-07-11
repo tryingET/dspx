@@ -840,7 +840,10 @@ def test_program_refinement_episode_rolls_back_generated_local_jury_failures(
     outdir = tmp_path / "episode-jury-failure"
     (program_root / "jury.json").write_text('{"schema_version":"tampered"}\n')
 
-    with pytest.raises(ProgramRefinementEpisodeError, match="schema_version"):
+    with pytest.raises(
+        ProgramRefinementEpisodeError,
+        match="candidate surface jury hash does not match current file",
+    ):
         run_program_refinement_episode(
             manifest_path=program_root / "manifest.json",
             oracle_report_path=report_path,
