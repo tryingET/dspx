@@ -44,7 +44,9 @@ def _ticket_rows(count: int = 10) -> list[dict[str, object]]:
     ]
 
 
-def _ratio_intent(dataset_path: Path, *, seed: int = 42) -> ProgramIntent:
+def _ratio_intent(
+    dataset_path: Path, *, seed: int = 42, declared_quality: bool = False
+) -> ProgramIntent:
     return ProgramIntent(
         name="TicketDatasetProgram",
         objective="Classify support ticket urgency.",
@@ -52,6 +54,18 @@ def _ratio_intent(dataset_path: Path, *, seed: int = 42) -> ProgramIntent:
         outputs=["urgency"],
         metric="exact_match",
         constraints=["use only the supplied ticket text"],
+        quality_criteria=[
+            {
+                "id": "urgency_quality",
+                "output_field": "urgency",
+                "evaluator": "concept_coverage",
+                "required_concept_groups": [["high", "low"]],
+                "forbidden_concepts": ["unknown"],
+                "min_score": 1.0,
+            }
+        ]
+        if declared_quality
+        else [],
         dataset={
             "path": str(dataset_path),
             "input_fields": ["ticket_text"],
@@ -212,6 +226,26 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         "validation",
         "test",
     ]
+    assert all(
+        source["quality_evaluation"]
+        == {
+            "status": "not_declared",
+            "criteria_declared": False,
+            "evaluations_total": 0,
+            "evaluations_passed": 0,
+            "evaluations_failed": 0,
+            "quality_approved": False,
+        }
+        for source in behavior_episode["sources"]
+    )
+    assert behavior_episode["quality_evaluation"] == {
+        "status": "not_declared",
+        "criteria_declared": False,
+        "evaluations_total": 0,
+        "evaluations_passed": 0,
+        "evaluations_failed": 0,
+        "quality_approved": False,
+    }
     assert manifest["request"]["behavior_episode_hash"] == behavior_episode_hash
     assert manifest["execution_episode"]["behavior_orchestration"]["status"] == (
         "passed"
@@ -343,6 +377,73 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
         is False
     )
     assert "program_evidence_hash_mismatch" in drift["error_codes"]
+
+
+def test_program_dataset_behavior_episode_aggregates_declared_quality(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _setup_env(tmp_path, monkeypatch)
+    dataset_path = tmp_path / "data" / "tickets.jsonl"
+    _write_jsonl(dataset_path, _ticket_rows())
+    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps({"urgency": "high"}))
+
+    passed = materialize_program_from_intent(
+        _ratio_intent(dataset_path, declared_quality=True),
+        outdir=tmp_path / "quality-passed",
+    )
+    passed_episode = json.loads(
+        (Path(passed.root_path) / "behavior_episode.json").read_text()
+    )
+    assert [
+        source["quality_evaluation"]["evaluations_total"]
+        for source in passed_episode["sources"]
+    ] == [7, 1, 2]
+    assert passed_episode["quality_evaluation"] == {
+        "status": "passed",
+        "criteria_declared": True,
+        "evaluations_total": 10,
+        "evaluations_passed": 10,
+        "evaluations_failed": 0,
+        "quality_approved": False,
+    }
+
+    tiny_path = tmp_path / "data" / "tiny-quality.jsonl"
+    _write_jsonl(tiny_path, _ticket_rows(1))
+    tiny = materialize_program_from_intent(
+        _ratio_intent(tiny_path, declared_quality=True),
+        outdir=tmp_path / "quality-empty-splits",
+    )
+    tiny_episode = json.loads(
+        (Path(tiny.root_path) / "behavior_episode.json").read_text()
+    )
+    assert [
+        source["quality_evaluation"]["criteria_declared"]
+        for source in tiny_episode["sources"]
+    ] == [True, True, True]
+    tiny_statuses = [
+        source["quality_evaluation"]["status"] for source in tiny_episode["sources"]
+    ]
+    assert tiny_statuses.count("passed") == 1
+    assert tiny_statuses.count("not_declared") == 2
+    assert tiny_episode["quality_evaluation"]["criteria_declared"] is True
+    assert tiny_episode["quality_evaluation"]["evaluations_total"] == 1
+
+    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps({"urgency": "unknown"}))
+    failed = materialize_program_from_intent(
+        _ratio_intent(dataset_path, declared_quality=True),
+        outdir=tmp_path / "quality-failed",
+    )
+    failed_episode = json.loads(
+        (Path(failed.root_path) / "behavior_episode.json").read_text()
+    )
+    assert failed_episode["quality_evaluation"] == {
+        "status": "failed",
+        "criteria_declared": True,
+        "evaluations_total": 10,
+        "evaluations_passed": 0,
+        "evaluations_failed": 10,
+        "quality_approved": False,
+    }
 
 
 def test_program_dataset_ratio_split_is_deterministic_by_seed(

@@ -571,6 +571,7 @@ def _load_case_evidence(
             raise ValueError("generated behavior declared quality did not pass")
         expected_quality_summary = {
             "status": "passed",
+            "criteria_declared": True,
             "evaluations_total": 1,
             "evaluations_passed": 1,
             "evaluations_failed": 0,
@@ -580,6 +581,14 @@ def _load_case_evidence(
             raise ValueError("generated behavior quality summary is inconsistent")
         if example.get("quality_evaluation") != canonical_quality:
             raise ValueError("generated behavior quality record is inconsistent")
+    result_quality = result_payload.get("quality_evaluation")
+    if (
+        not isinstance(result_quality, Mapping)
+        or source.get("quality_evaluation") != result_quality
+        or episode_payload.get("quality_evaluation") != result_quality
+        or result_quality.get("quality_approved") is not False
+    ):
+        raise ValueError("generated behavior episode quality evidence is inconsistent")
     response_field = str(case["response_field"])
     response = observed.get(response_field) if isinstance(observed, dict) else None
     if not isinstance(response, str) or len(response) > _MAX_TEXT_CHARS:

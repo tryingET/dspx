@@ -351,6 +351,14 @@ def test_program_service_binds_examples_when_present(
         "behavior_results.json"
     )
     assert behavior_episode["sources"][0]["behavior_results_hash"] == behavior_hash
+    assert (
+        behavior_episode["sources"][0]["quality_evaluation"]
+        == behavior_results["quality_evaluation"]
+    )
+    assert (
+        behavior_episode["quality_evaluation"] == behavior_results["quality_evaluation"]
+    )
+    assert behavior_episode["quality_evaluation"]["quality_approved"] is False
     oracle_evidence = json.loads(
         (root / "oracle_evidence.json").read_text(encoding="utf-8")
     )

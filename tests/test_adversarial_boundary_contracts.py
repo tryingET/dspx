@@ -515,6 +515,77 @@ def test_generated_eval_behavior_redacts_child_diagnostics(
     assert source["status"] == "failed"
 
 
+def test_generated_eval_behavior_rejects_quality_summary_record_drift(
+    tmp_path: Path,
+) -> None:
+    program_dir = tmp_path / "program-quality-drift"
+    program_dir.mkdir()
+    intent = SimpleNamespace(
+        examples=[{"inputs": {"q": "x"}, "outputs": {"answer": "ok"}}],
+        examples_path=None,
+        dataset=None,
+        datasets=None,
+        quality_criteria=[{"id": "declared", "output_field": "answer"}],
+    )
+    (program_dir / "eval_behavior.py").write_text(
+        render_eval_behavior(intent), encoding="utf-8"
+    )
+    (program_dir / "program.py").write_text(
+        "def configure_observability(**kw): return False\n"
+        "def end_observability_run(started, status='FINISHED'): pass\n",
+        encoding="utf-8",
+    )
+    criterion = {
+        "id": "declared",
+        "output_field": "answer",
+        "evaluator": "concept_coverage",
+        "required_concept_groups": [["safe"]],
+        "forbidden_concepts": [],
+        "min_score": 1.0,
+    }
+    fake_passed_record = {
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "passed",
+        "criteria_total": 1,
+        "criteria_passed": 1,
+        "criteria_failed": 0,
+        "criteria": [],
+        "quality_approved": False,
+    }
+    payload = {
+        "intent": {"quality_criteria": [criterion]},
+        "examples": [
+            {"observed_outputs": {}, "quality_evaluation": fake_passed_record}
+        ],
+        "summary": {"status": "passed", "total": 1},
+        "quality_evaluation": {
+            "status": "passed",
+            "criteria_declared": True,
+            "evaluations_total": 1,
+            "evaluations_passed": 1,
+            "evaluations_failed": 0,
+            "quality_approved": False,
+        },
+    }
+    (program_dir / "eval_examples.py").write_text(
+        "import json\nfrom pathlib import Path\n"
+        f"Path('behavior_results.json').write_text(json.dumps({payload!r}))\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "eval_behavior.py"],
+        cwd=program_dir,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "quality drifts from observed outputs" in result.stderr
+    assert not (program_dir / "behavior_episode.json").exists()
+
+
 @pytest.mark.parametrize(
     ("flag", "value", "message"),
     [

@@ -104,6 +104,13 @@ def test_program_semantic_benchmark_runs_generated_candidates_and_review_replay(
     )
     assert behavior["quality_evaluation"]["status"] == "passed"
     assert behavior["quality_evaluation"]["quality_approved"] is False
+    episode = json.loads(
+        (
+            tmp_path / "work/pipeline-evidence-calibration/behavior_episode.json"
+        ).read_text()
+    )
+    assert episode["sources"][0]["quality_evaluation"] == behavior["quality_evaluation"]
+    assert episode["quality_evaluation"] == behavior["quality_evaluation"]
     review_row = result["cases"][2]
     assert review_row["runtime_replay_status"] == "passed"
     assert review_row["runtime_replay"]["contract_mode"] == "pdf_transition_review"
