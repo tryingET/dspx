@@ -1606,6 +1606,18 @@ def validate_program_runtime_episode_contract(
             != current_hashes["behavior_results_sha256"]
         ):
             fail("runtime Oracle evidence behavior result ref is stale")
+        behavior_summary = _safe_mapping(behavior.get("summary"))
+        oracle_facets = _safe_mapping(oracle.get("oracle_facets"))
+        if behavior_section.get("summary") != behavior_summary:
+            fail("runtime Oracle evidence behavior summary drifts from current results")
+        if behavior_section.get("statuses") != behavior_summary.get("status_counts"):
+            fail("runtime Oracle evidence status counts drift from current results")
+        if oracle_facets.get("behavior_status") != behavior_summary.get("status"):
+            fail("runtime Oracle evidence behavior status drifts from current results")
+        if oracle_facets.get("status_counts") != behavior_summary.get("status_counts"):
+            fail(
+                "runtime Oracle evidence facet status counts drift from current results"
+            )
 
         _assert_false_flags(
             runtime_episode,

@@ -8,8 +8,11 @@ import pytest
 
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_quality_evaluation import (
+    declared_quality_output_fields,
     evaluate_declared_quality,
+    normalize_declared_quality_behavior_status,
     normalize_quality_criteria,
+    runtime_status_with_declared_quality,
 )
 from dspx.services.program_service import materialize_program_from_intent
 
@@ -127,6 +130,41 @@ def test_multiple_criteria_all_must_pass_and_ids_do_not_overwrite() -> None:
     assert result["criteria_passed"] == 1
 
 
+@pytest.mark.parametrize(
+    ("execution_status", "quality_status", "expected"),
+    [
+        ("executed", "passed", "executed_quality_passed"),
+        ("executed", "failed", "failed_quality"),
+        ("executed_valid_review_only", "passed", "executed_valid_review_only"),
+        ("executed_valid_review_only", "failed", "failed_quality"),
+        ("failed_boundary", "passed", "failed_boundary"),
+        ("degraded_missing_outputs", "failed", "degraded_missing_outputs"),
+    ],
+)
+def test_declared_quality_runtime_status_compatibility_matrix(
+    execution_status: str, quality_status: str, expected: str
+) -> None:
+    assert (
+        runtime_status_with_declared_quality(execution_status, quality_status)
+        == expected
+    )
+
+
+def test_declared_quality_helpers_expose_covered_fields_and_oracle_categories() -> None:
+    criteria = normalize_quality_criteria(_criteria(), outputs=["response"])
+    assert declared_quality_output_fields(criteria) == {"response"}
+    assert (
+        normalize_declared_quality_behavior_status("executed_quality_passed")
+        == "passed"
+    )
+    assert normalize_declared_quality_behavior_status("failed_quality") == "failed"
+    assert (
+        normalize_declared_quality_behavior_status("executed_valid_review_only")
+        == "executed"
+    )
+    assert normalize_declared_quality_behavior_status("executed") is None
+
+
 def test_generated_example_harness_uses_declared_quality_instead_of_exact_text(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -167,6 +205,51 @@ def test_generated_example_harness_uses_declared_quality_instead_of_exact_text(
     assert behavior["summary"]["status"] == "passed"
     assert behavior["examples"][0]["quality_evaluation"]["status"] == "passed"
     assert behavior["quality_evaluation"]["status"] == "passed"
+
+
+def test_generated_example_harness_keeps_exact_match_for_uncovered_outputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv(
+        "DSPX_STUB_RESPONSE_JSON",
+        json.dumps(
+            {
+                "response": "One test failed for an unknown reason; investigate.",
+                "citation": "WRONG",
+            }
+        ),
+    )
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="MixedQualityHarnessProgram",
+            objective="Produce calibrated evidence with an exact citation.",
+            inputs=["observation"],
+            outputs=["response", "citation"],
+            examples=[
+                {
+                    "inputs": {"observation": "one failure"},
+                    "outputs": {
+                        "response": "A different accepted paraphrase.",
+                        "citation": "EXPECTED",
+                    },
+                }
+            ],
+            quality_criteria=_criteria(),
+        ),
+        outdir=tmp_path / "candidate",
+    )
+
+    behavior = json.loads(
+        (Path(artifact.root_path) / "behavior_results.json").read_text()
+    )
+
+    assert behavior["quality_evaluation"]["status"] == "passed"
+    assert behavior["summary"]["status"] == "failed"
+    assert behavior["examples"][0]["notes"] == ["output mismatch: ['citation']"]
 
 
 def test_no_declared_quality_remains_non_authoritative() -> None:

@@ -207,6 +207,20 @@ def test_program_semantic_corpus_rejects_unknown_fields_and_oversize(
     with pytest.raises(ValueError, match="outer semantic contract drifts"):
         load_program_semantic_corpus(invalid)
 
+    corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    corpus["cases"][0]["intent"]["quality_criteria"][0]["min_score"] = 0.5
+    invalid.write_text(json.dumps(corpus), encoding="utf-8")
+    with pytest.raises(ValueError, match="outer semantic contract drifts"):
+        load_program_semantic_corpus(invalid)
+
+    corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    case = corpus["cases"][0]
+    case["intent"]["outputs"].append("other")
+    case["intent"]["quality_criteria"][0]["output_field"] = "other"
+    invalid.write_text(json.dumps(corpus), encoding="utf-8")
+    with pytest.raises(ValueError, match="outer semantic contract drifts"):
+        load_program_semantic_corpus(invalid)
+
     oversized = tmp_path / "oversized.json"
     oversized.write_bytes(b" " * 1_000_001)
     with pytest.raises(ValueError, match="1000000-byte limit"):

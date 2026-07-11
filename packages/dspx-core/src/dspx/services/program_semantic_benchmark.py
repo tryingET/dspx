@@ -286,11 +286,15 @@ def _validate_program_semantic_corpus_payload(
             declared = normalize_quality_criteria(
                 raw_declared, outputs=cast(list[str], outputs)
             )
-            if len(declared) != 1 or (
-                declared[0]["required_concept_groups"]
-                != bounded_outer["required_concept_groups"]
-                or declared[0]["forbidden_concepts"]
-                != bounded_outer["forbidden_concepts"]
+            if len(declared) != 1 or any(
+                declared[0][field] != bounded_outer[field]
+                for field in (
+                    "output_field",
+                    "evaluator",
+                    "required_concept_groups",
+                    "forbidden_concepts",
+                    "min_score",
+                )
             ):
                 raise ValueError(
                     f"case {case_id} outer semantic contract drifts from intent quality_criteria"

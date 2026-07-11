@@ -79,6 +79,25 @@ def validate_program_oracle_evidence_non_authority(payload: Mapping[str, Any]) -
             "program Oracle evidence non_authority flags must be false: "
             + ", ".join(invalid)
         )
+    oracle_facets = payload.get("oracle_facets")
+    behavior = payload.get("behavior")
+    behavior_summary = (
+        behavior.get("summary") if isinstance(behavior, Mapping) else None
+    )
+    if not isinstance(oracle_facets, Mapping) or not isinstance(
+        behavior_summary, Mapping
+    ):
+        raise ValueError(
+            "program Oracle evidence requires oracle_facets and behavior.summary objects"
+        )
+    facet_status = str(oracle_facets.get("behavior_status") or "").strip()
+    summary_status = str(behavior_summary.get("status") or "").strip()
+    if not facet_status:
+        raise ValueError("program Oracle evidence missing facet behavior status")
+    if summary_status and facet_status != summary_status:
+        raise ValueError(
+            "program Oracle evidence behavior status drifts between facets and summary"
+        )
     source_artifacts = payload.get("source_artifacts")
     if not isinstance(source_artifacts, list):
         raise ValueError("program Oracle evidence source_artifacts must be a list")

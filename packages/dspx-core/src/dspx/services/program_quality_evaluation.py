@@ -8,6 +8,15 @@ from typing import Any, Mapping, cast
 
 QUALITY_EVALUATION_SCHEMA = "program-quality-evaluation-v1"
 QUALITY_CRITERIA_EVALUATOR = "concept_coverage"
+QUALITY_STATUS_TO_BEHAVIOR_STATUS = {
+    "executed_quality_passed": "passed",
+    "executed_valid_review_only": "executed",
+    "failed_quality": "failed",
+}
+_SUCCESSFUL_QUALITY_EXECUTION_STATUSES = {
+    "executed",
+    "executed_valid_review_only",
+}
 _MAX_CRITERIA = 20
 _MAX_GROUPS = 20
 _MAX_TERMS_PER_GROUP = 10
@@ -135,13 +144,39 @@ def _contains(text: str, term: str) -> bool:
     return re.search(rf"(?<!\w){re.escape(needle)}(?!\w)", normalized) is not None
 
 
+def declared_quality_output_fields(criteria: object) -> set[str]:
+    """Return output fields governed by an already-normalized quality contract."""
+    if not isinstance(criteria, list):
+        return set()
+    fields: set[str] = set()
+    for item in criteria:
+        if not isinstance(item, Mapping):
+            continue
+        output_field = item.get("output_field")
+        if isinstance(output_field, str) and output_field:
+            fields.add(output_field)
+    return fields
+
+
+def normalize_declared_quality_behavior_status(status: object) -> str | None:
+    """Map declared-quality runtime statuses into Oracle behavior categories."""
+    return QUALITY_STATUS_TO_BEHAVIOR_STATUS.get(str(status or "").strip().lower())
+
+
 def runtime_status_with_declared_quality(
     execution_status: str, quality_status: object
 ) -> str:
-    """Apply quality only after a successful ordinary execution."""
-    if execution_status != "executed" or quality_status == "not_declared":
+    """Project declared quality over successful execution without hiding review mode."""
+    if (
+        execution_status not in _SUCCESSFUL_QUALITY_EXECUTION_STATUSES
+        or quality_status == "not_declared"
+    ):
         return execution_status
-    return "executed_quality_passed" if quality_status == "passed" else "failed_quality"
+    if quality_status != "passed":
+        return "failed_quality"
+    if execution_status == "executed_valid_review_only":
+        return execution_status
+    return "executed_quality_passed"
 
 
 def evaluate_declared_quality(

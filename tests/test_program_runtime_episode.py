@@ -12,9 +12,12 @@ from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, reset_embedding_engine
 import dspx.services.program_runtime_episode as runtime_episode_service
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_oracle_index import index_program_oracle_evidence_path
+from dspx.services.program_oracle_report import build_program_oracle_evidence_report
 from dspx.services.program_runtime_episode import (
     _generated_program_module,
     _materialize_runtime_inputs,
+    load_validated_program_runtime_episode_bundle,
     run_program_runtime_episode,
     validate_program_runtime_episode_contract,
 )
@@ -205,6 +208,112 @@ def test_program_runtime_episode_round_trips_explicit_pipeline_candidate(
     )
     assert behavior["summary"]["status"] == "executed"
     assert behavior["examples"][0]["observed_outputs"]["response"]
+
+
+def test_pdf_review_runtime_cannot_hide_declared_quality_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    outputs = [
+        "section_units_json",
+        "distillation_frames_json",
+        "evidence_cards_json",
+        "merge_create_proposals_json",
+        "review_packet_json",
+        "artifact_contract_manifest_json",
+    ]
+    stub_response = {
+        "section_units_json": "[]",
+        "distillation_frames_json": "[]",
+        "evidence_cards_json": "[]",
+        "merge_create_proposals_json": "[]",
+        "review_packet_json": json.dumps({"canonical_mutation_performed": False}),
+        "artifact_contract_manifest_json": json.dumps(
+            {"canonical_mutation_performed": False}
+        ),
+    }
+    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps(stub_response))
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="PdfReviewQualityProgram",
+            objective="Produce review-only PDF transition evidence.",
+            inputs=["document"],
+            outputs=outputs,
+            examples=[
+                {
+                    "inputs": {"document": "bounded source"},
+                    "outputs": stub_response,
+                }
+            ],
+            quality_criteria=[
+                {
+                    "id": "review_quality",
+                    "output_field": "review_packet_json",
+                    "evaluator": "concept_coverage",
+                    "required_concept_groups": [["quality-pass-token"]],
+                    "forbidden_concepts": [],
+                    "min_score": 1.0,
+                }
+            ],
+        ),
+        outdir=tmp_path / "pdf-quality-candidate",
+    )
+    inputs = tmp_path / "pdf-inputs.json"
+    inputs.write_text(json.dumps({"inputs": {"document": "bounded source"}}))
+
+    result = run_program_runtime_episode(
+        manifest_path=Path(artifact.root_path) / "manifest.json",
+        inputs_path=inputs,
+        outdir=tmp_path / "pdf-quality-runtime",
+        contract_mode="pdf_transition_review",
+        skip_oracle_index=True,
+    )
+    behavior = json.loads(
+        (tmp_path / "pdf-quality-runtime/behavior_results.json").read_text()
+    )
+
+    assert behavior["execution_status"] == "executed_valid_review_only"
+    assert behavior["quality_evaluation"]["status"] == "failed"
+    assert behavior["summary"]["status"] == "failed_quality"
+    assert result["steps"]["runtime_execution"]["status"] == "failed_quality"
+    assert result["status"] == "degraded"
+
+    candidate_manifest_path = Path(artifact.root_path) / "manifest.json"
+    candidate_manifest = json.loads(candidate_manifest_path.read_text())
+    bundle = load_validated_program_runtime_episode_bundle(
+        runtime_episode_path=tmp_path / "pdf-quality-runtime/runtime_episode.json",
+        expected_manifest_path=candidate_manifest_path,
+        expected_manifest=candidate_manifest,
+        expected_manifest_sha256=hashlib.sha256(
+            candidate_manifest_path.read_bytes()
+        ).hexdigest(),
+    )
+    assert bundle.runtime_episode["status"] == "failed_quality"
+    assert bundle.behavior_results["execution_status"] == "executed_valid_review_only"
+
+    index_path = tmp_path / "pdf-quality-oracle/coordinates.db"
+    indexed = index_program_oracle_evidence_path(
+        tmp_path / "pdf-quality-runtime/oracle_evidence.json",
+        index_path=index_path,
+    )
+    assert indexed["indexed"] == 1
+    report = build_program_oracle_evidence_report(index_path=index_path)
+    assert report["behavior_status_counts"]["failed"] == 1
+    assert report["records"][0]["behavior_status"] == "failed"
+
+    drift_root = tmp_path / "drifted-oracle"
+    drift_root.mkdir()
+    drifted_oracle = json.loads(
+        (tmp_path / "pdf-quality-runtime/oracle_evidence.json").read_text()
+    )
+    drifted_oracle["oracle_facets"]["behavior_status"] = "executed_valid_review_only"
+    (drift_root / "oracle_evidence.json").write_text(json.dumps(drifted_oracle))
+    drifted = index_program_oracle_evidence_path(
+        drift_root, index_path=tmp_path / "drifted-oracle.db"
+    )
+    assert drifted["indexed"] == 0
+    assert drifted["errors"] == 1
+    assert "behavior status drifts" in drifted["error_details"][0]["error"]
 
 
 def test_program_runtime_episode_applies_declared_quality_without_approval(

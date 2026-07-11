@@ -11,6 +11,9 @@ from dspx.services.program_oracle_index import (
     PROGRAM_ORACLE_EVIDENCE_SCHEMA,
     PROGRAM_ORACLE_RUN_KIND,
 )
+from dspx.services.program_quality_evaluation import (
+    normalize_declared_quality_behavior_status,
+)
 
 PROGRAM_ORACLE_REPORT_SCHEMA = "program-oracle-evidence-report-v1"
 KNOWN_BEHAVIOR_STATUSES = (
@@ -37,6 +40,9 @@ def _string_list(value: object) -> list[str]:
 
 def _normalize_behavior_status(value: object) -> str:
     text = str(value or "unknown").strip().lower() or "unknown"
+    quality_status = normalize_declared_quality_behavior_status(text)
+    if quality_status is not None:
+        return quality_status
     if text.startswith("degraded"):
         return "degraded"
     if text in KNOWN_BEHAVIOR_STATUSES:
@@ -174,7 +180,7 @@ def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
         "run_id": embedding.run_id,
         "identity": identity,
         "behavior_status": _normalize_behavior_status(
-            facets.get("behavior_status") or summary.get("status")
+            summary.get("status") or facets.get("behavior_status")
         ),
         "task_type": str(facets.get("task_type") or "unknown"),
         "metric": str(facets.get("metric") or "unknown"),

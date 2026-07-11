@@ -8,10 +8,14 @@ import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
-from dspx.coordinates import reset_embedding_engine
+from dspx.coordinates import ExecutionEmbedding, reset_embedding_engine
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
-from dspx.services.program_oracle_report import build_program_oracle_evidence_report
+from dspx.services.program_oracle_report import (
+    _normalize_behavior_status,
+    build_program_oracle_evidence_report,
+    summarize_program_oracle_evidence,
+)
 from dspx.services.program_service import materialize_program_from_intent
 
 runner = CliRunner()
@@ -63,6 +67,50 @@ def _materialize_indexed_program(
     assert result["indexed"] == 1
     assert result["errors"] == 0
     return program_root, index_path
+
+
+@pytest.mark.parametrize(
+    ("runtime_status", "oracle_status"),
+    [
+        ("executed_quality_passed", "passed"),
+        ("executed_valid_review_only", "executed"),
+        ("failed_quality", "failed"),
+        ("degraded_missing_outputs", "degraded"),
+    ],
+)
+def test_program_oracle_report_normalizes_runtime_quality_statuses(
+    runtime_status: str, oracle_status: str
+) -> None:
+    assert _normalize_behavior_status(runtime_status) == oracle_status
+
+
+def test_program_oracle_report_preserves_review_only_execution_category() -> None:
+    embedding = ExecutionEmbedding(
+        run_id="program-oracle-evidence:review-only",
+        vector=[1.0],
+        input_text="input",
+        output_text="output",
+        config_text="config",
+        run_kind="program-oracle-evidence",
+        provider="stub",
+        template_version=None,
+        created_at="2026-07-11T00:00:00Z",
+        dimension=1,
+        metadata={
+            "oracle_facets": {
+                "behavior_status": "executed_valid_review_only",
+                "task_type": "single_module",
+            },
+            "behavior": {"summary": {"status": "executed_valid_review_only"}},
+            "identity": {},
+        },
+    )
+
+    report = summarize_program_oracle_evidence([embedding])
+
+    assert report["behavior_status_counts"]["executed"] == 1
+    assert report["behavior_status_counts"]["unknown"] == 0
+    assert report["records"][0]["behavior_status"] == "executed"
 
 
 def test_program_oracle_report_service_summarizes_indexed_evidence(
