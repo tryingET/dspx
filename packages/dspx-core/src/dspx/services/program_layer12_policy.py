@@ -6,6 +6,8 @@ select a transition token or policy, mutate a candidate, or authorize activation
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
 import math
@@ -14,6 +16,9 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, cast
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 SCHEMAS = {
     "score": "layer12-advisory-score-vector-v1",
@@ -490,4 +495,222 @@ def check_dspx_policy_shadow_evidence(
         "policy_selected": False,
         "recommendation_available": False,
         "requires_separate_owner_selection_authorization": True,
+    }
+
+
+def check_signed_dspx_shadow_receipt(
+    *,
+    envelope: object,
+    expected_owner_repository: str,
+    expected_key_id: str,
+    expected_public_key_b64: str,
+    expected_payload_digest: str,
+    expected_contract_commit: str,
+    expected_transition_eval_refs: object,
+    expected_policy_digest: str,
+    expected_cohort_digest: str,
+    expected_metric_set_digest: str,
+    now: str,
+) -> dict[str, Any]:
+    """Verify a content-addressed DSPx owner receipt and its shadow predicate.
+
+    The externally supplied owner/key/digest bindings are trusted inputs. The signed
+    payload remains advisory: successful verification cannot select policy, establish
+    AK legality, apply a generated program, or authorize later wave gates.
+    """
+    item = _object(envelope, "envelope")
+    _closed(
+        item,
+        required={
+            "schema_version",
+            "owner_repository",
+            "key_id",
+            "public_key_b64",
+            "payload_digest",
+            "signature_b64",
+            "payload",
+        },
+        label="envelope",
+    )
+    if item["schema_version"] != "iw14a-dspx-shadow-receipt-envelope-v1":
+        raise Layer12PolicyError("unsupported signed shadow envelope")
+    owner = _text(expected_owner_repository, "expected_owner_repository")
+    key_id = _text(expected_key_id, "expected_key_id")
+    public_key_b64 = _text(expected_public_key_b64, "expected_public_key_b64")
+    payload_digest = _text(expected_payload_digest, "expected_payload_digest")
+    contract_commit = _text(expected_contract_commit, "expected_contract_commit")
+    if re.fullmatch(r"[0-9a-f]{40}", contract_commit) is None:
+        raise Layer12PolicyError(
+            "expected contract commit must be a full git object id"
+        )
+    expected_refs_obj = _object(
+        expected_transition_eval_refs, "expected_transition_eval_refs"
+    )
+    if not expected_refs_obj:
+        raise Layer12PolicyError("expected transition evaluation refs cannot be empty")
+    expected_refs = {
+        _text(token, "expected transition token"): _text(ref, "expected eval ref")
+        for token, ref in expected_refs_obj.items()
+    }
+    for ref in expected_refs.values():
+        if re.fullmatch(r"ak-eval:sha256:[0-9a-f]{64}", ref) is None:
+            raise Layer12PolicyError(
+                "expected eval refs must be full content addresses"
+            )
+    policy_digest = _text(expected_policy_digest, "expected_policy_digest")
+    cohort_digest = _text(expected_cohort_digest, "expected_cohort_digest")
+    metric_set_digest = _text(expected_metric_set_digest, "expected_metric_set_digest")
+    if item["owner_repository"] != owner or owner != "softwareco/owned/dspx":
+        raise Layer12PolicyError("owner repository does not match external binding")
+    if item["key_id"] != key_id or item["public_key_b64"] != public_key_b64:
+        raise Layer12PolicyError("signer does not match external trust root")
+
+    payload = _object(item["payload"], "payload")
+    actual_payload_digest = digest(payload)
+    if (
+        item["payload_digest"] != actual_payload_digest
+        or actual_payload_digest != payload_digest
+    ):
+        raise Layer12PolicyError("payload digest does not match external binding")
+    try:
+        public_key = base64.b64decode(public_key_b64, validate=True)
+        signature = base64.b64decode(
+            _text(item["signature_b64"], "signature_b64"), validate=True
+        )
+        Ed25519PublicKey.from_public_bytes(public_key).verify(
+            signature, canonical_json(payload).encode("utf-8")
+        )
+    except (ValueError, binascii.Error, InvalidSignature) as exc:
+        raise Layer12PolicyError("invalid DSPx owner signature") from exc
+
+    _closed(
+        payload,
+        required={
+            "schema_version",
+            "wave_id",
+            "owner_repository",
+            "contract_commit",
+            "preregistration",
+            "result",
+            "evaluations",
+            "policy_selected",
+            "ak_legality",
+            "generated_program_applied",
+            "promotion_authorized",
+            "publication_authorized",
+            "dogfood_authorized",
+            "rollout_authorized",
+        },
+        label="payload",
+    )
+    if (
+        payload["schema_version"] != "iw14a-dspx-shadow-evidence-payload-v1"
+        or payload["wave_id"] != "IW14-A"
+        or payload["owner_repository"] != owner
+        or payload["contract_commit"] != contract_commit
+    ):
+        raise Layer12PolicyError("signed shadow payload authority binding mismatch")
+    for field in (
+        "policy_selected",
+        "ak_legality",
+        "generated_program_applied",
+        "promotion_authorized",
+        "publication_authorized",
+        "dogfood_authorized",
+        "rollout_authorized",
+    ):
+        if payload[field] is not False:
+            raise Layer12PolicyError(f"shadow payload cannot assert {field}")
+
+    evaluations = payload["evaluations"]
+    if not isinstance(evaluations, list) or not evaluations:
+        raise Layer12PolicyError("evaluations must be a non-empty list")
+    seen_tokens: set[str] = set()
+    weighted_score = Decimal(0)
+    observation_count = 0
+    for index, raw in enumerate(evaluations):
+        evaluation = _object(raw, f"evaluations[{index}]")
+        _closed(
+            evaluation,
+            required={
+                "protocol_version",
+                "transition_token",
+                "family_id",
+                "spec_digest",
+                "candidate_id",
+                "ak_eval_receipt_id",
+                "observed_score",
+                "observation_count",
+                "authoritative",
+                "live_evaluation_replayable",
+            },
+            label="evaluation",
+        )
+        identity = _identity({field: evaluation[field] for field in IDENTITY_FIELDS})
+        token = identity["transition_token"]
+        if token in seen_tokens:
+            raise Layer12PolicyError("representative transition tokens must be unique")
+        if (
+            token not in expected_refs
+            or identity["ak_eval_receipt_id"] != expected_refs[token]
+        ):
+            raise Layer12PolicyError("evaluation token/ref is outside external binding")
+        if re.fullmatch(r"sha256:[0-9a-f]{64}", identity["spec_digest"]) is None:
+            raise Layer12PolicyError("evaluation spec digest must be content addressed")
+        seen_tokens.add(token)
+        if (
+            evaluation["authoritative"] is not False
+            or evaluation["live_evaluation_replayable"] is not False
+        ):
+            raise Layer12PolicyError(
+                "evaluations must remain advisory and non-replayable"
+            )
+        score = _number(evaluation["observed_score"], "observed_score")
+        count = _positive_integer(evaluation["observation_count"], "observation_count")
+        if score < 0 or score > 1:
+            raise Layer12PolicyError("observed_score must be within [0,1]")
+        weighted_score += score * count
+        observation_count += count
+
+    if seen_tokens != set(expected_refs):
+        raise Layer12PolicyError(
+            "signed evaluations do not cover exact expected token set"
+        )
+    preregistration = _object(payload["preregistration"], "preregistration")
+    if (
+        preregistration.get("policy_digest") != policy_digest
+        or preregistration.get("cohort_digest") != cohort_digest
+        or preregistration.get("metric_set_digest") != metric_set_digest
+        or cohort_digest != f"sha256:{digest(evaluations)}"
+    ):
+        raise Layer12PolicyError("shadow preregistration context mismatch")
+
+    observed = _object(payload["result"], "result")
+    recomputed_aggregate = weighted_score / observation_count
+    if (
+        _number(observed.get("observed_aggregate"), "observed_aggregate")
+        != recomputed_aggregate
+    ):
+        raise Layer12PolicyError("result aggregate does not match signed evaluations")
+    if (
+        _nonnegative_integer(observed.get("observation_count"), "observation_count")
+        != observation_count
+    ):
+        raise Layer12PolicyError("result count does not match signed evaluations")
+    checked = check_dspx_policy_shadow_evidence(
+        preregistration=preregistration,
+        result=payload["result"],
+        expected_preregistration_digest=digest(payload["preregistration"]),
+        expected_result_digest=digest(payload["result"]),
+        now=now,
+    )
+    return {
+        **checked,
+        "owner_repository": owner,
+        "key_id": key_id,
+        "payload_digest": actual_payload_digest,
+        "signature_verified": True,
+        "representative_transition_tokens": sorted(seen_tokens),
+        "ak_legality": False,
+        "generated_program_applied": False,
     }

@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import base64
 import copy
 import json
 from pathlib import Path
 
 import jsonschema
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from dspx.services.program_layer12_policy import (
     Layer12PolicyError,
     check_advisory_aggregate,
     check_dspx_policy_shadow_evidence,
+    check_signed_dspx_shadow_receipt,
     digest,
 )
 
@@ -20,6 +23,30 @@ SCHEMA_PATH = Path("docs/project/layer12/layer12-dspx-policy-contracts.v1.schema
 FIXTURE_PATH = Path(
     "docs/project/layer12/fixtures/layer12-dspx-policy-fixtures.v1.json"
 )
+SIGNED_SHADOW_FIXTURE_PATH = Path(
+    "docs/project/layer12/fixtures/iw14a-dspx-shadow-evidence.v1.json"
+)
+SIGNED_OWNER = "softwareco/owned/dspx"
+SIGNED_KEY_ID = "dspx-iw14a-shadow-fixture-key-v1"
+SIGNED_PUBLIC_KEY_B64 = "A6EHv/POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg="
+SIGNED_PAYLOAD_DIGEST = (
+    "3c5e2c315c33c2d8a1c640b962f28f2bad1c246538139e38f84a198fbefb5cac"
+)
+SIGNED_CONTRACT_COMMIT = "57a330d8e088236f1958040da81832d84cbf57d1"
+SIGNED_POLICY_DIGEST = (
+    "sha256:c7f9e46cbd4575ee75195b76bcf6dd88fc19bba3c92f85dd276ef20c810b499f"
+)
+SIGNED_COHORT_DIGEST = (
+    "sha256:8d7b650bea82a8865b2fc9e636fb673dfeca96a6eee4bfc58a728ed8de02e164"
+)
+SIGNED_METRIC_SET_DIGEST = (
+    "sha256:7d17d83230860d43ce0cccf05616cf63a66c9ecdfdd6e4a8e7873f939458189c"
+)
+SIGNED_EVAL_REFS = {
+    "ak.task.claim": "ak-eval:sha256:bd5301e6a6ba545fe03418df4ac985b3fbfff1c7fff12c7773c2bad464308ffe",
+    "ak.task.complete": "ak-eval:sha256:364569740ff3294dd613a0bba7dc7af4dfebba11174af062d7c9974ffdce6613",
+    "ak.direction.transition": "ak-eval:sha256:68aa579e9d4ab911e5982a2580c0bef3b6c61f1cb13b18a6cb1087c8097f918b",
+}
 
 
 def _identity() -> dict[str, str]:
@@ -262,6 +289,124 @@ def test_shadow_evidence_can_pass_without_selecting_policy() -> None:
         "recommendation_available": False,
         "requires_separate_owner_selection_authorization": True,
     }
+
+
+def _check_signed_shadow_fixture(
+    fixture: dict[str, object], *, expected_payload_digest: str = SIGNED_PAYLOAD_DIGEST
+) -> dict[str, object]:
+    return check_signed_dspx_shadow_receipt(
+        envelope=fixture["envelope"],
+        expected_owner_repository=SIGNED_OWNER,
+        expected_key_id=SIGNED_KEY_ID,
+        expected_public_key_b64=SIGNED_PUBLIC_KEY_B64,
+        expected_payload_digest=expected_payload_digest,
+        expected_contract_commit=SIGNED_CONTRACT_COMMIT,
+        expected_transition_eval_refs=SIGNED_EVAL_REFS,
+        expected_policy_digest=SIGNED_POLICY_DIGEST,
+        expected_cohort_digest=SIGNED_COHORT_DIGEST,
+        expected_metric_set_digest=SIGNED_METRIC_SET_DIGEST,
+        now=fixture["verification_now"],
+    )
+
+
+def _resign_shadow_fixture(fixture: dict[str, object]) -> str:
+    envelope = fixture["envelope"]
+    assert isinstance(envelope, dict)
+    payload = envelope["payload"]
+    payload_digest = digest(payload)
+    envelope["payload_digest"] = payload_digest
+    key = Ed25519PrivateKey.from_private_bytes(bytes(range(32)))
+    envelope["signature_b64"] = base64.b64encode(
+        key.sign(
+            json.dumps(
+                payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        )
+    ).decode("ascii")
+    return payload_digest
+
+
+def test_signed_iw14a_shadow_fixture_is_content_addressed_and_unselected() -> None:
+    fixture = json.loads(SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8"))
+    checked = _check_signed_shadow_fixture(fixture)
+    assert checked["status"] == fixture["expected_status"] == "passing_unselected"
+    assert checked["signature_verified"] is True
+    assert checked["representative_transition_tokens"] == [
+        "ak.direction.transition",
+        "ak.task.claim",
+        "ak.task.complete",
+    ]
+    assert checked["policy_selected"] is False
+    assert checked["recommendation_available"] is False
+    assert checked["ak_legality"] is False
+    assert checked["generated_program_applied"] is False
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (
+            lambda f: f["envelope"]["payload"]["evaluations"][0].update(
+                observed_score=1.0
+            ),
+            "payload digest",
+        ),
+        (
+            lambda f: f["envelope"].update(signature_b64="AA=="),
+            "signature",
+        ),
+    ],
+)
+def test_signed_iw14a_shadow_fixture_fails_closed(
+    mutation: object, message: str
+) -> None:
+    fixture = json.loads(SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8"))
+    mutation(fixture)  # type: ignore[operator]
+    with pytest.raises(Layer12PolicyError, match=message):
+        _check_signed_shadow_fixture(fixture)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (
+            lambda p: p["evaluations"][0].update(
+                transition_token="ak.unexpected.transition"
+            ),
+            "token/ref",
+        ),
+        (
+            lambda p: p["evaluations"][0].update(
+                ak_eval_receipt_id="ak-eval:sha256:" + "0" * 64
+            ),
+            "token/ref",
+        ),
+        (lambda p: p.update(policy_selected=True), "cannot assert policy_selected"),
+        (
+            lambda p: p["result"].update(observed_aggregate=0.8),
+            "aggregate",
+        ),
+        (
+            lambda p: p["preregistration"].update(
+                metric_set_digest="sha256:" + "0" * 64
+            ),
+            "context mismatch",
+        ),
+    ],
+)
+def test_resigned_semantic_laundering_fails_closed(
+    mutation: object, message: str
+) -> None:
+    fixture = json.loads(SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8"))
+    payload = fixture["envelope"]["payload"]
+    mutation(payload)  # type: ignore[operator]
+    resigned_digest = _resign_shadow_fixture(fixture)
+    with pytest.raises(Layer12PolicyError, match=message):
+        _check_signed_shadow_fixture(fixture, expected_payload_digest=resigned_digest)
 
 
 @pytest.mark.parametrize(
