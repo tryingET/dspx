@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "08681ea719b04184530d3bc9740a93f4531d981f"
-created_at: "2026-07-11T15:20:27Z"
+created_at: "2026-07-11T15:25:10Z"
 intent: "Bind candidate-state evidence and publication to descriptor-backed artifact snapshots"
 files:
   - "docs/project/product-posture.md"
@@ -18,8 +18,8 @@ validation:
     command: "just loop-verify-fast"
     status: "pass"
   full_gate:
-    command: "just loop-impact-wide"
-    status: "pending"
+    command: "LOOP_WIDE_REASON='delegated commit workflow wide validation for candidate snapshot nexus' just loop-impact-wide"
+    status: "fail"
 group:
   index: 1
   total: 1
