@@ -2027,7 +2027,11 @@ def run_program_runtime_episode(
         "publication_preflight_requested": publication_preflight_out is not None,
         "expected_episode": {
             "runtime_episode_id": runtime_episode_id,
+            "contract_mode": contract_mode,
+            "execution_status": execution_status,
             "status": status,
+            "quality_status": quality_evaluation["status"],
+            "quality_evaluation_sha256": _canonical_hash(quality_evaluation),
             "observed_outputs_sha256": _canonical_hash(observed),
             "behavior_results_sha256": behavior_hash,
             "oracle_evidence_sha256": _sha256_file(oracle_path),

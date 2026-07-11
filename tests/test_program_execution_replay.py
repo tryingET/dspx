@@ -7,7 +7,12 @@ from typing import Any, Iterator
 
 import pytest
 
-from dspx.run_receipts import load_run_receipt
+from dspx.cache import make_key
+from dspx.run_receipts import (
+    PROGRAM_RUNTIME_REPLAY_CONTRACT_MODES,
+    build_execution_replay_policy,
+    load_run_receipt,
+)
 import dspx.services.program_execution_replay_executor as replay_executor
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_runtime_episode import run_program_runtime_episode
@@ -16,6 +21,22 @@ from dspx.services.program_service import (
     run_generate_from_intent_path,
 )
 from dspx.services.run_replay_service import check_run_receipt, execute_run_receipt
+
+
+def _expected_episode(contract_mode: str = "none") -> dict[str, Any]:
+    return {
+        "runtime_episode_id": "runtime-test",
+        "contract_mode": contract_mode,
+        "execution_status": "executed",
+        "status": "executed",
+        "quality_status": "not_declared",
+        "quality_evaluation_sha256": "1" * 64,
+        "observed_outputs_sha256": "2" * 64,
+        "behavior_results_sha256": "3" * 64,
+        "oracle_evidence_sha256": "4" * 64,
+        "program_runtime_traces_sha256": "5" * 64,
+        "runtime_episode_sha256": "6" * 64,
+    }
 
 
 def _tree_hash(root: Path) -> dict[str, str]:
@@ -139,6 +160,74 @@ def _pipeline_runtime(tmp_path: Path) -> tuple[Path, Path, Path]:
     return candidate, runtime, runtime / "runtime_episode.json.meta.json"
 
 
+def _review_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    review_packet: dict[str, Any],
+    quality_token_required: bool,
+) -> tuple[Path, Path, Path]:
+    outputs = [
+        "section_units_json",
+        "distillation_frames_json",
+        "evidence_cards_json",
+        "merge_create_proposals_json",
+        "review_packet_json",
+        "artifact_contract_manifest_json",
+    ]
+    stub_response = {
+        "section_units_json": "[]",
+        "distillation_frames_json": "[]",
+        "evidence_cards_json": "[]",
+        "merge_create_proposals_json": "[]",
+        "review_packet_json": json.dumps(review_packet, sort_keys=True),
+        "artifact_contract_manifest_json": json.dumps(
+            {"canonical_mutation_performed": False}, sort_keys=True
+        ),
+    }
+    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps(stub_response))
+    quality_criteria = (
+        [
+            {
+                "id": "review_quality",
+                "output_field": "review_packet_json",
+                "evaluator": "concept_coverage",
+                "required_concept_groups": [["quality-pass-token"]],
+                "forbidden_concepts": ["domain-approved"],
+                "min_score": 1.0,
+            }
+        ]
+        if quality_token_required
+        else []
+    )
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="ReplayPdfReviewProgram",
+            objective="Produce bounded review-only transition evidence.",
+            inputs=["document"],
+            outputs=outputs,
+            quality_criteria=quality_criteria,
+        ),
+        outdir=tmp_path / "review-candidate",
+    )
+    candidate = Path(artifact.root_path)
+    inputs = tmp_path / "review-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"document": "bounded source"}}),
+        encoding="utf-8",
+    )
+    runtime = tmp_path / "review-runtime"
+    run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=runtime,
+        contract_mode="pdf_transition_review",
+        skip_oracle_index=True,
+        capture_replay_fixture=True,
+    )
+    return candidate, runtime, runtime / "runtime_episode.json.meta.json"
+
+
 def _assert_replay(
     *, candidate: Path, runtime: Path, receipt_path: Path, output_name: str
 ) -> dict[str, Any]:
@@ -160,7 +249,7 @@ def _assert_replay(
     execution = report["execution"]
     assert execution["strategy"] == "program-runtime-local-reexecution"
     evidence = execution["evidence"]
-    assert evidence["schema_version"] == "program-execution-replay-evidence-v1"
+    assert evidence["schema_version"] == "program-execution-replay-evidence-v2"
     assert evidence["status"] == "execution_reproduced"
     assert evidence["behavior_quality_approved"] is False
     assert all(evidence["checks"].values())
@@ -376,6 +465,207 @@ def test_program_runtime_replay_preserves_declared_quality_failure(
     evidence = report["execution"]["evidence"]
     assert evidence["behavior_status"] == "failed_quality"
     assert evidence["behavior_quality_approved"] is False
+
+
+@pytest.mark.parametrize(
+    (
+        "review_packet",
+        "quality_required",
+        "execution_status",
+        "final_status",
+        "quality_status",
+    ),
+    [
+        (
+            {
+                "canonical_mutation_performed": False,
+                "assessment": "quality-pass-token",
+            },
+            True,
+            "executed_valid_review_only",
+            "executed_valid_review_only",
+            "passed",
+        ),
+        (
+            {"canonical_mutation_performed": False, "assessment": "insufficient"},
+            True,
+            "executed_valid_review_only",
+            "failed_quality",
+            "failed",
+        ),
+        (
+            {"canonical_mutation_performed": True, "assessment": "unsafe"},
+            False,
+            "failed_boundary",
+            "failed_boundary",
+            "not_declared",
+        ),
+    ],
+)
+def test_program_runtime_replay_preserves_review_contract_and_quality_semantics(
+    tmp_path: Path,
+    replay_env: None,
+    monkeypatch: pytest.MonkeyPatch,
+    review_packet: dict[str, Any],
+    quality_required: bool,
+    execution_status: str,
+    final_status: str,
+    quality_status: str,
+) -> None:
+    candidate, runtime, receipt = _review_runtime(
+        tmp_path,
+        monkeypatch,
+        review_packet=review_packet,
+        quality_token_required=quality_required,
+    )
+    original_run = replay_executor.subprocess.run
+
+    def mode_bound_run(*args: Any, **kwargs: Any) -> Any:
+        argv = args[0]
+        mode_index = argv.index("--contract-mode")
+        assert argv[mode_index + 1] == "pdf_transition_review"
+        return original_run(*args, **kwargs)
+
+    monkeypatch.setattr(replay_executor.subprocess, "run", mode_bound_run)
+    report = _assert_replay(
+        candidate=candidate,
+        runtime=runtime,
+        receipt_path=receipt,
+        output_name="review-replay.json",
+    )
+
+    evidence = report["execution"]["evidence"]
+    assert evidence["contract_mode"] == "pdf_transition_review"
+    assert evidence["execution_status"] == execution_status
+    assert evidence["behavior_status"] == final_status
+    assert evidence["quality_status"] == quality_status
+    assert len(evidence["quality_evaluation_sha256"]) == 64
+    assert evidence["behavior_quality_approved"] is False
+    assert all(value is False for value in evidence["non_authority"].values())
+
+
+def test_program_runtime_replay_rejects_contract_mode_downgrade_before_execution(
+    tmp_path: Path,
+    replay_env: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _candidate, runtime, receipt_path = _review_runtime(
+        tmp_path,
+        monkeypatch,
+        review_packet={
+            "canonical_mutation_performed": False,
+            "assessment": "quality-pass-token",
+        },
+        quality_token_required=True,
+    )
+    receipt = load_run_receipt(receipt_path)
+    assert receipt is not None
+    replay_inputs = dict(receipt["replay_inputs"])
+    expected = dict(replay_inputs["expected_episode"])
+    replay_inputs["contract_mode"] = "none"
+    expected["contract_mode"] = "none"
+    replay_inputs["expected_episode"] = expected
+    receipt["replay_inputs"] = replay_inputs
+    receipt["cache_key"] = make_key(
+        {"kind": "program-runtime", "replay_inputs": replay_inputs}
+    )
+    receipt["cache_file"] = str(
+        Path(receipt["cache_file"]).with_name(f"{receipt['cache_key']}.json")
+    )
+    receipt["execution_replay"] = build_execution_replay_policy(
+        run_kind=receipt["run_kind"],
+        provider=receipt["provider"],
+        provider_details=receipt["provider_details"],
+        replay_inputs=replay_inputs,
+        output_hash=receipt["hash"],
+    )
+    receipt_path.write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    def must_not_run(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("contract-mode downgrade reached subprocess execution")
+
+    monkeypatch.setattr(replay_executor.subprocess, "run", must_not_run)
+    report = execute_run_receipt(receipt_path, Path("downgraded-replay.json"))
+
+    assert report["status"] in {"failed", "invalid"}, report
+    assert report["execution"]["attempted"] is False
+    assert "execution_replay_identity_drift" in report["error_codes"]
+    assert not (runtime / "downgraded-replay.json").exists()
+
+
+def test_program_runtime_replay_policy_rejects_unknown_contract_mode() -> None:
+    assert PROGRAM_RUNTIME_REPLAY_CONTRACT_MODES == {
+        "none",
+        "pdf_transition_review",
+    }
+    replay_inputs = {
+        "candidate_manifest_path": "/tmp/manifest.json",
+        "candidate_manifest_sha256": "a" * 64,
+        "candidate_receipt_path": "/tmp/manifest.json.meta.json",
+        "candidate_receipt_sha256": "b" * 64,
+        "runtime_inputs_sha256": "c" * 64,
+        "replay_fixture_path": "/tmp/runtime_replay_fixture.json",
+        "replay_fixture_sha256": "d" * 64,
+        "contract_mode": "future_authority_mode",
+        "skip_oracle_index": True,
+        "publication_preflight_requested": False,
+        "expected_episode": _expected_episode("future_authority_mode"),
+    }
+
+    policy = build_execution_replay_policy(
+        run_kind="program-runtime",
+        provider="stub",
+        provider_details={},
+        replay_inputs=replay_inputs,
+        output_hash="e" * 64,
+    )
+
+    assert policy["supported"] is False
+    assert "unsupported_contract_mode" in policy["unsupported_reasons"]
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("execution_status", None),
+        ("quality_status", ""),
+        ("quality_evaluation_sha256", "not-a-hash"),
+    ],
+)
+def test_program_runtime_replay_policy_rejects_incomplete_expected_episode(
+    field: str, replacement: object
+) -> None:
+    expected = _expected_episode()
+    if replacement is None:
+        expected.pop(field)
+    else:
+        expected[field] = replacement
+    replay_inputs = {
+        "candidate_manifest_path": "/tmp/manifest.json",
+        "candidate_manifest_sha256": "a" * 64,
+        "candidate_receipt_path": "/tmp/manifest.json.meta.json",
+        "candidate_receipt_sha256": "b" * 64,
+        "runtime_inputs_sha256": "c" * 64,
+        "replay_fixture_path": "/tmp/runtime_replay_fixture.json",
+        "replay_fixture_sha256": "d" * 64,
+        "contract_mode": "none",
+        "skip_oracle_index": True,
+        "publication_preflight_requested": False,
+        "expected_episode": expected,
+    }
+
+    policy = build_execution_replay_policy(
+        run_kind="program-runtime",
+        provider="stub",
+        provider_details={},
+        replay_inputs=replay_inputs,
+        output_hash="e" * 64,
+    )
+
+    assert policy["supported"] is False
+    assert "invalid_expected_episode" in policy["unsupported_reasons"]
 
 
 def test_program_runtime_replay_policy_is_unsupported_without_safe_stub_fixture(

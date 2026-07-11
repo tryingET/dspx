@@ -12,7 +12,7 @@ from typing import Any, Mapping, cast
 from dspx.provider_runtime import sanitize_text
 
 PROGRAM_RUNTIME_REPLAY_STRATEGY = "program-runtime-local-reexecution"
-PROGRAM_RUNTIME_REPLAY_EVIDENCE_SCHEMA = "program-execution-replay-evidence-v1"
+PROGRAM_RUNTIME_REPLAY_EVIDENCE_SCHEMA = "program-execution-replay-evidence-v2"
 _MAX_JSON_BYTES = 5_000_000
 _MAX_DIAGNOSTIC_CHARS = 20_000
 _ALLOWED_ENVIRONMENT_KEYS = {
@@ -268,7 +268,11 @@ def _build_replay_evidence(
         "candidate_manifest_sha256": manifest_hash,
         "candidate_receipt_sha256": candidate_receipt_hash,
         "runtime_episode_id": expected.get("runtime_episode_id"),
+        "contract_mode": expected.get("contract_mode"),
+        "execution_status": expected.get("execution_status"),
         "behavior_status": expected.get("status"),
+        "quality_status": expected.get("quality_status"),
+        "quality_evaluation_sha256": expected.get("quality_evaluation_sha256"),
         "behavior_quality_approved": False,
         "checks": dict(reproduction_checks),
         "fresh": {

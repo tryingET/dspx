@@ -165,7 +165,7 @@ DSPX_STUB_RESPONSE_JSON='{"reasoning":"...","answer":"..."}' \
   --manifest /path/to/candidate/manifest.json \
   --inputs /path/to/inputs.json \
   --outdir /path/to/runtime \
-  --contract-mode none \
+  --contract-mode pdf_transition_review \
   --skip-oracle-index \
   --capture-replay-fixture
 
@@ -177,9 +177,9 @@ dspx run replay \
 
 `--capture-replay-fixture` is an explicit retention decision. It writes `runtime_replay_fixture.json` with mode `0600`, containing the bounded runtime inputs and stub response required for deterministic reproduction. The receipt stores only the fixture path/hash, never those raw payloads. Secret-shaped inputs or stub diagnostics fail closed before fixture creation. Delete the fixture to revoke execution replay; check-only receipt verification remains available but execution replay then fails current-evidence validation.
 
-The `program-runtime-local-reexecution` strategy is limited to provider `stub`, `contract_mode=none`, `--skip-oracle-index`, no publication preflight, and a current mode-0600 receipt-local replay fixture. It validates the original candidate receipt and runtime bundle, copies and revalidates the candidate in a private sandbox, executes only that snapshot under isolated Python with a scrubbed environment, and exclusively writes a receipt-local `program-execution-replay-evidence-v1` packet. The child requests no network, shared Oracle, MLflow, AK, governance, promotion, activation, or external-authority effects. OS network/external-filesystem isolation is not claimed as enforced.
+The `program-runtime-local-reexecution` strategy is limited to provider `stub`, the explicit `none` or `pdf_transition_review` contract modes, `--skip-oracle-index`, no publication preflight, and a current mode-0600 receipt-local replay fixture. Unknown or downgraded contract modes fail closed. It validates the original candidate receipt and runtime bundle, copies and revalidates the candidate in a private sandbox, executes only that snapshot under isolated Python with a scrubbed environment, and exclusively writes a receipt-local `program-execution-replay-evidence-v2` packet. The child requests no network, shared Oracle, MLflow, AK, governance, promotion, activation, or external-authority effects. OS network/external-filesystem isolation is not claimed as enforced.
 
-Execution reproduction and behavior quality remain separate. Evidence may truthfully report `status: execution_reproduced` with `behavior_status: error` or another non-success state; `behavior_quality_approved` always remains false. Replaying an episode never approves promotion or activation.
+Execution reproduction, review-contract validity, and declared quality remain separate. Evidence reports the receipt-bound `contract_mode`, underlying `execution_status`, final `behavior_status`, `quality_status`, and canonical quality-evaluation hash. It may truthfully report `status: execution_reproduced` for a quality or review-boundary failure; `behavior_quality_approved` always remains false. Replaying an episode never grants PDF-domain acceptance, promotion, or activation.
 
 Exit codes:
 - `0`: verification passed or execution replay completed

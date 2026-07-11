@@ -14,9 +14,11 @@ from typing import Any, Mapping, cast
 from dspx.provider_runtime import sanitize_text
 from dspx.run_receipts import (
     EXECUTION_REPLAY_POLICY_VERSION,
+    PROGRAM_RUNTIME_REPLAY_CONTRACT_MODES,
     canonical_replay_identity_hash,
     current_execution_replay_runtime_identity,
     load_run_receipt,
+    valid_program_runtime_expected_episode,
 )
 from dspx.services.program_execution_replay import (
     PROGRAM_RUNTIME_REPLAY_STRATEGY,
@@ -102,22 +104,41 @@ def execute_program_runtime_receipt_impl(
             status="invalid",
         )
     replay_inputs = _safe_mapping(receipt.get("replay_inputs"))
+    provider_identity = _safe_mapping(policy.get("provider_identity"))
     runtime_identity = _safe_mapping(policy.get("runtime_identity"))
+    output_identity = _safe_mapping(policy.get("output_identity"))
+    provider_details = receipt.get("provider_details")
+    expected_provider_identity = {
+        "provider": receipt.get("provider"),
+        "provider_details": dict(provider_details)
+        if isinstance(provider_details, Mapping)
+        else None,
+    }
     current_runtime = current_execution_replay_runtime_identity()
     if (
         policy.get("input_hash") != canonical_replay_identity_hash(replay_inputs)
+        or provider_identity.get("provider") != receipt.get("provider")
+        or provider_identity.get("provider_details")
+        != expected_provider_identity["provider_details"]
+        or provider_identity.get("hash")
+        != canonical_replay_identity_hash(expected_provider_identity)
         or runtime_identity.get("hash")
         != canonical_replay_identity_hash(current_runtime)
         or {key: value for key, value in runtime_identity.items() if key != "hash"}
         != current_runtime
+        or output_identity != {"algorithm": "sha256", "hash": receipt.get("hash")}
     ):
         return _add_error(
             report,
             code="execution_replay_identity_drift",
             message="runtime receipt input/runtime identity drift",
         )
+    contract_mode = replay_inputs.get("contract_mode")
     if (
-        replay_inputs.get("contract_mode") != "none"
+        contract_mode not in PROGRAM_RUNTIME_REPLAY_CONTRACT_MODES
+        or not valid_program_runtime_expected_episode(
+            replay_inputs.get("expected_episode"), contract_mode=contract_mode
+        )
         or replay_inputs.get("skip_oracle_index") is not True
         or replay_inputs.get("publication_preflight_requested") is not False
         or not isinstance(replay_inputs.get("replay_fixture_path"), str)
@@ -242,13 +263,26 @@ def execute_program_runtime_receipt_impl(
         )
         expected = _safe_mapping(replay_inputs.get("expected_episode"))
         source_observed = _observed_outputs(source_bundle.behavior_results)
+        source_quality = _safe_mapping(
+            source_bundle.behavior_results.get("quality_evaluation")
+        )
         source_checks = {
             "runtime_episode_id": source_bundle.runtime_episode.get(
                 "runtime_episode_id"
             )
             == expected.get("runtime_episode_id"),
+            "contract_mode": source_bundle.runtime_episode.get("contract_mode")
+            == contract_mode
+            == expected.get("contract_mode"),
+            "execution_status": source_bundle.runtime_episode.get("execution_status")
+            == source_bundle.behavior_results.get("execution_status")
+            == expected.get("execution_status"),
             "status": source_bundle.runtime_episode.get("status")
             == expected.get("status"),
+            "quality_status": source_quality.get("status")
+            == expected.get("quality_status"),
+            "quality_evaluation": _canonical_hash(source_quality)
+            == expected.get("quality_evaluation_sha256"),
             "observed_outputs": _canonical_hash(source_observed)
             == expected.get("observed_outputs_sha256"),
             "behavior_results": source_bundle.behavior_results_sha256
@@ -334,7 +368,7 @@ def execute_program_runtime_receipt_impl(
             "--outdir",
             str(fresh_root),
             "--contract-mode",
-            "none",
+            str(contract_mode),
             "--skip-oracle-index",
             "--json",
         ]
@@ -400,6 +434,9 @@ def execute_program_runtime_receipt_impl(
             )
             fresh_observed = _observed_outputs(fresh_bundle.behavior_results)
             fresh_episode = fresh_bundle.runtime_episode
+            fresh_quality = _safe_mapping(
+                fresh_bundle.behavior_results.get("quality_evaluation")
+            )
             fresh_hashes = _safe_mapping(fresh_episode.get("artifact_hashes"))
             raw_output_files = fresh_episode.get("output_files")
             declared_output_files = {
@@ -435,8 +472,18 @@ def execute_program_runtime_receipt_impl(
             reproduction_checks = {
                 "runtime_episode_id_match": fresh_episode.get("runtime_episode_id")
                 == expected.get("runtime_episode_id"),
+                "contract_mode_match": fresh_episode.get("contract_mode")
+                == contract_mode
+                == expected.get("contract_mode"),
+                "execution_status_match": fresh_episode.get("execution_status")
+                == fresh_bundle.behavior_results.get("execution_status")
+                == expected.get("execution_status"),
                 "runtime_status_match": fresh_episode.get("status")
                 == expected.get("status"),
+                "quality_status_match": fresh_quality.get("status")
+                == expected.get("quality_status"),
+                "quality_evaluation_match": _canonical_hash(fresh_quality)
+                == expected.get("quality_evaluation_sha256"),
                 "observed_outputs_match": _canonical_hash(fresh_observed)
                 == expected.get("observed_outputs_sha256"),
                 "behavior_results_hash_match": fresh_bundle.behavior_results_sha256

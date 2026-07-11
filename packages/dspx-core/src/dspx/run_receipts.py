@@ -15,7 +15,8 @@ from dspx.redaction import redact_url
 
 RUN_RECEIPT_VERSION = "v2"
 RUN_IDENTITY_VERSION = "v1"
-EXECUTION_REPLAY_POLICY_VERSION = "local-execution-replay-v1"
+EXECUTION_REPLAY_POLICY_VERSION = "local-execution-replay-v2"
+PROGRAM_RUNTIME_REPLAY_CONTRACT_MODES = frozenset({"none", "pdf_transition_review"})
 
 _EXECUTION_REPLAY_EFFECTS = {
     "network_access_requested": False,
@@ -43,6 +44,27 @@ _EXECUTION_REPLAY_PROGRAM_RUNTIME_KEYS = {
     "skip_oracle_index",
     "publication_preflight_requested",
     "expected_episode",
+}
+_PROGRAM_RUNTIME_EXPECTED_EPISODE_KEYS = {
+    "runtime_episode_id",
+    "contract_mode",
+    "execution_status",
+    "status",
+    "quality_status",
+    "quality_evaluation_sha256",
+    "observed_outputs_sha256",
+    "behavior_results_sha256",
+    "oracle_evidence_sha256",
+    "program_runtime_traces_sha256",
+    "runtime_episode_sha256",
+}
+_PROGRAM_RUNTIME_EXPECTED_EPISODE_HASH_KEYS = {
+    "quality_evaluation_sha256",
+    "observed_outputs_sha256",
+    "behavior_results_sha256",
+    "oracle_evidence_sha256",
+    "program_runtime_traces_sha256",
+    "runtime_episode_sha256",
 }
 _EXECUTION_REPLAY_SIGNATURE_OPTION_KEYS = {
     "class_name",
@@ -358,6 +380,34 @@ def current_execution_replay_runtime_identity() -> dict[str, Any]:
     }
 
 
+def valid_program_runtime_expected_episode(
+    value: object, *, contract_mode: object
+) -> bool:
+    if not isinstance(value, Mapping):
+        return False
+    payload: dict[str, Any] = {str(key): item for key, item in value.items()}
+    if set(payload) != _PROGRAM_RUNTIME_EXPECTED_EPISODE_KEYS:
+        return False
+    if payload.get("contract_mode") != contract_mode:
+        return False
+    if any(
+        not isinstance(payload.get(key), str) or not str(payload.get(key)).strip()
+        for key in {
+            "runtime_episode_id",
+            "execution_status",
+            "status",
+            "quality_status",
+        }
+    ):
+        return False
+    return all(
+        isinstance(payload.get(key), str)
+        and len(str(payload.get(key))) == 64
+        and all(character in "0123456789abcdef" for character in str(payload.get(key)))
+        for key in _PROGRAM_RUNTIME_EXPECTED_EPISODE_HASH_KEYS
+    )
+
+
 def build_execution_replay_policy(
     *,
     run_kind: str,
@@ -395,7 +445,7 @@ def build_execution_replay_policy(
         strategy = "program-runtime-local-reexecution"
         if set(inputs) != _EXECUTION_REPLAY_PROGRAM_RUNTIME_KEYS:
             unsupported_reasons.append("unsupported_inputs")
-        if inputs.get("contract_mode") != "none":
+        if inputs.get("contract_mode") not in PROGRAM_RUNTIME_REPLAY_CONTRACT_MODES:
             unsupported_reasons.append("unsupported_contract_mode")
         if inputs.get("skip_oracle_index") is not True:
             unsupported_reasons.append("oracle_index_not_skipped")
@@ -407,8 +457,10 @@ def build_execution_replay_policy(
             unsupported_reasons.append("missing_replay_fixture")
         if not isinstance(fixture_hash, str) or len(fixture_hash) != 64:
             unsupported_reasons.append("missing_replay_fixture_hash")
-        if not isinstance(inputs.get("expected_episode"), Mapping):
-            unsupported_reasons.append("missing_expected_episode")
+        if not valid_program_runtime_expected_episode(
+            inputs.get("expected_episode"), contract_mode=inputs.get("contract_mode")
+        ):
+            unsupported_reasons.append("invalid_expected_episode")
     else:
         unsupported_reasons.append("unsupported_run_kind")
     if os.name != "posix" or not all(

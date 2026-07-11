@@ -1147,7 +1147,7 @@ def test_execution_replay_runtime_identity_is_versioned_not_source_bound() -> No
     from dspx.run_receipts import current_execution_replay_runtime_identity
 
     identity = current_execution_replay_runtime_identity()
-    assert identity["executor_version"] == "local-execution-replay-v1"
+    assert identity["executor_version"] == "local-execution-replay-v2"
     assert identity["python_version"].count(".") == 1
     assert "implementation_hash" not in identity
 
