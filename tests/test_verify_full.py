@@ -42,6 +42,10 @@ case \"$1\" in
     exit {runtime_exit}
     ;;
   verify-tests)
+    if [ "${{DSPX_VERIFY_FULL_COMBINED_OFFLINE:-0}}" != "1" ]; then
+      echo missing-combined-offline-mode >&2
+      exit 97
+    fi
     echo tests-failed >&2
     exit {tests_exit}
     ;;

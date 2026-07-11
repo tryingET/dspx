@@ -129,11 +129,20 @@ test-parallel jobs="auto":
     echo "no local tests"; \
   fi
 
-# Parallel offline slow test run. `loadfile` preserves file-level ordering.
+# Parallel offline slow test run.
 test-slow-parallel jobs="auto":
   workers="{{jobs}}"; workers="${workers#jobs=}"; \
   if [ -d tests ]; then \
     uv run --no-sync -m pytest -q tests -n "$workers" --dist load -m "slow and not live and not network and not model and not gpu and not postgres"; \
+  else \
+    echo "no local tests"; \
+  fi
+
+# Combined credential-free lane used only by the full gate.
+test-full-offline-parallel jobs="auto":
+  workers="{{jobs}}"; workers="${workers#jobs=}"; \
+  if [ -d tests ]; then \
+    uv run --no-sync -m pytest -q tests -n "$workers" --dist load -m "not live and not network and not model and not gpu and not postgres"; \
   else \
     echo "no local tests"; \
   fi
@@ -284,13 +293,17 @@ loop-landing-check:
 verify-impact-receipt base="auto" out="generated/ci/verify-impact-result.json":
   uv run --no-sync python scripts/ci/verify_changed.py --base {{base}} --run --result-out "{{out}}"
 
-# Full static + test branch. Keep `just test` serial for compatibility, but use
-# the behavior-preserving xdist split here so wide loop/full validation uses cores.
+# Full static + test branch. Keep standalone behavior compatible; verify-full opts
+# into one combined offline xdist pool to avoid duplicate startup and idle workers.
 verify-tests:
   just typecheck
   just typecheck-tests
-  just test-parallel jobs=16
-  just test-slow-parallel jobs=16
+  if [ "${DSPX_VERIFY_FULL_COMBINED_OFFLINE:-0}" = "1" ]; then \
+    just test-full-offline-parallel jobs=16; \
+  else \
+    just test-parallel jobs=16; \
+    just test-slow-parallel jobs=16; \
+  fi
   just test-residual-serial
 
 # Hook-facing pre-push gate

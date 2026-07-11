@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import os
 from pathlib import Path
 
@@ -27,3 +28,41 @@ def test_parallel_surfaces_use_per_test_scheduling() -> None:
     assert 'pytest -q tests -n "$workers" --dist load ' in justfile
     assert 'pytest_args=(-q -n "$jobs" --dist load -m "$marker")' in shard_script
     assert "--dist loadfile" not in shard_script
+
+
+def test_full_offline_lane_is_complete_and_disjoint_from_residual() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    justfile = (repo_root / "Justfile").read_text(encoding="utf-8")
+
+    combined = "not live and not network and not model and not gpu and not postgres"
+    residual = "live or network or model or gpu or postgres"
+    assert f'-m "{combined}"' in justfile
+    assert f'-m "{residual}"' in justfile
+
+    # Exhaust the marker truth table: the combined pool and residual selection are
+    # complements, and the compatible fast/slow recipes partition that same pool.
+    for slow, live, network, model, gpu, postgres in itertools.product(
+        (False, True), repeat=6
+    ):
+        infrastructure = live or network or model or gpu or postgres
+        offline = not infrastructure
+        fast_lane = not slow and offline
+        slow_lane = slow and offline
+
+        assert offline != infrastructure
+        assert not (fast_lane and slow_lane)
+        assert (fast_lane or slow_lane) == offline
+
+
+def test_combined_offline_lane_is_full_gate_only() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    justfile = (repo_root / "Justfile").read_text(encoding="utf-8")
+    verify_full = (repo_root / "scripts" / "ci" / "verify-full.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'DSPX_VERIFY_FULL_COMBINED_OFFLINE:-0}" = "1"' in justfile
+    assert "just test-full-offline-parallel jobs=16" in justfile
+    assert "just test-parallel jobs=16" in justfile
+    assert "just test-slow-parallel jobs=16" in justfile
+    assert "DSPX_VERIFY_FULL_COMBINED_OFFLINE=1 just verify-tests" in verify_full
