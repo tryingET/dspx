@@ -318,6 +318,66 @@ def test_program_runtime_replay_preserves_failed_behavior_as_nonapproval(
     assert (runtime / "degraded-replay.json").is_file()
 
 
+def test_program_runtime_replay_preserves_declared_quality_failure(
+    tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(
+        "DSPX_STUB_RESPONSE_JSON",
+        json.dumps(
+            {
+                "reasoning": "overclaim",
+                "response": "A failure has an unknown cause and needs investigation but was definitely caused by deployment.",
+            }
+        ),
+    )
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="ReplayQualityProgram",
+            objective="Produce calibrated evidence.",
+            inputs=["observation"],
+            outputs=["response"],
+            quality_criteria=[
+                {
+                    "id": "calibrated_response",
+                    "output_field": "response",
+                    "evaluator": "concept_coverage",
+                    "required_concept_groups": [
+                        ["failure", "failed"],
+                        ["unknown"],
+                        ["investigate", "investigation"],
+                    ],
+                    "forbidden_concepts": ["definitely caused"],
+                    "min_score": 1.0,
+                }
+            ],
+        ),
+        outdir=tmp_path / "quality-candidate",
+    )
+    candidate = Path(artifact.root_path)
+    inputs = tmp_path / "quality-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"observation": "one test failed"}}),
+        encoding="utf-8",
+    )
+    runtime = tmp_path / "quality-runtime"
+    run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=runtime,
+        skip_oracle_index=True,
+        capture_replay_fixture=True,
+    )
+
+    report = execute_run_receipt(
+        runtime / "runtime_episode.json.meta.json", Path("quality-replay.json")
+    )
+
+    assert report["status"] == "executed", report
+    evidence = report["execution"]["evidence"]
+    assert evidence["behavior_status"] == "failed_quality"
+    assert evidence["behavior_quality_approved"] is False
+
+
 def test_program_runtime_replay_policy_is_unsupported_without_safe_stub_fixture(
     tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

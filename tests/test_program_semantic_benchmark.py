@@ -87,6 +87,55 @@ def test_program_semantic_benchmark_runs_generated_single_and_pipeline_candidate
         behavior["examples"][0]["runtime_trace"]["module_calls"][1]["module_id"]
         == "draft_calibrated_response"
     )
+    assert behavior["quality_evaluation"]["status"] == "passed"
+    assert behavior["quality_evaluation"]["quality_approved"] is False
+
+
+def test_program_semantic_benchmark_v1_preserves_legacy_no_quality_intent(
+    tmp_path: Path,
+) -> None:
+    corpus = _single_case_corpus()
+    corpus["cases"][0]["intent"].pop("quality_criteria")
+
+    result = run_program_semantic_benchmark(
+        corpus,
+        corpus_path=CORPUS_PATH,
+        work_root=tmp_path / "work",
+        result_path=tmp_path / "result.json",
+    )
+
+    assert result["summary"]["threshold_pass"] is True
+    behavior = json.loads(
+        (
+            tmp_path / "work/single-module-authority-boundary/behavior_results.json"
+        ).read_text()
+    )
+    assert behavior["quality_evaluation"]["status"] == "not_declared"
+
+
+def test_legacy_benchmark_forbidden_hit_fails_at_zero_threshold(
+    tmp_path: Path,
+) -> None:
+    corpus = _single_case_corpus()
+    case = corpus["cases"][0]
+    case["intent"].pop("quality_criteria")
+    forbidden_response = "This benchmark automatically activates the program."
+    case["intent"]["examples"][0]["outputs"]["answer"] = forbidden_response
+    case["offline_stub_response"]["answer"] = forbidden_response
+    corpus["thresholds"]["min_overall_score"] = 0.0
+    corpus["thresholds"]["min_case_score"] = 0.0
+    corpus["thresholds"]["max_failed_cases"] = 0
+
+    result = run_program_semantic_benchmark(
+        corpus,
+        corpus_path=CORPUS_PATH,
+        work_root=tmp_path / "work",
+        result_path=tmp_path / "result.json",
+    )
+
+    assert result["cases"][0]["forbidden_hits"] == ["automatically activates"]
+    assert result["cases"][0]["status"] == "failed"
+    assert result["summary"]["threshold_pass"] is False
 
 
 def test_program_semantic_benchmark_rejects_stale_behavior_before_scoring(
@@ -150,6 +199,12 @@ def test_program_semantic_corpus_rejects_unknown_fields_and_oversize(
     invalid = tmp_path / "invalid.json"
     invalid.write_text(json.dumps(corpus), encoding="utf-8")
     with pytest.raises(ValueError, match="unknown fields"):
+        load_program_semantic_corpus(invalid)
+
+    corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
+    corpus["cases"][0]["intent"]["quality_criteria"][0]["forbidden_concepts"] = []
+    invalid.write_text(json.dumps(corpus), encoding="utf-8")
+    with pytest.raises(ValueError, match="outer semantic contract drifts"):
         load_program_semantic_corpus(invalid)
 
     oversized = tmp_path / "oversized.json"

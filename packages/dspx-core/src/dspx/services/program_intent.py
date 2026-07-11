@@ -14,6 +14,7 @@ from dspx.services.program_capabilities import (
     normalize_program_capabilities,
     normalize_retriever_config,
 )
+from dspx.services.program_quality_evaluation import normalize_quality_criteria
 
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _DECLARED_NOT_MATERIALIZED = "declared_not_materialized"
@@ -485,6 +486,7 @@ class ProgramIntent(BaseModel):
     dataset: dict[str, Any] = Field(default_factory=dict)
     datasets: dict[str, Any] = Field(default_factory=dict)
     metric: Optional[str] = None
+    quality_criteria: list[dict[str, Any]] = Field(default_factory=list)
     runtime: dict[str, Any] = Field(default_factory=dict)
     jury: dict[str, Any] = Field(default_factory=dict)
     promotion: dict[str, Any] = Field(default_factory=dict)
@@ -608,6 +610,9 @@ class ProgramIntent(BaseModel):
             )
         self.topology = normalize_program_topology(self.topology)
         self.capabilities = normalize_program_capabilities(self.capabilities)
+        self.quality_criteria = normalize_quality_criteria(
+            self.quality_criteria, outputs=self.outputs
+        )
         return self
 
 

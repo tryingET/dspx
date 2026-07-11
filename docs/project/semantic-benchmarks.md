@@ -60,7 +60,7 @@ just program-semantic-benchmark-live dspy-lm-auth \
   out=/tmp/dspx-program-semantic-live-result.json
 ```
 
-`benchmarks/semantic/program-corpus-v1.json` includes one single-module assembly and one bounded `Predict` → `ChainOfThought` pipeline. Each case is materialized through `program-loop`; semantic scoring consumes only the current, replay-checked `behavior_results.json` reached through the hash-bound `behavior_episode.json`. It does not call a provider directly from the benchmark scorer.
+`benchmarks/semantic/program-corpus-v1.json` includes one single-module assembly and one bounded `Predict` → `ChainOfThought` pipeline. Each checked-in case declares intent-native `concept_coverage` quality criteria matching its outer aggregate scoring contract. Each case is materialized through `program-loop`; the consumer re-derives quality from the current manifest intent and observed outputs, requires canonical hash-bound behavior quality evidence, and then computes the aggregate semantic score. It does not call a provider directly from the benchmark scorer. Corpus v1 remains backward-compatible with external legacy cases that omit intent quality criteria; those cases retain outer aggregate scoring without gaining a candidate-quality claim.
 
 The aggregate `dspx-program-semantic-benchmark-result-v1` packet records corpus identity, candidate/receipt identities, and current manifest, receipt, workflow, behavior-episode, and behavior-result hashes. Raw generated responses are represented only by SHA-256 in the aggregate. Candidate directories remain available for inspection.
 

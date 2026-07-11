@@ -15,6 +15,10 @@ from typing import Any, Iterator, Mapping, cast
 from jsonschema import Draft202012Validator
 
 from dspx.provider_runtime import sanitize_text
+from dspx.services.program_quality_evaluation import (
+    evaluate_declared_quality,
+    normalize_quality_criteria,
+)
 from dspx.services.program_workflow import run_program_loop_from_intent_path
 from dspx.services.run_replay_service import check_run_receipt
 from dspx.services.semantic_benchmark import score_semantic_response
@@ -107,6 +111,7 @@ def _validate_benchmark_intent(intent: Mapping[str, Any], *, case_id: str) -> No
         "outputs",
         "metric",
         "constraints",
+        "quality_criteria",
         "topology",
         "examples",
     }
@@ -263,6 +268,34 @@ def _validate_program_semantic_corpus_payload(
             isinstance(term, str) and term.strip() for term in forbidden
         ):
             raise ValueError(f"case {case_id} has invalid forbidden concepts")
+        bounded_outer = normalize_quality_criteria(
+            [
+                {
+                    "id": "benchmark_case",
+                    "output_field": response_field,
+                    "evaluator": "concept_coverage",
+                    "required_concept_groups": groups,
+                    "forbidden_concepts": forbidden,
+                    "min_score": thresholds["min_case_score"],
+                }
+            ],
+            outputs=[response_field],
+        )[0]
+        raw_declared = intent.get("quality_criteria", [])
+        if raw_declared:
+            declared = normalize_quality_criteria(
+                raw_declared, outputs=cast(list[str], outputs)
+            )
+            if len(declared) != 1 or (
+                declared[0]["required_concept_groups"]
+                != bounded_outer["required_concept_groups"]
+                or declared[0]["forbidden_concepts"]
+                != bounded_outer["forbidden_concepts"]
+            ):
+                raise ValueError(
+                    f"case {case_id} outer semantic contract drifts from intent quality_criteria"
+                )
+            intent["quality_criteria"] = declared
     return cast(dict[str, Any], json.loads(_canonical_bytes(payload)))
 
 
@@ -376,7 +409,7 @@ def _load_case_evidence(
         label="receipt",
     )
     _preflight_candidate_tree(root)
-    _manifest_payload, manifest_hash = _read_json_and_hash(manifest, label="manifest")
+    manifest_payload, manifest_hash = _read_json_and_hash(manifest, label="manifest")
     receipt_payload, receipt_hash = _read_json_and_hash(receipt, label="receipt")
     if receipt_payload.get("cache_enabled") is not False:
         raise ValueError(
@@ -462,6 +495,35 @@ def _load_case_evidence(
     if example.get("status") != "passed":
         raise ValueError("benchmark behavior example did not pass")
     observed = example.get("observed_outputs")
+    manifest_intent = manifest_payload.get("intent")
+    if not isinstance(manifest_intent, Mapping):
+        raise ValueError("candidate manifest intent is missing")
+    manifest_outputs = (
+        [str(item) for item in manifest_intent.get("outputs", [])]
+        if isinstance(manifest_intent.get("outputs"), list)
+        else []
+    )
+    declared_quality = normalize_quality_criteria(
+        manifest_intent.get("quality_criteria", []), outputs=manifest_outputs
+    )
+    canonical_quality = evaluate_declared_quality(
+        declared_quality,
+        observed if isinstance(observed, Mapping) else {},
+    )
+    if declared_quality:
+        if canonical_quality.get("status") != "passed":
+            raise ValueError("generated behavior declared quality did not pass")
+        expected_quality_summary = {
+            "status": "passed",
+            "evaluations_total": 1,
+            "evaluations_passed": 1,
+            "evaluations_failed": 0,
+            "quality_approved": False,
+        }
+        if result_payload.get("quality_evaluation") != expected_quality_summary:
+            raise ValueError("generated behavior quality summary is inconsistent")
+        if example.get("quality_evaluation") != canonical_quality:
+            raise ValueError("generated behavior quality record is inconsistent")
     response_field = str(case["response_field"])
     response = observed.get(response_field) if isinstance(observed, dict) else None
     if not isinstance(response, str) or len(response) > _MAX_TEXT_CHARS:
@@ -641,7 +703,11 @@ def run_program_semantic_benchmark(
                 ),
                 "forbidden_hits": [],
             }
-        passed = error is None and scored["score"] >= thresholds["min_case_score"]
+        passed = (
+            error is None
+            and scored["score"] >= thresholds["min_case_score"]
+            and not scored["forbidden_hits"]
+        )
         rows.append(
             {
                 "id": case["id"],

@@ -18,6 +18,21 @@
         "outputs": ["answer"],
         "metric": "exact_match",
         "constraints": ["Do not claim that benchmark evidence approves promotion or activation."],
+        "quality_criteria": [
+          {
+            "id": "authority_boundary",
+            "output_field": "answer",
+            "evaluator": "concept_coverage",
+            "required_concept_groups": [
+              ["evidence only", "local evidence"],
+              ["does not approve", "not approve"],
+              ["promotion", "promote"],
+              ["activate", "activation"]
+            ],
+            "forbidden_concepts": ["automatically activates", "approval granted"],
+            "min_score": 1.0
+          }
+        ],
         "examples": [
           {
             "inputs": {
@@ -52,6 +67,20 @@
         "outputs": ["response"],
         "metric": "exact_match",
         "constraints": ["Do not invent a cause that is absent from the observation."],
+        "quality_criteria": [
+          {
+            "id": "evidence_calibration",
+            "output_field": "response",
+            "evaluator": "concept_coverage",
+            "required_concept_groups": [
+              ["one observed failure", "one failure", "one of ten"],
+              ["unknown", "undetermined"],
+              ["investigation", "investigate"]
+            ],
+            "forbidden_concepts": ["definitely caused", "all tests passed"],
+            "min_score": 1.0
+          }
+        ],
         "topology": {
           "kind": "pipeline",
           "execution_status": "declared_not_materialized",

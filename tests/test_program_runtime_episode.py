@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
@@ -204,6 +205,190 @@ def test_program_runtime_episode_round_trips_explicit_pipeline_candidate(
     )
     assert behavior["summary"]["status"] == "executed"
     assert behavior["examples"][0]["observed_outputs"]["response"]
+
+
+def test_program_runtime_episode_applies_declared_quality_without_approval(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="CalibratedRuntimeProgram",
+            objective="Produce a calibrated failure statement.",
+            inputs=["observation"],
+            outputs=["response"],
+            quality_criteria=[
+                {
+                    "id": "calibrated_response",
+                    "output_field": "response",
+                    "evaluator": "concept_coverage",
+                    "required_concept_groups": [
+                        ["failure", "failed"],
+                        ["unknown", "undetermined"],
+                        ["investigate", "investigation"],
+                    ],
+                    "forbidden_concepts": ["definitely caused"],
+                    "min_score": 1.0,
+                }
+            ],
+        ),
+        outdir=tmp_path / "quality-candidate",
+    )
+    candidate = Path(artifact.root_path)
+    inputs = tmp_path / "quality-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"observation": "one test failed"}}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv(
+        "DSPX_STUB_RESPONSE_JSON",
+        json.dumps(
+            {
+                "reasoning": "bounded evidence",
+                "response": "One test failed; the cause is undetermined and needs investigation.",
+            }
+        ),
+    )
+    passed = run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=tmp_path / "quality-pass",
+        skip_oracle_index=True,
+    )
+    passed_behavior = json.loads(
+        (tmp_path / "quality-pass/behavior_results.json").read_text()
+    )
+    assert passed["steps"]["runtime_execution"]["status"] == "executed_quality_passed"
+    assert passed["status"] == "ok"
+    assert passed_behavior["quality_evaluation"]["status"] == "passed"
+    assert passed_behavior["quality_evaluation"]["quality_approved"] is False
+    passed_oracle = json.loads(
+        (tmp_path / "quality-pass/oracle_evidence.json").read_text()
+    )
+    assert passed_oracle["behavior"]["failure_modes"] == []
+
+    monkeypatch.setenv(
+        "DSPX_STUB_RESPONSE_JSON",
+        json.dumps(
+            {
+                "reasoning": "overclaim",
+                "response": "One failure has an unknown cause and needs investigation, but it was definitely caused by deployment.",
+            }
+        ),
+    )
+    failed = run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=tmp_path / "quality-fail",
+        skip_oracle_index=True,
+    )
+    failed_behavior = json.loads(
+        (tmp_path / "quality-fail/behavior_results.json").read_text()
+    )
+    assert failed["steps"]["runtime_execution"]["status"] == "failed_quality"
+    assert failed["status"] == "degraded"
+    assert failed_behavior["quality_evaluation"]["status"] == "failed"
+    assert failed_behavior["quality_evaluation"]["criteria"][0]["forbidden_hits"] == [
+        "definitely caused"
+    ]
+
+    monkeypatch.setenv(
+        "DSPX_STUB_RESPONSE_JSON",
+        json.dumps({"reasoning": "missing declared response"}),
+    )
+    errored = run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=tmp_path / "quality-error",
+        skip_oracle_index=True,
+    )
+    error_episode_path = tmp_path / "quality-error/runtime_episode.json"
+    error_episode = json.loads(error_episode_path.read_text())
+    source_manifest = json.loads((candidate / "manifest.json").read_text())
+    assert errored["steps"]["runtime_execution"]["status"] == "error"
+    assert error_episode["execution_status"] == "error"
+    validate_program_runtime_episode_contract(
+        error_episode,
+        runtime_episode_path=error_episode_path,
+        expected_manifest_path=candidate / "manifest.json",
+        expected_manifest=source_manifest,
+        expected_manifest_sha256=hashlib.sha256(
+            (candidate / "manifest.json").read_bytes()
+        ).hexdigest(),
+    )
+
+    pass_root = tmp_path / "quality-pass"
+    behavior_path = pass_root / "behavior_results.json"
+    behavior_payload = json.loads(behavior_path.read_text())
+    behavior_payload["intent"]["quality_criteria"] = []
+    not_declared = {
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared",
+        "criteria_total": 0,
+        "criteria_passed": 0,
+        "criteria_failed": 0,
+        "criteria": [],
+        "quality_approved": False,
+    }
+    behavior_payload["quality_evaluation"] = not_declared
+    behavior_payload["examples"][0]["quality_evaluation"] = not_declared
+    behavior_payload["examples"][0]["status"] = "executed"
+    behavior_payload["summary"] = {
+        "total": 1,
+        "passed": 0,
+        "failed": 0,
+        "error": 0,
+        "degraded": 0,
+        "executed": 1,
+        "status_counts": {"executed": 1},
+        "status": "executed",
+    }
+    behavior_path.write_text(
+        json.dumps(behavior_payload, indent=2, sort_keys=True) + "\n"
+    )
+    behavior_hash = hashlib.sha256(behavior_path.read_bytes()).hexdigest()
+    traces_path = pass_root / "program_runtime_traces.json"
+    traces = json.loads(traces_path.read_text())
+    for source in traces["sources"]:
+        if source["path"] == "behavior_results.json":
+            source["content_hash"] = behavior_hash
+    traces_path.write_text(json.dumps(traces, indent=2, sort_keys=True) + "\n")
+    traces_hash = hashlib.sha256(traces_path.read_bytes()).hexdigest()
+    oracle_path = pass_root / "oracle_evidence.json"
+    oracle = json.loads(oracle_path.read_text())
+    oracle["behavior"]["result_hash"] = behavior_hash
+    for source in oracle["source_artifacts"]:
+        if source["path"] == "behavior_results.json":
+            source["content_hash"] = behavior_hash
+        if source["path"] == "program_runtime_traces.json":
+            source["content_hash"] = traces_hash
+    oracle_path.write_text(json.dumps(oracle, indent=2, sort_keys=True) + "\n")
+    oracle_hash = hashlib.sha256(oracle_path.read_bytes()).hexdigest()
+    runtime_manifest_path = pass_root / "manifest.json"
+    runtime_manifest = json.loads(runtime_manifest_path.read_text())
+    runtime_manifest["runtime_episode"]["behavior_results_sha256"] = behavior_hash
+    runtime_manifest_path.write_text(
+        json.dumps(runtime_manifest, indent=2, sort_keys=True) + "\n"
+    )
+    episode_path = pass_root / "runtime_episode.json"
+    episode = json.loads(episode_path.read_text())
+    episode["status"] = "executed"
+    episode["artifact_hashes"]["behavior_results_sha256"] = behavior_hash
+    episode["artifact_hashes"]["program_runtime_traces_sha256"] = traces_hash
+    episode["artifact_hashes"]["oracle_evidence_sha256"] = oracle_hash
+    episode_path.write_text(json.dumps(episode, indent=2, sort_keys=True) + "\n")
+    source_manifest = json.loads((candidate / "manifest.json").read_text())
+    with pytest.raises(ValueError, match="quality criteria drift"):
+        validate_program_runtime_episode_contract(
+            episode,
+            runtime_episode_path=episode_path,
+            expected_manifest_path=candidate / "manifest.json",
+            expected_manifest=source_manifest,
+            expected_manifest_sha256=hashlib.sha256(
+                (candidate / "manifest.json").read_bytes()
+            ).hexdigest(),
+        )
 
 
 def test_program_runtime_episode_can_write_shared_publication_preflight(
@@ -853,6 +1038,62 @@ def test_runtime_episode_provider_configuration_failure_does_not_import_program(
     assert payload["steps"]["runtime_execution"]["status"] == "error"
     assert behavior["provider"]["status"] == "unavailable"
     assert behavior["examples"][0]["observed_outputs"] == {}
+
+
+def test_quality_runtime_provider_failure_remains_final_consumer_valid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="QualityProviderFailureProgram",
+            objective="Return calibrated evidence.",
+            inputs=["question"],
+            outputs=["answer"],
+            quality_criteria=[
+                {
+                    "id": "answer_evidence",
+                    "output_field": "answer",
+                    "evaluator": "concept_coverage",
+                    "required_concept_groups": [["evidence"]],
+                    "forbidden_concepts": ["approved"],
+                    "min_score": 1.0,
+                }
+            ],
+        ),
+        outdir=tmp_path / "quality-provider-candidate",
+    )
+    candidate = Path(artifact.root_path)
+    from dspx import provider_registry
+
+    def raise_provider(*args, **kwargs):
+        raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(provider_registry, "create_from_env", raise_provider)
+    inputs = tmp_path / "quality-provider-inputs.json"
+    inputs.write_text('{"inputs":{"question":"what happened?"}}')
+    outdir = tmp_path / "quality-provider-runtime"
+    run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=outdir,
+        skip_oracle_index=True,
+    )
+    episode_path = outdir / "runtime_episode.json"
+    episode = json.loads(episode_path.read_text())
+    manifest = json.loads((candidate / "manifest.json").read_text())
+
+    assert episode["status"] == "error"
+    assert episode["execution_status"] == "error"
+    validate_program_runtime_episode_contract(
+        episode,
+        runtime_episode_path=episode_path,
+        expected_manifest_path=candidate / "manifest.json",
+        expected_manifest=manifest,
+        expected_manifest_sha256=hashlib.sha256(
+            (candidate / "manifest.json").read_bytes()
+        ).hexdigest(),
+    )
 
 
 def test_program_run_cli_help_describes_inputs_as_file_path() -> None:

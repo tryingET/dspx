@@ -1180,6 +1180,7 @@ def render_pipeline_program_code(intent: Any) -> str:
     )
     constraints = list(getattr(intent, "constraints", []))
     metric = getattr(intent, "metric", None) or "unspecified"
+    quality_criteria = list(getattr(intent, "quality_criteria", []) or [])
     declared_topology = declared_materializable_topology(intent)
     inferred_topology = prompt_inferred_pipeline_topology(intent)
     materialized_topology = materialized_pipeline_topology(intent)
@@ -1229,6 +1230,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             f"OBJECTIVE = {getattr(intent, 'objective', '')!r}",
             f"CONSTRAINTS = {constraints!r}",
             f"METRIC = {metric!r}",
+            f"QUALITY_CRITERIA = {quality_criteria!r}",
             f"DECLARED_TOPOLOGY = {declared_topology!r}",
             f"INFERRED_TOPOLOGY = {inferred_topology!r}",
             f"MATERIALIZED_TOPOLOGY = {materialized_topology!r}",
@@ -1555,6 +1557,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             "        'objective': OBJECTIVE,",
             "        'constraints': list(CONSTRAINTS),",
             "        'metric': METRIC,",
+            "        'quality_criteria': list(QUALITY_CRITERIA),",
             "        'io': io_spec(),",
             "        'declared_topology': dict(DECLARED_TOPOLOGY),",
             "        'inferred_topology': dict(INFERRED_TOPOLOGY),",

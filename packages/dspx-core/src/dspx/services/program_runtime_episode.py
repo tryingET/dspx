@@ -24,6 +24,11 @@ from dspx.services.program_oracle_publication_preflight import (
 from dspx.security import confine_path, confine_relative_path
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
+from dspx.services.program_quality_evaluation import (
+    evaluate_declared_quality,
+    normalize_quality_criteria,
+    runtime_status_with_declared_quality,
+)
 from dspx.services.program_runtime_traces import (
     build_program_runtime_traces,
     validate_program_runtime_traces,
@@ -46,6 +51,24 @@ _RUNTIME_EPISODE_PROTECTED_ARTIFACT_NAMES = {
 }
 
 CONTRACT_MODES = {"none", "pdf_transition_review"}
+RUNTIME_EXECUTION_STATUSES = {
+    "executed",
+    "executed_valid_review_only",
+    "failed",
+    "failed_boundary",
+    "failed_exception",
+    "failed_missing_inputs",
+    "error",
+    "degraded_exception",
+    "degraded_contract_violation",
+    "degraded_missing_outputs",
+    "degraded_pdf_contract_violation",
+}
+RUNTIME_EPISODE_STATUSES = {
+    *RUNTIME_EXECUTION_STATUSES,
+    "executed_quality_passed",
+    "failed_quality",
+}
 
 
 @dataclass(frozen=True)
@@ -1086,7 +1109,12 @@ def _oracle_evidence(
     )
     status = str(summary.get("status") or "unknown")
     failure_modes: list[dict[str, Any]] = []
-    if status not in {"executed", "executed_valid_review_only", "passed"}:
+    if status not in {
+        "executed",
+        "executed_quality_passed",
+        "executed_valid_review_only",
+        "passed",
+    }:
         failure_modes.append(
             {
                 "index": 0,
@@ -1296,20 +1324,16 @@ def validate_program_runtime_episode_contract(
             fail(
                 f"runtime episode schema_version must be {PROGRAM_RUNTIME_EPISODE_SCHEMA}"
             )
-        if runtime_episode.get("status") not in {
-            "executed",
-            "executed_valid_review_only",
-            "failed",
-            "failed_boundary",
-            "failed_exception",
-            "failed_missing_inputs",
-            "error",
-            "degraded_exception",
-            "degraded_contract_violation",
-            "degraded_missing_outputs",
-            "degraded_pdf_contract_violation",
-        }:
+        if runtime_episode.get("status") not in RUNTIME_EPISODE_STATUSES:
             fail("runtime episode status is unsupported")
+        execution_status = str(runtime_episode.get("execution_status") or "")
+        if (
+            not execution_status
+            and runtime_episode.get("status") in RUNTIME_EXECUTION_STATUSES
+        ):
+            execution_status = str(runtime_episode.get("status"))
+        if execution_status not in RUNTIME_EXECUTION_STATUSES:
+            fail("runtime episode execution_status is unsupported")
         runtime_episode_id = str(
             runtime_episode.get("runtime_episode_id") or ""
         ).strip()
@@ -1441,6 +1465,63 @@ def validate_program_runtime_episode_contract(
             fail("runtime behavior results runtime_episode_id mismatch")
         if behavior.get("authority") != "behavior_evidence_only_non_authoritative":
             fail("runtime behavior results authority must remain evidence-only")
+        behavior_intent = _safe_mapping(behavior.get("intent"))
+        manifest_intent = _safe_mapping(expected_manifest.get("intent"))
+        manifest_outputs = [
+            str(item) for item in _safe_list(manifest_intent.get("outputs"))
+        ]
+        manifest_quality = normalize_quality_criteria(
+            manifest_intent.get("quality_criteria", []), outputs=manifest_outputs
+        )
+        if behavior_intent.get("quality_criteria", []) != manifest_quality:
+            fail("runtime behavior quality criteria drift from current manifest")
+        behavior_examples = _safe_list(behavior.get("examples"))
+        if len(behavior_examples) != 1 or not isinstance(behavior_examples[0], Mapping):
+            fail("runtime behavior results must contain exactly one record")
+        behavior_record = dict(behavior_examples[0])
+        observed_outputs = _safe_mapping(behavior_record.get("observed_outputs"))
+        expected_quality = evaluate_declared_quality(manifest_quality, observed_outputs)
+        if behavior.get("quality_evaluation") != expected_quality:
+            fail("runtime behavior quality evaluation is stale or inconsistent")
+        if behavior_record.get("quality_evaluation") != expected_quality:
+            fail("runtime behavior record quality evaluation is inconsistent")
+        if expected_quality.get("status") != "not_declared":
+            if behavior.get("execution_status") != execution_status:
+                fail("runtime behavior execution_status is inconsistent")
+            if behavior_record.get("execution_status") != execution_status:
+                fail("runtime behavior record execution_status is inconsistent")
+            expected_runtime_status = runtime_status_with_declared_quality(
+                execution_status, expected_quality.get("status")
+            )
+            if runtime_episode.get("status") != expected_runtime_status:
+                fail("runtime episode declared quality status is inconsistent")
+            if behavior_record.get("status") != expected_runtime_status:
+                fail("runtime behavior record status hides declared quality result")
+            summary = _safe_mapping(behavior.get("summary"))
+            expected_counts = {
+                "total": 1,
+                "passed": 1
+                if expected_runtime_status == "executed_quality_passed"
+                else 0,
+                "failed": 1
+                if expected_runtime_status.startswith("failed")
+                or expected_runtime_status == "error"
+                else 0,
+                "error": 1 if expected_runtime_status == "error" else 0,
+                "degraded": 1 if expected_runtime_status.startswith("degraded") else 0,
+                "executed": 1
+                if expected_runtime_status
+                in {
+                    "executed",
+                    "executed_quality_passed",
+                    "executed_valid_review_only",
+                }
+                else 0,
+                "status_counts": {expected_runtime_status: 1},
+                "status": expected_runtime_status,
+            }
+            if summary != expected_counts:
+                fail("runtime behavior summary hides declared quality result")
         _assert_false_flags(
             behavior,
             section="non_authority",
@@ -1706,14 +1787,15 @@ def run_program_runtime_episode(
         _write_private_json_exclusive(replay_fixture_path, replay_fixture_payload)
         replay_fixture_hash = _sha256_file(replay_fixture_path)
 
+    manifest_intent = _safe_mapping(manifest.get("intent"))
     provider = _configure_provider()
     observed: dict[str, object] = {}
     notes: list[str] = []
     error: dict[str, str] | None = None
     status = "error"
-    input_fields: list[str] = []
-    output_fields: list[str] = []
-    intent_summary: dict[str, object] = {}
+    input_fields = [str(item) for item in _safe_list(manifest_intent.get("inputs"))]
+    output_fields = [str(item) for item in _safe_list(manifest_intent.get("outputs"))]
+    intent_summary: dict[str, object] = dict(manifest_intent)
     try:
         if provider.get("status") != "configured":
             provider_error = _safe_mapping(provider.get("error"))
@@ -1767,14 +1849,23 @@ def run_program_runtime_episode(
         error = {"type": type(exc).__name__, "message": sanitized_error}
         notes.append(sanitized_error)
 
+    execution_status = status
+    quality_evaluation = evaluate_declared_quality(
+        intent_summary.get("quality_criteria"), observed
+    )
+    status = runtime_status_with_declared_quality(
+        execution_status, quality_evaluation["status"]
+    )
     notes = [_sanitize_runtime_diagnostic(note) for note in notes]
     output_files = _write_observed_output_files(root, observed)
     record: dict[str, object] = {
         "index": 0,
         "source_kind": "runtime_inputs",
         "status": status,
+        "execution_status": execution_status,
         "inputs": _jsonable(runtime_inputs),
         "observed_outputs": _jsonable(observed),
+        "quality_evaluation": quality_evaluation,
         "notes": list(notes),
     }
     if error is not None:
@@ -1790,17 +1881,24 @@ def run_program_runtime_episode(
         "examples": [record],
         "summary": {
             "total": 1,
-            "passed": 0,
+            "passed": 1 if status == "executed_quality_passed" else 0,
             "failed": 1 if status.startswith("failed") or status == "error" else 0,
             "error": 1 if status == "error" else 0,
             "degraded": 1 if status.startswith("degraded") else 0,
             "executed": 1
-            if status in {"executed", "executed_valid_review_only"}
+            if status
+            in {
+                "executed",
+                "executed_quality_passed",
+                "executed_valid_review_only",
+            }
             else 0,
             "status_counts": status_counts,
             "status": status,
         },
         "runtime_episode_id": runtime_episode_id,
+        "quality_evaluation": quality_evaluation,
+        "execution_status": execution_status,
         "authority": "behavior_evidence_only_non_authoritative",
         "non_authority": {
             "optimization_authority": False,
@@ -1878,6 +1976,7 @@ def run_program_runtime_episode(
         "schema_version": PROGRAM_RUNTIME_EPISODE_SCHEMA,
         "runtime_episode_id": runtime_episode_id,
         "status": status,
+        "execution_status": execution_status,
         "contract_mode": contract_mode,
         "candidate_manifest_path": str(source_manifest_path),
         "manifest_path": str(runtime_manifest_path),
@@ -1945,7 +2044,12 @@ def run_program_runtime_episode(
             "evidence_only": True,
         },
         outcome="success"
-        if status in {"executed", "executed_valid_review_only"}
+        if status
+        in {
+            "executed",
+            "executed_quality_passed",
+            "executed_valid_review_only",
+        }
         else "failure",
     )
     runtime_receipt_path = write_run_receipt(runtime_episode_path, receipt)
@@ -1983,7 +2087,12 @@ def run_program_runtime_episode(
     return {
         "schema_version": "program-runtime-episode-workflow-v1",
         "status": "ok"
-        if status in {"executed", "executed_valid_review_only"}
+        if status
+        in {
+            "executed",
+            "executed_quality_passed",
+            "executed_valid_review_only",
+        }
         and (skip_oracle_index or (oracle_index_result or {}).get("errors") == 0)
         else "degraded",
         "runtime_episode_id": runtime_episode_id,
