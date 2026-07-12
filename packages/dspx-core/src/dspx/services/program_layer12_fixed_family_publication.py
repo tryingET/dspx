@@ -26,7 +26,13 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 SPEC_SCHEMA = "layer12-fixed-family-spec-v1"
 PUBLICATION_SCHEMA = "layer12-fixed-family-publication-v1"
 PROTOCOL_VERSION = "layer12-v1"
-ONLY_TOKEN = "continue_current_execution_task"
+B0_TOKEN = "continue_current_execution_task"
+B1_TOKEN = "request_owner_route"
+SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN}
+DSPX_OWNER = "softwareco/owned/dspx"
+AK_OWNER = "softwareco/owned/agent-kernel"
+B0_FAMILY_ID = "dspx.layer12.continue-current-execution-task.v1"
+B1_FAMILY_ID = "dspx.layer12.request-owner-route.v1"
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
 
 
@@ -397,12 +403,182 @@ def reconstruct_fixed_family_imports(
     }
 
 
+REQUEST_OWNER_ROUTE_PROGRAM_ID = "dspx.generated.direction_controller.v1"
+REQUEST_OWNER_ROUTE_SIGNATURES: tuple[
+    tuple[str, tuple[str, ...], tuple[str, ...]], ...
+] = (
+    (
+        "ExtractLayer12PolicyFacts",
+        ("operator_intent", "direction_controller_status"),
+        ("policy_facts", "non_authorizations"),
+    ),
+    (
+        "DeriveLayer12StateVector",
+        ("direction_controller_status",),
+        ("state_vector", "missing_facts"),
+    ),
+    (
+        "ProposeLayer12Transition",
+        ("operator_intent", "state_vector", "legal_controls", "blocked_controls"),
+        ("transition", "rationale"),
+    ),
+    (
+        "CritiqueAuthorityDrift",
+        ("proposed_transition", "non_authorizations"),
+        ("authority_drift_risk", "required_repair"),
+    ),
+    (
+        "CritiqueTheaterTraps",
+        ("proposed_transition", "direction_controller_status"),
+        ("theater_risk", "required_repair"),
+    ),
+    (
+        "RepairLayer12IR",
+        ("proposed_transition", "authority_drift_risk", "theater_risk"),
+        ("repaired_transition", "verifier_expectation"),
+    ),
+)
+REQUEST_OWNER_ROUTE_MISSING_PRECONDITIONS = (
+    "owner_route_destination_resolved",
+    "owner_route_dispatch_authorized",
+)
+
+
+def _check_hash_bound(value: object, label: str) -> Mapping[str, Any]:
+    item = _object(value, label)
+    digest = _digest(item.get("digest"), f"{label}.digest")
+    payload = {key: field for key, field in item.items() if key != "digest"}
+    if sha256_digest(payload) != digest:
+        raise Layer12FixedFamilyPublicationError(f"{label}.digest drift")
+    return item
+
+
+def _check_request_owner_route_program_evidence(
+    value: object, *, expected_family_id: str
+) -> None:
+    evidence = _object(value, "spec.program_evidence")
+    _closed(
+        evidence,
+        {"program_intent", "module_graph", "verification_sink", "controls_evidence"},
+        "spec.program_evidence",
+    )
+    intent = _check_hash_bound(
+        evidence["program_intent"], "spec.program_evidence.program_intent"
+    )
+    _exact(
+        intent,
+        {
+            "schema_version": "program-intent-v2",
+            "name": "DirectionController",
+            "program_id": REQUEST_OWNER_ROUTE_PROGRAM_ID,
+            "objective": "Produce advisory Layer-12 transition IR for deterministic AK verification.",
+            "inputs": [
+                "operator_intent",
+                "direction_controller_status",
+                "legal_controls",
+                "blocked_controls",
+            ],
+            "outputs": ["repaired_transition", "verifier_expectation"],
+            "family_id": expected_family_id,
+            "transition_token": B1_TOKEN,
+            "effects": "none",
+            "digest": intent["digest"],
+        },
+        "spec.program_evidence.program_intent",
+    )
+    graph = _check_hash_bound(
+        evidence["module_graph"], "spec.program_evidence.module_graph"
+    )
+    signatures = [
+        {"name": name, "inputs": list(inputs), "outputs": list(outputs)}
+        for name, inputs, outputs in REQUEST_OWNER_ROUTE_SIGNATURES
+    ]
+    _exact(
+        graph,
+        {
+            "schema_version": "dspx-fixed-module-graph-v1",
+            "program_id": REQUEST_OWNER_ROUTE_PROGRAM_ID,
+            "signatures": signatures,
+            "execution_order": [name for name, _, _ in REQUEST_OWNER_ROUTE_SIGNATURES],
+            "edges": [
+                {
+                    "source": "DeriveLayer12StateVector.state_vector",
+                    "target": "ProposeLayer12Transition.state_vector",
+                },
+                {
+                    "source": "ExtractLayer12PolicyFacts.non_authorizations",
+                    "target": "CritiqueAuthorityDrift.non_authorizations",
+                },
+                {
+                    "source": "ProposeLayer12Transition.transition",
+                    "target": "CritiqueAuthorityDrift.proposed_transition",
+                },
+                {
+                    "source": "ProposeLayer12Transition.transition",
+                    "target": "CritiqueTheaterTraps.proposed_transition",
+                },
+                {
+                    "source": "ProposeLayer12Transition.transition",
+                    "target": "RepairLayer12IR.proposed_transition",
+                },
+                {
+                    "source": "CritiqueAuthorityDrift.authority_drift_risk",
+                    "target": "RepairLayer12IR.authority_drift_risk",
+                },
+                {
+                    "source": "CritiqueTheaterTraps.theater_risk",
+                    "target": "RepairLayer12IR.theater_risk",
+                },
+            ],
+            "entry_signature": "ExtractLayer12PolicyFacts",
+            "terminal_signature": "RepairLayer12IR",
+            "closed": True,
+            "digest": graph["digest"],
+        },
+        "spec.program_evidence.module_graph",
+    )
+    sink = _object(
+        evidence["verification_sink"], "spec.program_evidence.verification_sink"
+    )
+    _exact(
+        sink,
+        {
+            "source_owner": "softwareco/owned/agent-kernel",
+            "surface": "ak.direction_controller.verify",
+            "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+            "declaration_is_trust_root": False,
+            "apply_performed": False,
+        },
+        "spec.program_evidence.verification_sink",
+    )
+    controls = _check_hash_bound(
+        evidence["controls_evidence"], "spec.program_evidence.controls_evidence"
+    )
+    _exact(
+        controls,
+        {
+            "schema_version": "ak-direction-controller-controls-evidence-v1",
+            "transition_token": B1_TOKEN,
+            "legal": False,
+            "verdict": "blocked",
+            "dispatch_ready": False,
+            "owner_route_sent": False,
+            "missing_preconditions": list(REQUEST_OWNER_ROUTE_MISSING_PRECONDITIONS),
+            "declaration_is_ak_authority": False,
+            "digest": controls["digest"],
+        },
+        "spec.program_evidence.controls_evidence",
+    )
+
+
 def check_fixed_family_spec(
     spec: object,
     *,
     expected_owner: str,
     expected_family_id: str,
     expected_scope_digest: str,
+    expected_transition_token: str,
+    expected_ak_wire_source_owner: str,
     expected_ak_wire_identity: str,
     expected_ak_wire_digest: str,
 ) -> dict[str, str]:
@@ -422,6 +598,7 @@ def check_fixed_family_spec(
             "publication_contract",
             "reconstruction_contract",
             "authority_boundary",
+            *({"program_evidence"} if "program_evidence" in item else set()),
         },
         "spec",
     )
@@ -433,9 +610,28 @@ def check_fixed_family_spec(
         raise Layer12FixedFamilyPublicationError("spec family identity drift")
     if item["protocol_version"] != PROTOCOL_VERSION:
         raise Layer12FixedFamilyPublicationError("spec protocol identity drift")
-    if item["transition_tokens"] != [ONLY_TOKEN]:
+    pinned_token = _text(expected_transition_token, "expected_transition_token")
+    if pinned_token not in SUPPORTED_TOKENS:
         raise Layer12FixedFamilyPublicationError(
-            "spec must contain exactly the one allowed token"
+            "unsupported exact transition-token pin"
+        )
+    if item["transition_tokens"] != [pinned_token]:
+        raise Layer12FixedFamilyPublicationError(
+            "spec must contain exactly the one caller-pinned allowed token"
+        )
+    if _text(expected_owner, "expected_owner") != DSPX_OWNER:
+        raise Layer12FixedFamilyPublicationError("unsupported external owner pin")
+    expected_family_for_token = (
+        B0_FAMILY_ID if pinned_token == B0_TOKEN else B1_FAMILY_ID
+    )
+    if _text(expected_family_id, "expected_family_id") != expected_family_for_token:
+        raise Layer12FixedFamilyPublicationError("unsupported external family pin")
+    if (
+        _text(expected_ak_wire_source_owner, "expected_ak_wire_source_owner")
+        != AK_OWNER
+    ):
+        raise Layer12FixedFamilyPublicationError(
+            "unsupported external source_owner pin"
         )
     if _digest(item["scope_digest"], "scope_digest") != _digest(
         expected_scope_digest, "expected_scope_digest"
@@ -446,7 +642,9 @@ def check_fixed_family_spec(
     _exact(
         wire,
         {
-            "source_owner": "softwareco/owned/agent-kernel",
+            "source_owner": _text(
+                expected_ak_wire_source_owner, "expected_ak_wire_source_owner"
+            ),
             "wire_identity": _text(
                 expected_ak_wire_identity, "expected_ak_wire_identity"
             ),
@@ -455,6 +653,14 @@ def check_fixed_family_spec(
         },
         "spec.ak_wire_evidence",
     )
+    if pinned_token == B0_TOKEN:
+        if "program_evidence" in item:
+            raise Layer12FixedFamilyPublicationError("B0 program evidence drift")
+    else:
+        _check_request_owner_route_program_evidence(
+            item.get("program_evidence"), expected_family_id=expected_family_id
+        )
+
     publication = _object(item["publication_contract"], "spec.publication_contract")
     _exact(
         publication,
@@ -499,7 +705,7 @@ def check_fixed_family_spec(
     return {
         "owner": expected_owner,
         "family_id": expected_family_id,
-        "transition_token": ONLY_TOKEN,
+        "transition_token": pinned_token,
         "spec_digest": sha256_digest(item),
     }
 
@@ -512,6 +718,8 @@ def check_fixed_family_publication(
     expected_family_id: str,
     expected_spec_digest: str,
     expected_scope_digest: str,
+    expected_transition_token: str,
+    expected_ak_wire_source_owner: str,
     expected_ak_wire_identity: str,
     expected_ak_wire_digest: str,
     expected_publication_id: str,
@@ -532,6 +740,8 @@ def check_fixed_family_publication(
         expected_owner=expected_owner,
         expected_family_id=expected_family_id,
         expected_scope_digest=expected_scope_digest,
+        expected_transition_token=expected_transition_token,
+        expected_ak_wire_source_owner=expected_ak_wire_source_owner,
         expected_ak_wire_identity=expected_ak_wire_identity,
         expected_ak_wire_digest=expected_ak_wire_digest,
     )
@@ -608,7 +818,7 @@ def check_fixed_family_publication(
             "owner": expected_owner,
             "family_id": expected_family_id,
             "protocol_version": PROTOCOL_VERSION,
-            "transition_token": ONLY_TOKEN,
+            "transition_token": expected_transition_token,
             "spec_schema_version": SPEC_SCHEMA,
             "spec_digest": pinned_spec_digest,
             "scope_digest": _digest(expected_scope_digest, "expected_scope_digest"),
@@ -619,7 +829,9 @@ def check_fixed_family_publication(
     _exact(
         wire,
         {
-            "source_owner": "softwareco/owned/agent-kernel",
+            "source_owner": _text(
+                expected_ak_wire_source_owner, "expected_ak_wire_source_owner"
+            ),
             "wire_identity": expected_ak_wire_identity,
             "wire_digest": _digest(expected_ak_wire_digest, "expected_ak_wire_digest"),
             "declaration_is_trust_root": False,
@@ -709,7 +921,7 @@ def check_fixed_family_publication(
         "publication_state": pinned_state,
         "owner": expected_owner,
         "family_id": expected_family_id,
-        "transition_token": ONLY_TOKEN,
+        "transition_token": expected_transition_token,
         "publication_scope": OWNER_LOCAL_SCOPE,
         "spec_digest": pinned_spec_digest,
         "ak_wire_trust_source": "external_pin",
@@ -722,7 +934,7 @@ def check_fixed_family_publication(
             "publication_id": pinned_publication_id,
             "epoch": pinned_epoch,
             "spec_digest": pinned_spec_digest,
-            "transition_token": ONLY_TOKEN,
+            "transition_token": expected_transition_token,
             "publication_scope": OWNER_LOCAL_SCOPE,
             "authority_granted": False,
         },

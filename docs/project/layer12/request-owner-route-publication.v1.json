@@ -1,0 +1,202 @@
+{
+  "schema_version": "layer12-fixed-family-spec-v1",
+  "owner": "softwareco/owned/dspx",
+  "family_id": "dspx.layer12.request-owner-route.v1",
+  "protocol_version": "layer12-v1",
+  "transition_tokens": [
+    "request_owner_route"
+  ],
+  "scope_digest": "sha256:a96a880c99588b00a4c4c99e3035d10c792b02c91384f24ffb812438c0966583",
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "program_evidence": {
+    "program_intent": {
+      "schema_version": "program-intent-v2",
+      "name": "DirectionController",
+      "program_id": "dspx.generated.direction_controller.v1",
+      "objective": "Produce advisory Layer-12 transition IR for deterministic AK verification.",
+      "inputs": [
+        "operator_intent",
+        "direction_controller_status",
+        "legal_controls",
+        "blocked_controls"
+      ],
+      "outputs": [
+        "repaired_transition",
+        "verifier_expectation"
+      ],
+      "family_id": "dspx.layer12.request-owner-route.v1",
+      "transition_token": "request_owner_route",
+      "effects": "none",
+      "digest": "sha256:31916ed199adc9b4202e927296f1232f13b67c9be4beb1ee654002cd17bda578"
+    },
+    "module_graph": {
+      "schema_version": "dspx-fixed-module-graph-v1",
+      "program_id": "dspx.generated.direction_controller.v1",
+      "signatures": [
+        {
+          "name": "ExtractLayer12PolicyFacts",
+          "inputs": [
+            "operator_intent",
+            "direction_controller_status"
+          ],
+          "outputs": [
+            "policy_facts",
+            "non_authorizations"
+          ]
+        },
+        {
+          "name": "DeriveLayer12StateVector",
+          "inputs": [
+            "direction_controller_status"
+          ],
+          "outputs": [
+            "state_vector",
+            "missing_facts"
+          ]
+        },
+        {
+          "name": "ProposeLayer12Transition",
+          "inputs": [
+            "operator_intent",
+            "state_vector",
+            "legal_controls",
+            "blocked_controls"
+          ],
+          "outputs": [
+            "transition",
+            "rationale"
+          ]
+        },
+        {
+          "name": "CritiqueAuthorityDrift",
+          "inputs": [
+            "proposed_transition",
+            "non_authorizations"
+          ],
+          "outputs": [
+            "authority_drift_risk",
+            "required_repair"
+          ]
+        },
+        {
+          "name": "CritiqueTheaterTraps",
+          "inputs": [
+            "proposed_transition",
+            "direction_controller_status"
+          ],
+          "outputs": [
+            "theater_risk",
+            "required_repair"
+          ]
+        },
+        {
+          "name": "RepairLayer12IR",
+          "inputs": [
+            "proposed_transition",
+            "authority_drift_risk",
+            "theater_risk"
+          ],
+          "outputs": [
+            "repaired_transition",
+            "verifier_expectation"
+          ]
+        }
+      ],
+      "execution_order": [
+        "ExtractLayer12PolicyFacts",
+        "DeriveLayer12StateVector",
+        "ProposeLayer12Transition",
+        "CritiqueAuthorityDrift",
+        "CritiqueTheaterTraps",
+        "RepairLayer12IR"
+      ],
+      "entry_signature": "ExtractLayer12PolicyFacts",
+      "terminal_signature": "RepairLayer12IR",
+      "closed": true,
+      "digest": "sha256:a365b85511a86007c20fcbad649d2776e5ec7589f176de73fbc453e5b689ab99",
+      "edges": [
+        {
+          "source": "DeriveLayer12StateVector.state_vector",
+          "target": "ProposeLayer12Transition.state_vector"
+        },
+        {
+          "source": "ExtractLayer12PolicyFacts.non_authorizations",
+          "target": "CritiqueAuthorityDrift.non_authorizations"
+        },
+        {
+          "source": "ProposeLayer12Transition.transition",
+          "target": "CritiqueAuthorityDrift.proposed_transition"
+        },
+        {
+          "source": "ProposeLayer12Transition.transition",
+          "target": "CritiqueTheaterTraps.proposed_transition"
+        },
+        {
+          "source": "ProposeLayer12Transition.transition",
+          "target": "RepairLayer12IR.proposed_transition"
+        },
+        {
+          "source": "CritiqueAuthorityDrift.authority_drift_risk",
+          "target": "RepairLayer12IR.authority_drift_risk"
+        },
+        {
+          "source": "CritiqueTheaterTraps.theater_risk",
+          "target": "RepairLayer12IR.theater_risk"
+        }
+      ]
+    },
+    "verification_sink": {
+      "source_owner": "softwareco/owned/agent-kernel",
+      "surface": "ak.direction_controller.verify",
+      "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+      "declaration_is_trust_root": false,
+      "apply_performed": false
+    },
+    "controls_evidence": {
+      "schema_version": "ak-direction-controller-controls-evidence-v1",
+      "transition_token": "request_owner_route",
+      "legal": false,
+      "verdict": "blocked",
+      "dispatch_ready": false,
+      "owner_route_sent": false,
+      "missing_preconditions": [
+        "owner_route_destination_resolved",
+        "owner_route_dispatch_authorized"
+      ],
+      "declaration_is_ak_authority": false,
+      "digest": "sha256:fc8463680fcd5505f8ac6b8ad6346afc85fa92e4fe6bf46ce2f6f8305cbfe182"
+    }
+  },
+  "publication_contract": {
+    "publication_scope": "owner_local_artifact_only",
+    "signed_payload": "publication_object_without_signature",
+    "signature_algorithm": "Ed25519",
+    "external_trust_required": true
+  },
+  "reconstruction_contract": {
+    "mode": "cumulative_owner_local_family_epochs",
+    "identity_key": [
+      "owner",
+      "family_id"
+    ],
+    "epoch_order": "strictly_monotonic_per_family",
+    "withdrawal_scope": "matching_owner_family_epoch_only",
+    "preserve_unrelated_imports": true
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": "layer12-fixed-family-publication-v1",
+  "publication_id": "dspx-iw14b-request-owner-route-owner-local-test-v1",
+  "published_at": "2026-07-12T00:00:00Z",
+  "publication_scope": "owner_local_artifact_only",
+  "publication_lifecycle": {
+    "epoch": 1,
+    "state_at_signing": "published",
+    "withdrawal_ref_at_signing": null
+  },
+  "identity": {
+    "owner": "softwareco/owned/dspx",
+    "family_id": "dspx.layer12.request-owner-route.v1",
+    "protocol_version": "layer12-v1",
+    "transition_token": "request_owner_route",
+    "spec_schema_version": "layer12-fixed-family-spec-v1",
+    "spec_digest": "sha256:9c7fdfa7b13d13b803fecef1b57ed080a2b8462658f82b7f169521b84a4a893f",
+    "scope_digest": "sha256:a96a880c99588b00a4c4c99e3035d10c792b02c91384f24ffb812438c0966583"
+  },
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "signer_evidence": {
+    "algorithm": "Ed25519",
+    "key_id": "dspx-iw14b-b1-test-fixture-key-v1",
+    "public_key_b64": "GRimrSyXK+wK5YcYE7ZnDM5lYWei4ccNXZtikAYqlH8=",
+    "key_status": "active",
+    "valid_from": "2026-07-01T00:00:00Z",
+    "valid_until": "2026-08-01T00:00:00Z",
+    "declaration_is_trust_root": false
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "key_id": "dspx-iw14b-b1-test-fixture-key-v1",
+    "signed_payload_digest": "sha256:cdad1e71ec84b61c778594940a4b1b904da79dd957a9e2adee5b30595579ca2b",
+    "signature_b64": "Iry4yfQkQUd6nRqo7M7MRh5j5ijN+PPYJ1Kn3cHdwZhy43Lvbp5b7U7s/DXsOLLov9kBGmsPD8iOKrwXZ6FHBg=="
+  }
+}

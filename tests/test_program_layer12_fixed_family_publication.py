@@ -62,6 +62,8 @@ class PublicationKwargs(TypedDict):
     expected_family_id: str
     expected_spec_digest: str
     expected_scope_digest: str
+    expected_transition_token: str
+    expected_ak_wire_source_owner: str
     expected_ak_wire_identity: str
     expected_ak_wire_digest: str
     expected_publication_id: str
@@ -96,6 +98,8 @@ def _kwargs(
         "expected_family_id": FAMILY_ID,
         "expected_spec_digest": SPEC_DIGEST,
         "expected_scope_digest": SCOPE_DIGEST,
+        "expected_transition_token": "continue_current_execution_task",
+        "expected_ak_wire_source_owner": "softwareco/owned/agent-kernel",
         "expected_ak_wire_identity": AK_WIRE_IDENTITY,
         "expected_ak_wire_digest": AK_WIRE_DIGEST,
         "expected_publication_id": PUBLICATION_ID,
@@ -193,6 +197,8 @@ def test_spec_rejects_every_non_closed_token_family(tokens: object) -> None:
             expected_owner=OWNER,
             expected_family_id=FAMILY_ID,
             expected_scope_digest=SCOPE_DIGEST,
+            expected_transition_token="continue_current_execution_task",
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
             expected_ak_wire_identity=AK_WIRE_IDENTITY,
             expected_ak_wire_digest=AK_WIRE_DIGEST,
         )
@@ -294,6 +300,8 @@ def test_spec_is_closed_at_each_object_boundary(
             expected_owner=OWNER,
             expected_family_id=FAMILY_ID,
             expected_scope_digest=SCOPE_DIGEST,
+            expected_transition_token="continue_current_execution_task",
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
             expected_ak_wire_identity=AK_WIRE_IDENTITY,
             expected_ak_wire_digest=AK_WIRE_DIGEST,
         )
@@ -331,6 +339,8 @@ def test_spec_authority_widening_is_rejected() -> None:
             expected_owner=OWNER,
             expected_family_id=FAMILY_ID,
             expected_scope_digest=SCOPE_DIGEST,
+            expected_transition_token="continue_current_execution_task",
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
             expected_ak_wire_identity=AK_WIRE_IDENTITY,
             expected_ak_wire_digest=AK_WIRE_DIGEST,
         )
@@ -476,6 +486,8 @@ def test_spec_external_wire_and_scope_pins_cannot_be_inferred_from_artifact() ->
             expected_owner=OWNER,
             expected_family_id=FAMILY_ID,
             expected_scope_digest=SCOPE_DIGEST,
+            expected_transition_token="continue_current_execution_task",
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
             expected_ak_wire_identity="artifact-chosen-wire",
             expected_ak_wire_digest=AK_WIRE_DIGEST,
         )
@@ -485,6 +497,8 @@ def test_spec_external_wire_and_scope_pins_cannot_be_inferred_from_artifact() ->
             expected_owner=OWNER,
             expected_family_id=FAMILY_ID,
             expected_scope_digest="sha256:" + "f" * 64,
+            expected_transition_token="continue_current_execution_task",
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
             expected_ak_wire_identity=AK_WIRE_IDENTITY,
             expected_ak_wire_digest=AK_WIRE_DIGEST,
         )
@@ -771,3 +785,275 @@ def test_fixture_private_key_is_deterministic_test_only_and_not_committed() -> N
     assert "private" not in fixture_text.lower()
     assert PUBLIC_KEY_B64 in fixture_text
     assert copy.deepcopy(_load(PUBLICATION_PATH)) == _load(PUBLICATION_PATH)
+
+
+B1_SPEC_PATH = Path("docs/project/layer12/request-owner-route-publication.v1.json")
+B1_PUBLICATION_PATH = Path(
+    "docs/project/layer12/fixtures/iw14b-request-owner-route-publication.v1.json"
+)
+B1_FAMILY_ID = "dspx.layer12.request-owner-route.v1"
+B1_TOKEN = "request_owner_route"
+B1_SCOPE_DIGEST = (
+    "sha256:a96a880c99588b00a4c4c99e3035d10c792b02c91384f24ffb812438c0966583"
+)
+B1_SPEC_DIGEST = (
+    "sha256:9c7fdfa7b13d13b803fecef1b57ed080a2b8462658f82b7f169521b84a4a893f"
+)
+B1_PUBLICATION_ID = "dspx-iw14b-request-owner-route-owner-local-test-v1"
+B1_KEY_ID = "dspx-iw14b-b1-test-fixture-key-v1"
+_B1_TEST_SEED = hashlib.sha256(
+    b"DSPx IW14b B1 request_owner_route deterministic Ed25519 TEST FIXTURE ONLY v1"
+).digest()
+_B1_TEST_PRIVATE_KEY = Ed25519PrivateKey.from_private_bytes(_B1_TEST_SEED)
+B1_PUBLIC_KEY_B64 = base64.b64encode(
+    _B1_TEST_PRIVATE_KEY.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+).decode()
+
+
+def _b1_kwargs() -> PublicationKwargs:
+    return {
+        "spec": _load(B1_SPEC_PATH),
+        "expected_owner": OWNER,
+        "expected_family_id": B1_FAMILY_ID,
+        "expected_spec_digest": B1_SPEC_DIGEST,
+        "expected_scope_digest": B1_SCOPE_DIGEST,
+        "expected_transition_token": B1_TOKEN,
+        "expected_ak_wire_source_owner": "softwareco/owned/agent-kernel",
+        "expected_ak_wire_identity": AK_WIRE_IDENTITY,
+        "expected_ak_wire_digest": AK_WIRE_DIGEST,
+        "expected_publication_id": B1_PUBLICATION_ID,
+        "expected_publication_epoch": 1,
+        "expected_publication_state": "published",
+        "expected_withdrawal_ref": None,
+        "expected_key_id": B1_KEY_ID,
+        "trusted_public_key_b64": B1_PUBLIC_KEY_B64,
+        "expected_key_status": "active",
+        "expected_key_valid_from": KEY_VALID_FROM,
+        "expected_key_valid_until": KEY_VALID_UNTIL,
+        "verification_time": VERIFY_AT,
+    }
+
+
+def test_request_owner_route_spec_publication_and_program_graph_are_closed() -> None:
+    schema = _load(SCHEMA_PATH)
+    validator = jsonschema.Draft202012Validator(
+        schema, format_checker=jsonschema.FormatChecker()
+    )
+    spec = _load(B1_SPEC_PATH)
+    publication = _load(B1_PUBLICATION_PATH)
+    validator.validate(spec)
+    validator.validate(publication)
+    assert sha256_digest(spec) == B1_SPEC_DIGEST
+    result = check_fixed_family_publication(publication, **_b1_kwargs())
+    assert result["transition_token"] == B1_TOKEN
+    assert result["authority_granted"] is False
+
+    evidence = spec["program_evidence"]
+    assert evidence["program_intent"]["program_id"] == (
+        "dspx.generated.direction_controller.v1"
+    )
+    assert [row["name"] for row in evidence["module_graph"]["signatures"]] == [
+        "ExtractLayer12PolicyFacts",
+        "DeriveLayer12StateVector",
+        "ProposeLayer12Transition",
+        "CritiqueAuthorityDrift",
+        "CritiqueTheaterTraps",
+        "RepairLayer12IR",
+    ]
+    assert evidence["verification_sink"]["surface"] == "ak.direction_controller.verify"
+    assert evidence["controls_evidence"] == {
+        "schema_version": "ak-direction-controller-controls-evidence-v1",
+        "transition_token": B1_TOKEN,
+        "legal": False,
+        "verdict": "blocked",
+        "dispatch_ready": False,
+        "owner_route_sent": False,
+        "missing_preconditions": [
+            "owner_route_destination_resolved",
+            "owner_route_dispatch_authorized",
+        ],
+        "declaration_is_ak_authority": False,
+        "digest": "sha256:fc8463680fcd5505f8ac6b8ad6346afc85fa92e4fe6bf46ce2f6f8305cbfe182",
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("expected_owner", "substituted/owner", "owner"),
+        ("expected_family_id", FAMILY_ID, "family"),
+        (
+            "expected_transition_token",
+            "continue_current_execution_task",
+            "caller-pinned",
+        ),
+        ("expected_scope_digest", "sha256:" + "0" * 64, "scope"),
+        ("expected_ak_wire_source_owner", "substituted/source", "source_owner"),
+        ("expected_ak_wire_identity", "substituted.wire", "wire_identity"),
+        ("expected_ak_wire_digest", "sha256:" + "0" * 64, "wire_digest"),
+        ("expected_publication_id", "substituted-id", "publication_id"),
+        ("expected_key_id", "substituted-key", "key_id"),
+        (
+            "trusted_public_key_b64",
+            base64.b64encode(b"x" * 32).decode(),
+            "public_key_b64",
+        ),
+        ("expected_key_status", "revoked", "key_status"),
+    ],
+)
+def test_request_owner_route_rejects_external_pin_co_substitution(
+    field: str, value: object, message: str
+) -> None:
+    kwargs = _b1_kwargs()
+    kwargs[field] = value  # type: ignore[literal-required]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
+        check_fixed_family_publication(_load(B1_PUBLICATION_PATH), **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("program_intent", "program_id", "substituted.program"),
+        ("program_intent", "transition_token", "continue_current_execution_task"),
+        ("module_graph", "entry_signature", "ProposeLayer12Transition"),
+        ("module_graph", "signatures", []),
+        ("verification_sink", "source_owner", "substituted/authority"),
+        ("verification_sink", "surface", "generic.verifier"),
+        ("controls_evidence", "legal", True),
+        ("controls_evidence", "verdict", "accepted"),
+        ("controls_evidence", "dispatch_ready", True),
+        ("controls_evidence", "owner_route_sent", True),
+        ("controls_evidence", "missing_preconditions", []),
+    ],
+)
+def test_request_owner_route_program_and_controls_drift_fail_closed(
+    section: str, field: str, value: object
+) -> None:
+    spec = _load(B1_SPEC_PATH)
+    spec["program_evidence"][section][field] = value
+    with pytest.raises(Layer12FixedFamilyPublicationError):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=B1_FAMILY_ID,
+            expected_scope_digest=B1_SCOPE_DIGEST,
+            expected_transition_token=B1_TOKEN,
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
+            expected_ak_wire_identity=AK_WIRE_IDENTITY,
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+
+
+def test_b0_and_b1_reconstruct_cumulatively_then_withdraw_only_b1() -> None:
+    b0 = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(PUBLICATION_PATH), **_kwargs())[
+            "canonical_import"
+        ],
+    )
+    b1 = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(B1_PUBLICATION_PATH), **_b1_kwargs())[
+            "canonical_import"
+        ],
+    )
+    b0_bytes = canonical_json(b0).encode()
+    cumulative = reconstruct_fixed_family_imports(
+        prior_imports=[b0],
+        prior_epoch_high_watermarks=_high_watermarks(b0),
+        current_import=b1,
+        current_withdrawal=None,
+    )
+    assert cumulative["imports"] == [b0, b1]
+    assert len(cast(list[object], cumulative["family_epoch_high_watermarks"])) == 2
+
+    withdrawn = reconstruct_fixed_family_imports(
+        prior_imports=cast(list[object], cumulative["imports"]),
+        prior_epoch_high_watermarks=cast(
+            list[object], cumulative["family_epoch_high_watermarks"]
+        ),
+        current_import=None,
+        current_withdrawal=_withdrawal(OWNER, B1_FAMILY_ID, 1, B1_PUBLICATION_ID),
+    )
+    retained = cast(list[dict[str, object]], withdrawn["imports"])
+    assert len(retained) == 1
+    assert canonical_json(retained[0]).encode() == b0_bytes
+    watermarks = cast(
+        list[dict[str, object]], withdrawn["family_epoch_high_watermarks"]
+    )
+    assert len(watermarks) == 2
+    b1_history = next(row for row in watermarks if row["family_id"] == B1_FAMILY_ID)
+    assert b1_history["epoch"] == 1
+    assert b1_history["used_publication_ids"] == [B1_PUBLICATION_ID]
+
+
+def test_request_owner_route_test_key_has_no_private_material_in_artifacts() -> None:
+    publication_text = B1_PUBLICATION_PATH.read_text(encoding="utf-8")
+    spec_text = B1_SPEC_PATH.read_text(encoding="utf-8")
+    docs_text = Path(
+        "docs/project/layer12/request-owner-route-publication.md"
+    ).read_text(encoding="utf-8")
+    for text in (publication_text, spec_text, docs_text):
+        assert _B1_TEST_SEED.hex() not in text
+        assert "private_key" not in text.lower()
+    assert B1_PUBLIC_KEY_B64 in publication_text
+
+
+def test_request_owner_route_graph_has_no_unbound_signature_inputs() -> None:
+    evidence = _load(B1_SPEC_PATH)["program_evidence"]
+    intent_inputs = set(evidence["program_intent"]["inputs"])
+    produced: set[str] = set()
+    edges = evidence["module_graph"]["edges"]
+    for signature in evidence["module_graph"]["signatures"]:
+        name = signature["name"]
+        inbound = {
+            edge["target"].split(".", 1)[1]
+            for edge in edges
+            if edge["target"].split(".", 1)[0] == name
+        }
+        assert set(signature["inputs"]) <= intent_inputs | inbound
+        produced.update(f"{name}.{field}" for field in signature["outputs"])
+    assert {edge["source"] for edge in edges} <= produced
+
+
+@pytest.mark.parametrize("kind", ["owner", "family", "source"])
+def test_artifact_and_caller_co_substitution_cannot_change_fixed_owners(
+    kind: str,
+) -> None:
+    spec = _load(B1_SPEC_PATH)
+    kwargs = {
+        "expected_owner": OWNER,
+        "expected_family_id": B1_FAMILY_ID,
+        "expected_scope_digest": B1_SCOPE_DIGEST,
+        "expected_transition_token": B1_TOKEN,
+        "expected_ak_wire_source_owner": "softwareco/owned/agent-kernel",
+        "expected_ak_wire_identity": AK_WIRE_IDENTITY,
+        "expected_ak_wire_digest": AK_WIRE_DIGEST,
+    }
+    if kind == "owner":
+        spec["owner"] = "substituted/owner"
+        kwargs["expected_owner"] = "substituted/owner"
+    elif kind == "family":
+        spec["family_id"] = "substituted.family"
+        spec["program_evidence"]["program_intent"]["family_id"] = "substituted.family"
+        kwargs["expected_family_id"] = "substituted.family"
+    else:
+        spec["ak_wire_evidence"]["source_owner"] = "substituted/source"
+        kwargs["expected_ak_wire_source_owner"] = "substituted/source"
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="unsupported"):
+        check_fixed_family_spec(spec, **kwargs)
+
+
+def test_schema_couples_each_family_to_its_token_and_b1_evidence() -> None:
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    b1_without_evidence = _load(B1_SPEC_PATH)
+    del b1_without_evidence["program_evidence"]
+    assert not validator.is_valid(b1_without_evidence)
+
+    b0_with_b1_token = _load(SPEC_PATH)
+    b0_with_b1_token["transition_tokens"] = [B1_TOKEN]
+    assert not validator.is_valid(b0_with_b1_token)
+
+    b1_with_b0_token = _load(B1_SPEC_PATH)
+    b1_with_b0_token["transition_tokens"] = ["continue_current_execution_task"]
+    assert not validator.is_valid(b1_with_b0_token)
