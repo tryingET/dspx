@@ -48,7 +48,7 @@ def _mapping(value: object) -> dict[str, Any]:
     return {str(key): item for key, item in value.items()}
 
 
-def _validate_semantic_result(
+def validate_oracle_semantic_recommendation(
     payload: Mapping[str, Any], *, recommendation_index: int
 ) -> tuple[dict[str, Any], OracleSemanticAnalysis, str]:
     if isinstance(recommendation_index, bool) or recommendation_index < 0:
@@ -190,10 +190,26 @@ def _validate_semantic_sources(
     return validated
 
 
-def _metric_plan(candidate: Mapping[str, Any]) -> dict[str, Any]:
+def _metric_plan(
+    candidate: Mapping[str, Any], *, metric_override: str | None
+) -> dict[str, Any]:
     manifest = _mapping(candidate.get("manifest"))
     intent = _mapping(manifest.get("intent"))
     declared = str(intent.get("metric") or "").strip() or None
+    if metric_override is not None:
+        selected = metric_override.strip()
+        if selected not in _SUPPORTED_METRICS:
+            raise ProgramFoundryGepaProposalError(
+                "GEPA proposal metric override must be exact_match, exact, contains, or f1"
+            )
+        optimizer_metric = "exact" if selected in {"exact", "exact_match"} else selected
+        return {
+            "declared_metric": declared,
+            "operator_metric_override": selected,
+            "optimizer_metric": optimizer_metric,
+            "operator_metric_required": False,
+            "blockers": [],
+        }
     if declared in _SUPPORTED_METRICS:
         optimizer_metric = "exact" if declared in {"exact", "exact_match"} else declared
         return {
@@ -220,6 +236,7 @@ def build_program_foundry_gepa_proposal(
     runtime: Mapping[str, Any],
     foundry_root: Path,
     foundry_root_descriptor: int,
+    metric_override: str | None = None,
     max_metric_calls: int = 2,
 ) -> dict[str, Any]:
     """Convert one explicitly selected Oracle recommendation into a plan only."""
@@ -232,7 +249,7 @@ def build_program_foundry_gepa_proposal(
         raise ProgramFoundryGepaProposalError(
             "GEPA proposal max_metric_calls must be an integer from 1 through 20"
         )
-    result, analysis, recommendation = _validate_semantic_result(
+    result, analysis, recommendation = validate_oracle_semantic_recommendation(
         semantic_payload, recommendation_index=recommendation_index
     )
     root = foundry_root.expanduser().absolute()
@@ -335,7 +352,7 @@ def build_program_foundry_gepa_proposal(
             "accepted quality proposal drifted before GEPA proposal"
         )
 
-    metric_plan = _metric_plan(candidate)
+    metric_plan = _metric_plan(candidate, metric_override=metric_override)
     candidate_binding = {
         key: candidate.get(key)
         for key in (

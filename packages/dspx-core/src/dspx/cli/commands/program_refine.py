@@ -12,6 +12,54 @@ import typer
 app = typer.Typer(no_args_is_help=True)
 
 
+@app.command("execute-foundry-gepa")
+def execute_foundry_gepa(
+    proposal: Path = typer.Option(
+        ...,
+        "--proposal",
+        help="Canonical foundry gepa_experiment_proposal.json sidecar",
+    ),
+    declare_reviewed: str = typer.Option(
+        ...,
+        "--declare-reviewed",
+        help="Exact proposal_id declaring explicit review and one execution request",
+    ),
+    operator_label: str = typer.Option(
+        ...,
+        "--operator-label",
+        help="Unauthenticated operator-supplied label recorded with execution intent",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print execution receipt JSON"),
+) -> None:
+    """Execute one reviewed foundry GEPA proposal without replay or promotion."""
+    from dspx.services.program_foundry_gepa_execution import (
+        ProgramFoundryGepaExecutionError,
+        execute_reviewed_program_foundry_gepa,
+    )
+
+    try:
+        payload = execute_reviewed_program_foundry_gepa(
+            proposal_path=proposal,
+            declared_reviewed=declare_reviewed,
+            operator_label=operator_label,
+        )
+    except ProgramFoundryGepaExecutionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(f"Error: foundry GEPA effect may be indeterminate: {exc}", err=True)
+        raise typer.Exit(code=3) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(proposal.parent / "gepa-experiment" / "execution-receipt.json"))
+        typer.echo(f"foundry_gepa_status: {payload.get('status')}")
+    if payload.get("status") == "blocked_indeterminate":
+        raise typer.Exit(code=3)
+    if payload.get("status") != "ok":
+        raise typer.Exit(code=1)
+
+
 @app.command("optimize-gepa")
 def optimize_gepa(
     manifest: Path = typer.Option(

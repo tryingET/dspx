@@ -324,6 +324,7 @@ def _run_program_foundry_locked(
     skip_oracle_index: bool,
     gepa_recommendation_index: int | None,
     gepa_max_metric_calls: int,
+    gepa_metric: str | None,
 ) -> dict[str, Any]:
     """Run or resume accepted intent → candidate → runtime → Oracle semantics.
 
@@ -414,6 +415,7 @@ def _run_program_foundry_locked(
             runtime=runtime,
             foundry_root=root,
             max_metric_calls=gepa_max_metric_calls,
+            metric_override=gepa_metric,
             foundry_root_descriptor=root_descriptor,
         )
         proposal, proposal_disposition = write_or_reuse_program_foundry_gepa_proposal(
@@ -510,6 +512,7 @@ def run_program_foundry(
     skip_oracle_index: bool = False,
     gepa_recommendation_index: int | None = None,
     gepa_max_metric_calls: int = 2,
+    gepa_metric: str | None = None,
 ) -> dict[str, Any]:
     """Run or safely resume the local foundry under one exclusive root lock."""
 
@@ -529,6 +532,7 @@ def run_program_foundry(
             skip_oracle_index=skip_oracle_index,
             gepa_recommendation_index=gepa_recommendation_index,
             gepa_max_metric_calls=gepa_max_metric_calls,
+            gepa_metric=gepa_metric,
         )
 
 

@@ -1290,6 +1290,11 @@ def program_foundry(
         max=20,
         help="Bounded future GEPA metric-call budget recorded in the proposal",
     ),
+    gepa_metric: Optional[str] = typer.Option(
+        None,
+        "--gepa-metric",
+        help="Explicit bounded optimizer metric recorded in the proposal",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print foundry workflow JSON"),
 ) -> None:
     """Run or safely resume accepted intent through runtime Oracle semantics."""
@@ -1319,6 +1324,7 @@ def program_foundry(
             skip_oracle_index=skip_oracle_index,
             gepa_recommendation_index=gepa_recommendation_index,
             gepa_max_metric_calls=gepa_max_metric_calls,
+            gepa_metric=gepa_metric,
         )
     except Exception as exc:
         typer.echo(f"Error: foundry failed: {foundry_failure_message(exc)}", err=True)
