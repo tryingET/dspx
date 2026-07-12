@@ -41,7 +41,9 @@ The AK wire declaration and public key/lifecycle declaration embedded in the pub
 
 Publication lifecycle is separately pinned from signer lifecycle. The signed fixture records epoch `1` and `state_at_signing=published`, while the current `published|withdrawn` state and withdrawal ref come from the external owner-local lifecycle pin. A current `withdrawn` pin rejects this publication even while the shared signing key remains active, so withdrawing one family epoch does not require revoking a key used by unrelated publications.
 
-Canonical reconstruction is cumulative and keyed by `(owner, family_id)`. Epochs are strictly monotonic within that family; withdrawal removes only the matching owner/family/epoch. Reconstruction must preserve unrelated family imports rather than treating this one-token publication as a global replacement snapshot.
+Canonical reconstruction is executable, not a declaration. `reconstruct_fixed_family_imports` consumes closed `layer12-fixed-family-import-v1` prior/current import records plus an optional closed `layer12-fixed-family-withdrawal-v1`. It returns `layer12-fixed-family-reconstruction-v1` without filesystem, AK, signing, or publication effects.
+
+Reconstruction is cumulative and keyed by `(owner, family_id)`. Per-family epochs must be strictly monotonic even when unrelated families are interleaved. Each unrelated family retains its own transition token and spec digest; later epochs for the same family must preserve that family contract. Duplicate coordinates, duplicate publication ids, conflicting same-epoch or same-family contract records, and non-monotonic histories fail closed. A withdrawal must match exactly one existing `(owner, family_id, epoch, publication_id)` and removes only that record; cross-family, missing-epoch, and conflicting-id withdrawals fail. All unrelated imports remain byte-equivalent canonical records in their original order, so this one-token family can never act as a global replacement snapshot.
 
 The committed public key is safe only as deterministic fixture evidence. Its private key is derived in tests from the literal seed label `DSPx IW14b deterministic Ed25519 TEST FIXTURE ONLY v1`; it is not a production key and must never sign real publication material.
 
@@ -55,7 +57,7 @@ The schema and verifier reject:
 - malformed Ed25519/base64 material or a signature made by a different key;
 - revoked, inactive, not-yet-valid, expired, or publication-time-incompatible key lifecycle inputs;
 - externally withdrawn publication state, missing withdrawal evidence, or withdrawal refs on a published state;
-- reconstruction semantics that globally replace or discard unrelated owner-local imports;
+- duplicate/conflicting publication histories, non-monotonic per-family epochs, cross-family or non-matching withdrawals, and reconstruction attempts that globally replace or discard unrelated imports;
 - embedded-key self-authorization or declarations marked as trust roots;
 - affected-use publication or any true legality, selection, apply, promotion, activation, dogfood, or rollout flag.
 

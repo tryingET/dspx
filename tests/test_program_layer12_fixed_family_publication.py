@@ -21,6 +21,7 @@ from dspx.services.program_layer12_fixed_family_publication import (
     canonical_json,
     check_fixed_family_publication,
     check_fixed_family_spec,
+    reconstruct_fixed_family_imports,
     sha256_digest,
 )
 
@@ -151,6 +152,17 @@ def test_fixed_spec_and_publication_match_schema_and_external_pins() -> None:
         "ak_wire_trust_source": "external_pin",
         "signature_trust_source": "external_pin",
         "publication_lifecycle_source": "external_pin",
+        "canonical_import": {
+            "schema_version": "layer12-fixed-family-import-v1",
+            "owner": OWNER,
+            "family_id": FAMILY_ID,
+            "publication_id": PUBLICATION_ID,
+            "epoch": 1,
+            "spec_digest": SPEC_DIGEST,
+            "transition_token": "continue_current_execution_task",
+            "publication_scope": "owner_local_artifact_only",
+            "authority_granted": False,
+        },
         "canonical_reconstruction": {
             "mode": "cumulative_owner_local_family_epochs",
             "family_identity": {"owner": OWNER, "family_id": FAMILY_ID},
@@ -475,6 +487,149 @@ def test_spec_external_wire_and_scope_pins_cannot_be_inferred_from_artifact() ->
             expected_scope_digest="sha256:" + "f" * 64,
             expected_ak_wire_identity=AK_WIRE_IDENTITY,
             expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+
+
+def _family_import(
+    owner: str,
+    family_id: str,
+    epoch: int,
+    publication_id: str,
+    transition_token: str = "continue_current_execution_task",
+) -> dict[str, object]:
+    return {
+        "schema_version": "layer12-fixed-family-import-v1",
+        "owner": owner,
+        "family_id": family_id,
+        "publication_id": publication_id,
+        "epoch": epoch,
+        "spec_digest": "sha256:"
+        + hashlib.sha256(f"{owner}:{family_id}".encode()).hexdigest(),
+        "transition_token": transition_token,
+        "publication_scope": "owner_local_artifact_only",
+        "authority_granted": False,
+    }
+
+
+def _withdrawal(
+    owner: str, family_id: str, epoch: int, publication_id: str
+) -> dict[str, object]:
+    return {
+        "schema_version": "layer12-fixed-family-withdrawal-v1",
+        "owner": owner,
+        "family_id": family_id,
+        "publication_id": publication_id,
+        "epoch": epoch,
+        "withdrawal_ref": f"withdrawal:{owner}:{family_id}:{epoch}",
+        "owner_local_only": True,
+        "authority_granted": False,
+    }
+
+
+def test_reconstruction_appends_per_family_and_preserves_unrelated_imports() -> None:
+    unrelated = _family_import(
+        OWNER, "unrelated.family", 7, "unrelated:7", "unrelated_transition_token"
+    )
+    target_v1 = _family_import(OWNER, FAMILY_ID, 1, "target:1")
+    target_v2 = _family_import(OWNER, FAMILY_ID, 2, "target:2")
+
+    result = reconstruct_fixed_family_imports(
+        prior_imports=[unrelated, target_v1],
+        current_import=target_v2,
+        current_withdrawal=None,
+    )
+
+    assert result["imports"] == [unrelated, target_v1, target_v2]
+    assert result["withdrawal_applied"] is False
+    assert result["preserve_unrelated_imports"] is True
+    assert result["authority_granted"] is False
+    schema = _load(SCHEMA_PATH)
+    validator = jsonschema.Draft202012Validator(schema)
+    for artifact in (unrelated, target_v1, target_v2, result):
+        validator.validate(artifact)
+
+
+def test_reconstruction_withdraws_only_exact_matching_family_epoch() -> None:
+    unrelated = _family_import(OWNER, "unrelated.family", 4, "unrelated:4")
+    target_v1 = _family_import(OWNER, FAMILY_ID, 1, "target:1")
+    other_owner = _family_import("other/owner", FAMILY_ID, 1, "other:1")
+
+    withdrawal = _withdrawal(OWNER, FAMILY_ID, 1, "target:1")
+    result = reconstruct_fixed_family_imports(
+        prior_imports=[unrelated, target_v1, other_owner],
+        current_import=None,
+        current_withdrawal=withdrawal,
+    )
+    jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).validate(withdrawal)
+
+    assert result["imports"] == [unrelated, other_owner]
+    assert result["withdrawal_applied"] is True
+    assert result["withdrawn_identity"] == {
+        "owner": OWNER,
+        "family_id": FAMILY_ID,
+        "epoch": 1,
+        "publication_id": "target:1",
+        "withdrawal_ref": f"withdrawal:{OWNER}:{FAMILY_ID}:1",
+    }
+
+
+@pytest.mark.parametrize(
+    ("prior", "current", "message"),
+    [
+        (
+            [_family_import(OWNER, FAMILY_ID, 1, "target:1")],
+            _family_import(OWNER, FAMILY_ID, 1, "target:1"),
+            "duplicates or conflicts",
+        ),
+        (
+            [_family_import(OWNER, FAMILY_ID, 1, "target:1")],
+            _family_import(OWNER, FAMILY_ID, 1, "target:conflict"),
+            "duplicates or conflicts",
+        ),
+        (
+            [_family_import(OWNER, FAMILY_ID, 2, "target:2")],
+            _family_import(OWNER, FAMILY_ID, 1, "target:1"),
+            "strictly monotonic",
+        ),
+        (
+            [_family_import(OWNER, FAMILY_ID, 1, "target:1")],
+            _family_import(
+                OWNER, FAMILY_ID, 2, "target:2", "conflicting_transition_token"
+            ),
+            "owner/family contract",
+        ),
+        (
+            [_family_import(OWNER, FAMILY_ID, 1, "shared-id")],
+            _family_import(OWNER, "unrelated.family", 1, "shared-id"),
+            "publication_id",
+        ),
+    ],
+)
+def test_reconstruction_rejects_duplicate_conflicting_or_nonmonotonic_history(
+    prior: list[object], current: object, message: str
+) -> None:
+    with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
+        reconstruct_fixed_family_imports(
+            prior_imports=prior,
+            current_import=current,
+            current_withdrawal=None,
+        )
+
+
+def test_reconstruction_rejects_cross_family_and_conflicting_withdrawals() -> None:
+    target = _family_import(OWNER, FAMILY_ID, 1, "target:1")
+    unrelated = _family_import(OWNER, "unrelated.family", 1, "unrelated:1")
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="exactly one"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[target, unrelated],
+            current_import=None,
+            current_withdrawal=_withdrawal(OWNER, "missing.family", 1, "target:1"),
+        )
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="publication_id"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[target, unrelated],
+            current_import=None,
+            current_withdrawal=_withdrawal(OWNER, FAMILY_ID, 1, "forged-id"),
         )
 
 

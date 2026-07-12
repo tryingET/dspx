@@ -16,7 +16,7 @@ import binascii
 import hashlib
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timezone
 from typing import Any, cast
 
@@ -108,6 +108,172 @@ def _exact(item: Mapping[str, Any], expected: Mapping[str, object], label: str) 
     for field, value in expected.items():
         if item[field] != value:
             raise Layer12FixedFamilyPublicationError(f"{label}.{field} drift")
+
+
+def _canonical_import(value: object, label: str) -> dict[str, object]:
+    item = _object(value, label)
+    fields = {
+        "schema_version",
+        "owner",
+        "family_id",
+        "publication_id",
+        "epoch",
+        "spec_digest",
+        "transition_token",
+        "publication_scope",
+        "authority_granted",
+    }
+    _closed(item, fields, label)
+    result: dict[str, object] = {
+        "schema_version": _text(item["schema_version"], f"{label}.schema_version"),
+        "owner": _text(item["owner"], f"{label}.owner"),
+        "family_id": _text(item["family_id"], f"{label}.family_id"),
+        "publication_id": _text(item["publication_id"], f"{label}.publication_id"),
+        "epoch": _positive_integer(item["epoch"], f"{label}.epoch"),
+        "spec_digest": _digest(item["spec_digest"], f"{label}.spec_digest"),
+        "transition_token": _text(
+            item["transition_token"], f"{label}.transition_token"
+        ),
+        "publication_scope": item["publication_scope"],
+        "authority_granted": item["authority_granted"],
+    }
+    if result["schema_version"] != "layer12-fixed-family-import-v1":
+        raise Layer12FixedFamilyPublicationError(f"{label} schema drift")
+    if result["publication_scope"] != OWNER_LOCAL_SCOPE:
+        raise Layer12FixedFamilyPublicationError(f"{label} publication scope drift")
+    if result["authority_granted"] is not False:
+        raise Layer12FixedFamilyPublicationError(f"{label} authority widening")
+    return result
+
+
+def reconstruct_fixed_family_imports(
+    *,
+    prior_imports: Sequence[object],
+    current_import: object | None,
+    current_withdrawal: object | None,
+) -> dict[str, object]:
+    """Reconstruct cumulative owner-local imports without global replacement.
+
+    History order is significant per ``(owner, family_id)``: epochs must increase
+    strictly, while unrelated families may be interleaved. A withdrawal removes
+    exactly one already-imported owner/family/epoch/publication identity.
+    """
+
+    imports: list[dict[str, object]] = []
+    coordinates: set[tuple[str, str, int]] = set()
+    publication_ids: set[str] = set()
+    last_epochs: dict[tuple[str, str], int] = {}
+    family_contracts: dict[tuple[str, str], tuple[str, str]] = {}
+
+    def append_import(value: object, label: str) -> None:
+        item = _canonical_import(value, label)
+        owner = cast(str, item["owner"])
+        family_id = cast(str, item["family_id"])
+        epoch = cast(int, item["epoch"])
+        publication_id = cast(str, item["publication_id"])
+        family_key = (owner, family_id)
+        coordinate = (owner, family_id, epoch)
+        family_contract = (
+            cast(str, item["transition_token"]),
+            cast(str, item["spec_digest"]),
+        )
+        previous_contract = family_contracts.get(family_key)
+        if previous_contract is not None and family_contract != previous_contract:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} conflicts with the existing owner/family contract"
+            )
+        if coordinate in coordinates:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} duplicates or conflicts with an existing family epoch"
+            )
+        if publication_id in publication_ids:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} duplicates or conflicts with an existing publication_id"
+            )
+        previous_epoch = last_epochs.get(family_key)
+        if previous_epoch is not None and epoch <= previous_epoch:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} is not strictly monotonic for owner/family"
+            )
+        coordinates.add(coordinate)
+        publication_ids.add(publication_id)
+        last_epochs[family_key] = epoch
+        family_contracts[family_key] = family_contract
+        imports.append(item)
+
+    for index, value in enumerate(prior_imports):
+        append_import(value, f"prior_imports[{index}]")
+    if current_import is not None:
+        append_import(current_import, "current_import")
+
+    withdrawal_applied = False
+    withdrawn_identity: dict[str, object] | None = None
+    if current_withdrawal is not None:
+        withdrawal = _object(current_withdrawal, "current_withdrawal")
+        _closed(
+            withdrawal,
+            {
+                "schema_version",
+                "owner",
+                "family_id",
+                "publication_id",
+                "epoch",
+                "withdrawal_ref",
+                "owner_local_only",
+                "authority_granted",
+            },
+            "current_withdrawal",
+        )
+        if withdrawal["schema_version"] != "layer12-fixed-family-withdrawal-v1":
+            raise Layer12FixedFamilyPublicationError("withdrawal schema drift")
+        owner = _text(withdrawal["owner"], "current_withdrawal.owner")
+        family_id = _text(withdrawal["family_id"], "current_withdrawal.family_id")
+        publication_id = _text(
+            withdrawal["publication_id"], "current_withdrawal.publication_id"
+        )
+        epoch = _positive_integer(withdrawal["epoch"], "current_withdrawal.epoch")
+        withdrawal_ref = _text(
+            withdrawal["withdrawal_ref"], "current_withdrawal.withdrawal_ref"
+        )
+        if withdrawal["owner_local_only"] is not True:
+            raise Layer12FixedFamilyPublicationError("withdrawal scope widening")
+        if withdrawal["authority_granted"] is not False:
+            raise Layer12FixedFamilyPublicationError("withdrawal authority widening")
+        matches = [
+            (index, item)
+            for index, item in enumerate(imports)
+            if item["owner"] == owner
+            and item["family_id"] == family_id
+            and item["epoch"] == epoch
+        ]
+        if len(matches) != 1:
+            raise Layer12FixedFamilyPublicationError(
+                "withdrawal does not match exactly one imported owner/family/epoch"
+            )
+        index, matched = matches[0]
+        if matched["publication_id"] != publication_id:
+            raise Layer12FixedFamilyPublicationError(
+                "withdrawal publication_id conflicts with matching family epoch"
+            )
+        imports.pop(index)
+        withdrawal_applied = True
+        withdrawn_identity = {
+            "owner": owner,
+            "family_id": family_id,
+            "epoch": epoch,
+            "publication_id": publication_id,
+            "withdrawal_ref": withdrawal_ref,
+        }
+
+    return {
+        "schema_version": "layer12-fixed-family-reconstruction-v1",
+        "mode": "cumulative_owner_local_family_epochs",
+        "imports": imports,
+        "withdrawal_applied": withdrawal_applied,
+        "withdrawn_identity": withdrawn_identity,
+        "preserve_unrelated_imports": True,
+        "authority_granted": False,
+    }
 
 
 def check_fixed_family_spec(
@@ -428,6 +594,17 @@ def check_fixed_family_publication(
         "ak_wire_trust_source": "external_pin",
         "signature_trust_source": "external_pin",
         "publication_lifecycle_source": "external_pin",
+        "canonical_import": {
+            "schema_version": "layer12-fixed-family-import-v1",
+            "owner": expected_owner,
+            "family_id": expected_family_id,
+            "publication_id": pinned_publication_id,
+            "epoch": pinned_epoch,
+            "spec_digest": pinned_spec_digest,
+            "transition_token": ONLY_TOKEN,
+            "publication_scope": OWNER_LOCAL_SCOPE,
+            "authority_granted": False,
+        },
         "canonical_reconstruction": {
             "mode": "cumulative_owner_local_family_epochs",
             "family_identity": {

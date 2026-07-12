@@ -9,6 +9,15 @@
     },
     {
       "$ref": "#/$defs/publication"
+    },
+    {
+      "$ref": "#/$defs/familyImport"
+    },
+    {
+      "$ref": "#/$defs/withdrawal"
+    },
+    {
+      "$ref": "#/$defs/reconstruction"
     }
   ],
   "$defs": {
@@ -357,6 +366,176 @@
               "type": "null"
             }
           }
+        }
+      }
+    },
+    "familyImport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "owner",
+        "family_id",
+        "publication_id",
+        "epoch",
+        "spec_digest",
+        "transition_token",
+        "publication_scope",
+        "authority_granted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "layer12-fixed-family-import-v1"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "spec_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "transition_token": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication_scope": {
+          "const": "owner_local_artifact_only"
+        },
+        "authority_granted": {
+          "const": false
+        }
+      }
+    },
+    "withdrawal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "owner",
+        "family_id",
+        "publication_id",
+        "epoch",
+        "withdrawal_ref",
+        "owner_local_only",
+        "authority_granted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "layer12-fixed-family-withdrawal-v1"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "withdrawal_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner_local_only": {
+          "const": true
+        },
+        "authority_granted": {
+          "const": false
+        }
+      }
+    },
+    "reconstruction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "mode",
+        "imports",
+        "withdrawal_applied",
+        "withdrawn_identity",
+        "preserve_unrelated_imports",
+        "authority_granted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "layer12-fixed-family-reconstruction-v1"
+        },
+        "mode": {
+          "const": "cumulative_owner_local_family_epochs"
+        },
+        "imports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/familyImport"
+          }
+        },
+        "withdrawal_applied": {
+          "type": "boolean"
+        },
+        "withdrawn_identity": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "owner",
+                "family_id",
+                "epoch",
+                "publication_id",
+                "withdrawal_ref"
+              ],
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "family_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "epoch": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "publication_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "withdrawal_ref": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "preserve_unrelated_imports": {
+          "const": true
+        },
+        "authority_granted": {
+          "const": false
         }
       }
     }
