@@ -101,6 +101,42 @@ def oracle_backend_status(
     typer.echo(f"Next: {status['next_required_action']}")
 
 
+@app.command("program-semantic-preflight")
+def oracle_program_semantic_preflight(
+    config: Optional[Path] = typer.Option(
+        None,
+        "--config",
+        help="Optional DSPx TOML configuration path",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON report"),
+) -> None:
+    """Check program Oracle semantic configuration without making an LM call."""
+    from dspx.config_loader import load_config_env
+    from dspx.services.program_oracle_semantic_backend import (
+        preflight_program_oracle_semantic_backend,
+    )
+
+    try:
+        load_config_env(str(config) if config is not None else None)
+        payload = preflight_program_oracle_semantic_backend().to_dict()
+    except Exception as exc:
+        typer.echo(f"Error: Oracle semantic preflight failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo("=== Program Oracle Semantic Preflight ===\n")
+        typer.echo(f"Status: {payload['status']}")
+        typer.echo(f"Backend: {payload['backend_kind']}")
+        typer.echo(f"Preferred model: {payload['preferred_model']}")
+        typer.echo(f"Configured provider: {payload['configured_provider'] or '-'}")
+        typer.echo(f"Configured model: {payload['configured_model'] or '-'}")
+        typer.echo("Live verified: false (preflight performs no semantic call)")
+    if not payload["ready"]:
+        raise typer.Exit(code=2)
+
+
 @autoresearch_evidence_app.command("publish-preflight")
 def oracle_autoresearch_evidence_publish_preflight(
     packet: Path = typer.Option(

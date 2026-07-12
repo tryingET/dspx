@@ -59,6 +59,9 @@ _CONFIG_ENV_KEYS = (
     "DSPX_QUALITY_CRITERIA_REASONING_EFFORT",
     "DSPX_ORACLE_SEMANTIC_MODEL",
     "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT",
+    "DSPX_ORACLE_SEMANTIC_BACKEND",
+    "DSPX_ORACLE_SEMANTIC_PROVIDER",
+    "DSPX_ORACLE_SEMANTIC_FIXTURE_PATH",
     "DSPX_OPENAI_COMPAT_API_BASE",
     "DSPX_OPENAI_COMPAT_MODEL",
     "DSPX_OPENAI_COMPAT_TIMEOUT",
@@ -420,8 +423,8 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
             seen_keys=seen_keys,
         )
 
-        # Autonomous-foundry role-specific Codex routes. These declarations do
-        # not imply that a live model call has succeeded.
+        # Autonomous-foundry role declarations and Oracle semantic backend.
+        # These settings do not imply that a live model call has succeeded.
         _set_config_value(
             "DSPX_QUALITY_CRITERIA_MODEL",
             quality_criteria_role.get("model"),
@@ -440,6 +443,21 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
         _set_config_value(
             "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT",
             oracle_semantic_role.get("reasoning_effort"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_ORACLE_SEMANTIC_BACKEND",
+            oracle_semantic_role.get("backend"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_ORACLE_SEMANTIC_PROVIDER",
+            oracle_semantic_role.get("provider"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_ORACLE_SEMANTIC_FIXTURE_PATH",
+            oracle_semantic_role.get("fixture_path"),
             seen_keys=seen_keys,
         )
 

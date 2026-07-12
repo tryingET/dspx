@@ -176,6 +176,9 @@ def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) 
         "DSPX_QUALITY_CRITERIA_REASONING_EFFORT",
         "DSPX_ORACLE_SEMANTIC_MODEL",
         "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT",
+        "DSPX_ORACLE_SEMANTIC_BACKEND",
+        "DSPX_ORACLE_SEMANTIC_PROVIDER",
+        "DSPX_ORACLE_SEMANTIC_FIXTURE_PATH",
         "DSPX_VLLM_API_BASE",
         "DSPX_VLLM_MODEL",
         "DSPX_VLLM_TIMEOUT",
@@ -200,6 +203,9 @@ def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) 
         [model_roles.oracle_semantic]
         model = "codex/gpt-5.6-luna"
         reasoning_effort = "max"
+        backend = "fixture-replay"
+        provider = "dspy-lm-auth"
+        fixture_path = "./fixtures/oracle-semantic.json"
 
         [vllm]
         api_base = "http://127.0.0.1:8000/v1"
@@ -224,6 +230,12 @@ def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) 
     assert os.environ["DSPX_QUALITY_CRITERIA_REASONING_EFFORT"] == "high"
     assert os.environ["DSPX_ORACLE_SEMANTIC_MODEL"] == "codex/gpt-5.6-luna"
     assert os.environ["DSPX_ORACLE_SEMANTIC_REASONING_EFFORT"] == "max"
+    assert os.environ["DSPX_ORACLE_SEMANTIC_BACKEND"] == "fixture-replay"
+    assert os.environ["DSPX_ORACLE_SEMANTIC_PROVIDER"] == "dspy-lm-auth"
+    assert (
+        os.environ["DSPX_ORACLE_SEMANTIC_FIXTURE_PATH"]
+        == "./fixtures/oracle-semantic.json"
+    )
     assert os.environ["DSPX_VLLM_API_BASE"] == "http://127.0.0.1:8000/v1"
     assert os.environ["DSPX_VLLM_MODEL"] == "local-student"
     assert os.environ["DSPX_VLLM_TIMEOUT"] == "33"

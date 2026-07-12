@@ -14,8 +14,15 @@ model = "codex/gpt-5.6-sol"
 reasoning_effort = "high"
 
 [model_roles.oracle_semantic]
+# Luna remains the preferred role target. The backend/provider below selects
+# the explicit executable route; receipts preserve preferred versus executed.
 model = "codex/gpt-5.6-luna"
 reasoning_effort = "max"
+backend = "live"
+provider = "dspy-lm-auth"
+# For deterministic offline development instead:
+# backend = "fixture-replay"
+# fixture_path = "./fixtures/oracle-semantic.json"
 
 [vllm]
 api_base = "http://127.0.0.1:1234/v1"
