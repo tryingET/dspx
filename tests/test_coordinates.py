@@ -830,6 +830,37 @@ class TestReceiptEmbedding:
         assert "classify this ticket" in emb.input_text
         assert '{"category": "bug"}' in emb.output_text
 
+    def test_embed_receipt_preserves_original_execution_time(self) -> None:
+        engine = EmbeddingEngine(backend="mock", mock_dimension=32)
+        receipt = {
+            "execution_id": "exec-temporal",
+            "run_kind": "program-runtime",
+            "provider": "stub",
+            "created_at": "2024-03-04T05:06:07-05:00",
+            "replay_inputs": {"prompt": "temporal evidence"},
+        }
+
+        emb = engine.embed_receipt(receipt, output_content="result")
+
+        assert emb is not None
+        assert emb.created_at == "2024-03-04T10:06:07+00:00"
+
+    def test_embed_receipt_rejects_naive_execution_time(self) -> None:
+        engine = EmbeddingEngine(backend="mock", mock_dimension=32)
+        receipt = {
+            "execution_id": "exec-naive",
+            "created_at": "2024-03-04T05:06:07",
+            "replay_inputs": {"prompt": "temporal evidence"},
+        }
+
+        result = engine.embed_receipt_result(receipt, output_content="result")
+
+        assert not result.ok
+        assert (
+            result.error
+            == "Validation error: created_at must include an explicit timezone"
+        )
+
     def test_embed_receipt_with_file(self, tmp_path: Path) -> None:
         """Can embed from receipt with output file."""
         engine = EmbeddingEngine(backend="mock", mock_dimension=32)

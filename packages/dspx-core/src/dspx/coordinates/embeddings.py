@@ -81,6 +81,21 @@ class EmbeddingValidationError(ValueError):
     pass
 
 
+def _canonical_execution_time(value: object | None) -> str:
+    if value is None:
+        return datetime.now(timezone.utc).isoformat()
+    if not isinstance(value, str) or not value.strip():
+        raise EmbeddingValidationError("created_at must be a non-empty ISO-8601 string")
+    text = value.strip()
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise EmbeddingValidationError("created_at must be valid ISO-8601") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise EmbeddingValidationError("created_at must include an explicit timezone")
+    return parsed.astimezone(timezone.utc).isoformat()
+
+
 class EmbeddingResult:
     """Result type for embedding operations that may fail.
 
@@ -366,6 +381,7 @@ class EmbeddingEngine:
         template_version: str | None = None,
         source_path: str | None = None,
         metadata: dict[str, Any] | None = None,
+        created_at: str | None = None,
     ) -> ExecutionEmbedding:
         """Embed a complete execution record.
 
@@ -388,7 +404,7 @@ class EmbeddingEngine:
             run_kind=run_kind,
             provider=provider,
             template_version=template_version,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=_canonical_execution_time(created_at),
             dimension=self._dimension,
             source_path=source_path,
             metadata=metadata or {},
@@ -489,6 +505,7 @@ class EmbeddingEngine:
                     "cache_enabled": receipt.get("cache_enabled"),
                     "receipt_identity": identity.to_dict(),
                 },
+                created_at=receipt.get("created_at"),
             )
             return EmbeddingResult.success(embedding)
         except EmbeddingValidationError as e:
