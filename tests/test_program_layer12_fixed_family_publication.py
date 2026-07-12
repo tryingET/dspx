@@ -528,8 +528,10 @@ def _withdrawal(
 
 def _high_watermarks(*imports: dict[str, object]) -> list[dict[str, object]]:
     maxima: dict[tuple[str, str], dict[str, object]] = {}
+    used_ids: dict[tuple[str, str], list[object]] = {}
     for item in imports:
         key = (cast(str, item["owner"]), cast(str, item["family_id"]))
+        used_ids.setdefault(key, []).append(item["publication_id"])
         if key not in maxima or cast(int, item["epoch"]) > cast(
             int, maxima[key]["epoch"]
         ):
@@ -542,6 +544,7 @@ def _high_watermarks(*imports: dict[str, object]) -> list[dict[str, object]]:
             "epoch": item["epoch"],
             "transition_token": item["transition_token"],
             "spec_digest": item["spec_digest"],
+            "used_publication_ids": used_ids[(owner, family_id)],
         }
         for (owner, family_id), item in maxima.items()
     ]
@@ -692,6 +695,14 @@ def test_chained_reconstruction_preserves_withdrawn_epoch_high_watermark() -> No
                 current_withdrawal=None,
             )
 
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="durable"):
+        reconstruct_fixed_family_imports(
+            prior_imports=imports,
+            prior_epoch_high_watermarks=watermarks,
+            current_import=_family_import(OWNER, FAMILY_ID, 3, "target:2"),
+            current_withdrawal=None,
+        )
+
     target_v3 = _family_import(OWNER, FAMILY_ID, 3, "target:3")
     advanced = reconstruct_fixed_family_imports(
         prior_imports=imports,
@@ -731,6 +742,24 @@ def test_reconstruction_rejects_missing_duplicate_and_regressed_watermarks() -> 
         reconstruct_fixed_family_imports(
             prior_imports=[target_v2],
             prior_epoch_high_watermarks=regressed,
+            current_import=None,
+            current_withdrawal=None,
+        )
+    omitted_id = copy.deepcopy(valid)
+    omitted_id[0]["used_publication_ids"] = ["some-other-id"]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="omits"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[target_v2],
+            prior_epoch_high_watermarks=omitted_id,
+            current_import=None,
+            current_withdrawal=None,
+        )
+    duplicate_id = copy.deepcopy(valid)
+    duplicate_id[0]["used_publication_ids"] = ["target:2", "target:2"]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="contains duplicates"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[target_v2],
+            prior_epoch_high_watermarks=duplicate_id,
             current_import=None,
             current_withdrawal=None,
         )

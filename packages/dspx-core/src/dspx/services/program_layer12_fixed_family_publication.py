@@ -161,6 +161,8 @@ def reconstruct_fixed_family_imports(
     last_epochs: dict[tuple[str, str], int] = {}
     family_contracts: dict[tuple[str, str], tuple[str, str]] = {}
     family_order: list[tuple[str, str]] = []
+    family_used_publication_ids: dict[tuple[str, str], list[str]] = {}
+    durable_publication_ids: set[str] = set()
 
     def remember_family(key: tuple[str, str]) -> None:
         if key not in family_order:
@@ -190,6 +192,10 @@ def reconstruct_fixed_family_imports(
         if publication_id in publication_ids:
             raise Layer12FixedFamilyPublicationError(
                 f"{label} duplicates or conflicts with an existing publication_id"
+            )
+        if is_current and publication_id in durable_publication_ids:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} reuses a durable used or withdrawn publication_id"
             )
         previous_epoch = last_epochs.get(family_key)
         if previous_epoch is not None and epoch <= previous_epoch:
@@ -225,6 +231,7 @@ def reconstruct_fixed_family_imports(
                 "epoch",
                 "spec_digest",
                 "transition_token",
+                "used_publication_ids",
             },
             label,
         )
@@ -240,6 +247,18 @@ def reconstruct_fixed_family_imports(
             _text(watermark["transition_token"], f"{label}.transition_token"),
             _digest(watermark["spec_digest"], f"{label}.spec_digest"),
         )
+        raw_used_ids = watermark["used_publication_ids"]
+        if not isinstance(raw_used_ids, list) or not raw_used_ids:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.used_publication_ids must be a non-empty list"
+            )
+        used_ids = [
+            _text(value, f"{label}.used_publication_ids") for value in raw_used_ids
+        ]
+        if len(set(used_ids)) != len(used_ids):
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.used_publication_ids contains duplicates"
+            )
         family_key = (owner, family_id)
         if family_key in epoch_high_watermarks:
             raise Layer12FixedFamilyPublicationError(
@@ -255,9 +274,25 @@ def reconstruct_fixed_family_imports(
             raise Layer12FixedFamilyPublicationError(
                 f"{label} regresses below imported family history"
             )
+        imported_ids = {
+            cast(str, item["publication_id"])
+            for item in imports
+            if item["owner"] == owner and item["family_id"] == family_id
+        }
+        if not imported_ids.issubset(set(used_ids)):
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} omits publication ids from imported family history"
+            )
+        reused_ids = durable_publication_ids.intersection(used_ids)
+        if reused_ids:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} conflicts with durable publication ids from another family"
+            )
         remember_family(family_key)
         epoch_high_watermarks[family_key] = epoch
         family_contracts[family_key] = watermark_contract
+        family_used_publication_ids[family_key] = used_ids
+        durable_publication_ids.update(used_ids)
 
     missing_watermarks = set(last_epochs) - set(epoch_high_watermarks)
     if missing_watermarks:
@@ -273,6 +308,11 @@ def reconstruct_fixed_family_imports(
             cast(str, current_item["family_id"]),
         )
         epoch_high_watermarks[current_key] = cast(int, current_item["epoch"])
+        current_publication_id = cast(str, current_item["publication_id"])
+        family_used_publication_ids.setdefault(current_key, []).append(
+            current_publication_id
+        )
+        durable_publication_ids.add(current_publication_id)
 
     withdrawal_applied = False
     withdrawn_identity: dict[str, object] | None = None
@@ -341,6 +381,7 @@ def reconstruct_fixed_family_imports(
             "epoch": epoch_high_watermarks[(owner, family_id)],
             "transition_token": family_contracts[(owner, family_id)][0],
             "spec_digest": family_contracts[(owner, family_id)][1],
+            "used_publication_ids": family_used_publication_ids[(owner, family_id)],
         }
         for owner, family_id in family_order
     ]
