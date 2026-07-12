@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "layer12-fixed-family-publication.v1.schema.json",
+  "title": "DSPx Layer-12 closed fixed-family spec and owner-local publication",
+  "description": "One-token owner-local evidence contract. It grants no AK legality, affected-use publication, policy selection, apply, promotion, activation, dogfood, or rollout authority.",
+  "oneOf": [
+    {"$ref": "#/$defs/spec"},
+    {"$ref": "#/$defs/publication"}
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "time": {"type": "string", "format": "date-time"},
+    "wireEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_owner", "wire_identity", "wire_digest", "declaration_is_trust_root"],
+      "properties": {
+        "source_owner": {"const": "softwareco/owned/agent-kernel"},
+        "wire_identity": {"type": "string", "minLength": 1},
+        "wire_digest": {"$ref": "#/$defs/digest"},
+        "declaration_is_trust_root": {"const": false}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_local_artifact_publication", "affected_use_publication", "ak_legality", "policy_selection", "apply", "promotion", "activation", "dogfood", "rollout"],
+      "properties": {
+        "owner_local_artifact_publication": {"const": true},
+        "affected_use_publication": {"const": false},
+        "ak_legality": {"const": false},
+        "policy_selection": {"const": false},
+        "apply": {"const": false},
+        "promotion": {"const": false},
+        "activation": {"const": false},
+        "dogfood": {"const": false},
+        "rollout": {"const": false}
+      }
+    },
+    "spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "owner", "family_id", "protocol_version", "transition_tokens", "scope_digest", "ak_wire_evidence", "publication_contract", "authority_boundary"],
+      "properties": {
+        "schema_version": {"const": "layer12-fixed-family-spec-v1"},
+        "owner": {"const": "softwareco/owned/dspx"},
+        "family_id": {"const": "dspx.layer12.continue-current-execution-task.v1"},
+        "protocol_version": {"const": "layer12-v1"},
+        "transition_tokens": {"type": "array", "prefixItems": [{"const": "continue_current_execution_task"}], "items": false, "minItems": 1, "maxItems": 1},
+        "scope_digest": {"$ref": "#/$defs/digest"},
+        "ak_wire_evidence": {"$ref": "#/$defs/wireEvidence"},
+        "publication_contract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["publication_scope", "signed_payload", "signature_algorithm", "external_trust_required"],
+          "properties": {
+            "publication_scope": {"const": "owner_local_artifact_only"},
+            "signed_payload": {"const": "publication_object_without_signature"},
+            "signature_algorithm": {"const": "Ed25519"},
+            "external_trust_required": {"const": true}
+          }
+        },
+        "authority_boundary": {"$ref": "#/$defs/authority"}
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "publication_id", "published_at", "publication_scope", "identity", "ak_wire_evidence", "signer_evidence", "authority_boundary", "signature"],
+      "properties": {
+        "schema_version": {"const": "layer12-fixed-family-publication-v1"},
+        "publication_id": {"type": "string", "minLength": 1},
+        "published_at": {"$ref": "#/$defs/time"},
+        "publication_scope": {"const": "owner_local_artifact_only"},
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["owner", "family_id", "protocol_version", "transition_token", "spec_schema_version", "spec_digest", "scope_digest"],
+          "properties": {
+            "owner": {"const": "softwareco/owned/dspx"},
+            "family_id": {"const": "dspx.layer12.continue-current-execution-task.v1"},
+            "protocol_version": {"const": "layer12-v1"},
+            "transition_token": {"const": "continue_current_execution_task"},
+            "spec_schema_version": {"const": "layer12-fixed-family-spec-v1"},
+            "spec_digest": {"$ref": "#/$defs/digest"},
+            "scope_digest": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "ak_wire_evidence": {"$ref": "#/$defs/wireEvidence"},
+        "signer_evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "key_id", "public_key_b64", "key_status", "valid_from", "valid_until", "declaration_is_trust_root"],
+          "properties": {
+            "algorithm": {"const": "Ed25519"},
+            "key_id": {"type": "string", "minLength": 1},
+            "public_key_b64": {"type": "string", "contentEncoding": "base64"},
+            "key_status": {"const": "active"},
+            "valid_from": {"$ref": "#/$defs/time"},
+            "valid_until": {"$ref": "#/$defs/time"},
+            "declaration_is_trust_root": {"const": false}
+          }
+        },
+        "authority_boundary": {"$ref": "#/$defs/authority"},
+        "signature": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "key_id", "signed_payload_digest", "signature_b64"],
+          "properties": {
+            "algorithm": {"const": "Ed25519"},
+            "key_id": {"type": "string", "minLength": 1},
+            "signed_payload_digest": {"$ref": "#/$defs/digest"},
+            "signature_b64": {"type": "string", "contentEncoding": "base64"}
+          }
+        }
+      }
+    }
+  }
+}

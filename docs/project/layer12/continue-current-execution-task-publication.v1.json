@@ -1,0 +1,33 @@
+{
+  "schema_version": "layer12-fixed-family-spec-v1",
+  "owner": "softwareco/owned/dspx",
+  "family_id": "dspx.layer12.continue-current-execution-task.v1",
+  "protocol_version": "layer12-v1",
+  "transition_tokens": [
+    "continue_current_execution_task"
+  ],
+  "scope_digest": "sha256:46e7861e08304ee1fa2ececa5ab460137dcf3fd2eae40f7055b8252b7fa04393",
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "publication_contract": {
+    "publication_scope": "owner_local_artifact_only",
+    "signed_payload": "publication_object_without_signature",
+    "signature_algorithm": "Ed25519",
+    "external_trust_required": true
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  }
+}

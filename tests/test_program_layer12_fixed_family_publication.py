@@ -1,0 +1,410 @@
+# summary: "Tests the closed one-token Layer-12 owner-local publication against trust and authority drift."
+# read_when:
+#   - "Changing the IW14b fixed-family spec, signed fixture, verifier pins, or authority flags."
+
+from __future__ import annotations
+
+import base64
+import copy
+import hashlib
+import json
+from pathlib import Path
+from typing import Any, TypedDict
+
+import jsonschema
+import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
+from dspx.services.program_layer12_fixed_family_publication import (
+    Layer12FixedFamilyPublicationError,
+    canonical_json,
+    check_fixed_family_publication,
+    check_fixed_family_spec,
+    sha256_digest,
+)
+
+SPEC_PATH = Path(
+    "docs/project/layer12/continue-current-execution-task-publication.v1.json"
+)
+PUBLICATION_PATH = Path(
+    "docs/project/layer12/fixtures/iw14b-continue-current-execution-task-publication.v1.json"
+)
+SCHEMA_PATH = Path(
+    "docs/project/layer12/layer12-fixed-family-publication.v1.schema.json"
+)
+OWNER = "softwareco/owned/dspx"
+FAMILY_ID = "dspx.layer12.continue-current-execution-task.v1"
+SCOPE_DIGEST = "sha256:46e7861e08304ee1fa2ececa5ab460137dcf3fd2eae40f7055b8252b7fa04393"
+SPEC_DIGEST = "sha256:acbfc92dff83c76e99135d073a1bd58bea7db185ed2955eceb893b3fa19f486f"
+AK_WIRE_IDENTITY = "ak.direction-controller.transition-token.v1"
+AK_WIRE_DIGEST = (
+    "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7"
+)
+KEY_ID = "dspx-iw14b-test-fixture-key-v1"
+KEY_VALID_FROM = "2026-07-01T00:00:00Z"
+KEY_VALID_UNTIL = "2026-08-01T00:00:00Z"
+VERIFY_AT = "2026-07-12T12:00:00Z"
+_TEST_SEED = hashlib.sha256(
+    b"DSPx IW14b deterministic Ed25519 TEST FIXTURE ONLY v1"
+).digest()
+_TEST_PRIVATE_KEY = Ed25519PrivateKey.from_private_bytes(_TEST_SEED)
+PUBLIC_KEY_B64 = base64.b64encode(
+    _TEST_PRIVATE_KEY.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+).decode()
+
+
+class PublicationKwargs(TypedDict):
+    spec: object
+    expected_owner: str
+    expected_family_id: str
+    expected_spec_digest: str
+    expected_scope_digest: str
+    expected_ak_wire_identity: str
+    expected_ak_wire_digest: str
+    expected_key_id: str
+    trusted_public_key_b64: str
+    expected_key_status: str
+    expected_key_valid_from: str
+    expected_key_valid_until: str
+    verification_time: str
+
+
+def _load(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _kwargs(
+    *,
+    expected_key_status: str = "active",
+    expected_key_valid_from: str = KEY_VALID_FROM,
+    expected_key_valid_until: str = KEY_VALID_UNTIL,
+    verification_time: str = VERIFY_AT,
+) -> PublicationKwargs:
+    return {
+        "spec": _load(SPEC_PATH),
+        "expected_owner": OWNER,
+        "expected_family_id": FAMILY_ID,
+        "expected_spec_digest": SPEC_DIGEST,
+        "expected_scope_digest": SCOPE_DIGEST,
+        "expected_ak_wire_identity": AK_WIRE_IDENTITY,
+        "expected_ak_wire_digest": AK_WIRE_DIGEST,
+        "expected_key_id": KEY_ID,
+        "trusted_public_key_b64": PUBLIC_KEY_B64,
+        "expected_key_status": expected_key_status,
+        "expected_key_valid_from": expected_key_valid_from,
+        "expected_key_valid_until": expected_key_valid_until,
+        "verification_time": verification_time,
+    }
+
+
+def _resign(publication: dict[str, Any]) -> None:
+    payload = {key: value for key, value in publication.items() if key != "signature"}
+    publication["signature"].update(
+        {
+            "algorithm": "Ed25519",
+            "key_id": KEY_ID,
+            "signed_payload_digest": sha256_digest(payload),
+            "signature_b64": base64.b64encode(
+                _TEST_PRIVATE_KEY.sign(canonical_json(payload).encode())
+            ).decode(),
+        }
+    )
+
+
+def test_fixed_spec_and_publication_match_schema_and_external_pins() -> None:
+    schema = _load(SCHEMA_PATH)
+    spec = _load(SPEC_PATH)
+    publication = _load(PUBLICATION_PATH)
+    validator = jsonschema.Draft202012Validator(
+        schema, format_checker=jsonschema.FormatChecker()
+    )
+    validator.validate(spec)
+    validator.validate(publication)
+    assert sha256_digest(spec) == SPEC_DIGEST
+    assert PUBLIC_KEY_B64 == "x8BIz2mmuVjbSeeU27JtrWir71qLC9Q3a6vkUghjMgo="
+
+    result = check_fixed_family_publication(publication, **_kwargs())
+
+    assert result == {
+        "verified": True,
+        "publication_id": "dspx-iw14b-continue-current-execution-task-owner-local-v1",
+        "owner": OWNER,
+        "family_id": FAMILY_ID,
+        "transition_token": "continue_current_execution_task",
+        "publication_scope": "owner_local_artifact_only",
+        "spec_digest": SPEC_DIGEST,
+        "ak_wire_trust_source": "external_pin",
+        "signature_trust_source": "external_pin",
+        "authority_granted": False,
+    }
+
+
+@pytest.mark.parametrize(
+    "tokens",
+    [
+        [],
+        ["request_owner_route"],
+        ["continue_current_execution_task", "request_owner_route"],
+        "continue_current_execution_task",
+    ],
+)
+def test_spec_rejects_every_non_closed_token_family(tokens: object) -> None:
+    spec = _load(SPEC_PATH)
+    spec["transition_tokens"] = tokens
+    kwargs = _kwargs()
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="exactly the one"):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=FAMILY_ID,
+            expected_scope_digest=SCOPE_DIGEST,
+            expected_ak_wire_identity=AK_WIRE_IDENTITY,
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+    assert kwargs["expected_owner"] == OWNER
+
+
+@pytest.mark.parametrize(
+    ("path", "value", "message"),
+    [
+        (("identity", "owner"), "attacker/repo", "owner"),
+        (("identity", "family_id"), "family:other", "family"),
+        (("identity", "protocol_version"), "layer12-v2", "protocol"),
+        (("identity", "transition_token"), "request_owner_route", "transition_token"),
+        (("identity", "spec_digest"), "sha256:" + "0" * 64, "spec_digest"),
+        (("identity", "scope_digest"), "sha256:" + "0" * 64, "scope_digest"),
+        (("ak_wire_evidence", "wire_identity"), "ak.wire.other", "wire_identity"),
+        (("ak_wire_evidence", "wire_digest"), "sha256:" + "0" * 64, "wire_digest"),
+        (("signer_evidence", "key_id"), "attacker-key", "key_id"),
+    ],
+)
+def test_publication_rejects_identity_and_digest_drift(
+    path: tuple[str, str], value: object, message: str
+) -> None:
+    publication = _load(PUBLICATION_PATH)
+    publication[path[0]][path[1]] = value
+    _resign(publication)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
+        check_fixed_family_publication(publication, **_kwargs())
+
+
+@pytest.mark.parametrize(
+    ("container", "field"),
+    [
+        ((), "embedded_trust_root"),
+        (("identity",), "recommendation"),
+        (("ak_wire_evidence",), "trusted"),
+        (("signer_evidence",), "self_authorized"),
+        (("authority_boundary",), "publication_authorized"),
+        (("signature",), "certificate_chain"),
+    ],
+)
+def test_unknown_fields_fail_closed(container: tuple[str, ...], field: str) -> None:
+    publication = _load(PUBLICATION_PATH)
+    target: dict[str, Any] = publication
+    for part in container:
+        target = target[part]
+    target[field] = True
+    _resign(publication)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="fields mismatch"):
+        check_fixed_family_publication(publication, **_kwargs())
+
+
+@pytest.mark.parametrize(
+    ("container", "field"),
+    [
+        ((), "publication_id"),
+        (("identity",), "owner"),
+        (("ak_wire_evidence",), "source_owner"),
+        (("signer_evidence",), "algorithm"),
+        (("authority_boundary",), "apply"),
+        (("signature",), "algorithm"),
+    ],
+)
+def test_missing_fields_fail_closed_at_each_publication_boundary(
+    container: tuple[str, ...], field: str
+) -> None:
+    publication = _load(PUBLICATION_PATH)
+    target: dict[str, Any] = publication
+    for part in container:
+        target = target[part]
+    del target[field]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="fields mismatch"):
+        check_fixed_family_publication(publication, **_kwargs())
+
+
+@pytest.mark.parametrize(
+    ("container", "field"),
+    [
+        ((), "owner"),
+        (("ak_wire_evidence",), "wire_identity"),
+        (("publication_contract",), "external_trust_required"),
+        (("authority_boundary",), "activation"),
+    ],
+)
+def test_spec_is_closed_at_each_object_boundary(
+    container: tuple[str, ...], field: str
+) -> None:
+    spec = _load(SPEC_PATH)
+    target: dict[str, Any] = spec
+    for part in container:
+        target = target[part]
+    target[f"unknown_{field}"] = True
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="fields mismatch"):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=FAMILY_ID,
+            expected_scope_digest=SCOPE_DIGEST,
+            expected_ak_wire_identity=AK_WIRE_IDENTITY,
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "affected_use_publication",
+        "ak_legality",
+        "policy_selection",
+        "apply",
+        "promotion",
+        "activation",
+        "dogfood",
+        "rollout",
+    ],
+)
+def test_resigned_authority_widening_flags_are_rejected(field: str) -> None:
+    publication = _load(PUBLICATION_PATH)
+    publication["authority_boundary"][field] = True
+    _resign(publication)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match=field):
+        check_fixed_family_publication(publication, **_kwargs())
+
+
+def test_spec_authority_widening_is_rejected() -> None:
+    spec = _load(SPEC_PATH)
+    spec["authority_boundary"]["affected_use_publication"] = True
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="affected_use_publication"
+    ):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=FAMILY_ID,
+            expected_scope_digest=SCOPE_DIGEST,
+            expected_ak_wire_identity=AK_WIRE_IDENTITY,
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+
+
+def test_embedded_key_and_wire_declarations_cannot_self_authorize() -> None:
+    publication = _load(PUBLICATION_PATH)
+    publication["signer_evidence"]["declaration_is_trust_root"] = True
+    publication["ak_wire_evidence"]["declaration_is_trust_root"] = True
+    _resign(publication)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="trust_root"):
+        check_fixed_family_publication(publication, **_kwargs())
+
+    attacker = Ed25519PrivateKey.from_private_bytes(b"A" * 32)
+    attacker_public = base64.b64encode(
+        attacker.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    ).decode()
+    publication = _load(PUBLICATION_PATH)
+    publication["signer_evidence"]["public_key_b64"] = attacker_public
+    payload = {key: value for key, value in publication.items() if key != "signature"}
+    publication["signature"]["signed_payload_digest"] = sha256_digest(payload)
+    publication["signature"]["signature_b64"] = base64.b64encode(
+        attacker.sign(canonical_json(payload).encode())
+    ).decode()
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="public_key_b64"):
+        check_fixed_family_publication(publication, **_kwargs())
+
+
+@pytest.mark.parametrize(
+    ("status", "valid_from", "valid_until", "verification_time", "message"),
+    [
+        ("revoked", KEY_VALID_FROM, KEY_VALID_UNTIL, VERIFY_AT, "key_status"),
+        ("active", "2026-07-02T00:00:00Z", KEY_VALID_UNTIL, VERIFY_AT, "valid_from"),
+        ("active", KEY_VALID_FROM, "2026-07-31T00:00:00Z", VERIFY_AT, "valid_until"),
+        (
+            "active",
+            KEY_VALID_FROM,
+            KEY_VALID_UNTIL,
+            "2026-08-01T00:00:00Z",
+            "lifecycle",
+        ),
+        (
+            "active",
+            KEY_VALID_FROM,
+            KEY_VALID_UNTIL,
+            "2026-07-11T00:00:00Z",
+            "lifecycle",
+        ),
+    ],
+)
+def test_key_lifecycle_is_independently_pinned_and_time_bounded(
+    status: str,
+    valid_from: str,
+    valid_until: str,
+    verification_time: str,
+    message: str,
+) -> None:
+    kwargs = _kwargs(
+        expected_key_status=status,
+        expected_key_valid_from=valid_from,
+        expected_key_valid_until=valid_until,
+        verification_time=verification_time,
+    )
+    with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
+        check_fixed_family_publication(_load(PUBLICATION_PATH), **kwargs)
+
+
+def test_signature_payload_and_external_trust_drift_fail_closed() -> None:
+    publication = _load(PUBLICATION_PATH)
+    publication["publication_id"] += "-tampered"
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="payload digest"):
+        check_fixed_family_publication(publication, **_kwargs())
+
+    publication = _load(PUBLICATION_PATH)
+    publication["signature"]["signature_b64"] = base64.b64encode(b"0" * 64).decode()
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="invalid publication signature"
+    ):
+        check_fixed_family_publication(publication, **_kwargs())
+
+    kwargs = _kwargs()
+    kwargs["trusted_public_key_b64"] = base64.b64encode(b"1" * 32).decode()
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="public_key_b64"):
+        check_fixed_family_publication(_load(PUBLICATION_PATH), **kwargs)
+
+
+def test_spec_external_wire_and_scope_pins_cannot_be_inferred_from_artifact() -> None:
+    spec = _load(SPEC_PATH)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="wire_identity"):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=FAMILY_ID,
+            expected_scope_digest=SCOPE_DIGEST,
+            expected_ak_wire_identity="artifact-chosen-wire",
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="scope digest"):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=FAMILY_ID,
+            expected_scope_digest="sha256:" + "f" * 64,
+            expected_ak_wire_identity=AK_WIRE_IDENTITY,
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+
+
+def test_fixture_private_key_is_deterministic_test_only_and_not_committed() -> None:
+    fixture_text = PUBLICATION_PATH.read_text(encoding="utf-8")
+    assert _TEST_SEED.hex() not in fixture_text
+    assert "private" not in fixture_text.lower()
+    assert PUBLIC_KEY_B64 in fixture_text
+    assert copy.deepcopy(_load(PUBLICATION_PATH)) == _load(PUBLICATION_PATH)
