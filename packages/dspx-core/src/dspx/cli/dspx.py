@@ -112,6 +112,10 @@ program_gen_app = typer.Typer(
 app.add_typer(program_gen_app, name="program-gen")
 
 
+def _interactive_quality_chat_available() -> bool:
+    return bool(sys.stdin.isatty())
+
+
 # =============================================================================
 # Inline Commands (single commands kept inline for simplicity)
 # =============================================================================
@@ -531,6 +535,134 @@ def _load_allowed_generation_gate(
         if identity.get(key) != expected_identity.get(key):
             raise ValueError(f"generation gate preflight identity.{key}_mismatch")
     return payload
+
+
+@program_gen_app.command("quality-chat")
+def quality_chat(
+    prompt: str = typer.Option(
+        ...,
+        "--prompt",
+        help="Provider-bound natural-language intent; secret-shaped content is rejected and accepted text is persisted in the candidate intent",
+    ),
+    out: Path = typer.Option(
+        ...,
+        "--out",
+        help="Fresh path for the quality-proposal conversation artifact",
+    ),
+    feedback: List[str] = typer.Option(
+        [],
+        "--feedback",
+        help="Feedback for the quality proposal; may repeat",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Do not prompt; emit a pending proposal unless --accept is explicit",
+    ),
+    accept: bool = typer.Option(
+        False,
+        "--accept",
+        help="Explicitly accept the generated proposal in non-interactive mode",
+    ),
+    max_turns: int = typer.Option(
+        3,
+        "--max-turns",
+        min=1,
+        max=8,
+        help="Maximum proposal/revision turns for interactive chat",
+    ),
+    json_out: bool = typer.Option(
+        False,
+        "--json",
+        help="Print the complete proposal/decision artifact as JSON",
+    ),
+) -> None:
+    """Discuss and freeze quality criteria before generating a program."""
+    from dspx.config_loader import load_config_env
+    from dspx.services.program_quality_conversation import (
+        ProgramQualityConversationError,
+        propose_program_quality_criteria,
+        set_quality_proposal_decision,
+        write_quality_proposal,
+    )
+
+    if accept and not non_interactive:
+        typer.echo("Error: --accept requires --non-interactive", err=True)
+        raise typer.Exit(code=2)
+    if json_out and not non_interactive:
+        typer.echo(
+            "Error: --json requires --non-interactive so stdout remains one machine-readable document",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    if not non_interactive and not _interactive_quality_chat_available():
+        typer.echo(
+            "Error: interactive quality chat requires a TTY; use --non-interactive",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    turns = list(feedback)
+    history: list[dict[str, Any]] = []
+    try:
+        load_config_env()
+        payload = propose_program_quality_criteria(
+            prompt, feedback=turns, history=history
+        )
+        if non_interactive:
+            if accept:
+                payload = set_quality_proposal_decision(payload, decision="accept")
+        else:
+            for turn_index in range(max_turns):
+                proposal = payload.get("proposal") or {}
+                typer.echo(json.dumps(proposal, ensure_ascii=False, indent=2), err=True)
+                choice = (
+                    typer.prompt(
+                        "Decision [accept/revise/reject]",
+                        default="accept",
+                        err=True,
+                    )
+                    .strip()
+                    .lower()
+                )
+                if choice in {"accept", "a"}:
+                    payload = set_quality_proposal_decision(payload, decision="accept")
+                    break
+                if choice in {"reject", "rj"}:
+                    payload = set_quality_proposal_decision(payload, decision="reject")
+                    break
+                if choice not in {"revise", "r"}:
+                    raise ProgramQualityConversationError(
+                        "interactive decision must be accept, revise, or reject"
+                    )
+                if turn_index + 1 >= max_turns:
+                    raise ProgramQualityConversationError(
+                        "quality conversation exhausted --max-turns before a decision"
+                    )
+                revision = typer.prompt("Revision feedback", err=True).strip()
+                if not revision:
+                    raise ProgramQualityConversationError(
+                        "revision feedback must not be blank"
+                    )
+                turns.append(revision)
+                history.append(payload)
+                payload = propose_program_quality_criteria(
+                    prompt, feedback=turns, history=history
+                )
+        written = write_quality_proposal(payload, out)
+    except ProgramQualityConversationError as exc:
+        typer.echo(f"Error: {sanitize_cli_error(exc)}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: quality conversation failed: {sanitize_cli_error(exc)}",
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(written))
 
 
 @program_gen_app.command("normalize-intent")

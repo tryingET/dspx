@@ -142,8 +142,9 @@ def atomic_publish_bytes(
     precommit: Callable[[], None],
     error_type: type[ValueError] = ValueError,
     indeterminate_error_type: type[ValueError] | None = None,
+    replace_existing: bool = True,
 ) -> None:
-    """Stage bytes safely, run final validation, then atomically replace the target."""
+    """Stage bytes safely, then atomically replace or exclusively create the target."""
 
     lexical = Path(os.path.abspath(target.expanduser()))
     try:
@@ -201,23 +202,40 @@ def atomic_publish_bytes(
                 f"{label} failed before atomic replacement: {cleanup_errors[0]}"
             )
         try:
-            os.replace(
-                temporary_name,
-                lexical.name,
-                src_dir_fd=parent_fd,
-                dst_dir_fd=parent_fd,
-            )
-            replaced = True
+            if replace_existing:
+                os.replace(
+                    temporary_name,
+                    lexical.name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                )
+                replaced = True
+            else:
+                os.link(
+                    temporary_name,
+                    lexical.name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+                replaced = True
+                try:
+                    os.unlink(temporary_name, dir_fd=parent_fd)
+                except OSError as exc:
+                    commit_error = indeterminate_error_type or error_type
+                    raise commit_error(
+                        f"{label} exclusive publication committed but temporary cleanup failed: {exc}"
+                    ) from exc
         except OSError as exc:
             raise error_type(
-                f"{label} failed before atomic replacement: {exc}"
+                f"{label} failed before atomic publication: {exc}"
             ) from exc
         try:
             os.fsync(parent_fd)
         except OSError as exc:
             commit_error = indeterminate_error_type or error_type
             raise commit_error(
-                f"{label} replacement committed but directory durability could not be confirmed: {exc}"
+                f"{label} publication committed but directory durability could not be confirmed: {exc}"
             ) from exc
     except BaseException as exc:
         primary_error = exc
