@@ -451,6 +451,7 @@ REQUEST_OWNER_ROUTE_PUBLICATION_ID = (
     "dspx-iw14b-request-owner-route-owner-local-test-v1"
 )
 REQUEST_OWNER_ROUTE_PUBLICATION_EPOCH = 1
+REQUEST_OWNER_ROUTE_PUBLISHED_AT = "2026-07-12T00:00:00Z"
 REQUEST_OWNER_ROUTE_KEY_ID = "dspx-iw14b-b1-test-fixture-key-v1"
 REQUEST_OWNER_ROUTE_PUBLIC_KEY_B64 = "GRimrSyXK+wK5YcYE7ZnDM5lYWei4ccNXZtikAYqlH8="
 REQUEST_OWNER_ROUTE_KEY_STATUS = "active"
@@ -738,6 +739,7 @@ def check_fixed_family_publication(
     expected_ak_wire_digest: str,
     expected_publication_id: str,
     expected_publication_epoch: int,
+    expected_published_at: str | None = None,
     expected_publication_state: str,
     expected_withdrawal_ref: str | None,
     expected_key_id: str,
@@ -760,6 +762,11 @@ def check_fixed_family_publication(
                 expected_publication_epoch,
                 REQUEST_OWNER_ROUTE_PUBLICATION_EPOCH,
                 "publication_epoch",
+            ),
+            (
+                expected_published_at,
+                REQUEST_OWNER_ROUTE_PUBLISHED_AT,
+                "published_at",
             ),
             (expected_key_id, REQUEST_OWNER_ROUTE_KEY_ID, "key_id"),
             (
@@ -821,7 +828,17 @@ def check_fixed_family_publication(
         raise Layer12FixedFamilyPublicationError(
             "publication_id does not match external pin"
         )
-    published_at = _time(item["published_at"], "published_at")
+    if expected_transition_token == B1_TOKEN:
+        pinned_published_at = _text(expected_published_at, "expected_published_at")
+        if item["published_at"] != pinned_published_at:
+            raise Layer12FixedFamilyPublicationError(
+                "published_at does not match external pin"
+            )
+        published_at = _time(pinned_published_at, "expected_published_at")
+    else:
+        # Preserve B0's artifact-time behavior; only the closed B1 fixture adds
+        # an owner-fixed published_at lifecycle anchor.
+        published_at = _time(item["published_at"], "published_at")
     if item["publication_scope"] != OWNER_LOCAL_SCOPE:
         raise Layer12FixedFamilyPublicationError(
             "affected-use publication is forbidden"

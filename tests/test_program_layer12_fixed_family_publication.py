@@ -9,7 +9,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, NotRequired, TypedDict, cast
 
 import jsonschema
 import pytest
@@ -68,6 +68,7 @@ class PublicationKwargs(TypedDict):
     expected_ak_wire_digest: str
     expected_publication_id: str
     expected_publication_epoch: int
+    expected_published_at: NotRequired[str]
     expected_publication_state: str
     expected_withdrawal_ref: str | None
     expected_key_id: str
@@ -823,6 +824,7 @@ def _b1_kwargs() -> PublicationKwargs:
         "expected_ak_wire_digest": AK_WIRE_DIGEST,
         "expected_publication_id": B1_PUBLICATION_ID,
         "expected_publication_epoch": 1,
+        "expected_published_at": "2026-07-12T00:00:00Z",
         "expected_publication_state": "published",
         "expected_withdrawal_ref": None,
         "expected_key_id": B1_KEY_ID,
@@ -915,6 +917,7 @@ def test_request_owner_route_spec_publication_and_program_graph_are_closed() -> 
         ("expected_ak_wire_identity", "substituted.wire", "wire_identity"),
         ("expected_ak_wire_digest", "sha256:" + "0" * 64, "wire_digest"),
         ("expected_publication_id", "substituted-id", "publication_id"),
+        ("expected_published_at", "2026-07-12T00:00:01Z", "published_at"),
         ("expected_key_id", "substituted-key", "key_id"),
         (
             "trusted_public_key_b64",
@@ -1067,6 +1070,14 @@ def test_artifact_and_caller_co_substitution_cannot_change_fixed_owners(
         check_fixed_family_spec(spec, **kwargs)
 
 
+def test_b1_schema_rejects_validly_resigned_published_at_substitution() -> None:
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    substituted = _load(B1_PUBLICATION_PATH)
+    substituted["published_at"] = "2026-07-12T00:00:01Z"
+    _resign_b1(substituted)
+    assert not validator.is_valid(substituted)
+
+
 def test_schema_couples_each_family_to_its_token_and_b1_evidence() -> None:
     validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
     b1_without_evidence = _load(B1_SPEC_PATH)
@@ -1123,6 +1134,7 @@ def test_b1_schema_rejects_recomputed_digest_contract_substitutions(
         "publication_epoch",
         "valid_from",
         "valid_until",
+        "published_at",
     ],
 )
 def test_b1_owner_fixture_anchors_reject_artifact_and_caller_co_substitution(
@@ -1152,9 +1164,12 @@ def test_b1_owner_fixture_anchors_reject_artifact_and_caller_co_substitution(
     elif substitution == "valid_from":
         publication["signer_evidence"]["valid_from"] = "2026-06-01T00:00:00Z"
         kwargs["expected_key_valid_from"] = "2026-06-01T00:00:00Z"
-    else:
+    elif substitution == "valid_until":
         publication["signer_evidence"]["valid_until"] = "2026-09-01T00:00:00Z"
         kwargs["expected_key_valid_until"] = "2026-09-01T00:00:00Z"
+    else:
+        publication["published_at"] = "2026-07-12T00:00:01Z"
+        kwargs["expected_published_at"] = "2026-07-12T00:00:01Z"
     _resign_b1(publication, private_key=private_key, key_id=key_id)
 
     with pytest.raises(Layer12FixedFamilyPublicationError, match="owner-fixed"):

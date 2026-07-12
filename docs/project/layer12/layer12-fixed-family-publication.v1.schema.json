@@ -474,7 +474,35 @@
             }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "identity": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.request-owner-route.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              }
+            },
+            "required": [
+              "identity"
+            ]
+          },
+          "then": {
+            "properties": {
+              "published_at": {
+                "const": "2026-07-12T00:00:00Z"
+              }
+            }
+          }
+        }
+      ]
     },
     "familyImport": {
       "type": "object",
