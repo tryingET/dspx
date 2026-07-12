@@ -1,0 +1,156 @@
+{
+  "schema_version": "layer12-fixed-family-spec-v1",
+  "owner": "softwareco/owned/dspx",
+  "family_id": "dspx.layer12.close-implementation-wave.v1",
+  "protocol_version": "layer12-v1",
+  "transition_tokens": [
+    "close_implementation_wave"
+  ],
+  "scope_digest": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca",
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "publication_contract": {
+    "publication_scope": "owner_local_artifact_only",
+    "signed_payload": "publication_object_without_signature",
+    "signature_algorithm": "Ed25519",
+    "external_trust_required": true
+  },
+  "reconstruction_contract": {
+    "mode": "cumulative_owner_local_family_epochs",
+    "identity_key": [
+      "owner",
+      "family_id"
+    ],
+    "epoch_order": "strictly_monotonic_per_family",
+    "withdrawal_scope": "matching_owner_family_epoch_only",
+    "preserve_unrelated_imports": true
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "authorization_evidence": {
+    "task_key": "B2-DSPx-publications",
+    "authorization_evidence_id": "4231",
+    "task_id": "3836",
+    "scope_digest": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca",
+    "declaration_is_ak_authority": false,
+    "transition_authorized": false
+  },
+  "program_evidence": {
+    "program_intent": {
+      "schema_version": "program-intent-v2",
+      "name": "CloseImplementationWave",
+      "program_id": "dspx.generated.close_implementation_wave.v1",
+      "objective": "Produce blocked advisory evidence for closing an implementation wave.",
+      "inputs": [
+        "implementation_wave_status",
+        "completion_evidence",
+        "legal_controls"
+      ],
+      "outputs": [
+        "blocked_transition",
+        "verifier_expectation"
+      ],
+      "family_id": "dspx.layer12.close-implementation-wave.v1",
+      "transition_token": "close_implementation_wave",
+      "effects": "none",
+      "digest": "sha256:2d4046d6f0b00aaac0164abe848a7d47f0175c10491dca4c05a54c905d8815cd"
+    },
+    "module_graph": {
+      "schema_version": "dspx-fixed-module-graph-v1",
+      "program_id": "dspx.generated.close_implementation_wave.v1",
+      "signatures": [
+        {
+          "name": "AssessImplementationWave",
+          "inputs": [
+            "implementation_wave_status",
+            "completion_evidence"
+          ],
+          "outputs": [
+            "readiness",
+            "missing_evidence"
+          ]
+        },
+        {
+          "name": "ProposeImplementationWaveClosure",
+          "inputs": [
+            "readiness",
+            "missing_evidence"
+          ],
+          "outputs": [
+            "transition",
+            "rationale"
+          ]
+        },
+        {
+          "name": "BlockImplementationWaveClosure",
+          "inputs": [
+            "transition",
+            "legal_controls"
+          ],
+          "outputs": [
+            "blocked_transition",
+            "verifier_expectation"
+          ]
+        }
+      ],
+      "execution_order": [
+        "AssessImplementationWave",
+        "ProposeImplementationWaveClosure",
+        "BlockImplementationWaveClosure"
+      ],
+      "edges": [
+        {
+          "source": "AssessImplementationWave.readiness",
+          "target": "ProposeImplementationWaveClosure.readiness"
+        },
+        {
+          "source": "AssessImplementationWave.missing_evidence",
+          "target": "ProposeImplementationWaveClosure.missing_evidence"
+        },
+        {
+          "source": "ProposeImplementationWaveClosure.transition",
+          "target": "BlockImplementationWaveClosure.transition"
+        }
+      ],
+      "entry_signature": "AssessImplementationWave",
+      "terminal_signature": "BlockImplementationWaveClosure",
+      "closed": true,
+      "digest": "sha256:ac71833180b6e7613f4b350c5c6736f5f3c90880314d73ce44987a2b864df5cd"
+    },
+    "verification_sink": {
+      "source_owner": "softwareco/owned/agent-kernel",
+      "surface": "ak.direction_controller.verify",
+      "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+      "declaration_is_trust_root": false,
+      "apply_performed": false
+    },
+    "controls_evidence": {
+      "schema_version": "ak-direction-controller-controls-evidence-v1",
+      "task_key": "B2-DSPx-publications",
+      "transition_token": "close_implementation_wave",
+      "legal": false,
+      "verdict": "blocked",
+      "dispatch_ready": false,
+      "transition_action_performed": false,
+      "missing_preconditions": [
+        "implementation_wave_completion_authorized",
+        "transition_execution_authorized"
+      ],
+      "declaration_is_ak_authority": false,
+      "digest": "sha256:d4cf45cd2670c3167c62164ca2fd94db17955e39a2154fa5a1ed09397d8a632e"
+    }
+  }
+}

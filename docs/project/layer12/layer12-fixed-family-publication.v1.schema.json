@@ -123,7 +123,10 @@
         "family_id": {
           "enum": [
             "dspx.layer12.continue-current-execution-task.v1",
-            "dspx.layer12.request-owner-route.v1"
+            "dspx.layer12.request-owner-route.v1",
+            "dspx.layer12.close-implementation-wave.v1",
+            "dspx.layer12.activate-guidance.v1",
+            "dspx.layer12.default-residual-adoption-hardening.v1"
           ]
         },
         "protocol_version": {
@@ -135,7 +138,10 @@
             {
               "enum": [
                 "continue_current_execution_task",
-                "request_owner_route"
+                "request_owner_route",
+                "close_implementation_wave",
+                "activate_guidance",
+                "default_residual_adoption_hardening"
               ]
             }
           ],
@@ -217,6 +223,38 @@
         },
         "program_evidence": {
           "$ref": "#/$defs/programEvidence"
+        },
+        "authorization_evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "task_key",
+            "authorization_evidence_id",
+            "task_id",
+            "scope_digest",
+            "declaration_is_ak_authority",
+            "transition_authorized"
+          ],
+          "properties": {
+            "task_key": {
+              "const": "B2-DSPx-publications"
+            },
+            "authorization_evidence_id": {
+              "const": "4231"
+            },
+            "task_id": {
+              "const": "3836"
+            },
+            "scope_digest": {
+              "const": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
+            },
+            "declaration_is_ak_authority": {
+              "const": false
+            },
+            "transition_authorized": {
+              "const": false
+            }
+          }
         }
       },
       "allOf": [
@@ -266,6 +304,411 @@
                 "const": [
                   "request_owner_route"
                 ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.close-implementation-wave.v1"
+              }
+            },
+            "required": [
+              "family_id"
+            ]
+          },
+          "then": {
+            "required": [
+              "program_evidence",
+              "authorization_evidence"
+            ],
+            "properties": {
+              "transition_tokens": {
+                "const": [
+                  "close_implementation_wave"
+                ]
+              },
+              "scope_digest": {
+                "const": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
+              },
+              "program_evidence": {
+                "const": {
+                  "program_intent": {
+                    "schema_version": "program-intent-v2",
+                    "name": "CloseImplementationWave",
+                    "program_id": "dspx.generated.close_implementation_wave.v1",
+                    "objective": "Produce blocked advisory evidence for closing an implementation wave.",
+                    "inputs": [
+                      "implementation_wave_status",
+                      "completion_evidence",
+                      "legal_controls"
+                    ],
+                    "outputs": [
+                      "blocked_transition",
+                      "verifier_expectation"
+                    ],
+                    "family_id": "dspx.layer12.close-implementation-wave.v1",
+                    "transition_token": "close_implementation_wave",
+                    "effects": "none",
+                    "digest": "sha256:2d4046d6f0b00aaac0164abe848a7d47f0175c10491dca4c05a54c905d8815cd"
+                  },
+                  "module_graph": {
+                    "schema_version": "dspx-fixed-module-graph-v1",
+                    "program_id": "dspx.generated.close_implementation_wave.v1",
+                    "signatures": [
+                      {
+                        "name": "AssessImplementationWave",
+                        "inputs": [
+                          "implementation_wave_status",
+                          "completion_evidence"
+                        ],
+                        "outputs": [
+                          "readiness",
+                          "missing_evidence"
+                        ]
+                      },
+                      {
+                        "name": "ProposeImplementationWaveClosure",
+                        "inputs": [
+                          "readiness",
+                          "missing_evidence"
+                        ],
+                        "outputs": [
+                          "transition",
+                          "rationale"
+                        ]
+                      },
+                      {
+                        "name": "BlockImplementationWaveClosure",
+                        "inputs": [
+                          "transition",
+                          "legal_controls"
+                        ],
+                        "outputs": [
+                          "blocked_transition",
+                          "verifier_expectation"
+                        ]
+                      }
+                    ],
+                    "execution_order": [
+                      "AssessImplementationWave",
+                      "ProposeImplementationWaveClosure",
+                      "BlockImplementationWaveClosure"
+                    ],
+                    "edges": [
+                      {
+                        "source": "AssessImplementationWave.readiness",
+                        "target": "ProposeImplementationWaveClosure.readiness"
+                      },
+                      {
+                        "source": "AssessImplementationWave.missing_evidence",
+                        "target": "ProposeImplementationWaveClosure.missing_evidence"
+                      },
+                      {
+                        "source": "ProposeImplementationWaveClosure.transition",
+                        "target": "BlockImplementationWaveClosure.transition"
+                      }
+                    ],
+                    "entry_signature": "AssessImplementationWave",
+                    "terminal_signature": "BlockImplementationWaveClosure",
+                    "closed": true,
+                    "digest": "sha256:ac71833180b6e7613f4b350c5c6736f5f3c90880314d73ce44987a2b864df5cd"
+                  },
+                  "verification_sink": {
+                    "source_owner": "softwareco/owned/agent-kernel",
+                    "surface": "ak.direction_controller.verify",
+                    "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+                    "declaration_is_trust_root": false,
+                    "apply_performed": false
+                  },
+                  "controls_evidence": {
+                    "schema_version": "ak-direction-controller-controls-evidence-v1",
+                    "task_key": "B2-DSPx-publications",
+                    "transition_token": "close_implementation_wave",
+                    "legal": false,
+                    "verdict": "blocked",
+                    "dispatch_ready": false,
+                    "transition_action_performed": false,
+                    "missing_preconditions": [
+                      "implementation_wave_completion_authorized",
+                      "transition_execution_authorized"
+                    ],
+                    "declaration_is_ak_authority": false,
+                    "digest": "sha256:d4cf45cd2670c3167c62164ca2fd94db17955e39a2154fa5a1ed09397d8a632e"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.activate-guidance.v1"
+              }
+            },
+            "required": [
+              "family_id"
+            ]
+          },
+          "then": {
+            "required": [
+              "program_evidence",
+              "authorization_evidence"
+            ],
+            "properties": {
+              "transition_tokens": {
+                "const": [
+                  "activate_guidance"
+                ]
+              },
+              "scope_digest": {
+                "const": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
+              },
+              "program_evidence": {
+                "const": {
+                  "program_intent": {
+                    "schema_version": "program-intent-v2",
+                    "name": "ActivateGuidance",
+                    "program_id": "dspx.generated.activate_guidance.v1",
+                    "objective": "Produce blocked advisory evidence for guidance activation.",
+                    "inputs": [
+                      "guidance_candidate",
+                      "validation_evidence",
+                      "legal_controls"
+                    ],
+                    "outputs": [
+                      "blocked_transition",
+                      "verifier_expectation"
+                    ],
+                    "family_id": "dspx.layer12.activate-guidance.v1",
+                    "transition_token": "activate_guidance",
+                    "effects": "none",
+                    "digest": "sha256:31b27a6d3b96142616284ff59b284d59045d3518600d47909a6a0055304005ed"
+                  },
+                  "module_graph": {
+                    "schema_version": "dspx-fixed-module-graph-v1",
+                    "program_id": "dspx.generated.activate_guidance.v1",
+                    "signatures": [
+                      {
+                        "name": "AssessGuidanceCandidate",
+                        "inputs": [
+                          "guidance_candidate",
+                          "validation_evidence"
+                        ],
+                        "outputs": [
+                          "activation_readiness",
+                          "missing_evidence"
+                        ]
+                      },
+                      {
+                        "name": "ProposeGuidanceActivation",
+                        "inputs": [
+                          "activation_readiness",
+                          "missing_evidence"
+                        ],
+                        "outputs": [
+                          "transition",
+                          "rationale"
+                        ]
+                      },
+                      {
+                        "name": "BlockGuidanceActivation",
+                        "inputs": [
+                          "transition",
+                          "legal_controls"
+                        ],
+                        "outputs": [
+                          "blocked_transition",
+                          "verifier_expectation"
+                        ]
+                      }
+                    ],
+                    "execution_order": [
+                      "AssessGuidanceCandidate",
+                      "ProposeGuidanceActivation",
+                      "BlockGuidanceActivation"
+                    ],
+                    "edges": [
+                      {
+                        "source": "AssessGuidanceCandidate.activation_readiness",
+                        "target": "ProposeGuidanceActivation.activation_readiness"
+                      },
+                      {
+                        "source": "AssessGuidanceCandidate.missing_evidence",
+                        "target": "ProposeGuidanceActivation.missing_evidence"
+                      },
+                      {
+                        "source": "ProposeGuidanceActivation.transition",
+                        "target": "BlockGuidanceActivation.transition"
+                      }
+                    ],
+                    "entry_signature": "AssessGuidanceCandidate",
+                    "terminal_signature": "BlockGuidanceActivation",
+                    "closed": true,
+                    "digest": "sha256:f2a0b925961f290ab12c2e191653b46c98f44615d32e8f7d80589e69022981f3"
+                  },
+                  "verification_sink": {
+                    "source_owner": "softwareco/owned/agent-kernel",
+                    "surface": "ak.direction_controller.verify",
+                    "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+                    "declaration_is_trust_root": false,
+                    "apply_performed": false
+                  },
+                  "controls_evidence": {
+                    "schema_version": "ak-direction-controller-controls-evidence-v1",
+                    "task_key": "B2-DSPx-publications",
+                    "transition_token": "activate_guidance",
+                    "legal": false,
+                    "verdict": "blocked",
+                    "dispatch_ready": false,
+                    "transition_action_performed": false,
+                    "missing_preconditions": [
+                      "guidance_activation_authorized",
+                      "transition_execution_authorized"
+                    ],
+                    "declaration_is_ak_authority": false,
+                    "digest": "sha256:f9374f92495d8c1d4f6b841c6183617f34710ea7041f4663c11833f1db038992"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+              }
+            },
+            "required": [
+              "family_id"
+            ]
+          },
+          "then": {
+            "required": [
+              "program_evidence",
+              "authorization_evidence"
+            ],
+            "properties": {
+              "transition_tokens": {
+                "const": [
+                  "default_residual_adoption_hardening"
+                ]
+              },
+              "scope_digest": {
+                "const": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
+              },
+              "program_evidence": {
+                "const": {
+                  "program_intent": {
+                    "schema_version": "program-intent-v2",
+                    "name": "DefaultResidualAdoptionHardening",
+                    "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+                    "objective": "Produce blocked advisory evidence for default residual-adoption hardening.",
+                    "inputs": [
+                      "residual_adoption_status",
+                      "hardening_evidence",
+                      "legal_controls"
+                    ],
+                    "outputs": [
+                      "blocked_transition",
+                      "verifier_expectation"
+                    ],
+                    "family_id": "dspx.layer12.default-residual-adoption-hardening.v1",
+                    "transition_token": "default_residual_adoption_hardening",
+                    "effects": "none",
+                    "digest": "sha256:24bd31f16759fdfa7489e721763b51b748e91bdc44ef348e61d27b8a1565a004"
+                  },
+                  "module_graph": {
+                    "schema_version": "dspx-fixed-module-graph-v1",
+                    "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+                    "signatures": [
+                      {
+                        "name": "AssessResidualAdoption",
+                        "inputs": [
+                          "residual_adoption_status",
+                          "hardening_evidence"
+                        ],
+                        "outputs": [
+                          "hardening_readiness",
+                          "missing_evidence"
+                        ]
+                      },
+                      {
+                        "name": "ProposeResidualAdoptionHardening",
+                        "inputs": [
+                          "hardening_readiness",
+                          "missing_evidence"
+                        ],
+                        "outputs": [
+                          "transition",
+                          "rationale"
+                        ]
+                      },
+                      {
+                        "name": "BlockResidualAdoptionHardening",
+                        "inputs": [
+                          "transition",
+                          "legal_controls"
+                        ],
+                        "outputs": [
+                          "blocked_transition",
+                          "verifier_expectation"
+                        ]
+                      }
+                    ],
+                    "execution_order": [
+                      "AssessResidualAdoption",
+                      "ProposeResidualAdoptionHardening",
+                      "BlockResidualAdoptionHardening"
+                    ],
+                    "edges": [
+                      {
+                        "source": "AssessResidualAdoption.hardening_readiness",
+                        "target": "ProposeResidualAdoptionHardening.hardening_readiness"
+                      },
+                      {
+                        "source": "AssessResidualAdoption.missing_evidence",
+                        "target": "ProposeResidualAdoptionHardening.missing_evidence"
+                      },
+                      {
+                        "source": "ProposeResidualAdoptionHardening.transition",
+                        "target": "BlockResidualAdoptionHardening.transition"
+                      }
+                    ],
+                    "entry_signature": "AssessResidualAdoption",
+                    "terminal_signature": "BlockResidualAdoptionHardening",
+                    "closed": true,
+                    "digest": "sha256:9c132b5b9e27480e13d584221411281bace83f403e3f6b0e7f51cf686ea088e4"
+                  },
+                  "verification_sink": {
+                    "source_owner": "softwareco/owned/agent-kernel",
+                    "surface": "ak.direction_controller.verify",
+                    "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+                    "declaration_is_trust_root": false,
+                    "apply_performed": false
+                  },
+                  "controls_evidence": {
+                    "schema_version": "ak-direction-controller-controls-evidence-v1",
+                    "task_key": "B2-DSPx-publications",
+                    "transition_token": "default_residual_adoption_hardening",
+                    "legal": false,
+                    "verdict": "blocked",
+                    "dispatch_ready": false,
+                    "transition_action_performed": false,
+                    "missing_preconditions": [
+                      "residual_adoption_hardening_authorized",
+                      "transition_execution_authorized"
+                    ],
+                    "declaration_is_ak_authority": false,
+                    "digest": "sha256:a13c9914d5ac16940410b1208b6226283b63337882852f45ba4971027f7534ec"
+                  }
+                }
               }
             }
           }
@@ -320,7 +763,10 @@
             "family_id": {
               "enum": [
                 "dspx.layer12.continue-current-execution-task.v1",
-                "dspx.layer12.request-owner-route.v1"
+                "dspx.layer12.request-owner-route.v1",
+                "dspx.layer12.close-implementation-wave.v1",
+                "dspx.layer12.activate-guidance.v1",
+                "dspx.layer12.default-residual-adoption-hardening.v1"
               ]
             },
             "protocol_version": {
@@ -329,7 +775,10 @@
             "transition_token": {
               "enum": [
                 "continue_current_execution_task",
-                "request_owner_route"
+                "request_owner_route",
+                "close_implementation_wave",
+                "activate_guidance",
+                "default_residual_adoption_hardening"
               ]
             },
             "spec_schema_version": {
@@ -377,6 +826,63 @@
                 "properties": {
                   "transition_token": {
                     "const": "request_owner_route"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.close-implementation-wave.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "transition_token": {
+                    "const": "close_implementation_wave"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.activate-guidance.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "transition_token": {
+                    "const": "activate_guidance"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "transition_token": {
+                    "const": "default_residual_adoption_hardening"
                   }
                 }
               }
@@ -501,6 +1007,162 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "identity": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.close-implementation-wave.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              }
+            },
+            "required": [
+              "identity"
+            ]
+          },
+          "then": {
+            "properties": {
+              "publication_id": {
+                "const": "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+              },
+              "published_at": {
+                "const": "2026-07-12T01:00:00Z"
+              },
+              "publication_lifecycle": {
+                "properties": {
+                  "epoch": {
+                    "const": 1
+                  }
+                }
+              },
+              "signer_evidence": {
+                "properties": {
+                  "key_id": {
+                    "const": "dspx-iw14b-b2-close-implementation-wave-test-key-v1"
+                  },
+                  "public_key_b64": {
+                    "const": "JIT4mN3K8+RjeDS1zFFj9Hc3Z6fIh1h1OjdB+oj4T78="
+                  },
+                  "valid_from": {
+                    "const": "2026-07-01T00:00:00Z"
+                  },
+                  "valid_until": {
+                    "const": "2026-08-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "identity": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.activate-guidance.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              }
+            },
+            "required": [
+              "identity"
+            ]
+          },
+          "then": {
+            "properties": {
+              "publication_id": {
+                "const": "dspx-iw14b-activate-guidance-owner-local-test-v1"
+              },
+              "published_at": {
+                "const": "2026-07-12T01:01:00Z"
+              },
+              "publication_lifecycle": {
+                "properties": {
+                  "epoch": {
+                    "const": 1
+                  }
+                }
+              },
+              "signer_evidence": {
+                "properties": {
+                  "key_id": {
+                    "const": "dspx-iw14b-b2-activate-guidance-test-key-v1"
+                  },
+                  "public_key_b64": {
+                    "const": "qVm/c/f4VYGDQ6m5g/tR0Tvsd9KVtFHq2X9HI3l3tL4="
+                  },
+                  "valid_from": {
+                    "const": "2026-07-01T00:00:00Z"
+                  },
+                  "valid_until": {
+                    "const": "2026-08-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "identity": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              }
+            },
+            "required": [
+              "identity"
+            ]
+          },
+          "then": {
+            "properties": {
+              "publication_id": {
+                "const": "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+              },
+              "published_at": {
+                "const": "2026-07-12T01:02:00Z"
+              },
+              "publication_lifecycle": {
+                "properties": {
+                  "epoch": {
+                    "const": 1
+                  }
+                }
+              },
+              "signer_evidence": {
+                "properties": {
+                  "key_id": {
+                    "const": "dspx-iw14b-b2-default-residual-adoption-hardening-test-key-v1"
+                  },
+                  "public_key_b64": {
+                    "const": "niF7gGvJIPzdKUZYAMJbhF4H9FXi7kBDZnTuw6ZaS/k="
+                  },
+                  "valid_from": {
+                    "const": "2026-07-01T00:00:00Z"
+                  },
+                  "valid_until": {
+                    "const": "2026-08-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -551,7 +1213,124 @@
         "authority_granted": {
           "const": false
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.continue-current-execution-task.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "continue_current_execution_task"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.request-owner-route.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "request_owner_route"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.close-implementation-wave.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "close_implementation_wave"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.activate-guidance.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "activate_guidance"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "default_residual_adoption_hardening"
+              }
+            }
+          }
+        }
+      ]
     },
     "withdrawal": {
       "type": "object",
@@ -739,166 +1518,491 @@
       }
     },
     "programEvidence": {
-      "description": "Exact closed DSPx B1 ProgramIntent, six-signature graph, AK verification sink, and blocked Controls evidence.",
-      "const": {
-        "program_intent": {
-          "schema_version": "program-intent-v2",
-          "name": "DirectionController",
-          "program_id": "dspx.generated.direction_controller.v1",
-          "objective": "Produce advisory Layer-12 transition IR for deterministic AK verification.",
-          "inputs": [
-            "operator_intent",
-            "direction_controller_status",
-            "legal_controls",
-            "blocked_controls"
-          ],
-          "outputs": [
-            "repaired_transition",
-            "verifier_expectation"
-          ],
-          "family_id": "dspx.layer12.request-owner-route.v1",
-          "transition_token": "request_owner_route",
-          "effects": "none",
-          "digest": "sha256:31916ed199adc9b4202e927296f1232f13b67c9be4beb1ee654002cd17bda578"
-        },
-        "module_graph": {
-          "schema_version": "dspx-fixed-module-graph-v1",
-          "program_id": "dspx.generated.direction_controller.v1",
-          "signatures": [
-            {
-              "name": "ExtractLayer12PolicyFacts",
+      "description": "Exact closed per-family ProgramIntent, module graph, AK verification sink, and blocked Controls evidence.",
+      "oneOf": [
+        {
+          "const": {
+            "program_intent": {
+              "schema_version": "program-intent-v2",
+              "name": "DirectionController",
+              "program_id": "dspx.generated.direction_controller.v1",
+              "objective": "Produce advisory Layer-12 transition IR for deterministic AK verification.",
               "inputs": [
                 "operator_intent",
-                "direction_controller_status"
-              ],
-              "outputs": [
-                "policy_facts",
-                "non_authorizations"
-              ]
-            },
-            {
-              "name": "DeriveLayer12StateVector",
-              "inputs": [
-                "direction_controller_status"
-              ],
-              "outputs": [
-                "state_vector",
-                "missing_facts"
-              ]
-            },
-            {
-              "name": "ProposeLayer12Transition",
-              "inputs": [
-                "operator_intent",
-                "state_vector",
+                "direction_controller_status",
                 "legal_controls",
                 "blocked_controls"
               ],
               "outputs": [
-                "transition",
-                "rationale"
-              ]
-            },
-            {
-              "name": "CritiqueAuthorityDrift",
-              "inputs": [
-                "proposed_transition",
-                "non_authorizations"
-              ],
-              "outputs": [
-                "authority_drift_risk",
-                "required_repair"
-              ]
-            },
-            {
-              "name": "CritiqueTheaterTraps",
-              "inputs": [
-                "proposed_transition",
-                "direction_controller_status"
-              ],
-              "outputs": [
-                "theater_risk",
-                "required_repair"
-              ]
-            },
-            {
-              "name": "RepairLayer12IR",
-              "inputs": [
-                "proposed_transition",
-                "authority_drift_risk",
-                "theater_risk"
-              ],
-              "outputs": [
                 "repaired_transition",
                 "verifier_expectation"
+              ],
+              "family_id": "dspx.layer12.request-owner-route.v1",
+              "transition_token": "request_owner_route",
+              "effects": "none",
+              "digest": "sha256:31916ed199adc9b4202e927296f1232f13b67c9be4beb1ee654002cd17bda578"
+            },
+            "module_graph": {
+              "schema_version": "dspx-fixed-module-graph-v1",
+              "program_id": "dspx.generated.direction_controller.v1",
+              "signatures": [
+                {
+                  "name": "ExtractLayer12PolicyFacts",
+                  "inputs": [
+                    "operator_intent",
+                    "direction_controller_status"
+                  ],
+                  "outputs": [
+                    "policy_facts",
+                    "non_authorizations"
+                  ]
+                },
+                {
+                  "name": "DeriveLayer12StateVector",
+                  "inputs": [
+                    "direction_controller_status"
+                  ],
+                  "outputs": [
+                    "state_vector",
+                    "missing_facts"
+                  ]
+                },
+                {
+                  "name": "ProposeLayer12Transition",
+                  "inputs": [
+                    "operator_intent",
+                    "state_vector",
+                    "legal_controls",
+                    "blocked_controls"
+                  ],
+                  "outputs": [
+                    "transition",
+                    "rationale"
+                  ]
+                },
+                {
+                  "name": "CritiqueAuthorityDrift",
+                  "inputs": [
+                    "proposed_transition",
+                    "non_authorizations"
+                  ],
+                  "outputs": [
+                    "authority_drift_risk",
+                    "required_repair"
+                  ]
+                },
+                {
+                  "name": "CritiqueTheaterTraps",
+                  "inputs": [
+                    "proposed_transition",
+                    "direction_controller_status"
+                  ],
+                  "outputs": [
+                    "theater_risk",
+                    "required_repair"
+                  ]
+                },
+                {
+                  "name": "RepairLayer12IR",
+                  "inputs": [
+                    "proposed_transition",
+                    "authority_drift_risk",
+                    "theater_risk"
+                  ],
+                  "outputs": [
+                    "repaired_transition",
+                    "verifier_expectation"
+                  ]
+                }
+              ],
+              "execution_order": [
+                "ExtractLayer12PolicyFacts",
+                "DeriveLayer12StateVector",
+                "ProposeLayer12Transition",
+                "CritiqueAuthorityDrift",
+                "CritiqueTheaterTraps",
+                "RepairLayer12IR"
+              ],
+              "entry_signature": "ExtractLayer12PolicyFacts",
+              "terminal_signature": "RepairLayer12IR",
+              "closed": true,
+              "digest": "sha256:a365b85511a86007c20fcbad649d2776e5ec7589f176de73fbc453e5b689ab99",
+              "edges": [
+                {
+                  "source": "DeriveLayer12StateVector.state_vector",
+                  "target": "ProposeLayer12Transition.state_vector"
+                },
+                {
+                  "source": "ExtractLayer12PolicyFacts.non_authorizations",
+                  "target": "CritiqueAuthorityDrift.non_authorizations"
+                },
+                {
+                  "source": "ProposeLayer12Transition.transition",
+                  "target": "CritiqueAuthorityDrift.proposed_transition"
+                },
+                {
+                  "source": "ProposeLayer12Transition.transition",
+                  "target": "CritiqueTheaterTraps.proposed_transition"
+                },
+                {
+                  "source": "ProposeLayer12Transition.transition",
+                  "target": "RepairLayer12IR.proposed_transition"
+                },
+                {
+                  "source": "CritiqueAuthorityDrift.authority_drift_risk",
+                  "target": "RepairLayer12IR.authority_drift_risk"
+                },
+                {
+                  "source": "CritiqueTheaterTraps.theater_risk",
+                  "target": "RepairLayer12IR.theater_risk"
+                }
               ]
+            },
+            "verification_sink": {
+              "source_owner": "softwareco/owned/agent-kernel",
+              "surface": "ak.direction_controller.verify",
+              "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+              "declaration_is_trust_root": false,
+              "apply_performed": false
+            },
+            "controls_evidence": {
+              "schema_version": "ak-direction-controller-controls-evidence-v1",
+              "transition_token": "request_owner_route",
+              "legal": false,
+              "verdict": "blocked",
+              "dispatch_ready": false,
+              "owner_route_sent": false,
+              "missing_preconditions": [
+                "owner_route_destination_resolved",
+                "owner_route_dispatch_authorized"
+              ],
+              "declaration_is_ak_authority": false,
+              "digest": "sha256:fc8463680fcd5505f8ac6b8ad6346afc85fa92e4fe6bf46ce2f6f8305cbfe182"
             }
-          ],
-          "execution_order": [
-            "ExtractLayer12PolicyFacts",
-            "DeriveLayer12StateVector",
-            "ProposeLayer12Transition",
-            "CritiqueAuthorityDrift",
-            "CritiqueTheaterTraps",
-            "RepairLayer12IR"
-          ],
-          "entry_signature": "ExtractLayer12PolicyFacts",
-          "terminal_signature": "RepairLayer12IR",
-          "closed": true,
-          "digest": "sha256:a365b85511a86007c20fcbad649d2776e5ec7589f176de73fbc453e5b689ab99",
-          "edges": [
-            {
-              "source": "DeriveLayer12StateVector.state_vector",
-              "target": "ProposeLayer12Transition.state_vector"
+          }
+        },
+        {
+          "const": {
+            "program_intent": {
+              "schema_version": "program-intent-v2",
+              "name": "CloseImplementationWave",
+              "program_id": "dspx.generated.close_implementation_wave.v1",
+              "objective": "Produce blocked advisory evidence for closing an implementation wave.",
+              "inputs": [
+                "implementation_wave_status",
+                "completion_evidence",
+                "legal_controls"
+              ],
+              "outputs": [
+                "blocked_transition",
+                "verifier_expectation"
+              ],
+              "family_id": "dspx.layer12.close-implementation-wave.v1",
+              "transition_token": "close_implementation_wave",
+              "effects": "none",
+              "digest": "sha256:2d4046d6f0b00aaac0164abe848a7d47f0175c10491dca4c05a54c905d8815cd"
             },
-            {
-              "source": "ExtractLayer12PolicyFacts.non_authorizations",
-              "target": "CritiqueAuthorityDrift.non_authorizations"
+            "module_graph": {
+              "schema_version": "dspx-fixed-module-graph-v1",
+              "program_id": "dspx.generated.close_implementation_wave.v1",
+              "signatures": [
+                {
+                  "name": "AssessImplementationWave",
+                  "inputs": [
+                    "implementation_wave_status",
+                    "completion_evidence"
+                  ],
+                  "outputs": [
+                    "readiness",
+                    "missing_evidence"
+                  ]
+                },
+                {
+                  "name": "ProposeImplementationWaveClosure",
+                  "inputs": [
+                    "readiness",
+                    "missing_evidence"
+                  ],
+                  "outputs": [
+                    "transition",
+                    "rationale"
+                  ]
+                },
+                {
+                  "name": "BlockImplementationWaveClosure",
+                  "inputs": [
+                    "transition",
+                    "legal_controls"
+                  ],
+                  "outputs": [
+                    "blocked_transition",
+                    "verifier_expectation"
+                  ]
+                }
+              ],
+              "execution_order": [
+                "AssessImplementationWave",
+                "ProposeImplementationWaveClosure",
+                "BlockImplementationWaveClosure"
+              ],
+              "edges": [
+                {
+                  "source": "AssessImplementationWave.readiness",
+                  "target": "ProposeImplementationWaveClosure.readiness"
+                },
+                {
+                  "source": "AssessImplementationWave.missing_evidence",
+                  "target": "ProposeImplementationWaveClosure.missing_evidence"
+                },
+                {
+                  "source": "ProposeImplementationWaveClosure.transition",
+                  "target": "BlockImplementationWaveClosure.transition"
+                }
+              ],
+              "entry_signature": "AssessImplementationWave",
+              "terminal_signature": "BlockImplementationWaveClosure",
+              "closed": true,
+              "digest": "sha256:ac71833180b6e7613f4b350c5c6736f5f3c90880314d73ce44987a2b864df5cd"
             },
-            {
-              "source": "ProposeLayer12Transition.transition",
-              "target": "CritiqueAuthorityDrift.proposed_transition"
+            "verification_sink": {
+              "source_owner": "softwareco/owned/agent-kernel",
+              "surface": "ak.direction_controller.verify",
+              "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+              "declaration_is_trust_root": false,
+              "apply_performed": false
             },
-            {
-              "source": "ProposeLayer12Transition.transition",
-              "target": "CritiqueTheaterTraps.proposed_transition"
-            },
-            {
-              "source": "ProposeLayer12Transition.transition",
-              "target": "RepairLayer12IR.proposed_transition"
-            },
-            {
-              "source": "CritiqueAuthorityDrift.authority_drift_risk",
-              "target": "RepairLayer12IR.authority_drift_risk"
-            },
-            {
-              "source": "CritiqueTheaterTraps.theater_risk",
-              "target": "RepairLayer12IR.theater_risk"
+            "controls_evidence": {
+              "schema_version": "ak-direction-controller-controls-evidence-v1",
+              "task_key": "B2-DSPx-publications",
+              "transition_token": "close_implementation_wave",
+              "legal": false,
+              "verdict": "blocked",
+              "dispatch_ready": false,
+              "transition_action_performed": false,
+              "missing_preconditions": [
+                "implementation_wave_completion_authorized",
+                "transition_execution_authorized"
+              ],
+              "declaration_is_ak_authority": false,
+              "digest": "sha256:d4cf45cd2670c3167c62164ca2fd94db17955e39a2154fa5a1ed09397d8a632e"
             }
-          ]
+          }
         },
-        "verification_sink": {
-          "source_owner": "softwareco/owned/agent-kernel",
-          "surface": "ak.direction_controller.verify",
-          "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
-          "declaration_is_trust_root": false,
-          "apply_performed": false
+        {
+          "const": {
+            "program_intent": {
+              "schema_version": "program-intent-v2",
+              "name": "ActivateGuidance",
+              "program_id": "dspx.generated.activate_guidance.v1",
+              "objective": "Produce blocked advisory evidence for guidance activation.",
+              "inputs": [
+                "guidance_candidate",
+                "validation_evidence",
+                "legal_controls"
+              ],
+              "outputs": [
+                "blocked_transition",
+                "verifier_expectation"
+              ],
+              "family_id": "dspx.layer12.activate-guidance.v1",
+              "transition_token": "activate_guidance",
+              "effects": "none",
+              "digest": "sha256:31b27a6d3b96142616284ff59b284d59045d3518600d47909a6a0055304005ed"
+            },
+            "module_graph": {
+              "schema_version": "dspx-fixed-module-graph-v1",
+              "program_id": "dspx.generated.activate_guidance.v1",
+              "signatures": [
+                {
+                  "name": "AssessGuidanceCandidate",
+                  "inputs": [
+                    "guidance_candidate",
+                    "validation_evidence"
+                  ],
+                  "outputs": [
+                    "activation_readiness",
+                    "missing_evidence"
+                  ]
+                },
+                {
+                  "name": "ProposeGuidanceActivation",
+                  "inputs": [
+                    "activation_readiness",
+                    "missing_evidence"
+                  ],
+                  "outputs": [
+                    "transition",
+                    "rationale"
+                  ]
+                },
+                {
+                  "name": "BlockGuidanceActivation",
+                  "inputs": [
+                    "transition",
+                    "legal_controls"
+                  ],
+                  "outputs": [
+                    "blocked_transition",
+                    "verifier_expectation"
+                  ]
+                }
+              ],
+              "execution_order": [
+                "AssessGuidanceCandidate",
+                "ProposeGuidanceActivation",
+                "BlockGuidanceActivation"
+              ],
+              "edges": [
+                {
+                  "source": "AssessGuidanceCandidate.activation_readiness",
+                  "target": "ProposeGuidanceActivation.activation_readiness"
+                },
+                {
+                  "source": "AssessGuidanceCandidate.missing_evidence",
+                  "target": "ProposeGuidanceActivation.missing_evidence"
+                },
+                {
+                  "source": "ProposeGuidanceActivation.transition",
+                  "target": "BlockGuidanceActivation.transition"
+                }
+              ],
+              "entry_signature": "AssessGuidanceCandidate",
+              "terminal_signature": "BlockGuidanceActivation",
+              "closed": true,
+              "digest": "sha256:f2a0b925961f290ab12c2e191653b46c98f44615d32e8f7d80589e69022981f3"
+            },
+            "verification_sink": {
+              "source_owner": "softwareco/owned/agent-kernel",
+              "surface": "ak.direction_controller.verify",
+              "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+              "declaration_is_trust_root": false,
+              "apply_performed": false
+            },
+            "controls_evidence": {
+              "schema_version": "ak-direction-controller-controls-evidence-v1",
+              "task_key": "B2-DSPx-publications",
+              "transition_token": "activate_guidance",
+              "legal": false,
+              "verdict": "blocked",
+              "dispatch_ready": false,
+              "transition_action_performed": false,
+              "missing_preconditions": [
+                "guidance_activation_authorized",
+                "transition_execution_authorized"
+              ],
+              "declaration_is_ak_authority": false,
+              "digest": "sha256:f9374f92495d8c1d4f6b841c6183617f34710ea7041f4663c11833f1db038992"
+            }
+          }
         },
-        "controls_evidence": {
-          "schema_version": "ak-direction-controller-controls-evidence-v1",
-          "transition_token": "request_owner_route",
-          "legal": false,
-          "verdict": "blocked",
-          "dispatch_ready": false,
-          "owner_route_sent": false,
-          "missing_preconditions": [
-            "owner_route_destination_resolved",
-            "owner_route_dispatch_authorized"
-          ],
-          "declaration_is_ak_authority": false,
-          "digest": "sha256:fc8463680fcd5505f8ac6b8ad6346afc85fa92e4fe6bf46ce2f6f8305cbfe182"
+        {
+          "const": {
+            "program_intent": {
+              "schema_version": "program-intent-v2",
+              "name": "DefaultResidualAdoptionHardening",
+              "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+              "objective": "Produce blocked advisory evidence for default residual-adoption hardening.",
+              "inputs": [
+                "residual_adoption_status",
+                "hardening_evidence",
+                "legal_controls"
+              ],
+              "outputs": [
+                "blocked_transition",
+                "verifier_expectation"
+              ],
+              "family_id": "dspx.layer12.default-residual-adoption-hardening.v1",
+              "transition_token": "default_residual_adoption_hardening",
+              "effects": "none",
+              "digest": "sha256:24bd31f16759fdfa7489e721763b51b748e91bdc44ef348e61d27b8a1565a004"
+            },
+            "module_graph": {
+              "schema_version": "dspx-fixed-module-graph-v1",
+              "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+              "signatures": [
+                {
+                  "name": "AssessResidualAdoption",
+                  "inputs": [
+                    "residual_adoption_status",
+                    "hardening_evidence"
+                  ],
+                  "outputs": [
+                    "hardening_readiness",
+                    "missing_evidence"
+                  ]
+                },
+                {
+                  "name": "ProposeResidualAdoptionHardening",
+                  "inputs": [
+                    "hardening_readiness",
+                    "missing_evidence"
+                  ],
+                  "outputs": [
+                    "transition",
+                    "rationale"
+                  ]
+                },
+                {
+                  "name": "BlockResidualAdoptionHardening",
+                  "inputs": [
+                    "transition",
+                    "legal_controls"
+                  ],
+                  "outputs": [
+                    "blocked_transition",
+                    "verifier_expectation"
+                  ]
+                }
+              ],
+              "execution_order": [
+                "AssessResidualAdoption",
+                "ProposeResidualAdoptionHardening",
+                "BlockResidualAdoptionHardening"
+              ],
+              "edges": [
+                {
+                  "source": "AssessResidualAdoption.hardening_readiness",
+                  "target": "ProposeResidualAdoptionHardening.hardening_readiness"
+                },
+                {
+                  "source": "AssessResidualAdoption.missing_evidence",
+                  "target": "ProposeResidualAdoptionHardening.missing_evidence"
+                },
+                {
+                  "source": "ProposeResidualAdoptionHardening.transition",
+                  "target": "BlockResidualAdoptionHardening.transition"
+                }
+              ],
+              "entry_signature": "AssessResidualAdoption",
+              "terminal_signature": "BlockResidualAdoptionHardening",
+              "closed": true,
+              "digest": "sha256:9c132b5b9e27480e13d584221411281bace83f403e3f6b0e7f51cf686ea088e4"
+            },
+            "verification_sink": {
+              "source_owner": "softwareco/owned/agent-kernel",
+              "surface": "ak.direction_controller.verify",
+              "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+              "declaration_is_trust_root": false,
+              "apply_performed": false
+            },
+            "controls_evidence": {
+              "schema_version": "ak-direction-controller-controls-evidence-v1",
+              "task_key": "B2-DSPx-publications",
+              "transition_token": "default_residual_adoption_hardening",
+              "legal": false,
+              "verdict": "blocked",
+              "dispatch_ready": false,
+              "transition_action_performed": false,
+              "missing_preconditions": [
+                "residual_adoption_hardening_authorized",
+                "transition_execution_authorized"
+              ],
+              "declaration_is_ak_authority": false,
+              "digest": "sha256:a13c9914d5ac16940410b1208b6226283b63337882852f45ba4971027f7534ec"
+            }
+          }
         }
-      }
+      ]
     }
   }
 }

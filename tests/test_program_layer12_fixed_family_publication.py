@@ -1174,3 +1174,254 @@ def test_b1_owner_fixture_anchors_reject_artifact_and_caller_co_substitution(
 
     with pytest.raises(Layer12FixedFamilyPublicationError, match="owner-fixed"):
         check_fixed_family_publication(publication, **kwargs)
+
+
+B2_SCOPE_DIGEST = (
+    "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
+)
+B2_CASES = {
+    "close_implementation_wave": {
+        "slug": "close-implementation-wave",
+        "family_id": "dspx.layer12.close-implementation-wave.v1",
+        "spec_digest": "sha256:ebd3b5f19be87179911029e552aa5bc00c4de774bd9264efd5fac397435ac06f",
+        "publication_id": "dspx-iw14b-close-implementation-wave-owner-local-test-v1",
+        "published_at": "2026-07-12T01:00:00Z",
+        "key_id": "dspx-iw14b-b2-close-implementation-wave-test-key-v1",
+        "public_key_b64": "JIT4mN3K8+RjeDS1zFFj9Hc3Z6fIh1h1OjdB+oj4T78=",
+        "program_id": "dspx.generated.close_implementation_wave.v1",
+    },
+    "activate_guidance": {
+        "slug": "activate-guidance",
+        "family_id": "dspx.layer12.activate-guidance.v1",
+        "spec_digest": "sha256:e58fb94f75ccd9cbf3a63216d779e0bf45791b37f128dc0a43e741858e9fb374",
+        "publication_id": "dspx-iw14b-activate-guidance-owner-local-test-v1",
+        "published_at": "2026-07-12T01:01:00Z",
+        "key_id": "dspx-iw14b-b2-activate-guidance-test-key-v1",
+        "public_key_b64": "qVm/c/f4VYGDQ6m5g/tR0Tvsd9KVtFHq2X9HI3l3tL4=",
+        "program_id": "dspx.generated.activate_guidance.v1",
+    },
+    "default_residual_adoption_hardening": {
+        "slug": "default-residual-adoption-hardening",
+        "family_id": "dspx.layer12.default-residual-adoption-hardening.v1",
+        "spec_digest": "sha256:eb4f1d7634fbade45cc80fcf2c753611ea41672603dcf04d42e595fa7258f86d",
+        "publication_id": "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1",
+        "published_at": "2026-07-12T01:02:00Z",
+        "key_id": "dspx-iw14b-b2-default-residual-adoption-hardening-test-key-v1",
+        "public_key_b64": "niF7gGvJIPzdKUZYAMJbhF4H9FXi7kBDZnTuw6ZaS/k=",
+        "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+    },
+}
+
+
+def _b2_paths(token: str) -> tuple[Path, Path]:
+    slug = cast(str, B2_CASES[token]["slug"])
+    return (
+        Path(f"docs/project/layer12/{slug}-publication.v1.json"),
+        Path(f"docs/project/layer12/fixtures/iw14b-{slug}-publication.v1.json"),
+    )
+
+
+def _b2_kwargs(token: str) -> PublicationKwargs:
+    case = B2_CASES[token]
+    spec_path, _ = _b2_paths(token)
+    return {
+        "spec": _load(spec_path),
+        "expected_owner": OWNER,
+        "expected_family_id": cast(str, case["family_id"]),
+        "expected_spec_digest": cast(str, case["spec_digest"]),
+        "expected_scope_digest": B2_SCOPE_DIGEST,
+        "expected_transition_token": token,
+        "expected_ak_wire_source_owner": "softwareco/owned/agent-kernel",
+        "expected_ak_wire_identity": AK_WIRE_IDENTITY,
+        "expected_ak_wire_digest": AK_WIRE_DIGEST,
+        "expected_publication_id": cast(str, case["publication_id"]),
+        "expected_publication_epoch": 1,
+        "expected_published_at": cast(str, case["published_at"]),
+        "expected_publication_state": "published",
+        "expected_withdrawal_ref": None,
+        "expected_key_id": cast(str, case["key_id"]),
+        "trusted_public_key_b64": cast(str, case["public_key_b64"]),
+        "expected_key_status": "active",
+        "expected_key_valid_from": KEY_VALID_FROM,
+        "expected_key_valid_until": KEY_VALID_UNTIL,
+        "verification_time": VERIFY_AT,
+    }
+
+
+@pytest.mark.parametrize("token", list(B2_CASES))
+def test_b2_publications_are_exact_closed_test_only_owner_local_artifacts(
+    token: str,
+) -> None:
+    spec_path, publication_path = _b2_paths(token)
+    spec = _load(spec_path)
+    publication = _load(publication_path)
+    validator = jsonschema.Draft202012Validator(
+        _load(SCHEMA_PATH), format_checker=jsonschema.FormatChecker()
+    )
+    validator.validate(spec)
+    validator.validate(publication)
+    case = B2_CASES[token]
+    assert sha256_digest(spec) == case["spec_digest"]
+    result = check_fixed_family_publication(publication, **_b2_kwargs(token))
+    assert result["verified"] is True
+    assert result["transition_token"] == token
+    assert result["family_id"] == case["family_id"]
+    assert result["publication_scope"] == "owner_local_artifact_only"
+    assert result["authority_granted"] is False
+    assert spec["authorization_evidence"] == {
+        "task_key": "B2-DSPx-publications",
+        "authorization_evidence_id": "4231",
+        "task_id": "3836",
+        "scope_digest": B2_SCOPE_DIGEST,
+        "declaration_is_ak_authority": False,
+        "transition_authorized": False,
+    }
+    controls = spec["program_evidence"]["controls_evidence"]
+    assert controls["legal"] is False
+    assert controls["verdict"] == "blocked"
+    assert controls["dispatch_ready"] is False
+    assert controls["transition_action_performed"] is False
+    assert spec["program_evidence"]["verification_sink"]["apply_performed"] is False
+    assert (
+        spec["program_evidence"]["program_intent"]["program_id"] == case["program_id"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("token", "wrong_family"),
+    [
+        (token, cast(str, B2_CASES[other]["family_id"]))
+        for token in B2_CASES
+        for other in B2_CASES
+        if token != other
+    ],
+)
+def test_b2_rejects_every_cross_token_family_pair(
+    token: str, wrong_family: str
+) -> None:
+    spec_path, _ = _b2_paths(token)
+    spec = _load(spec_path)
+    spec["family_id"] = wrong_family
+    spec["program_evidence"]["program_intent"]["family_id"] = wrong_family
+    kwargs = _b2_kwargs(token)
+    kwargs["expected_family_id"] = wrong_family
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="unsupported external family"
+    ):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=kwargs["expected_owner"],
+            expected_family_id=wrong_family,
+            expected_scope_digest=B2_SCOPE_DIGEST,
+            expected_transition_token=token,
+            expected_ak_wire_source_owner=kwargs["expected_ak_wire_source_owner"],
+            expected_ak_wire_identity=kwargs["expected_ak_wire_identity"],
+            expected_ak_wire_digest=kwargs["expected_ak_wire_digest"],
+        )
+
+
+@pytest.mark.parametrize("token", list(B2_CASES))
+def test_b2_owner_fixed_public_material_cannot_be_co_substituted(token: str) -> None:
+    _, publication_path = _b2_paths(token)
+    kwargs = _b2_kwargs(token)
+    kwargs["trusted_public_key_b64"] = base64.b64encode(b"z" * 32).decode()
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="owner-fixed"):
+        check_fixed_family_publication(_load(publication_path), **kwargs)
+
+
+def _verified_b2_import(token: str) -> dict[str, object]:
+    _, publication_path = _b2_paths(token)
+    return cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(publication_path), **_b2_kwargs(token))[
+            "canonical_import"
+        ],
+    )
+
+
+@pytest.mark.parametrize("token", list(B2_CASES))
+def test_reconstruction_rejects_known_fixed_family_cross_token_import(
+    token: str,
+) -> None:
+    current = _verified_b2_import(token)
+    current["transition_token"] = next(other for other in B2_CASES if other != token)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="token/family"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[],
+            current_import=current,
+            current_withdrawal=None,
+        )
+
+
+@pytest.mark.parametrize("withdrawal_mask", range(1, 8))
+def test_all_seven_b2_withdrawal_subsets_preserve_b0_b1_and_history(
+    withdrawal_mask: int,
+) -> None:
+    b0 = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(PUBLICATION_PATH), **_kwargs())[
+            "canonical_import"
+        ],
+    )
+    b1 = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(B1_PUBLICATION_PATH), **_b1_kwargs())[
+            "canonical_import"
+        ],
+    )
+    baseline_bytes = [canonical_json(item).encode() for item in (b0, b1)]
+    imports: list[object] = [b0, b1]
+    watermarks: list[object] = list(_high_watermarks(b0, b1))
+    b2_imports = [_verified_b2_import(token) for token in B2_CASES]
+    for current in b2_imports:
+        cumulative = reconstruct_fixed_family_imports(
+            prior_imports=imports,
+            prior_epoch_high_watermarks=watermarks,
+            current_import=current,
+            current_withdrawal=None,
+        )
+        imports = cast(list[object], cumulative["imports"])
+        watermarks = cast(list[object], cumulative["family_epoch_high_watermarks"])
+    assert len(imports) == 5
+    assert len(watermarks) == 5
+
+    for index, current in enumerate(b2_imports):
+        if withdrawal_mask & (1 << index):
+            withdrawn = reconstruct_fixed_family_imports(
+                prior_imports=imports,
+                prior_epoch_high_watermarks=watermarks,
+                current_import=None,
+                current_withdrawal=_withdrawal(
+                    OWNER,
+                    cast(str, current["family_id"]),
+                    cast(int, current["epoch"]),
+                    cast(str, current["publication_id"]),
+                ),
+            )
+            assert withdrawn["withdrawal_applied"] is True
+            withdrawn_identity = cast(
+                dict[str, object], withdrawn["withdrawn_identity"]
+            )
+            assert withdrawn_identity["family_id"] == current["family_id"]
+            assert withdrawn_identity["publication_id"] == current["publication_id"]
+            imports = cast(list[object], withdrawn["imports"])
+            watermarks = cast(list[object], withdrawn["family_epoch_high_watermarks"])
+    retained = cast(list[dict[str, object]], imports)
+    assert [canonical_json(item).encode() for item in retained[:2]] == baseline_bytes
+    expected_retained_b2 = [
+        item
+        for index, item in enumerate(b2_imports)
+        if not withdrawal_mask & (1 << index)
+    ]
+    assert retained[2:] == expected_retained_b2
+    assert len(retained) == 5 - withdrawal_mask.bit_count()
+    assert len(watermarks) == 5
+    watermark_by_family = {
+        cast(str, row["family_id"]): row
+        for row in cast(list[dict[str, object]], watermarks)
+    }
+    for current in b2_imports:
+        history = watermark_by_family[cast(str, current["family_id"])]
+        assert history["epoch"] == 1
+        assert history["used_publication_ids"] == [current["publication_id"]]

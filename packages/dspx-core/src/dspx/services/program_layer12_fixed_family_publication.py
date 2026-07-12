@@ -29,11 +29,22 @@ PUBLICATION_SCHEMA = "layer12-fixed-family-publication-v1"
 PROTOCOL_VERSION = "layer12-v1"
 B0_TOKEN = "continue_current_execution_task"
 B1_TOKEN = "request_owner_route"
-SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN}
+B2_TOKENS = (
+    "close_implementation_wave",
+    "activate_guidance",
+    "default_residual_adoption_hardening",
+)
+SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN, *B2_TOKENS}
 DSPX_OWNER = "softwareco/owned/dspx"
 AK_OWNER = "softwareco/owned/agent-kernel"
 B0_FAMILY_ID = "dspx.layer12.continue-current-execution-task.v1"
 B1_FAMILY_ID = "dspx.layer12.request-owner-route.v1"
+B2_FAMILY_IDS = {
+    "close_implementation_wave": "dspx.layer12.close-implementation-wave.v1",
+    "activate_guidance": "dspx.layer12.activate-guidance.v1",
+    "default_residual_adoption_hardening": "dspx.layer12.default-residual-adoption-hardening.v1",
+}
+TOKEN_FAMILY_IDS = {B0_TOKEN: B0_FAMILY_ID, B1_TOKEN: B1_FAMILY_ID, **B2_FAMILY_IDS}
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
 
 
@@ -146,6 +157,15 @@ def _canonical_import(value: object, label: str) -> dict[str, object]:
     }
     if result["schema_version"] != "layer12-fixed-family-import-v1":
         raise Layer12FixedFamilyPublicationError(f"{label} schema drift")
+    fixed_family_to_token = {
+        family: token for token, family in TOKEN_FAMILY_IDS.items()
+    }
+    family_id = result["family_id"]
+    if result["owner"] == DSPX_OWNER and family_id in fixed_family_to_token:
+        if result["transition_token"] != fixed_family_to_token[family_id]:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} owner/family contract fixed token/family identity drift"
+            )
     if result["publication_scope"] != OWNER_LOCAL_SCOPE:
         raise Layer12FixedFamilyPublicationError(f"{label} publication scope drift")
     if result["authority_granted"] is not False:
@@ -458,6 +478,168 @@ REQUEST_OWNER_ROUTE_KEY_STATUS = "active"
 REQUEST_OWNER_ROUTE_KEY_VALID_FROM = "2026-07-01T00:00:00Z"
 REQUEST_OWNER_ROUTE_KEY_VALID_UNTIL = "2026-08-01T00:00:00Z"
 
+B2_SCOPE_DIGEST = (
+    "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
+)
+B2_TASK_KEY = "B2-DSPx-publications"
+B2_AUTHORIZATION_EVIDENCE_ID = "4231"
+B2_TASK_ID = "3836"
+B2_PUBLICATION_ANCHORS: dict[str, dict[str, object]] = {
+    "close_implementation_wave": {
+        "publication_id": "dspx-iw14b-close-implementation-wave-owner-local-test-v1",
+        "epoch": 1,
+        "published_at": "2026-07-12T01:00:00Z",
+        "key_id": "dspx-iw14b-b2-close-implementation-wave-test-key-v1",
+        "public_key_b64": "JIT4mN3K8+RjeDS1zFFj9Hc3Z6fIh1h1OjdB+oj4T78=",
+    },
+    "activate_guidance": {
+        "publication_id": "dspx-iw14b-activate-guidance-owner-local-test-v1",
+        "epoch": 1,
+        "published_at": "2026-07-12T01:01:00Z",
+        "key_id": "dspx-iw14b-b2-activate-guidance-test-key-v1",
+        "public_key_b64": "qVm/c/f4VYGDQ6m5g/tR0Tvsd9KVtFHq2X9HI3l3tL4=",
+    },
+    "default_residual_adoption_hardening": {
+        "publication_id": "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1",
+        "epoch": 1,
+        "published_at": "2026-07-12T01:02:00Z",
+        "key_id": "dspx-iw14b-b2-default-residual-adoption-hardening-test-key-v1",
+        "public_key_b64": "niF7gGvJIPzdKUZYAMJbhF4H9FXi7kBDZnTuw6ZaS/k=",
+    },
+}
+B2_PROGRAM_CONTRACTS: dict[str, dict[str, object]] = {
+    "close_implementation_wave": {
+        "name": "CloseImplementationWave",
+        "program_id": "dspx.generated.close_implementation_wave.v1",
+        "objective": "Produce blocked advisory evidence for closing an implementation wave.",
+        "inputs": [
+            "implementation_wave_status",
+            "completion_evidence",
+            "legal_controls",
+        ],
+        "outputs": ["blocked_transition", "verifier_expectation"],
+        "signatures": [
+            {
+                "name": "AssessImplementationWave",
+                "inputs": ["implementation_wave_status", "completion_evidence"],
+                "outputs": ["readiness", "missing_evidence"],
+            },
+            {
+                "name": "ProposeImplementationWaveClosure",
+                "inputs": ["readiness", "missing_evidence"],
+                "outputs": ["transition", "rationale"],
+            },
+            {
+                "name": "BlockImplementationWaveClosure",
+                "inputs": ["transition", "legal_controls"],
+                "outputs": ["blocked_transition", "verifier_expectation"],
+            },
+        ],
+        "edges": [
+            {
+                "source": "AssessImplementationWave.readiness",
+                "target": "ProposeImplementationWaveClosure.readiness",
+            },
+            {
+                "source": "AssessImplementationWave.missing_evidence",
+                "target": "ProposeImplementationWaveClosure.missing_evidence",
+            },
+            {
+                "source": "ProposeImplementationWaveClosure.transition",
+                "target": "BlockImplementationWaveClosure.transition",
+            },
+        ],
+        "missing_preconditions": [
+            "implementation_wave_completion_authorized",
+            "transition_execution_authorized",
+        ],
+    },
+    "activate_guidance": {
+        "name": "ActivateGuidance",
+        "program_id": "dspx.generated.activate_guidance.v1",
+        "objective": "Produce blocked advisory evidence for guidance activation.",
+        "inputs": ["guidance_candidate", "validation_evidence", "legal_controls"],
+        "outputs": ["blocked_transition", "verifier_expectation"],
+        "signatures": [
+            {
+                "name": "AssessGuidanceCandidate",
+                "inputs": ["guidance_candidate", "validation_evidence"],
+                "outputs": ["activation_readiness", "missing_evidence"],
+            },
+            {
+                "name": "ProposeGuidanceActivation",
+                "inputs": ["activation_readiness", "missing_evidence"],
+                "outputs": ["transition", "rationale"],
+            },
+            {
+                "name": "BlockGuidanceActivation",
+                "inputs": ["transition", "legal_controls"],
+                "outputs": ["blocked_transition", "verifier_expectation"],
+            },
+        ],
+        "edges": [
+            {
+                "source": "AssessGuidanceCandidate.activation_readiness",
+                "target": "ProposeGuidanceActivation.activation_readiness",
+            },
+            {
+                "source": "AssessGuidanceCandidate.missing_evidence",
+                "target": "ProposeGuidanceActivation.missing_evidence",
+            },
+            {
+                "source": "ProposeGuidanceActivation.transition",
+                "target": "BlockGuidanceActivation.transition",
+            },
+        ],
+        "missing_preconditions": [
+            "guidance_activation_authorized",
+            "transition_execution_authorized",
+        ],
+    },
+    "default_residual_adoption_hardening": {
+        "name": "DefaultResidualAdoptionHardening",
+        "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+        "objective": "Produce blocked advisory evidence for default residual-adoption hardening.",
+        "inputs": ["residual_adoption_status", "hardening_evidence", "legal_controls"],
+        "outputs": ["blocked_transition", "verifier_expectation"],
+        "signatures": [
+            {
+                "name": "AssessResidualAdoption",
+                "inputs": ["residual_adoption_status", "hardening_evidence"],
+                "outputs": ["hardening_readiness", "missing_evidence"],
+            },
+            {
+                "name": "ProposeResidualAdoptionHardening",
+                "inputs": ["hardening_readiness", "missing_evidence"],
+                "outputs": ["transition", "rationale"],
+            },
+            {
+                "name": "BlockResidualAdoptionHardening",
+                "inputs": ["transition", "legal_controls"],
+                "outputs": ["blocked_transition", "verifier_expectation"],
+            },
+        ],
+        "edges": [
+            {
+                "source": "AssessResidualAdoption.hardening_readiness",
+                "target": "ProposeResidualAdoptionHardening.hardening_readiness",
+            },
+            {
+                "source": "AssessResidualAdoption.missing_evidence",
+                "target": "ProposeResidualAdoptionHardening.missing_evidence",
+            },
+            {
+                "source": "ProposeResidualAdoptionHardening.transition",
+                "target": "BlockResidualAdoptionHardening.transition",
+            },
+        ],
+        "missing_preconditions": [
+            "residual_adoption_hardening_authorized",
+            "transition_execution_authorized",
+        ],
+    },
+}
+
 
 def _check_hash_bound(value: object, label: str) -> Mapping[str, Any]:
     item = _object(value, label)
@@ -586,6 +768,88 @@ def _check_request_owner_route_program_evidence(
     )
 
 
+def _check_b2_program_evidence(
+    value: object, *, token: str, expected_family_id: str
+) -> None:
+    contract = B2_PROGRAM_CONTRACTS[token]
+    evidence = _object(value, "spec.program_evidence")
+    _closed(
+        evidence,
+        {"program_intent", "module_graph", "verification_sink", "controls_evidence"},
+        "spec.program_evidence",
+    )
+    intent = _check_hash_bound(
+        evidence["program_intent"], "spec.program_evidence.program_intent"
+    )
+    _exact(
+        intent,
+        {
+            "schema_version": "program-intent-v2",
+            "name": contract["name"],
+            "program_id": contract["program_id"],
+            "objective": contract["objective"],
+            "inputs": contract["inputs"],
+            "outputs": contract["outputs"],
+            "family_id": expected_family_id,
+            "transition_token": token,
+            "effects": "none",
+            "digest": intent["digest"],
+        },
+        "spec.program_evidence.program_intent",
+    )
+    graph = _check_hash_bound(
+        evidence["module_graph"], "spec.program_evidence.module_graph"
+    )
+    signatures = cast(list[dict[str, object]], contract["signatures"])
+    _exact(
+        graph,
+        {
+            "schema_version": "dspx-fixed-module-graph-v1",
+            "program_id": contract["program_id"],
+            "signatures": signatures,
+            "execution_order": [row["name"] for row in signatures],
+            "edges": contract["edges"],
+            "entry_signature": signatures[0]["name"],
+            "terminal_signature": signatures[-1]["name"],
+            "closed": True,
+            "digest": graph["digest"],
+        },
+        "spec.program_evidence.module_graph",
+    )
+    _exact(
+        _object(
+            evidence["verification_sink"], "spec.program_evidence.verification_sink"
+        ),
+        {
+            "source_owner": AK_OWNER,
+            "surface": "ak.direction_controller.verify",
+            "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+            "declaration_is_trust_root": False,
+            "apply_performed": False,
+        },
+        "spec.program_evidence.verification_sink",
+    )
+    controls = _check_hash_bound(
+        evidence["controls_evidence"], "spec.program_evidence.controls_evidence"
+    )
+    _exact(
+        controls,
+        {
+            "schema_version": "ak-direction-controller-controls-evidence-v1",
+            "task_key": B2_TASK_KEY,
+            "transition_token": token,
+            "legal": False,
+            "verdict": "blocked",
+            "dispatch_ready": False,
+            "transition_action_performed": False,
+            "missing_preconditions": contract["missing_preconditions"],
+            "declaration_is_ak_authority": False,
+            "digest": controls["digest"],
+        },
+        "spec.program_evidence.controls_evidence",
+    )
+
+
 def check_fixed_family_spec(
     spec: object,
     *,
@@ -614,6 +878,11 @@ def check_fixed_family_spec(
             "reconstruction_contract",
             "authority_boundary",
             *({"program_evidence"} if "program_evidence" in item else set()),
+            *(
+                {"authorization_evidence"}
+                if "authorization_evidence" in item
+                else set()
+            ),
         },
         "spec",
     )
@@ -636,9 +905,7 @@ def check_fixed_family_spec(
         )
     if _text(expected_owner, "expected_owner") != DSPX_OWNER:
         raise Layer12FixedFamilyPublicationError("unsupported external owner pin")
-    expected_family_for_token = (
-        B0_FAMILY_ID if pinned_token == B0_TOKEN else B1_FAMILY_ID
-    )
+    expected_family_for_token = TOKEN_FAMILY_IDS[pinned_token]
     if _text(expected_family_id, "expected_family_id") != expected_family_for_token:
         raise Layer12FixedFamilyPublicationError("unsupported external family pin")
     if (
@@ -669,11 +936,36 @@ def check_fixed_family_spec(
         "spec.ak_wire_evidence",
     )
     if pinned_token == B0_TOKEN:
-        if "program_evidence" in item:
+        if "program_evidence" in item or "authorization_evidence" in item:
             raise Layer12FixedFamilyPublicationError("B0 program evidence drift")
-    else:
+    elif pinned_token == B1_TOKEN:
+        if "authorization_evidence" in item:
+            raise Layer12FixedFamilyPublicationError("B1 authorization evidence drift")
         _check_request_owner_route_program_evidence(
             item.get("program_evidence"), expected_family_id=expected_family_id
+        )
+    else:
+        if _digest(expected_scope_digest, "expected_scope_digest") != B2_SCOPE_DIGEST:
+            raise Layer12FixedFamilyPublicationError("B2 authorization scope drift")
+        authorization = _object(
+            item.get("authorization_evidence"), "spec.authorization_evidence"
+        )
+        _exact(
+            authorization,
+            {
+                "task_key": B2_TASK_KEY,
+                "authorization_evidence_id": B2_AUTHORIZATION_EVIDENCE_ID,
+                "task_id": B2_TASK_ID,
+                "scope_digest": B2_SCOPE_DIGEST,
+                "declaration_is_ak_authority": False,
+                "transition_authorized": False,
+            },
+            "spec.authorization_evidence",
+        )
+        _check_b2_program_evidence(
+            item.get("program_evidence"),
+            token=pinned_token,
+            expected_family_id=expected_family_id,
         )
 
     publication = _object(item["publication_contract"], "spec.publication_contract")
@@ -751,27 +1043,37 @@ def check_fixed_family_publication(
 ) -> dict[str, object]:
     """Verify a publication against caller pins and closed B1 owner anchors."""
 
-    if expected_transition_token == B1_TOKEN:
+    if expected_transition_token in {B1_TOKEN, *B2_TOKENS}:
+        if expected_transition_token == B1_TOKEN:
+            owner_anchor = {
+                "publication_id": REQUEST_OWNER_ROUTE_PUBLICATION_ID,
+                "epoch": REQUEST_OWNER_ROUTE_PUBLICATION_EPOCH,
+                "published_at": REQUEST_OWNER_ROUTE_PUBLISHED_AT,
+                "key_id": REQUEST_OWNER_ROUTE_KEY_ID,
+                "public_key_b64": REQUEST_OWNER_ROUTE_PUBLIC_KEY_B64,
+            }
+        else:
+            owner_anchor = B2_PUBLICATION_ANCHORS[expected_transition_token]
         b1_owner_pins: tuple[tuple[object, object, str], ...] = (
             (
                 expected_publication_id,
-                REQUEST_OWNER_ROUTE_PUBLICATION_ID,
+                owner_anchor["publication_id"],
                 "publication_id",
             ),
             (
                 expected_publication_epoch,
-                REQUEST_OWNER_ROUTE_PUBLICATION_EPOCH,
+                owner_anchor["epoch"],
                 "publication_epoch",
             ),
             (
                 expected_published_at,
-                REQUEST_OWNER_ROUTE_PUBLISHED_AT,
+                owner_anchor["published_at"],
                 "published_at",
             ),
-            (expected_key_id, REQUEST_OWNER_ROUTE_KEY_ID, "key_id"),
+            (expected_key_id, owner_anchor["key_id"], "key_id"),
             (
                 trusted_public_key_b64,
-                REQUEST_OWNER_ROUTE_PUBLIC_KEY_B64,
+                owner_anchor["public_key_b64"],
                 "public_key_b64",
             ),
             (expected_key_status, REQUEST_OWNER_ROUTE_KEY_STATUS, "key_status"),
@@ -785,7 +1087,7 @@ def check_fixed_family_publication(
         for supplied, owner_fixed, label in b1_owner_pins:
             if supplied != owner_fixed:
                 raise Layer12FixedFamilyPublicationError(
-                    f"B1 {label} conflicts with DSPx-owner-fixed TEST fixture"
+                    f"{expected_transition_token} {label} conflicts with DSPx-owner-fixed TEST fixture"
                 )
 
     spec_result = check_fixed_family_spec(
@@ -828,7 +1130,7 @@ def check_fixed_family_publication(
         raise Layer12FixedFamilyPublicationError(
             "publication_id does not match external pin"
         )
-    if expected_transition_token == B1_TOKEN:
+    if expected_transition_token in {B1_TOKEN, *B2_TOKENS}:
         pinned_published_at = _text(expected_published_at, "expected_published_at")
         if item["published_at"] != pinned_published_at:
             raise Layer12FixedFamilyPublicationError(

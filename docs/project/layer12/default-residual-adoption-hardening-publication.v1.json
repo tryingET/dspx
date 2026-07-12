@@ -1,0 +1,156 @@
+{
+  "schema_version": "layer12-fixed-family-spec-v1",
+  "owner": "softwareco/owned/dspx",
+  "family_id": "dspx.layer12.default-residual-adoption-hardening.v1",
+  "protocol_version": "layer12-v1",
+  "transition_tokens": [
+    "default_residual_adoption_hardening"
+  ],
+  "scope_digest": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca",
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "publication_contract": {
+    "publication_scope": "owner_local_artifact_only",
+    "signed_payload": "publication_object_without_signature",
+    "signature_algorithm": "Ed25519",
+    "external_trust_required": true
+  },
+  "reconstruction_contract": {
+    "mode": "cumulative_owner_local_family_epochs",
+    "identity_key": [
+      "owner",
+      "family_id"
+    ],
+    "epoch_order": "strictly_monotonic_per_family",
+    "withdrawal_scope": "matching_owner_family_epoch_only",
+    "preserve_unrelated_imports": true
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "authorization_evidence": {
+    "task_key": "B2-DSPx-publications",
+    "authorization_evidence_id": "4231",
+    "task_id": "3836",
+    "scope_digest": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca",
+    "declaration_is_ak_authority": false,
+    "transition_authorized": false
+  },
+  "program_evidence": {
+    "program_intent": {
+      "schema_version": "program-intent-v2",
+      "name": "DefaultResidualAdoptionHardening",
+      "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+      "objective": "Produce blocked advisory evidence for default residual-adoption hardening.",
+      "inputs": [
+        "residual_adoption_status",
+        "hardening_evidence",
+        "legal_controls"
+      ],
+      "outputs": [
+        "blocked_transition",
+        "verifier_expectation"
+      ],
+      "family_id": "dspx.layer12.default-residual-adoption-hardening.v1",
+      "transition_token": "default_residual_adoption_hardening",
+      "effects": "none",
+      "digest": "sha256:24bd31f16759fdfa7489e721763b51b748e91bdc44ef348e61d27b8a1565a004"
+    },
+    "module_graph": {
+      "schema_version": "dspx-fixed-module-graph-v1",
+      "program_id": "dspx.generated.default_residual_adoption_hardening.v1",
+      "signatures": [
+        {
+          "name": "AssessResidualAdoption",
+          "inputs": [
+            "residual_adoption_status",
+            "hardening_evidence"
+          ],
+          "outputs": [
+            "hardening_readiness",
+            "missing_evidence"
+          ]
+        },
+        {
+          "name": "ProposeResidualAdoptionHardening",
+          "inputs": [
+            "hardening_readiness",
+            "missing_evidence"
+          ],
+          "outputs": [
+            "transition",
+            "rationale"
+          ]
+        },
+        {
+          "name": "BlockResidualAdoptionHardening",
+          "inputs": [
+            "transition",
+            "legal_controls"
+          ],
+          "outputs": [
+            "blocked_transition",
+            "verifier_expectation"
+          ]
+        }
+      ],
+      "execution_order": [
+        "AssessResidualAdoption",
+        "ProposeResidualAdoptionHardening",
+        "BlockResidualAdoptionHardening"
+      ],
+      "edges": [
+        {
+          "source": "AssessResidualAdoption.hardening_readiness",
+          "target": "ProposeResidualAdoptionHardening.hardening_readiness"
+        },
+        {
+          "source": "AssessResidualAdoption.missing_evidence",
+          "target": "ProposeResidualAdoptionHardening.missing_evidence"
+        },
+        {
+          "source": "ProposeResidualAdoptionHardening.transition",
+          "target": "BlockResidualAdoptionHardening.transition"
+        }
+      ],
+      "entry_signature": "AssessResidualAdoption",
+      "terminal_signature": "BlockResidualAdoptionHardening",
+      "closed": true,
+      "digest": "sha256:9c132b5b9e27480e13d584221411281bace83f403e3f6b0e7f51cf686ea088e4"
+    },
+    "verification_sink": {
+      "source_owner": "softwareco/owned/agent-kernel",
+      "surface": "ak.direction_controller.verify",
+      "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+      "declaration_is_trust_root": false,
+      "apply_performed": false
+    },
+    "controls_evidence": {
+      "schema_version": "ak-direction-controller-controls-evidence-v1",
+      "task_key": "B2-DSPx-publications",
+      "transition_token": "default_residual_adoption_hardening",
+      "legal": false,
+      "verdict": "blocked",
+      "dispatch_ready": false,
+      "transition_action_performed": false,
+      "missing_preconditions": [
+        "residual_adoption_hardening_authorized",
+        "transition_execution_authorized"
+      ],
+      "declaration_is_ak_authority": false,
+      "digest": "sha256:a13c9914d5ac16940410b1208b6226283b63337882852f45ba4971027f7534ec"
+    }
+  }
+}
