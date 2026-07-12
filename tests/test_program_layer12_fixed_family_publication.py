@@ -9,7 +9,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 import jsonschema
 import pytest
@@ -36,7 +36,8 @@ SCHEMA_PATH = Path(
 OWNER = "softwareco/owned/dspx"
 FAMILY_ID = "dspx.layer12.continue-current-execution-task.v1"
 SCOPE_DIGEST = "sha256:46e7861e08304ee1fa2ececa5ab460137dcf3fd2eae40f7055b8252b7fa04393"
-SPEC_DIGEST = "sha256:acbfc92dff83c76e99135d073a1bd58bea7db185ed2955eceb893b3fa19f486f"
+SPEC_DIGEST = "sha256:7c4686dcdf26b085a595d1b381660a3191d650c8d26be1bb22a8adaa533142cc"
+PUBLICATION_ID = "dspx-iw14b-continue-current-execution-task-owner-local-v1"
 AK_WIRE_IDENTITY = "ak.direction-controller.transition-token.v1"
 AK_WIRE_DIGEST = (
     "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7"
@@ -62,6 +63,10 @@ class PublicationKwargs(TypedDict):
     expected_scope_digest: str
     expected_ak_wire_identity: str
     expected_ak_wire_digest: str
+    expected_publication_id: str
+    expected_publication_epoch: int
+    expected_publication_state: str
+    expected_withdrawal_ref: str | None
     expected_key_id: str
     trusted_public_key_b64: str
     expected_key_status: str
@@ -80,6 +85,9 @@ def _kwargs(
     expected_key_valid_from: str = KEY_VALID_FROM,
     expected_key_valid_until: str = KEY_VALID_UNTIL,
     verification_time: str = VERIFY_AT,
+    expected_publication_epoch: int = 1,
+    expected_publication_state: str = "published",
+    expected_withdrawal_ref: str | None = None,
 ) -> PublicationKwargs:
     return {
         "spec": _load(SPEC_PATH),
@@ -89,6 +97,10 @@ def _kwargs(
         "expected_scope_digest": SCOPE_DIGEST,
         "expected_ak_wire_identity": AK_WIRE_IDENTITY,
         "expected_ak_wire_digest": AK_WIRE_DIGEST,
+        "expected_publication_id": PUBLICATION_ID,
+        "expected_publication_epoch": expected_publication_epoch,
+        "expected_publication_state": expected_publication_state,
+        "expected_withdrawal_ref": expected_withdrawal_ref,
         "expected_key_id": KEY_ID,
         "trusted_public_key_b64": PUBLIC_KEY_B64,
         "expected_key_status": expected_key_status,
@@ -128,7 +140,9 @@ def test_fixed_spec_and_publication_match_schema_and_external_pins() -> None:
 
     assert result == {
         "verified": True,
-        "publication_id": "dspx-iw14b-continue-current-execution-task-owner-local-v1",
+        "publication_id": PUBLICATION_ID,
+        "publication_epoch": 1,
+        "publication_state": "published",
         "owner": OWNER,
         "family_id": FAMILY_ID,
         "transition_token": "continue_current_execution_task",
@@ -136,6 +150,14 @@ def test_fixed_spec_and_publication_match_schema_and_external_pins() -> None:
         "spec_digest": SPEC_DIGEST,
         "ak_wire_trust_source": "external_pin",
         "signature_trust_source": "external_pin",
+        "publication_lifecycle_source": "external_pin",
+        "canonical_reconstruction": {
+            "mode": "cumulative_owner_local_family_epochs",
+            "family_identity": {"owner": OWNER, "family_id": FAMILY_ID},
+            "epoch": 1,
+            "action": "retain_published_epoch",
+            "preserve_unrelated_imports": True,
+        },
         "authority_granted": False,
     }
 
@@ -193,6 +215,7 @@ def test_publication_rejects_identity_and_digest_drift(
     ("container", "field"),
     [
         ((), "embedded_trust_root"),
+        (("publication_lifecycle",), "global_replace"),
         (("identity",), "recommendation"),
         (("ak_wire_evidence",), "trusted"),
         (("signer_evidence",), "self_authorized"),
@@ -215,6 +238,7 @@ def test_unknown_fields_fail_closed(container: tuple[str, ...], field: str) -> N
     ("container", "field"),
     [
         ((), "publication_id"),
+        (("publication_lifecycle",), "epoch"),
         (("identity",), "owner"),
         (("ak_wire_evidence",), "source_owner"),
         (("signer_evidence",), "algorithm"),
@@ -240,6 +264,7 @@ def test_missing_fields_fail_closed_at_each_publication_boundary(
         ((), "owner"),
         (("ak_wire_evidence",), "wire_identity"),
         (("publication_contract",), "external_trust_required"),
+        (("reconstruction_contract",), "preserve_unrelated_imports"),
         (("authority_boundary",), "activation"),
     ],
 )
@@ -361,9 +386,60 @@ def test_key_lifecycle_is_independently_pinned_and_time_bounded(
         check_fixed_family_publication(_load(PUBLICATION_PATH), **kwargs)
 
 
+def test_resigned_publication_id_drift_rejects_external_identity_pin() -> None:
+    publication = _load(PUBLICATION_PATH)
+    publication["publication_id"] = "attacker-chosen-but-validly-signed-id"
+    _resign(publication)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="publication_id"):
+        check_fixed_family_publication(publication, **_kwargs())
+
+
+def test_publication_epoch_is_externally_pinned() -> None:
+    publication = _load(PUBLICATION_PATH)
+    publication["publication_lifecycle"]["epoch"] = 2
+    _resign(publication)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="epoch"):
+        check_fixed_family_publication(publication, **_kwargs())
+
+
+def test_external_withdrawal_rejects_publication_without_revoking_shared_key() -> None:
+    kwargs = _kwargs(
+        expected_publication_state="withdrawn",
+        expected_withdrawal_ref="dspx-owner-local-withdrawal:epoch-1",
+    )
+    assert kwargs["expected_key_status"] == "active"
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="withdrawn"):
+        check_fixed_family_publication(_load(PUBLICATION_PATH), **kwargs)
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="expected_withdrawal_ref"
+    ):
+        check_fixed_family_publication(
+            _load(PUBLICATION_PATH),
+            **_kwargs(expected_publication_state="withdrawn"),
+        )
+
+
+def test_published_state_rejects_withdrawal_ref_and_preserves_cumulative_imports() -> (
+    None
+):
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="withdrawal ref"):
+        check_fixed_family_publication(
+            _load(PUBLICATION_PATH),
+            **_kwargs(expected_withdrawal_ref="unexpected-withdrawal"),
+        )
+    result = check_fixed_family_publication(_load(PUBLICATION_PATH), **_kwargs())
+    reconstruction = cast(dict[str, object], result["canonical_reconstruction"])
+    assert reconstruction["mode"] == "cumulative_owner_local_family_epochs"
+    assert reconstruction["family_identity"] == {
+        "owner": OWNER,
+        "family_id": FAMILY_ID,
+    }
+    assert reconstruction["preserve_unrelated_imports"] is True
+
+
 def test_signature_payload_and_external_trust_drift_fail_closed() -> None:
     publication = _load(PUBLICATION_PATH)
-    publication["publication_id"] += "-tampered"
+    publication["published_at"] = "2026-07-12T00:00:01Z"
     with pytest.raises(Layer12FixedFamilyPublicationError, match="payload digest"):
         check_fixed_family_publication(publication, **_kwargs())
 

@@ -3,13 +3,18 @@
   "publication_id": "dspx-iw14b-continue-current-execution-task-owner-local-v1",
   "published_at": "2026-07-12T00:00:00Z",
   "publication_scope": "owner_local_artifact_only",
+  "publication_lifecycle": {
+    "epoch": 1,
+    "state_at_signing": "published",
+    "withdrawal_ref_at_signing": null
+  },
   "identity": {
     "owner": "softwareco/owned/dspx",
     "family_id": "dspx.layer12.continue-current-execution-task.v1",
     "protocol_version": "layer12-v1",
     "transition_token": "continue_current_execution_task",
     "spec_schema_version": "layer12-fixed-family-spec-v1",
-    "spec_digest": "sha256:acbfc92dff83c76e99135d073a1bd58bea7db185ed2955eceb893b3fa19f486f",
+    "spec_digest": "sha256:7c4686dcdf26b085a595d1b381660a3191d650c8d26be1bb22a8adaa533142cc",
     "scope_digest": "sha256:46e7861e08304ee1fa2ececa5ab460137dcf3fd2eae40f7055b8252b7fa04393"
   },
   "ak_wire_evidence": {
@@ -41,7 +46,7 @@
   "signature": {
     "algorithm": "Ed25519",
     "key_id": "dspx-iw14b-test-fixture-key-v1",
-    "signed_payload_digest": "sha256:bb6c1dca9bb52fb54807c4e6ced45738adfa39d758abaea837bb8bc032898fdd",
-    "signature_b64": "YFzdIWGL/G1ZSe1ZGnwTxy2Ka5SeaUfB2m04aTiK+ckFHcruPUOE1Bi4fHK58O+b8kUs2pYRApH5CYP6HgmZCQ=="
+    "signed_payload_digest": "sha256:9a7fd60e2a95ac17e7bd78a88a0718c44e3f0864fd7980fedc430e3c01fe8e20",
+    "signature_b64": "a160ExjVgUAzc+ztbql9PSjZ5S9LZtseQtQcD65hWyvQ2ufqxfRCVy3ZT0AZZE8XMJO/hQlMLpSX5TAZdKRHAQ=="
   }
 }

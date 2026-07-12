@@ -78,6 +78,12 @@ def _digest(value: object, label: str) -> str:
     return text
 
 
+def _positive_integer(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise Layer12FixedFamilyPublicationError(f"{label} must be a positive integer")
+    return value
+
+
 def _time(value: object, label: str) -> datetime:
     text = _text(value, label)
     if (
@@ -127,6 +133,7 @@ def check_fixed_family_spec(
             "scope_digest",
             "ak_wire_evidence",
             "publication_contract",
+            "reconstruction_contract",
             "authority_boundary",
         },
         "spec",
@@ -172,6 +179,20 @@ def check_fixed_family_spec(
         },
         "spec.publication_contract",
     )
+    reconstruction = _object(
+        item["reconstruction_contract"], "spec.reconstruction_contract"
+    )
+    _exact(
+        reconstruction,
+        {
+            "mode": "cumulative_owner_local_family_epochs",
+            "identity_key": ["owner", "family_id"],
+            "epoch_order": "strictly_monotonic_per_family",
+            "withdrawal_scope": "matching_owner_family_epoch_only",
+            "preserve_unrelated_imports": True,
+        },
+        "spec.reconstruction_contract",
+    )
     authority = _object(item["authority_boundary"], "spec.authority_boundary")
     _exact(
         authority,
@@ -206,6 +227,10 @@ def check_fixed_family_publication(
     expected_scope_digest: str,
     expected_ak_wire_identity: str,
     expected_ak_wire_digest: str,
+    expected_publication_id: str,
+    expected_publication_epoch: int,
+    expected_publication_state: str,
+    expected_withdrawal_ref: str | None,
     expected_key_id: str,
     trusted_public_key_b64: str,
     expected_key_status: str,
@@ -237,6 +262,7 @@ def check_fixed_family_publication(
             "publication_id",
             "published_at",
             "publication_scope",
+            "publication_lifecycle",
             "identity",
             "ak_wire_evidence",
             "signer_evidence",
@@ -247,11 +273,45 @@ def check_fixed_family_publication(
     )
     if item["schema_version"] != PUBLICATION_SCHEMA:
         raise Layer12FixedFamilyPublicationError("unsupported publication schema")
-    _text(item["publication_id"], "publication_id")
+    pinned_publication_id = _text(expected_publication_id, "expected_publication_id")
+    if item["publication_id"] != pinned_publication_id:
+        raise Layer12FixedFamilyPublicationError(
+            "publication_id does not match external pin"
+        )
     published_at = _time(item["published_at"], "published_at")
     if item["publication_scope"] != OWNER_LOCAL_SCOPE:
         raise Layer12FixedFamilyPublicationError(
             "affected-use publication is forbidden"
+        )
+
+    pinned_epoch = _positive_integer(
+        expected_publication_epoch, "expected_publication_epoch"
+    )
+    lifecycle = _object(
+        item["publication_lifecycle"], "publication.publication_lifecycle"
+    )
+    _exact(
+        lifecycle,
+        {
+            "epoch": pinned_epoch,
+            "state_at_signing": "published",
+            "withdrawal_ref_at_signing": None,
+        },
+        "publication.publication_lifecycle",
+    )
+    pinned_state = _text(expected_publication_state, "expected_publication_state")
+    if pinned_state not in {"published", "withdrawn"}:
+        raise Layer12FixedFamilyPublicationError(
+            "unsupported external publication state"
+        )
+    if pinned_state == "withdrawn":
+        _text(expected_withdrawal_ref, "expected_withdrawal_ref")
+        raise Layer12FixedFamilyPublicationError(
+            "publication is withdrawn by external lifecycle pin"
+        )
+    if expected_withdrawal_ref is not None:
+        raise Layer12FixedFamilyPublicationError(
+            "published external state cannot carry a withdrawal ref"
         )
 
     identity = _object(item["identity"], "publication.identity")
@@ -357,7 +417,9 @@ def check_fixed_family_publication(
 
     return {
         "verified": True,
-        "publication_id": item["publication_id"],
+        "publication_id": pinned_publication_id,
+        "publication_epoch": pinned_epoch,
+        "publication_state": pinned_state,
         "owner": expected_owner,
         "family_id": expected_family_id,
         "transition_token": ONLY_TOKEN,
@@ -365,5 +427,16 @@ def check_fixed_family_publication(
         "spec_digest": pinned_spec_digest,
         "ak_wire_trust_source": "external_pin",
         "signature_trust_source": "external_pin",
+        "publication_lifecycle_source": "external_pin",
+        "canonical_reconstruction": {
+            "mode": "cumulative_owner_local_family_epochs",
+            "family_identity": {
+                "owner": expected_owner,
+                "family_id": expected_family_id,
+            },
+            "epoch": pinned_epoch,
+            "action": "retain_published_epoch",
+            "preserve_unrelated_imports": True,
+        },
         "authority_granted": False,
     }

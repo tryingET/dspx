@@ -19,6 +19,16 @@
     "signature_algorithm": "Ed25519",
     "external_trust_required": true
   },
+  "reconstruction_contract": {
+    "mode": "cumulative_owner_local_family_epochs",
+    "identity_key": [
+      "owner",
+      "family_id"
+    ],
+    "epoch_order": "strictly_monotonic_per_family",
+    "withdrawal_scope": "matching_owner_family_epoch_only",
+    "preserve_unrelated_imports": true
+  },
   "authority_boundary": {
     "owner_local_artifact_publication": true,
     "affected_use_publication": false,
