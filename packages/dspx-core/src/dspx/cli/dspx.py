@@ -1468,6 +1468,11 @@ def program_run(
         "--capture-replay-fixture",
         help="Explicitly persist a mode-0600 local stub/input replay fixture; may contain sensitive runtime data",
     ),
+    oracle_semantic: bool = typer.Option(
+        False,
+        "--oracle-semantic",
+        help="Run configured receipt-bound Oracle semantic analysis after the runtime receipt validates",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print runtime workflow JSON"),
 ) -> None:
     """Run an existing generated program on explicit runtime inputs."""
@@ -1498,6 +1503,7 @@ def program_run(
             redaction_status=redaction_status,
             retention_class=retention_class,
             capture_replay_fixture=capture_replay_fixture,
+            run_oracle_semantic=oracle_semantic,
         )
     except Exception as exc:
         typer.echo(f"Error: program runtime episode failed: {exc}", err=True)
@@ -1511,6 +1517,8 @@ def program_run(
         typer.echo(f"runtime_execution: {runtime.get('status')}")
         report = (payload.get("steps") or {}).get("oracle_report") or {}
         typer.echo(f"oracle_report: {report.get('status')}")
+        semantic = (payload.get("steps") or {}).get("oracle_semantic") or {}
+        typer.echo(f"oracle_semantic: {semantic.get('status')}")
 
 
 @app.command("codegen")

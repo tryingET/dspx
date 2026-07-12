@@ -137,6 +137,56 @@ def oracle_program_semantic_preflight(
         raise typer.Exit(code=2)
 
 
+@app.command("program-semantic-analyze")
+def oracle_program_semantic_analyze(
+    runtime_episode: Path = typer.Option(
+        ...,
+        "--runtime-episode",
+        help="Path to a validated program runtime_episode.json artifact",
+    ),
+    out: Optional[Path] = typer.Option(
+        None,
+        "--out",
+        help="Semantic sidecar path; defaults beside the runtime episode",
+    ),
+    config: Optional[Path] = typer.Option(
+        None,
+        "--config",
+        help="Optional DSPx TOML configuration path",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Output JSON result"),
+) -> None:
+    """Run or resume receipt-bound local Oracle semantic analysis."""
+    from dspx.config_loader import load_config_env
+    from dspx.services.program_runtime_oracle_semantic import (
+        run_program_runtime_oracle_semantics,
+    )
+
+    if not runtime_episode.exists():
+        typer.echo(f"Error: runtime episode not found: {runtime_episode}", err=True)
+        raise typer.Exit(code=2)
+    try:
+        load_config_env(str(config) if config is not None else None)
+        payload = run_program_runtime_oracle_semantics(
+            runtime_episode_path=runtime_episode,
+            out_path=out,
+        )
+    except Exception as exc:
+        typer.echo(f"Error: Oracle semantic analysis failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        result = payload.get("semantic_result") or {}
+        typer.echo(str(out or runtime_episode.parent / "program_oracle_semantic.json"))
+        typer.echo(f"status: {payload.get('status')}")
+        typer.echo(f"preferred_model: {result.get('preferred_model')}")
+        typer.echo(f"executed_model: {result.get('executed_model') or '-'}")
+    if payload.get("status") != "ok":
+        raise typer.Exit(code=1)
+
+
 @autoresearch_evidence_app.command("publish-preflight")
 def oracle_autoresearch_evidence_publish_preflight(
     packet: Path = typer.Option(

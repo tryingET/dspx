@@ -51,6 +51,7 @@ _RUNTIME_EPISODE_PROTECTED_ARTIFACT_NAMES = {
     "runtime_episode.json",
     "runtime_replay_fixture.json",
     "program_oracle_report.json",
+    "program_oracle_semantic.json",
 }
 
 CONTRACT_MODES = {"none", "pdf_transition_review"}
@@ -1705,6 +1706,7 @@ def run_program_runtime_episode(
     redaction_status: str | None = None,
     retention_class: str | None = None,
     capture_replay_fixture: bool = False,
+    run_oracle_semantic: bool = False,
 ) -> dict[str, Any]:
     """Run an existing generated program candidate on explicit runtime inputs.
 
@@ -2075,6 +2077,46 @@ def run_program_runtime_episode(
     )
     runtime_receipt_path = write_run_receipt(runtime_episode_path, receipt)
 
+    oracle_semantic_payload: dict[str, Any] | None = None
+    oracle_semantic_path: Path | None = None
+    if run_oracle_semantic:
+        from dspx.services.program_runtime_oracle_semantic import (
+            DEFAULT_PROGRAM_RUNTIME_ORACLE_SEMANTIC_NAME,
+            run_program_runtime_oracle_semantics,
+        )
+
+        oracle_semantic_path = root / DEFAULT_PROGRAM_RUNTIME_ORACLE_SEMANTIC_NAME
+        try:
+            oracle_semantic_payload = run_program_runtime_oracle_semantics(
+                runtime_episode_path=runtime_episode_path,
+                out_path=oracle_semantic_path,
+            )
+        except Exception as exc:
+            effect_indeterminate = oracle_semantic_path.exists()
+            oracle_semantic_payload = {
+                "status": "degraded",
+                "semantic_result": {
+                    "execution_status": "effect_indeterminate"
+                    if effect_indeterminate
+                    else "failed_before_attempt",
+                    "executed_provider": None,
+                    "executed_model": None,
+                    "live_call_succeeded": False,
+                    "error": sanitize_diagnostic_text(str(exc)),
+                },
+                "effect": {
+                    "semantic_backend_invoked": None if effect_indeterminate else False,
+                    "effect_disposition": "indeterminate"
+                    if effect_indeterminate
+                    else "not_started",
+                    "live_call_succeeded": None if effect_indeterminate else False,
+                    "sidecar_written": effect_indeterminate,
+                    "runtime_evidence_mutated": False,
+                    "shared_oracle_mutated": False,
+                    "external_authority_mutated": False,
+                },
+            }
+
     oracle_index_result: dict[str, Any] | None = None
     oracle_report: dict[str, Any] | None = None
     index_path = root / "oracle" / "coordinates.db"
@@ -2115,6 +2157,10 @@ def run_program_runtime_episode(
             "executed_valid_review_only",
         }
         and (skip_oracle_index or (oracle_index_result or {}).get("errors") == 0)
+        and (
+            not run_oracle_semantic
+            or (oracle_semantic_payload or {}).get("status") == "ok"
+        )
         else "degraded",
         "runtime_episode_id": runtime_episode_id,
         "candidate_manifest_path": str(source_manifest_path),
@@ -2124,6 +2170,9 @@ def run_program_runtime_episode(
         "manifest_path": str(runtime_manifest_path),
         "behavior_results_path": str(behavior_path),
         "oracle_evidence_path": str(oracle_path),
+        "oracle_semantic_path": str(oracle_semantic_path)
+        if oracle_semantic_path is not None
+        else None,
         "oracle_index_path": str(index_path) if not skip_oracle_index else None,
         "oracle_report_path": str(root / "program_oracle_report.json")
         if oracle_report is not None
@@ -2145,6 +2194,24 @@ def run_program_runtime_episode(
                     _safe_mapping(receipt.get("execution_replay")).get("supported")
                 ),
                 "evidence_only": True,
+            },
+            "oracle_semantic": {
+                "status": "skipped"
+                if oracle_semantic_payload is None
+                else oracle_semantic_payload.get("status"),
+                "path": str(oracle_semantic_path)
+                if oracle_semantic_path is not None
+                else None,
+                "execution_status": (
+                    (oracle_semantic_payload or {}).get("semantic_result") or {}
+                ).get("execution_status"),
+                "preferred_model": (
+                    (oracle_semantic_payload or {}).get("semantic_result") or {}
+                ).get("preferred_model"),
+                "executed_model": (
+                    (oracle_semantic_payload or {}).get("semantic_result") or {}
+                ).get("executed_model"),
+                "advisory_only": oracle_semantic_payload is not None,
             },
             "oracle_index": {
                 "status": "skipped"
@@ -2177,6 +2244,10 @@ def run_program_runtime_episode(
             "runtime_replay_fixture_written": replay_fixture_path is not None,
             "behavior_results_written": True,
             "oracle_evidence_written": True,
+            "oracle_semantic_written": oracle_semantic_payload is not None,
+            "oracle_semantic_live_call_succeeded": (
+                (oracle_semantic_payload or {}).get("effect") or {}
+            ).get("live_call_succeeded", False),
             "oracle_index_mutated": not skip_oracle_index,
             "oracle_index_scope": "runtime-episode local explicit path"
             if not skip_oracle_index
