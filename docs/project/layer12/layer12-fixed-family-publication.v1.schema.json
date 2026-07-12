@@ -1329,6 +1329,121 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "continue_current_execution_task"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.continue-current-execution-task.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "request_owner_route"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.request-owner-route.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "close_implementation_wave"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.close-implementation-wave.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "activate_guidance"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.activate-guidance.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "default_residual_adoption_hardening"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+              }
+            }
+          }
         }
       ]
     },

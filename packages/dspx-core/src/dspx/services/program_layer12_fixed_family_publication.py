@@ -161,8 +161,16 @@ def _canonical_import(value: object, label: str) -> dict[str, object]:
         family: token for token, family in TOKEN_FAMILY_IDS.items()
     }
     family_id = result["family_id"]
-    if result["owner"] == DSPX_OWNER and family_id in fixed_family_to_token:
-        if result["transition_token"] != fixed_family_to_token[family_id]:
+    transition_token = result["transition_token"]
+    if result["owner"] == DSPX_OWNER:
+        expected_token = fixed_family_to_token.get(family_id)
+        expected_family = TOKEN_FAMILY_IDS.get(transition_token)
+        if (
+            expected_token is not None
+            and transition_token != expected_token
+            or expected_family is not None
+            and family_id != expected_family
+        ):
             raise Layer12FixedFamilyPublicationError(
                 f"{label} owner/family contract fixed token/family identity drift"
             )

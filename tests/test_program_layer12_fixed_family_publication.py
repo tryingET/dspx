@@ -590,7 +590,9 @@ def test_reconstruction_appends_per_family_and_preserves_unrelated_imports() -> 
 
 
 def test_reconstruction_withdraws_only_exact_matching_family_epoch() -> None:
-    unrelated = _family_import(OWNER, "unrelated.family", 4, "unrelated:4")
+    unrelated = _family_import(
+        OWNER, "unrelated.family", 4, "unrelated:4", "unrelated_transition_token"
+    )
     target_v1 = _family_import(OWNER, FAMILY_ID, 1, "target:1")
     other_owner = _family_import("other/owner", FAMILY_ID, 1, "other:1")
 
@@ -641,7 +643,13 @@ def test_reconstruction_withdraws_only_exact_matching_family_epoch() -> None:
         ),
         (
             [_family_import(OWNER, FAMILY_ID, 1, "shared-id")],
-            _family_import(OWNER, "unrelated.family", 1, "shared-id"),
+            _family_import(
+                OWNER,
+                "unrelated.family",
+                1,
+                "shared-id",
+                "unrelated_transition_token",
+            ),
             "publication_id",
         ),
     ],
@@ -662,7 +670,9 @@ def test_reconstruction_rejects_duplicate_conflicting_or_nonmonotonic_history(
 
 def test_reconstruction_rejects_cross_family_and_conflicting_withdrawals() -> None:
     target = _family_import(OWNER, FAMILY_ID, 1, "target:1")
-    unrelated = _family_import(OWNER, "unrelated.family", 1, "unrelated:1")
+    unrelated = _family_import(
+        OWNER, "unrelated.family", 1, "unrelated:1", "unrelated_transition_token"
+    )
     with pytest.raises(Layer12FixedFamilyPublicationError, match="exactly one"):
         reconstruct_fixed_family_imports(
             prior_imports=[target, unrelated],
@@ -1337,6 +1347,28 @@ def _verified_b2_import(token: str) -> dict[str, object]:
             "canonical_import"
         ],
     )
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["continue_current_execution_task", "request_owner_route", *B2_CASES],
+)
+def test_reconstruction_rejects_fixed_token_with_generic_family(token: str) -> None:
+    escaped = _family_import(
+        OWNER,
+        "dspx.layer12.generic-family.v1",
+        1,
+        f"generic-family:{token}",
+        token,
+    )
+    assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(escaped)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="token/family"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[],
+            current_import=escaped,
+            current_withdrawal=None,
+        )
 
 
 @pytest.mark.parametrize("token", list(B2_CASES))
