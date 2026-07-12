@@ -4,9 +4,10 @@
 
 """Pure verification for the DSPx-owned Layer-12 fixed-family publication.
 
-The verifier has no AK integration and performs no publication. AK wire identity and
-Ed25519 trust are caller-supplied pins; declarations inside the artifact are evidence
-only and can never bootstrap trust.
+The verifier has no AK integration and performs no publication. Caller pins are
+required, while the closed B1 TEST fixture also has DSPx-owner-fixed identity and
+signer-lifecycle anchors. Those local anchors and declarations inside the artifact
+never bootstrap AK trust; AK must independently pin its own trust later.
 """
 
 from __future__ import annotations
@@ -443,6 +444,19 @@ REQUEST_OWNER_ROUTE_MISSING_PRECONDITIONS = (
     "owner_route_dispatch_authorized",
 )
 
+# DSPx-owner-fixed TEST fixture anchors. Caller pins remain required inputs, but for
+# B1 they cannot redefine the identity or lifecycle of this closed owner fixture.
+# These anchors confer no AK trust; AK must independently pin any accepted key.
+REQUEST_OWNER_ROUTE_PUBLICATION_ID = (
+    "dspx-iw14b-request-owner-route-owner-local-test-v1"
+)
+REQUEST_OWNER_ROUTE_PUBLICATION_EPOCH = 1
+REQUEST_OWNER_ROUTE_KEY_ID = "dspx-iw14b-b1-test-fixture-key-v1"
+REQUEST_OWNER_ROUTE_PUBLIC_KEY_B64 = "GRimrSyXK+wK5YcYE7ZnDM5lYWei4ccNXZtikAYqlH8="
+REQUEST_OWNER_ROUTE_KEY_STATUS = "active"
+REQUEST_OWNER_ROUTE_KEY_VALID_FROM = "2026-07-01T00:00:00Z"
+REQUEST_OWNER_ROUTE_KEY_VALID_UNTIL = "2026-08-01T00:00:00Z"
+
 
 def _check_hash_bound(value: object, label: str) -> Mapping[str, Any]:
     item = _object(value, label)
@@ -733,7 +747,39 @@ def check_fixed_family_publication(
     expected_key_valid_until: str,
     verification_time: str,
 ) -> dict[str, object]:
-    """Verify a publication using only caller-pinned trust and identity inputs."""
+    """Verify a publication against caller pins and closed B1 owner anchors."""
+
+    if expected_transition_token == B1_TOKEN:
+        b1_owner_pins: tuple[tuple[object, object, str], ...] = (
+            (
+                expected_publication_id,
+                REQUEST_OWNER_ROUTE_PUBLICATION_ID,
+                "publication_id",
+            ),
+            (
+                expected_publication_epoch,
+                REQUEST_OWNER_ROUTE_PUBLICATION_EPOCH,
+                "publication_epoch",
+            ),
+            (expected_key_id, REQUEST_OWNER_ROUTE_KEY_ID, "key_id"),
+            (
+                trusted_public_key_b64,
+                REQUEST_OWNER_ROUTE_PUBLIC_KEY_B64,
+                "public_key_b64",
+            ),
+            (expected_key_status, REQUEST_OWNER_ROUTE_KEY_STATUS, "key_status"),
+            (expected_key_valid_from, REQUEST_OWNER_ROUTE_KEY_VALID_FROM, "valid_from"),
+            (
+                expected_key_valid_until,
+                REQUEST_OWNER_ROUTE_KEY_VALID_UNTIL,
+                "valid_until",
+            ),
+        )
+        for supplied, owner_fixed, label in b1_owner_pins:
+            if supplied != owner_fixed:
+                raise Layer12FixedFamilyPublicationError(
+                    f"B1 {label} conflicts with DSPx-owner-fixed TEST fixture"
+                )
 
     spec_result = check_fixed_family_spec(
         spec,

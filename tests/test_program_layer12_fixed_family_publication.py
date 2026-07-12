@@ -834,6 +834,29 @@ def _b1_kwargs() -> PublicationKwargs:
     }
 
 
+def _recompute_evidence_digest(record: dict[str, Any]) -> None:
+    record["digest"] = sha256_digest(
+        {key: value for key, value in record.items() if key != "digest"}
+    )
+
+
+def _resign_b1(
+    publication: dict[str, Any],
+    *,
+    private_key: Ed25519PrivateKey = _B1_TEST_PRIVATE_KEY,
+    key_id: str = B1_KEY_ID,
+) -> None:
+    payload = {key: value for key, value in publication.items() if key != "signature"}
+    publication["signature"] = {
+        "algorithm": "Ed25519",
+        "key_id": key_id,
+        "signed_payload_digest": sha256_digest(payload),
+        "signature_b64": base64.b64encode(
+            private_key.sign(canonical_json(payload).encode())
+        ).decode(),
+    }
+
+
 def test_request_owner_route_spec_publication_and_program_graph_are_closed() -> None:
     schema = _load(SCHEMA_PATH)
     validator = jsonschema.Draft202012Validator(
@@ -905,7 +928,7 @@ def test_request_owner_route_rejects_external_pin_co_substitution(
     field: str, value: object, message: str
 ) -> None:
     kwargs = _b1_kwargs()
-    kwargs[field] = value  # type: ignore[literal-required]
+    kwargs[field] = value  # ty: ignore[invalid-key]
     with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
         check_fixed_family_publication(_load(B1_PUBLICATION_PATH), **kwargs)
 
@@ -1057,3 +1080,82 @@ def test_schema_couples_each_family_to_its_token_and_b1_evidence() -> None:
     b1_with_b0_token = _load(B1_SPEC_PATH)
     b1_with_b0_token["transition_tokens"] = ["continue_current_execution_task"]
     assert not validator.is_valid(b1_with_b0_token)
+
+
+@pytest.mark.parametrize(
+    "substitution",
+    ["objective", "signature", "edge", "verify_command", "precondition"],
+)
+def test_b1_schema_rejects_recomputed_digest_contract_substitutions(
+    substitution: str,
+) -> None:
+    specimen = _load(B1_SPEC_PATH)
+    evidence = specimen["program_evidence"]
+    if substitution == "objective":
+        evidence["program_intent"]["objective"] = "Substituted objective."
+        _recompute_evidence_digest(evidence["program_intent"])
+    elif substitution == "signature":
+        evidence["module_graph"]["signatures"][0]["outputs"][0] = "other_facts"
+        _recompute_evidence_digest(evidence["module_graph"])
+    elif substitution == "edge":
+        evidence["module_graph"]["edges"][0]["target"] = (
+            "ProposeLayer12Transition.legal_controls"
+        )
+        _recompute_evidence_digest(evidence["module_graph"])
+    elif substitution == "verify_command":
+        evidence["verification_sink"]["expected_command"] = "ak verify substituted"
+    else:
+        evidence["controls_evidence"]["missing_preconditions"][0] = (
+            "substituted_precondition"
+        )
+        _recompute_evidence_digest(evidence["controls_evidence"])
+
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    assert not validator.is_valid(specimen)
+
+
+@pytest.mark.parametrize(
+    "substitution",
+    [
+        "signer_key_id",
+        "signer_public_key",
+        "publication_id",
+        "publication_epoch",
+        "valid_from",
+        "valid_until",
+    ],
+)
+def test_b1_owner_fixture_anchors_reject_artifact_and_caller_co_substitution(
+    substitution: str,
+) -> None:
+    publication = _load(B1_PUBLICATION_PATH)
+    kwargs = _b1_kwargs()
+    private_key = _B1_TEST_PRIVATE_KEY
+    key_id = B1_KEY_ID
+    if substitution == "signer_key_id":
+        key_id = "co-substituted-test-key"
+        publication["signer_evidence"]["key_id"] = key_id
+        kwargs["expected_key_id"] = key_id
+    elif substitution == "signer_public_key":
+        private_key = Ed25519PrivateKey.from_private_bytes(b"B" * 32)
+        public_key = base64.b64encode(
+            private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+        ).decode()
+        publication["signer_evidence"]["public_key_b64"] = public_key
+        kwargs["trusted_public_key_b64"] = public_key
+    elif substitution == "publication_id":
+        publication["publication_id"] = "co-substituted-publication"
+        kwargs["expected_publication_id"] = "co-substituted-publication"
+    elif substitution == "publication_epoch":
+        publication["publication_lifecycle"]["epoch"] = 2
+        kwargs["expected_publication_epoch"] = 2
+    elif substitution == "valid_from":
+        publication["signer_evidence"]["valid_from"] = "2026-06-01T00:00:00Z"
+        kwargs["expected_key_valid_from"] = "2026-06-01T00:00:00Z"
+    else:
+        publication["signer_evidence"]["valid_until"] = "2026-09-01T00:00:00Z"
+        kwargs["expected_key_valid_until"] = "2026-09-01T00:00:00Z"
+    _resign_b1(publication, private_key=private_key, key_id=key_id)
+
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="owner-fixed"):
+        check_fixed_family_publication(publication, **kwargs)
