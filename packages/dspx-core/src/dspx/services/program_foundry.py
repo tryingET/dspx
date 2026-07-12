@@ -18,6 +18,12 @@ from dspx.services.program_foundry_io import (
     preflight_foundry_paths,
     write_summary_atomic,
 )
+from dspx.services.program_foundry_gepa_proposal import (
+    build_program_foundry_gepa_proposal,
+)
+from dspx.services.program_foundry_gepa_proposal_io import (
+    write_or_reuse_program_foundry_gepa_proposal,
+)
 from dspx.services.program_quality_contract import validate_quality_proposal
 from dspx.services.program_runtime_episode import (
     load_validated_program_runtime_episode_bundle,
@@ -314,7 +320,10 @@ def _run_program_foundry_locked(
     quality_proposal_path: Path,
     inputs_path: Path,
     root: Path,
+    root_descriptor: int,
     skip_oracle_index: bool,
+    gepa_recommendation_index: int | None,
+    gepa_max_metric_calls: int,
 ) -> dict[str, Any]:
     """Run or resume accepted intent → candidate → runtime → Oracle semantics.
 
@@ -381,6 +390,47 @@ def _run_program_foundry_locked(
     else:
         status = "behavior_failed"
 
+    gepa_proposal_stage: dict[str, Any] = {
+        "status": "not_requested",
+        "disposition": "not_created",
+        "gepa_invoked": False,
+        "execution_authority": False,
+    }
+    if gepa_recommendation_index is not None:
+        if (
+            not semantic_validation["contract_valid"]
+            or semantic_validation["indeterminate"]
+        ):
+            raise ProgramFoundryError(
+                "GEPA proposal requires a terminal valid Oracle semantic contract"
+            )
+        proposal_path = root / "gepa_experiment_proposal.json"
+        proposal = build_program_foundry_gepa_proposal(
+            semantic_payload=semantic,
+            semantic_path=semantic_path,
+            recommendation_index=gepa_recommendation_index,
+            accepted_binding=accepted,
+            candidate=candidate,
+            runtime=runtime,
+            foundry_root=root,
+            max_metric_calls=gepa_max_metric_calls,
+            foundry_root_descriptor=root_descriptor,
+        )
+        proposal, proposal_disposition = write_or_reuse_program_foundry_gepa_proposal(
+            payload=proposal,
+            out_path=proposal_path,
+            foundry_root_descriptor=root_descriptor,
+        )
+        gepa_proposal_stage = {
+            "status": proposal["status"],
+            "disposition": proposal_disposition,
+            "path": str(proposal_path),
+            "proposal_id": proposal["proposal_id"],
+            "recommended_experiment_index": gepa_recommendation_index,
+            "gepa_invoked": False,
+            "execution_authority": False,
+        }
+
     payload: dict[str, Any] = {
         "schema_version": PROGRAM_FOUNDRY_SCHEMA,
         "status": status,
@@ -412,6 +462,7 @@ def _run_program_foundry_locked(
                 "effect": semantic_validation["effect"],
                 "non_authority": semantic_validation["non_authority"],
             },
+            "gepa_experiment_proposal": gepa_proposal_stage,
         },
         "bindings": {
             "accepted_intent_sha256": accepted["program_intent_sha256"],
@@ -426,6 +477,8 @@ def _run_program_foundry_locked(
             "candidate_created": candidate_disposition == "created",
             "runtime_executed": runtime_disposition == "created",
             "semantic_stage_created": semantic_disposition == "created",
+            "gepa_proposal_written": gepa_proposal_stage["disposition"] == "created",
+            "gepa_invoked": False,
             "shared_oracle_mutated": False,
             "external_authority_mutated": False,
             "ak_called": False,
@@ -435,10 +488,16 @@ def _run_program_foundry_locked(
             "promotion_authority": False,
             "activation_authority": False,
             "winner_selection": False,
+            "automatic_optimization": False,
+            "gepa_execution_authority": False,
             "governance_mutated": False,
         },
     }
-    write_summary_atomic(summary_path, payload)
+    write_summary_atomic(
+        summary_path,
+        payload,
+        root_descriptor=root_descriptor,
+    )
     return payload
 
 
@@ -449,6 +508,8 @@ def run_program_foundry(
     inputs_path: Path,
     outdir: Path,
     skip_oracle_index: bool = False,
+    gepa_recommendation_index: int | None = None,
+    gepa_max_metric_calls: int = 2,
 ) -> dict[str, Any]:
     """Run or safely resume the local foundry under one exclusive root lock."""
 
@@ -458,13 +519,16 @@ def run_program_foundry(
         inputs_path=inputs_path,
         outdir=outdir,
     )
-    with foundry_lock(root):
+    with foundry_lock(root) as root_descriptor:
         return _run_program_foundry_locked(
             intent_path=intent_path,
             quality_proposal_path=quality_proposal_path,
             inputs_path=inputs_path,
             root=root,
+            root_descriptor=root_descriptor,
             skip_oracle_index=skip_oracle_index,
+            gepa_recommendation_index=gepa_recommendation_index,
+            gepa_max_metric_calls=gepa_max_metric_calls,
         )
 
 

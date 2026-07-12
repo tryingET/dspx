@@ -57,14 +57,20 @@ def preflight_foundry_paths(
 @contextmanager
 def foundry_lock(root: Path):
     root.mkdir(parents=True, exist_ok=True)
-    lock_path = root / ".foundry.lock"
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        root_descriptor = os.open(root, directory_flags)
+    except OSError as exc:
+        raise ProgramFoundryIOError("foundry root path is unsafe") from exc
     flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
     try:
-        descriptor = os.open(lock_path, flags, 0o600)
+        descriptor = os.open(".foundry.lock", flags, 0o600, dir_fd=root_descriptor)
     except OSError as exc:
+        os.close(root_descriptor)
         raise ProgramFoundryIOError("foundry lock path is unsafe") from exc
     if not stat.S_ISREG(os.fstat(descriptor).st_mode):
         os.close(descriptor)
+        os.close(root_descriptor)
         raise ProgramFoundryIOError("foundry lock path must be a regular file")
     try:
         try:
@@ -73,21 +79,28 @@ def foundry_lock(root: Path):
             raise ProgramFoundryIOError(
                 "another foundry invocation owns this outdir"
             ) from exc
-        yield
+        yield root_descriptor
     finally:
         try:
             fcntl.flock(descriptor, fcntl.LOCK_UN)
         finally:
             os.close(descriptor)
+            os.close(root_descriptor)
 
 
-def write_summary_atomic(path: Path, payload: Mapping[str, Any]) -> None:
-    target = path.expanduser().resolve()
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_name(
-        f".{target.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+def write_summary_atomic(
+    path: Path, payload: Mapping[str, Any], *, root_descriptor: int
+) -> None:
+    target = path.expanduser().absolute()
+    if target.name != PROGRAM_FOUNDRY_SUMMARY_NAME:
+        raise ProgramFoundryIOError("foundry summary filename is invalid")
+    temporary_name = f".{target.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+    descriptor = os.open(
+        temporary_name,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+        dir_fd=root_descriptor,
     )
-    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             descriptor = -1
@@ -96,13 +109,17 @@ def write_summary_atomic(path: Path, payload: Mapping[str, Any]) -> None:
             )
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, target)
-        directory = os.open(target.parent, os.O_RDONLY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
+        os.replace(
+            temporary_name,
+            target.name,
+            src_dir_fd=root_descriptor,
+            dst_dir_fd=root_descriptor,
+        )
+        os.fsync(root_descriptor)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
-        temporary.unlink(missing_ok=True)
+        try:
+            os.unlink(temporary_name, dir_fd=root_descriptor)
+        except FileNotFoundError:
+            pass

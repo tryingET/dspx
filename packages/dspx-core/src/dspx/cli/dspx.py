@@ -1277,6 +1277,19 @@ def program_foundry(
         "--skip-oracle-index",
         help="Skip the candidate-local runtime Oracle coordinate index/report",
     ),
+    gepa_recommendation_index: Optional[int] = typer.Option(
+        None,
+        "--propose-gepa-experiment",
+        min=0,
+        help="Write a non-executing GEPA proposal from this Oracle recommended_experiments index",
+    ),
+    gepa_max_metric_calls: int = typer.Option(
+        2,
+        "--gepa-max-metric-calls",
+        min=1,
+        max=20,
+        help="Bounded future GEPA metric-call budget recorded in the proposal",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print foundry workflow JSON"),
 ) -> None:
     """Run or safely resume accepted intent through runtime Oracle semantics."""
@@ -1304,6 +1317,8 @@ def program_foundry(
             inputs_path=inputs,
             outdir=outdir,
             skip_oracle_index=skip_oracle_index,
+            gepa_recommendation_index=gepa_recommendation_index,
+            gepa_max_metric_calls=gepa_max_metric_calls,
         )
     except Exception as exc:
         typer.echo(f"Error: foundry failed: {foundry_failure_message(exc)}", err=True)
@@ -1314,7 +1329,12 @@ def program_foundry(
     else:
         typer.echo(str(payload.get("workflow_path") or outdir / "foundry.json"))
         typer.echo(f"foundry_status: {payload.get('status')}")
-        for name in ("candidate", "runtime", "oracle_semantic"):
+        for name in (
+            "candidate",
+            "runtime",
+            "oracle_semantic",
+            "gepa_experiment_proposal",
+        ):
             stage = (payload.get("stages") or {}).get(name) or {}
             typer.echo(f"{name}: {stage.get('status')} ({stage.get('disposition')})")
     if payload.get("status") != "ok":

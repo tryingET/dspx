@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -112,6 +113,70 @@ def _semantic_payload(*, indeterminate: bool = False) -> dict:
 def _semantic_stub(**kwargs):
     out = Path(kwargs["out_path"])
     payload = _semantic_payload()
+    if not out.exists():
+        out.write_text(json.dumps(payload), encoding="utf-8")
+    return payload
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _successful_semantic_stub(**kwargs):
+    episode = Path(kwargs["runtime_episode_path"]).resolve()
+    root = episode.parent
+    out = Path(kwargs["out_path"])
+    request_sha256 = "d" * 64
+    source_binding = {
+        name: {"path": str(path.resolve()), "sha256": _sha256(path)}
+        for name, path in {
+            "runtime_episode": episode,
+            "behavior_results": root / "behavior_results.json",
+            "oracle_evidence": root / "oracle_evidence.json",
+            "runtime_receipt": root / "runtime_episode.json.meta.json",
+        }.items()
+    }
+    payload = {
+        "schema_version": "program-runtime-oracle-semantic-v1",
+        "status": "ok",
+        "request_sha256": request_sha256,
+        "source_binding": source_binding,
+        "semantic_result": {
+            "schema_version": "dspx-program-oracle-semantic-result-v1",
+            "authority": "local_empirical_advisory_only",
+            "request_sha256": request_sha256,
+            "backend_kind": "fixture-replay",
+            "preferred_model": "codex/gpt-5.6-luna",
+            "configured_provider": None,
+            "configured_model": None,
+            "executed_provider": None,
+            "executed_model": None,
+            "execution_status": "replayed_fixture",
+            "live_call_succeeded": False,
+            "fixture_sha256": "e" * 64,
+            "error": None,
+            "analysis": {
+                "observations": ["The response omitted an explicit next step."],
+                "failure_attractors": ["Generic resolution language."],
+                "quality_contract_violations": ["next-step coverage failed"],
+                "hypotheses": ["A stronger instruction may improve coverage."],
+                "recommended_experiments": [
+                    "Use GEPA to test an instruction that requires one explicit next step."
+                ],
+                "evidence_refs": ["runtime_episode"],
+                "confidence": 0.8,
+            },
+        },
+        "effect": {
+            "semantic_backend_invoked": True,
+            "effect_disposition": "terminal_result_recorded",
+            "live_call_succeeded": False,
+        },
+        "non_authority": {
+            "promotion_authority": False,
+            "activation_authority": False,
+        },
+    }
     if not out.exists():
         out.write_text(json.dumps(payload), encoding="utf-8")
     return payload
@@ -345,6 +410,100 @@ def test_foundry_lock_and_symlink_confinement_fail_before_effects(
     (root / "candidate").symlink_to(external, target_is_directory=True)
     with pytest.raises(ValueError, match="must not be a symlink"):
         _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+
+def test_foundry_writes_and_reuses_bounded_oracle_to_gepa_proposal(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "quality-proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    monkeypatch.setattr(
+        foundry, "run_program_runtime_oracle_semantics", _successful_semantic_stub
+    )
+
+    first = foundry.run_program_foundry(
+        intent_path=intent,
+        quality_proposal_path=proposal,
+        inputs_path=inputs,
+        outdir=root,
+        skip_oracle_index=True,
+        gepa_recommendation_index=0,
+        gepa_max_metric_calls=3,
+    )
+    second = foundry.run_program_foundry(
+        intent_path=intent,
+        quality_proposal_path=proposal,
+        inputs_path=inputs,
+        outdir=root,
+        skip_oracle_index=True,
+        gepa_recommendation_index=0,
+        gepa_max_metric_calls=3,
+    )
+
+    stage = first["stages"]["gepa_experiment_proposal"]
+    assert stage["status"] == "proposal_ready_for_review"
+    assert stage["disposition"] == "created"
+    assert second["stages"]["gepa_experiment_proposal"]["disposition"] == "reused"
+    sidecar = json.loads(
+        (root / "gepa_experiment_proposal.json").read_text(encoding="utf-8")
+    )
+    assert sidecar["selection"]["selection_explicitly_requested"] is True
+    assert sidecar["selection"]["gepa_fit_asserted"] is False
+    assert sidecar["gepa_plan"]["max_metric_calls"] == 3
+    assert sidecar["gepa_plan"]["execution_requires_explicit_operator_review"] is True
+    assert sidecar["effect"]["gepa_invoked"] is False
+    assert sidecar["effect"]["gepa_model_calls_made"] is False
+    assert sidecar["non_authority"]["may_invoke_gepa"] is False
+    assert (
+        sidecar["candidate_binding"]["manifest_sha256"]
+        == first["bindings"]["candidate_manifest_sha256"]
+    )
+    assert not (root / "gepa-experiment").exists()
+
+
+def test_foundry_gepa_proposal_rejects_unselected_or_drifted_semantics(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "quality-proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    monkeypatch.setattr(
+        foundry, "run_program_runtime_oracle_semantics", _successful_semantic_stub
+    )
+
+    with pytest.raises(ValueError, match="outside Oracle recommended_experiments"):
+        foundry.run_program_foundry(
+            intent_path=intent,
+            quality_proposal_path=proposal,
+            inputs_path=inputs,
+            outdir=root,
+            skip_oracle_index=True,
+            gepa_recommendation_index=1,
+        )
+    assert not (root / "gepa_experiment_proposal.json").exists()
+
+    semantic_path = root / "runtime" / "program_oracle_semantic.json"
+    semantic = json.loads(semantic_path.read_text(encoding="utf-8"))
+    semantic["source_binding"]["behavior_results"]["sha256"] = "0" * 64
+    semantic_path.write_text(json.dumps(semantic), encoding="utf-8")
+    with pytest.raises(ValueError, match="differs from the persisted sidecar"):
+        foundry.run_program_foundry(
+            intent_path=intent,
+            quality_proposal_path=proposal,
+            inputs_path=inputs,
+            outdir=root,
+            skip_oracle_index=True,
+            gepa_recommendation_index=0,
+        )
 
 
 def test_foundry_cli_is_registered(monkeypatch, tmp_path: Path) -> None:
