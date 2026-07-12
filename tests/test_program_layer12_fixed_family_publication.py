@@ -1224,7 +1224,7 @@ B2_CASES = {
 
 
 def _b2_paths(token: str) -> tuple[Path, Path]:
-    slug = cast(str, B2_CASES[token]["slug"])
+    slug = B2_CASES[token]["slug"]
     return (
         Path(f"docs/project/layer12/{slug}-publication.v1.json"),
         Path(f"docs/project/layer12/fixtures/iw14b-{slug}-publication.v1.json"),
@@ -1237,20 +1237,20 @@ def _b2_kwargs(token: str) -> PublicationKwargs:
     return {
         "spec": _load(spec_path),
         "expected_owner": OWNER,
-        "expected_family_id": cast(str, case["family_id"]),
-        "expected_spec_digest": cast(str, case["spec_digest"]),
+        "expected_family_id": case["family_id"],
+        "expected_spec_digest": case["spec_digest"],
         "expected_scope_digest": B2_SCOPE_DIGEST,
         "expected_transition_token": token,
         "expected_ak_wire_source_owner": "softwareco/owned/agent-kernel",
         "expected_ak_wire_identity": AK_WIRE_IDENTITY,
         "expected_ak_wire_digest": AK_WIRE_DIGEST,
-        "expected_publication_id": cast(str, case["publication_id"]),
+        "expected_publication_id": case["publication_id"],
         "expected_publication_epoch": 1,
-        "expected_published_at": cast(str, case["published_at"]),
+        "expected_published_at": case["published_at"],
         "expected_publication_state": "published",
         "expected_withdrawal_ref": None,
-        "expected_key_id": cast(str, case["key_id"]),
-        "trusted_public_key_b64": cast(str, case["public_key_b64"]),
+        "expected_key_id": case["key_id"],
+        "trusted_public_key_b64": case["public_key_b64"],
         "expected_key_status": "active",
         "expected_key_valid_from": KEY_VALID_FROM,
         "expected_key_valid_until": KEY_VALID_UNTIL,
@@ -1300,7 +1300,7 @@ def test_b2_publications_are_exact_closed_test_only_owner_local_artifacts(
 @pytest.mark.parametrize(
     ("token", "wrong_family"),
     [
-        (token, cast(str, B2_CASES[other]["family_id"]))
+        (token, B2_CASES[other]["family_id"])
         for token in B2_CASES
         for other in B2_CASES
         if token != other
