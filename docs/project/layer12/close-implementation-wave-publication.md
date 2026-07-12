@@ -1,5 +1,8 @@
 ---
 summary: "TEST-only owner-local fixed-family publication for `close_implementation_wave`."
+read_when:
+  - "Verifying the IW14b B2 close_implementation_wave owner-local publication, fixture, or authority boundary."
+type: "reference"
 ---
 
 # `close_implementation_wave` owner-local publication

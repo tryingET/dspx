@@ -1,5 +1,8 @@
 ---
 summary: "TEST-only owner-local fixed-family publication for `default_residual_adoption_hardening`."
+read_when:
+  - "Verifying the IW14b B2 default_residual_adoption_hardening owner-local publication, fixture, or authority boundary."
+type: "reference"
 ---
 
 # `default_residual_adoption_hardening` owner-local publication

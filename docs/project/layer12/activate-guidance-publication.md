@@ -1,5 +1,8 @@
 ---
 summary: "TEST-only owner-local fixed-family publication for `activate_guidance`."
+read_when:
+  - "Verifying the IW14b B2 activate_guidance owner-local publication, fixture, or authority boundary."
+type: "reference"
 ---
 
 # `activate_guidance` owner-local publication
