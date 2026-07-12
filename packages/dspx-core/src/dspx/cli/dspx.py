@@ -1248,6 +1248,79 @@ def program_gen_fitness_results(
         raise typer.Exit(code=2)
 
 
+@app.command("foundry")
+def program_foundry(
+    intent: Path = typer.Option(
+        ...,
+        "--intent",
+        "-i",
+        help="Path to a quality-accepted program-intent-v2 JSON/YAML artifact",
+    ),
+    quality_proposal: Path = typer.Option(
+        ...,
+        "--quality-proposal",
+        help="Path to the accepted quality-proposal envelope that emitted --intent",
+    ),
+    inputs: Path = typer.Option(
+        ...,
+        "--inputs",
+        help="Runtime inputs JSON object or {inputs: {...}}",
+    ),
+    outdir: Path = typer.Option(
+        ...,
+        "--outdir",
+        "-o",
+        help="Foundry root containing candidate, runtime, semantic, and workflow artifacts",
+    ),
+    skip_oracle_index: bool = typer.Option(
+        False,
+        "--skip-oracle-index",
+        help="Skip the candidate-local runtime Oracle coordinate index/report",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print foundry workflow JSON"),
+) -> None:
+    """Run or safely resume accepted intent through runtime Oracle semantics."""
+    from dspx.services.program_foundry import (
+        foundry_failure_message,
+        run_program_foundry,
+    )
+
+    if not intent.exists():
+        typer.echo(f"Error: intent file not found: {intent}", err=True)
+        raise typer.Exit(code=2)
+    if not quality_proposal.exists():
+        typer.echo(
+            f"Error: quality proposal file not found: {quality_proposal}", err=True
+        )
+        raise typer.Exit(code=2)
+    if not inputs.exists():
+        typer.echo(f"Error: inputs file not found: {inputs}", err=True)
+        raise typer.Exit(code=2)
+    ensure_env(None)
+    try:
+        payload = run_program_foundry(
+            intent_path=intent,
+            quality_proposal_path=quality_proposal,
+            inputs_path=inputs,
+            outdir=outdir,
+            skip_oracle_index=skip_oracle_index,
+        )
+    except Exception as exc:
+        typer.echo(f"Error: foundry failed: {foundry_failure_message(exc)}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(payload.get("workflow_path") or outdir / "foundry.json"))
+        typer.echo(f"foundry_status: {payload.get('status')}")
+        for name in ("candidate", "runtime", "oracle_semantic"):
+            stage = (payload.get("stages") or {}).get(name) or {}
+            typer.echo(f"{name}: {stage.get('status')} ({stage.get('disposition')})")
+    if payload.get("status") != "ok":
+        raise typer.Exit(code=1)
+
+
 @app.command("program-loop")
 def program_loop(
     intent: Path = typer.Option(

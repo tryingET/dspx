@@ -1,0 +1,383 @@
+# summary: "Tests accepted-envelope foundry orchestration, terminal-stage reuse, locking, confinement, and fail-closed partial handling."
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from dspx.cli.dspx import app
+from dspx.coordinates import reset_embedding_engine
+from dspx.dtos import LMRequest, LMResponse
+import dspx.services.program_foundry as foundry
+from dspx.services.program_foundry_io import foundry_lock
+from dspx.services.program_quality_contract import (
+    set_quality_proposal_decision,
+    write_accepted_program_intent,
+    write_quality_proposal,
+)
+from dspx.services.program_quality_conversation import propose_program_quality_criteria
+
+
+class _QualityLM:
+    model = "openai/gpt-5.6-sol"
+
+    def generate(self, request: LMRequest, **kwargs) -> LMResponse:
+        payload = {
+            "metric": "concept_coverage",
+            "quality_criteria": [
+                {
+                    "id": "helpful_response",
+                    "output_field": "response",
+                    "evaluator": "concept_coverage",
+                    "required_concept_groups": [["resolution", "next step"]],
+                    "forbidden_concepts": [],
+                    "min_score": 1.0,
+                }
+            ],
+            "rationale": "Require a useful resolution or next step.",
+            "clarifying_questions": [],
+        }
+        return LMResponse(outputs=[json.dumps(payload)], model=self.model)
+
+
+def _quality_artifacts(
+    intent_path: Path,
+    proposal_path: Path,
+    *,
+    accepted: bool = True,
+) -> None:
+    proposal = propose_program_quality_criteria(
+        "Route a support ticket and draft a helpful response with rationale.",
+        lm=_QualityLM(),
+    )
+    if accepted:
+        proposal = set_quality_proposal_decision(proposal, decision="accept")
+        write_quality_proposal(proposal, proposal_path)
+        write_accepted_program_intent(proposal, intent_path)
+    else:
+        write_quality_proposal(proposal, proposal_path)
+        intent_path.write_text(
+            json.dumps(proposal["candidate_intent"], sort_keys=True),
+            encoding="utf-8",
+        )
+
+
+def _env(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv(
+        "DSPX_STUB_RESPONSE_JSON",
+        '{"response":"Provide a resolution and next step"}',
+    )
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+    reset_embedding_engine()
+
+
+def _inputs(path: Path, value: str = "Server unavailable") -> None:
+    path.write_text(json.dumps({"inputs": {"ticket_text": value}}), encoding="utf-8")
+
+
+def _semantic_payload(*, indeterminate: bool = False) -> dict:
+    return {
+        "schema_version": "program-runtime-oracle-semantic-v1",
+        "status": "degraded" if indeterminate else "ok",
+        "request_sha256": "b" * 64,
+        "source_binding": {"runtime_episode": {"sha256": "c" * 64}},
+        "semantic_result": {
+            "execution_status": "effect_indeterminate"
+            if indeterminate
+            else "replayed_fixture",
+            "preferred_model": "codex/gpt-5.6-luna",
+            "executed_model": None,
+        },
+        "effect": {
+            "semantic_backend_invoked": None if indeterminate else True,
+            "effect_disposition": "indeterminate"
+            if indeterminate
+            else "terminal_result_recorded",
+            "live_call_succeeded": None if indeterminate else False,
+        },
+        "non_authority": {
+            "promotion_authority": False,
+            "activation_authority": False,
+        },
+    }
+
+
+def _semantic_stub(**kwargs):
+    out = Path(kwargs["out_path"])
+    payload = _semantic_payload()
+    if not out.exists():
+        out.write_text(json.dumps(payload), encoding="utf-8")
+    return payload
+
+
+def _run(*, root: Path, intent: Path, proposal: Path, inputs: Path) -> dict:
+    return foundry.run_program_foundry(
+        intent_path=intent,
+        quality_proposal_path=proposal,
+        inputs_path=inputs,
+        outdir=root,
+        skip_oracle_index=True,
+    )
+
+
+def test_foundry_runs_and_reuses_terminal_candidate_runtime_and_semantics(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    intent = tmp_path / "accepted-intent.json"
+    proposal = tmp_path / "accepted-proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    monkeypatch.setattr(foundry, "run_program_runtime_oracle_semantics", _semantic_stub)
+
+    first = _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+    second = _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+    assert first["status"] == "behavior_failed"
+    assert first["stages"]["candidate"]["disposition"] == "created"
+    assert first["stages"]["runtime"]["disposition"] == "created"
+    assert first["stages"]["oracle_semantic"]["disposition"] == "created"
+    assert second["status"] == "behavior_failed"
+    assert second["stages"]["candidate"]["disposition"] == "reused"
+    assert second["stages"]["runtime"]["disposition"] == "reused"
+    assert second["stages"]["oracle_semantic"]["disposition"] == "reused"
+    assert second["stages"]["oracle_semantic"]["contract_valid"] is True
+    assert (
+        second["bindings"]["candidate_manifest_sha256"]
+        == first["bindings"]["candidate_manifest_sha256"]
+    )
+    assert (
+        second["bindings"]["runtime_episode_id"]
+        == first["bindings"]["runtime_episode_id"]
+    )
+    assert (root / "foundry.json").exists()
+    semantic_path = root / "runtime" / "program_oracle_semantic.json"
+    semantic_path.unlink()
+    external_semantic = tmp_path / "external-semantic.json"
+    external_semantic.write_text("{}", encoding="utf-8")
+    semantic_path.symlink_to(external_semantic)
+    with pytest.raises(foundry.ProgramFoundryError, match="must not be a symlink"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+
+def test_foundry_validates_complete_accepted_envelope_and_candidate_binding(
+    tmp_path: Path,
+) -> None:
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal, accepted=False)
+    _inputs(inputs)
+
+    with pytest.raises(foundry.ProgramFoundryError, match="acceptance is invalid"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+    assert not (root / "candidate").exists()
+
+    intent.unlink()
+    proposal.unlink()
+    _quality_artifacts(intent, proposal)
+    intent_payload = json.loads(intent.read_text(encoding="utf-8"))
+    intent_payload["objective"] = "Tampered objective"
+    intent.write_text(json.dumps(intent_payload), encoding="utf-8")
+    with pytest.raises(foundry.ProgramFoundryError, match="does not match"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+    assert not (root / "candidate").exists()
+
+
+def test_foundry_never_replays_partial_candidate_stage(
+    tmp_path: Path, monkeypatch
+) -> None:
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    (root / "candidate").mkdir(parents=True)
+    monkeypatch.setattr(
+        foundry,
+        "run_generate_from_intent_path",
+        lambda *args, **kwargs: pytest.fail("partial candidate must not regenerate"),
+    )
+
+    with pytest.raises(foundry.ProgramFoundryError, match="candidate stage is partial"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+
+def test_foundry_never_replays_partial_runtime_stage(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    foundry.run_generate_from_intent_path(intent, outdir=root / "candidate")
+    (root / "runtime").mkdir()
+    monkeypatch.setattr(
+        foundry,
+        "run_program_runtime_episode",
+        lambda **kwargs: pytest.fail("partial runtime must not execute again"),
+    )
+
+    with pytest.raises(foundry.ProgramFoundryError, match="runtime stage is partial"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+
+def test_foundry_input_drift_never_replays_terminal_runtime(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs, "Original")
+    monkeypatch.setattr(foundry, "run_program_runtime_oracle_semantics", _semantic_stub)
+    _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+    _inputs(inputs, "Changed")
+    monkeypatch.setattr(
+        foundry,
+        "run_program_runtime_episode",
+        lambda **kwargs: pytest.fail("terminal runtime must not be replayed"),
+    )
+
+    with pytest.raises(foundry.ProgramFoundryError, match="runtime inputs drifted"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+
+def test_foundry_classifies_indeterminate_semantics_and_preserves_effect(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    monkeypatch.setattr(
+        foundry,
+        "run_program_runtime_oracle_semantics",
+        lambda **kwargs: _semantic_payload(indeterminate=True),
+    )
+
+    payload = _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+    semantic = payload["stages"]["oracle_semantic"]
+    assert payload["status"] == "blocked_indeterminate"
+    assert semantic["contract_valid"] is True
+    assert semantic["effect"]["effect_disposition"] == "indeterminate"
+    assert semantic["non_authority"]["promotion_authority"] is False
+
+
+def test_foundry_semantic_swap_race_is_rejected_by_nofollow_callee(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from dspx.services.program_runtime_oracle_semantic import (
+        ProgramRuntimeOracleSemanticError,
+        run_program_runtime_oracle_semantics as real_semantic,
+    )
+
+    _env(tmp_path, monkeypatch)
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    external = tmp_path / "external-semantic.json"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    external.write_text("DO_NOT_TOUCH", encoding="utf-8")
+
+    def swap_then_call(**kwargs):
+        Path(kwargs["out_path"]).symlink_to(external)
+        return real_semantic(**kwargs)
+
+    monkeypatch.setattr(foundry, "run_program_runtime_oracle_semantics", swap_then_call)
+
+    with pytest.raises(ProgramRuntimeOracleSemanticError, match="non-symlink"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+    assert external.read_text(encoding="utf-8") == "DO_NOT_TOUCH"
+
+
+def test_foundry_lock_and_symlink_confinement_fail_before_effects(
+    tmp_path: Path, monkeypatch
+) -> None:
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    root = tmp_path / "foundry"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    monkeypatch.setattr(
+        foundry,
+        "run_generate_from_intent_path",
+        lambda *args, **kwargs: pytest.fail("confinement failure must precede effects"),
+    )
+
+    with foundry_lock(root):
+        with pytest.raises(ValueError, match="another foundry invocation"):
+            _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+    lock_path = root / ".foundry.lock"
+    lock_path.unlink()
+    external_lock = tmp_path / "external-lock"
+    external_lock.write_text("", encoding="utf-8")
+    lock_path.symlink_to(external_lock)
+    with pytest.raises(ValueError, match="lock path must not be a symlink"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+    lock_path.unlink()
+
+    external = tmp_path / "external"
+    external.mkdir()
+    (root / "candidate").symlink_to(external, target_is_directory=True)
+    with pytest.raises(ValueError, match="must not be a symlink"):
+        _run(root=root, intent=intent, proposal=proposal, inputs=inputs)
+
+
+def test_foundry_cli_is_registered(monkeypatch, tmp_path: Path) -> None:
+    intent = tmp_path / "intent.json"
+    proposal = tmp_path / "proposal.json"
+    inputs = tmp_path / "inputs.json"
+    _quality_artifacts(intent, proposal)
+    _inputs(inputs)
+    monkeypatch.setattr(
+        foundry,
+        "run_program_foundry",
+        lambda **kwargs: {
+            "status": "ok",
+            "workflow_path": str(tmp_path / "foundry" / "foundry.json"),
+            "stages": {},
+        },
+    )
+
+    result = CliRunner().invoke(
+        app,
+        [
+            "foundry",
+            "--intent",
+            str(intent),
+            "--quality-proposal",
+            str(proposal),
+            "--inputs",
+            str(inputs),
+            "--outdir",
+            str(tmp_path / "foundry"),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["status"] == "ok"
