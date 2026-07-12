@@ -526,6 +526,27 @@ def _withdrawal(
     }
 
 
+def _high_watermarks(*imports: dict[str, object]) -> list[dict[str, object]]:
+    maxima: dict[tuple[str, str], dict[str, object]] = {}
+    for item in imports:
+        key = (cast(str, item["owner"]), cast(str, item["family_id"]))
+        if key not in maxima or cast(int, item["epoch"]) > cast(
+            int, maxima[key]["epoch"]
+        ):
+            maxima[key] = item
+    return [
+        {
+            "schema_version": "layer12-fixed-family-epoch-high-watermark-v1",
+            "owner": owner,
+            "family_id": family_id,
+            "epoch": item["epoch"],
+            "transition_token": item["transition_token"],
+            "spec_digest": item["spec_digest"],
+        }
+        for (owner, family_id), item in maxima.items()
+    ]
+
+
 def test_reconstruction_appends_per_family_and_preserves_unrelated_imports() -> None:
     unrelated = _family_import(
         OWNER, "unrelated.family", 7, "unrelated:7", "unrelated_transition_token"
@@ -535,6 +556,7 @@ def test_reconstruction_appends_per_family_and_preserves_unrelated_imports() -> 
 
     result = reconstruct_fixed_family_imports(
         prior_imports=[unrelated, target_v1],
+        prior_epoch_high_watermarks=_high_watermarks(unrelated, target_v1),
         current_import=target_v2,
         current_withdrawal=None,
     )
@@ -557,6 +579,7 @@ def test_reconstruction_withdraws_only_exact_matching_family_epoch() -> None:
     withdrawal = _withdrawal(OWNER, FAMILY_ID, 1, "target:1")
     result = reconstruct_fixed_family_imports(
         prior_imports=[unrelated, target_v1, other_owner],
+        prior_epoch_high_watermarks=_high_watermarks(unrelated, target_v1, other_owner),
         current_import=None,
         current_withdrawal=withdrawal,
     )
@@ -611,6 +634,9 @@ def test_reconstruction_rejects_duplicate_conflicting_or_nonmonotonic_history(
     with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
         reconstruct_fixed_family_imports(
             prior_imports=prior,
+            prior_epoch_high_watermarks=_high_watermarks(
+                *(cast(dict[str, object], item) for item in prior)
+            ),
             current_import=current,
             current_withdrawal=None,
         )
@@ -622,14 +648,91 @@ def test_reconstruction_rejects_cross_family_and_conflicting_withdrawals() -> No
     with pytest.raises(Layer12FixedFamilyPublicationError, match="exactly one"):
         reconstruct_fixed_family_imports(
             prior_imports=[target, unrelated],
+            prior_epoch_high_watermarks=_high_watermarks(target, unrelated),
             current_import=None,
             current_withdrawal=_withdrawal(OWNER, "missing.family", 1, "target:1"),
         )
     with pytest.raises(Layer12FixedFamilyPublicationError, match="publication_id"):
         reconstruct_fixed_family_imports(
             prior_imports=[target, unrelated],
+            prior_epoch_high_watermarks=_high_watermarks(target, unrelated),
             current_import=None,
             current_withdrawal=_withdrawal(OWNER, FAMILY_ID, 1, "forged-id"),
+        )
+
+
+def test_chained_reconstruction_preserves_withdrawn_epoch_high_watermark() -> None:
+    target_v2 = _family_import(OWNER, FAMILY_ID, 2, "target:2")
+    unrelated = _family_import(
+        OWNER, "unrelated.family", 9, "unrelated:9", "unrelated_token"
+    )
+    withdrawn = reconstruct_fixed_family_imports(
+        prior_imports=[target_v2, unrelated],
+        prior_epoch_high_watermarks=_high_watermarks(target_v2, unrelated),
+        current_import=None,
+        current_withdrawal=_withdrawal(OWNER, FAMILY_ID, 2, "target:2"),
+    )
+    imports = cast(list[object], withdrawn["imports"])
+    watermarks = cast(list[object], withdrawn["family_epoch_high_watermarks"])
+    assert imports == [unrelated]
+    assert any(
+        item["owner"] == OWNER and item["family_id"] == FAMILY_ID and item["epoch"] == 2
+        for item in cast(list[dict[str, object]], watermarks)
+    )
+
+    for replay in (
+        _family_import(OWNER, FAMILY_ID, 2, "target:2-reused"),
+        _family_import(OWNER, FAMILY_ID, 1, "target:1-regressed"),
+    ):
+        with pytest.raises(Layer12FixedFamilyPublicationError, match="high-water"):
+            reconstruct_fixed_family_imports(
+                prior_imports=imports,
+                prior_epoch_high_watermarks=watermarks,
+                current_import=replay,
+                current_withdrawal=None,
+            )
+
+    target_v3 = _family_import(OWNER, FAMILY_ID, 3, "target:3")
+    advanced = reconstruct_fixed_family_imports(
+        prior_imports=imports,
+        prior_epoch_high_watermarks=watermarks,
+        current_import=target_v3,
+        current_withdrawal=None,
+    )
+    assert advanced["imports"] == [unrelated, target_v3]
+    assert any(
+        item["owner"] == OWNER and item["family_id"] == FAMILY_ID and item["epoch"] == 3
+        for item in cast(
+            list[dict[str, object]], advanced["family_epoch_high_watermarks"]
+        )
+    )
+
+
+def test_reconstruction_rejects_missing_duplicate_and_regressed_watermarks() -> None:
+    target_v2 = _family_import(OWNER, FAMILY_ID, 2, "target:2")
+    valid = _high_watermarks(target_v2)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="require"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[target_v2],
+            prior_epoch_high_watermarks=[],
+            current_import=None,
+            current_withdrawal=None,
+        )
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="duplicates"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[target_v2],
+            prior_epoch_high_watermarks=[*valid, *valid],
+            current_import=None,
+            current_withdrawal=None,
+        )
+    regressed = copy.deepcopy(valid)
+    regressed[0]["epoch"] = 1
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="regresses"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[target_v2],
+            prior_epoch_high_watermarks=regressed,
+            current_import=None,
+            current_withdrawal=None,
         )
 
 

@@ -149,23 +149,24 @@ def _canonical_import(value: object, label: str) -> dict[str, object]:
 def reconstruct_fixed_family_imports(
     *,
     prior_imports: Sequence[object],
+    prior_epoch_high_watermarks: Sequence[object],
     current_import: object | None,
     current_withdrawal: object | None,
 ) -> dict[str, object]:
-    """Reconstruct cumulative owner-local imports without global replacement.
-
-    History order is significant per ``(owner, family_id)``: epochs must increase
-    strictly, while unrelated families may be interleaved. A withdrawal removes
-    exactly one already-imported owner/family/epoch/publication identity.
-    """
+    """Reconstruct cumulative imports while retaining withdrawn epoch tombstones."""
 
     imports: list[dict[str, object]] = []
     coordinates: set[tuple[str, str, int]] = set()
     publication_ids: set[str] = set()
     last_epochs: dict[tuple[str, str], int] = {}
     family_contracts: dict[tuple[str, str], tuple[str, str]] = {}
+    family_order: list[tuple[str, str]] = []
 
-    def append_import(value: object, label: str) -> None:
+    def remember_family(key: tuple[str, str]) -> None:
+        if key not in family_order:
+            family_order.append(key)
+
+    def append_import(value: object, label: str, *, is_current: bool) -> None:
         item = _canonical_import(value, label)
         owner = cast(str, item["owner"])
         family_id = cast(str, item["family_id"])
@@ -195,6 +196,13 @@ def reconstruct_fixed_family_imports(
             raise Layer12FixedFamilyPublicationError(
                 f"{label} is not strictly monotonic for owner/family"
             )
+        if is_current:
+            high_water = epoch_high_watermarks.get(family_key)
+            if high_water is not None and epoch <= high_water:
+                raise Layer12FixedFamilyPublicationError(
+                    f"{label} reuses or regresses the owner/family epoch high-water mark"
+                )
+        remember_family(family_key)
         coordinates.add(coordinate)
         publication_ids.add(publication_id)
         last_epochs[family_key] = epoch
@@ -202,9 +210,69 @@ def reconstruct_fixed_family_imports(
         imports.append(item)
 
     for index, value in enumerate(prior_imports):
-        append_import(value, f"prior_imports[{index}]")
+        append_import(value, f"prior_imports[{index}]", is_current=False)
+
+    epoch_high_watermarks: dict[tuple[str, str], int] = {}
+    for index, value in enumerate(prior_epoch_high_watermarks):
+        label = f"prior_epoch_high_watermarks[{index}]"
+        watermark = _object(value, label)
+        _closed(
+            watermark,
+            {
+                "schema_version",
+                "owner",
+                "family_id",
+                "epoch",
+                "spec_digest",
+                "transition_token",
+            },
+            label,
+        )
+        if (
+            watermark["schema_version"]
+            != "layer12-fixed-family-epoch-high-watermark-v1"
+        ):
+            raise Layer12FixedFamilyPublicationError(f"{label} schema drift")
+        owner = _text(watermark["owner"], f"{label}.owner")
+        family_id = _text(watermark["family_id"], f"{label}.family_id")
+        epoch = _positive_integer(watermark["epoch"], f"{label}.epoch")
+        watermark_contract = (
+            _text(watermark["transition_token"], f"{label}.transition_token"),
+            _digest(watermark["spec_digest"], f"{label}.spec_digest"),
+        )
+        family_key = (owner, family_id)
+        if family_key in epoch_high_watermarks:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} duplicates or conflicts with an existing family watermark"
+            )
+        imported_epoch = last_epochs.get(family_key)
+        imported_contract = family_contracts.get(family_key)
+        if imported_contract is not None and imported_contract != watermark_contract:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} conflicts with imported owner/family contract"
+            )
+        if imported_epoch is not None and epoch < imported_epoch:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label} regresses below imported family history"
+            )
+        remember_family(family_key)
+        epoch_high_watermarks[family_key] = epoch
+        family_contracts[family_key] = watermark_contract
+
+    missing_watermarks = set(last_epochs) - set(epoch_high_watermarks)
+    if missing_watermarks:
+        raise Layer12FixedFamilyPublicationError(
+            "prior imports require an epoch high-water mark for every owner/family"
+        )
+
     if current_import is not None:
-        append_import(current_import, "current_import")
+        append_import(current_import, "current_import", is_current=True)
+        current_item = imports[-1]
+        current_key = (
+            cast(str, current_item["owner"]),
+            cast(str, current_item["family_id"]),
+        )
+        epoch_high_watermarks[current_key] = cast(int, current_item["epoch"])
 
     withdrawal_applied = False
     withdrawn_identity: dict[str, object] | None = None
@@ -265,10 +333,22 @@ def reconstruct_fixed_family_imports(
             "withdrawal_ref": withdrawal_ref,
         }
 
+    watermark_output = [
+        {
+            "schema_version": "layer12-fixed-family-epoch-high-watermark-v1",
+            "owner": owner,
+            "family_id": family_id,
+            "epoch": epoch_high_watermarks[(owner, family_id)],
+            "transition_token": family_contracts[(owner, family_id)][0],
+            "spec_digest": family_contracts[(owner, family_id)][1],
+        }
+        for owner, family_id in family_order
+    ]
     return {
         "schema_version": "layer12-fixed-family-reconstruction-v1",
         "mode": "cumulative_owner_local_family_epochs",
         "imports": imports,
+        "family_epoch_high_watermarks": watermark_output,
         "withdrawal_applied": withdrawal_applied,
         "withdrawn_identity": withdrawn_identity,
         "preserve_unrelated_imports": True,

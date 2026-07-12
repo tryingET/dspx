@@ -470,6 +470,7 @@
         "schema_version",
         "mode",
         "imports",
+        "family_epoch_high_watermarks",
         "withdrawal_applied",
         "withdrawn_identity",
         "preserve_unrelated_imports",
@@ -536,6 +537,48 @@
         },
         "authority_granted": {
           "const": false
+        },
+        "family_epoch_high_watermarks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/epochHighWatermark"
+          }
+        }
+      }
+    },
+    "epochHighWatermark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "owner",
+        "family_id",
+        "epoch",
+        "transition_token",
+        "spec_digest"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "layer12-fixed-family-epoch-high-watermark-v1"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "transition_token": {
+          "type": "string",
+          "minLength": 1
+        },
+        "spec_digest": {
+          "$ref": "#/$defs/digest"
         }
       }
     }
