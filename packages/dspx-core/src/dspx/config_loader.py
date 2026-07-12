@@ -55,6 +55,10 @@ _CONFIG_ENV_KEYS = (
     "DSPX_LM_AUTH_TEMPERATURE",
     "DSPX_LM_AUTH_MAX_TOKENS",
     "DSPX_LM_AUTH_REASONING_EFFORT",
+    "DSPX_QUALITY_CRITERIA_MODEL",
+    "DSPX_QUALITY_CRITERIA_REASONING_EFFORT",
+    "DSPX_ORACLE_SEMANTIC_MODEL",
+    "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT",
     "DSPX_OPENAI_COMPAT_API_BASE",
     "DSPX_OPENAI_COMPAT_MODEL",
     "DSPX_OPENAI_COMPAT_TIMEOUT",
@@ -243,6 +247,13 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
     pi = data.get("pi", {}) if isinstance(data, dict) else {}
     provider = data.get("provider", {}) if isinstance(data, dict) else {}
     lm_auth = data.get("lm_auth", {}) if isinstance(data, dict) else {}
+    model_roles = data.get("model_roles", {}) if isinstance(data, dict) else {}
+    quality_criteria_role = (
+        model_roles.get("quality_criteria", {}) if isinstance(model_roles, dict) else {}
+    )
+    oracle_semantic_role = (
+        model_roles.get("oracle_semantic", {}) if isinstance(model_roles, dict) else {}
+    )
     openai_compatible = (
         data.get("openai_compatible", {}) if isinstance(data, dict) else {}
     )
@@ -406,6 +417,29 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
         _set_config_value(
             "DSPX_LM_AUTH_REASONING_EFFORT",
             lm_auth.get("reasoning_effort"),
+            seen_keys=seen_keys,
+        )
+
+        # Autonomous-foundry role-specific Codex routes. These declarations do
+        # not imply that a live model call has succeeded.
+        _set_config_value(
+            "DSPX_QUALITY_CRITERIA_MODEL",
+            quality_criteria_role.get("model"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_QUALITY_CRITERIA_REASONING_EFFORT",
+            quality_criteria_role.get("reasoning_effort"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_ORACLE_SEMANTIC_MODEL",
+            oracle_semantic_role.get("model"),
+            seen_keys=seen_keys,
+        )
+        _set_config_value(
+            "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT",
+            oracle_semantic_role.get("reasoning_effort"),
             seen_keys=seen_keys,
         )
 

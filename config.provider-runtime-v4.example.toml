@@ -7,6 +7,16 @@ auth_provider = "codex"
 auth_storage = "~/.pi/agent/auth.json"
 timeout_s = 60
 
+# Autonomous-foundry role declarations. A configured role is not considered
+# live-verified until its receipt-backed call succeeds.
+[model_roles.quality_criteria]
+model = "codex/gpt-5.6-sol"
+reasoning_effort = "high"
+
+[model_roles.oracle_semantic]
+model = "codex/gpt-5.6-luna"
+reasoning_effort = "max"
+
 [vllm]
 api_base = "http://127.0.0.1:1234/v1"
 model = "Qwen/Qwen3.5-27B"

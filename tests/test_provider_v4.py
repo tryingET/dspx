@@ -730,6 +730,20 @@ def test_dspy_lm_auth_factory_accepts_codex_reasoning_effort_without_max_tokens(
     assert "max_tokens" not in lm.kwargs
 
 
+def test_dspy_lm_auth_factory_accepts_codex_max_reasoning_effort(
+    monkeypatch,
+) -> None:
+    from dspx.providers_register_dspy_lm_auth import _factory
+
+    monkeypatch.setenv("DSPX_LM_AUTH_MODEL", "codex/gpt-5.6-luna")
+    monkeypatch.setenv("DSPX_LM_AUTH_REASONING_EFFORT", "max")
+
+    lm = _factory()
+
+    assert lm.requested_model == "codex/gpt-5.6-luna"
+    assert lm.kwargs["reasoning_effort"] == "max"
+
+
 def test_dspy_lm_auth_factory_rejects_invalid_codex_reasoning_effort(
     monkeypatch,
 ) -> None:

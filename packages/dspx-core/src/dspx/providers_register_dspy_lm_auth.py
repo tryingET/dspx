@@ -8,6 +8,7 @@ import os
 
 from dspx.capabilities import ProviderCapabilities
 from dspx.dspy_lm_auth_lm import DspyLMAuthLM
+from dspx.model_roles import CODEX_REASONING_EFFORTS
 from dspx.provider_registry import mark_default_provider_factory, register_provider
 
 
@@ -16,9 +17,6 @@ def _truthy(name: str, default: bool) -> bool:
     if raw is None:
         return default
     return raw not in {"", "0", "false", "False", "no", "No"}
-
-
-_CODEX_REASONING_EFFORTS = {"none", "low", "medium", "high", "xhigh"}
 
 
 def _model_supports_vision(model: str, auth_provider: str | None = None) -> bool:
@@ -47,8 +45,8 @@ def _factory() -> DspyLMAuthLM:
             pass
     reasoning_effort = os.getenv("DSPX_LM_AUTH_REASONING_EFFORT")
     if reasoning_effort:
-        if uses_codex_route and reasoning_effort not in _CODEX_REASONING_EFFORTS:
-            allowed = ", ".join(sorted(_CODEX_REASONING_EFFORTS))
+        if uses_codex_route and reasoning_effort not in CODEX_REASONING_EFFORTS:
+            allowed = ", ".join(sorted(CODEX_REASONING_EFFORTS))
             raise ValueError(
                 "DSPX_LM_AUTH_REASONING_EFFORT must be one of "
                 f"{allowed} for codex/* models; got {reasoning_effort!r}"
