@@ -288,6 +288,7 @@ def validate_execution_proposal(
         "proposal_id": proposal_id,
         "proposal_sha256": proposal_sha256,
         "manifest_path": manifest,
+        "source_manifest_sha256": candidate.get("manifest_sha256"),
         "output_dir": output_dir,
         "result_path": result_path,
         "optimizer_metric": optimizer_metric,

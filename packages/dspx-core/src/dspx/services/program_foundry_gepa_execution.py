@@ -1,6 +1,4 @@
 # summary: "Executes one reviewed foundry GEPA proposal with durable no-replay and receipt-bound local evidence."
-# read_when:
-#   - "Changing reviewed GEPA execution, attempt durability, or execution receipts."
 
 from __future__ import annotations
 
@@ -55,22 +53,30 @@ def _write_json_exclusive(
     os.fsync(directory)
 
 
-def _read_json_at(directory: int, name: str, *, label: str) -> dict[str, Any]:
+def read_foundry_gepa_json_at(
+    directory: int, name: str, *, label: str
+) -> tuple[dict[str, Any], str]:
     descriptor = os.open(
         name, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=directory
     )
     try:
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
             raise ProgramFoundryGepaExecutionError(f"{label} must be a regular file")
-        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+        with os.fdopen(descriptor, "rb") as stream:
             descriptor = -1
-            payload = json.load(stream)
+            raw = stream.read(500_001)
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+    if len(raw) > 500_000:
+        raise ProgramFoundryGepaExecutionError(f"{label} exceeds the safety bound")
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProgramFoundryGepaExecutionError(f"{label} must be valid JSON") from exc
     if not isinstance(payload, dict):
         raise ProgramFoundryGepaExecutionError(f"{label} must contain one JSON object")
-    return payload
+    return payload, sha256_bytes(raw)
 
 
 def _optimizer_payload_inventory(root: Path) -> dict[str, Any]:
@@ -256,14 +262,15 @@ def _build_receipt(
     }
 
 
-def _existing_execution_state(
+def validate_existing_foundry_gepa_execution_state(
     experiment_directory: int,
     *,
     validated: Mapping[str, Any],
     operator_label: str,
+    strict_receipt: bool = False,
 ) -> dict[str, Any]:
     try:
-        attempt = _read_json_at(
+        attempt, attempt_sha256 = read_foundry_gepa_json_at(
             experiment_directory,
             "attempt.json",
             label="GEPA attempt",
@@ -347,10 +354,8 @@ def _existing_execution_state(
         }
     ):
         raise ProgramFoundryGepaExecutionError("existing GEPA attempt identity drifted")
-    attempt_path = Path(str(validated["result_path"])).parent / "attempt.json"
-    attempt_sha256 = sha256_regular_file(attempt_path, label="GEPA attempt")
     try:
-        result = _read_json_at(
+        result, result_sha256 = read_foundry_gepa_json_at(
             experiment_directory,
             "gepa-result.json",
             label="GEPA result",
@@ -362,15 +367,17 @@ def _existing_execution_state(
             "effect_disposition": "indeterminate_no_replay",
             "reused": True,
         }
-    result_path = Path(str(validated["result_path"]))
-    result_sha256 = sha256_regular_file(result_path, label="GEPA result")
     try:
-        receipt = _read_json_at(
+        receipt, _ = read_foundry_gepa_json_at(
             experiment_directory,
             "execution-receipt.json",
             label="GEPA execution receipt",
         )
     except FileNotFoundError:
+        if strict_receipt:
+            raise ProgramFoundryGepaExecutionError(
+                "successful execution receipt is required and must not be reconstructed"
+            )
         receipt = _build_receipt(
             validated=validated,
             attempt_sha256=attempt_sha256,
@@ -433,7 +440,7 @@ def execute_reviewed_program_foundry_gepa(
         )
         try:
             if not created:
-                return _existing_execution_state(
+                return validate_existing_foundry_gepa_execution_state(
                     experiment_directory,
                     validated=validated,
                     operator_label=operator_label.strip(),

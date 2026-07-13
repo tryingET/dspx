@@ -60,6 +60,47 @@ def execute_foundry_gepa(
         raise typer.Exit(code=1)
 
 
+@app.command("consume-foundry-gepa-receipt")
+def consume_foundry_gepa_receipt(
+    receipt: Path = typer.Option(
+        ...,
+        "--receipt",
+        help="Canonical successful foundry GEPA execution-receipt.json",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print consumption receipt JSON"
+    ),
+) -> None:
+    """Materialize and compare one GEPA candidate from one successful receipt."""
+    from dspx.services.program_foundry_gepa_consumption import (
+        ProgramFoundryGepaConsumptionError,
+        consume_successful_program_foundry_gepa_receipt,
+    )
+
+    try:
+        payload = consume_successful_program_foundry_gepa_receipt(
+            execution_receipt_path=receipt,
+        )
+    except ProgramFoundryGepaConsumptionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: candidate materialization/comparison may be indeterminate: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=3) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(receipt.parent / "consumption-receipt.json"))
+        typer.echo(f"foundry_gepa_consumption_status: {payload.get('status')}")
+    if payload.get("status") == "blocked_indeterminate":
+        raise typer.Exit(code=3)
+    if payload.get("status") != "ok":
+        raise typer.Exit(code=1)
+
+
 @app.command("optimize-gepa")
 def optimize_gepa(
     manifest: Path = typer.Option(
