@@ -1983,8 +1983,7 @@
           "const": "layer12-fixed-family-import-v1"
         },
         "owner": {
-          "type": "string",
-          "minLength": 1
+          "const": "softwareco/owned/dspx"
         },
         "family_id": {
           "type": "string",
@@ -2012,326 +2011,137 @@
           "const": false
         }
       },
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.continue-current-execution-task.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.continue-current-execution-task.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "continue_current_execution_task"
-              }
+            "publication_id": {
+              "const": "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "continue_current_execution_task"
+            },
+            "spec_digest": {
+              "const": "sha256:7c4686dcdf26b085a595d1b381660a3191d650c8d26be1bb22a8adaa533142cc"
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.request-owner-route.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.request-owner-route.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "request_owner_route"
-              }
+            "publication_id": {
+              "const": "dspx-iw14b-request-owner-route-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "request_owner_route"
+            },
+            "spec_digest": {
+              "const": "sha256:9c7fdfa7b13d13b803fecef1b57ed080a2b8462658f82b7f169521b84a4a893f"
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.close-implementation-wave.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.close-implementation-wave.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "close_implementation_wave"
-              }
+            "publication_id": {
+              "const": "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "close_implementation_wave"
+            },
+            "spec_digest": {
+              "const": "sha256:ebd3b5f19be87179911029e552aa5bc00c4de774bd9264efd5fac397435ac06f"
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.activate-guidance.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.activate-guidance.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "activate_guidance"
-              }
+            "publication_id": {
+              "const": "dspx-iw14b-activate-guidance-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "activate_guidance"
+            },
+            "spec_digest": {
+              "const": "sha256:e58fb94f75ccd9cbf3a63216d779e0bf45791b37f128dc0a43e741858e9fb374"
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.default-residual-adoption-hardening.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "default_residual_adoption_hardening"
-              }
+            "publication_id": {
+              "const": "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "default_residual_adoption_hardening"
+            },
+            "spec_digest": {
+              "const": "sha256:eb4f1d7634fbade45cc80fcf2c753611ea41672603dcf04d42e595fa7258f86d"
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "continue_current_execution_task"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.inspect-status-before-proceeding.v1"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.continue-current-execution-task.v1"
-              }
+            "publication_id": {
+              "const": "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "inspect_status_before_proceeding"
+            },
+            "spec_digest": {
+              "const": "sha256:cf7c6722cb780d7c1f8bb2c4242e77f5e2c77950d379cfb453b62fbc8c48dd30"
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "request_owner_route"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.open-decision.v1"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.request-owner-route.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "close_implementation_wave"
-              }
+            "publication_id": {
+              "const": "dspx-iw14b-open-decision-owner-local-test-v1"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.close-implementation-wave.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "activate_guidance"
-              }
+            "epoch": {
+              "const": 1
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.activate-guidance.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "default_residual_adoption_hardening"
-              }
+            "transition_token": {
+              "const": "open_decision"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
-              }
-            },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "inspect_status_before_proceeding"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "inspect_status_before_proceeding"
-              }
-            },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.open-decision.v1"
-              }
-            },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "open_decision"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "open_decision"
-              }
-            },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.open-decision.v1"
-              }
+            "spec_digest": {
+              "const": "sha256:0ffa7021f4cb5caaba9dc9c383ac9608a53bdc531b59dceeeb735fa354cd1922"
             }
           }
         }
@@ -2355,8 +2165,7 @@
           "const": "layer12-fixed-family-withdrawal-v1"
         },
         "owner": {
-          "type": "string",
-          "minLength": 1
+          "const": "softwareco/owned/dspx"
         },
         "family_id": {
           "type": "string",
@@ -2380,7 +2189,121 @@
         "authority_granted": {
           "const": false
         }
-      }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.continue-current-execution-task.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.continue-current-execution-task.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.request-owner-route.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-request-owner-route-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.request-owner-route.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.close-implementation-wave.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.close-implementation-wave.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.activate-guidance.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-activate-guidance-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.activate-guidance.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.default-residual-adoption-hardening.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.inspect-status-before-proceeding.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.open-decision.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-open-decision-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.open-decision.v1:1"
+            }
+          }
+        }
+      ]
     },
     "reconstruction": {
       "type": "object",
@@ -2417,37 +2340,7 @@
               "type": "null"
             },
             {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "owner",
-                "family_id",
-                "epoch",
-                "publication_id",
-                "withdrawal_ref"
-              ],
-              "properties": {
-                "owner": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "family_id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "epoch": {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                "publication_id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "withdrawal_ref": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
+              "$ref": "#/$defs/withdrawnIdentity"
             }
           ]
         },
@@ -2482,8 +2375,7 @@
           "const": "layer12-fixed-family-epoch-high-watermark-v1"
         },
         "owner": {
-          "type": "string",
-          "minLength": 1
+          "const": "softwareco/owned/dspx"
         },
         "family_id": {
           "type": "string",
@@ -2510,326 +2402,151 @@
           }
         }
       },
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.continue-current-execution-task.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.continue-current-execution-task.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "continue_current_execution_task"
-              }
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "continue_current_execution_task"
+            },
+            "spec_digest": {
+              "const": "sha256:7c4686dcdf26b085a595d1b381660a3191d650c8d26be1bb22a8adaa533142cc"
+            },
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+              ]
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.request-owner-route.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.request-owner-route.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "request_owner_route"
-              }
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "request_owner_route"
+            },
+            "spec_digest": {
+              "const": "sha256:9c7fdfa7b13d13b803fecef1b57ed080a2b8462658f82b7f169521b84a4a893f"
+            },
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-request-owner-route-owner-local-test-v1"
+              ]
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.close-implementation-wave.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.close-implementation-wave.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "close_implementation_wave"
-              }
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "close_implementation_wave"
+            },
+            "spec_digest": {
+              "const": "sha256:ebd3b5f19be87179911029e552aa5bc00c4de774bd9264efd5fac397435ac06f"
+            },
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+              ]
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.activate-guidance.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.activate-guidance.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "activate_guidance"
-              }
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "activate_guidance"
+            },
+            "spec_digest": {
+              "const": "sha256:e58fb94f75ccd9cbf3a63216d779e0bf45791b37f128dc0a43e741858e9fb374"
+            },
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-activate-guidance-owner-local-test-v1"
+              ]
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.default-residual-adoption-hardening.v1"
             },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "default_residual_adoption_hardening"
-              }
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "default_residual_adoption_hardening"
+            },
+            "spec_digest": {
+              "const": "sha256:eb4f1d7634fbade45cc80fcf2c753611ea41672603dcf04d42e595fa7258f86d"
+            },
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+              ]
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "continue_current_execution_task"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.inspect-status-before-proceeding.v1"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.continue-current-execution-task.v1"
-              }
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "inspect_status_before_proceeding"
+            },
+            "spec_digest": {
+              "const": "sha256:cf7c6722cb780d7c1f8bb2c4242e77f5e2c77950d379cfb453b62fbc8c48dd30"
+            },
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+              ]
             }
           }
         },
         {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "request_owner_route"
-              }
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.open-decision.v1"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.request-owner-route.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "close_implementation_wave"
-              }
+            "epoch": {
+              "const": 1
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.close-implementation-wave.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "activate_guidance"
-              }
+            "transition_token": {
+              "const": "open_decision"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.activate-guidance.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "default_residual_adoption_hardening"
-              }
+            "spec_digest": {
+              "const": "sha256:0ffa7021f4cb5caaba9dc9c383ac9608a53bdc531b59dceeeb735fa354cd1922"
             },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
-              }
-            },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "inspect_status_before_proceeding"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "inspect_status_before_proceeding"
-              }
-            },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "family_id": {
-                "const": "dspx.layer12.open-decision.v1"
-              }
-            },
-            "required": [
-              "owner",
-              "family_id"
-            ]
-          },
-          "then": {
-            "properties": {
-              "transition_token": {
-                "const": "open_decision"
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "owner": {
-                "const": "softwareco/owned/dspx"
-              },
-              "transition_token": {
-                "const": "open_decision"
-              }
-            },
-            "required": [
-              "owner",
-              "transition_token"
-            ]
-          },
-          "then": {
-            "properties": {
-              "family_id": {
-                "const": "dspx.layer12.open-decision.v1"
-              }
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-open-decision-owner-local-test-v1"
+              ]
             }
           }
         }
@@ -3537,6 +3254,152 @@
               "generated_program_dispatch_ready": false,
               "declaration_is_ak_authority": false,
               "digest": "sha256:016bb015bb8c858dfb7bcf7fcd06f9489c8c2f7fc885e257b8d61a7a6c0f0fb3"
+            }
+          }
+        }
+      ]
+    },
+    "withdrawnIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "family_id",
+        "epoch",
+        "publication_id",
+        "withdrawal_ref"
+      ],
+      "properties": {
+        "owner": {
+          "const": "softwareco/owned/dspx"
+        },
+        "family_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "publication_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "withdrawal_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.continue-current-execution-task.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.continue-current-execution-task.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.request-owner-route.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-request-owner-route-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.request-owner-route.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.close-implementation-wave.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.close-implementation-wave.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.activate-guidance.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-activate-guidance-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.activate-guidance.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.default-residual-adoption-hardening.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.inspect-status-before-proceeding.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.open-decision.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-open-decision-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.open-decision.v1:1"
             }
           }
         }

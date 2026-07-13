@@ -55,6 +55,46 @@ TOKEN_FAMILY_IDS = {
     B4_TOKEN: B4_FAMILY_ID,
     **B2_FAMILY_IDS,
 }
+# Immutable DSPx-owner facts for the only imports this closed reconstruction
+# contract admits. Reconstruction never accepts caller-defined families, spec
+# digests, publication identities, or epochs as trust roots.
+FIXED_IMPORT_FACTS: dict[str, tuple[str, str, int]] = {
+    B0_TOKEN: (
+        "sha256:7c4686dcdf26b085a595d1b381660a3191d650c8d26be1bb22a8adaa533142cc",
+        "dspx-iw14b-continue-current-execution-task-owner-local-v1",
+        1,
+    ),
+    B1_TOKEN: (
+        "sha256:9c7fdfa7b13d13b803fecef1b57ed080a2b8462658f82b7f169521b84a4a893f",
+        "dspx-iw14b-request-owner-route-owner-local-test-v1",
+        1,
+    ),
+    "close_implementation_wave": (
+        "sha256:ebd3b5f19be87179911029e552aa5bc00c4de774bd9264efd5fac397435ac06f",
+        "dspx-iw14b-close-implementation-wave-owner-local-test-v1",
+        1,
+    ),
+    "activate_guidance": (
+        "sha256:e58fb94f75ccd9cbf3a63216d779e0bf45791b37f128dc0a43e741858e9fb374",
+        "dspx-iw14b-activate-guidance-owner-local-test-v1",
+        1,
+    ),
+    "default_residual_adoption_hardening": (
+        "sha256:eb4f1d7634fbade45cc80fcf2c753611ea41672603dcf04d42e595fa7258f86d",
+        "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1",
+        1,
+    ),
+    B3_TOKEN: (
+        "sha256:cf7c6722cb780d7c1f8bb2c4242e77f5e2c77950d379cfb453b62fbc8c48dd30",
+        "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1",
+        1,
+    ),
+    B4_TOKEN: (
+        "sha256:0ffa7021f4cb5caaba9dc9c383ac9608a53bdc531b59dceeeb735fa354cd1922",
+        "dspx-iw14b-open-decision-owner-local-test-v1",
+        1,
+    ),
+}
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
 
 
@@ -138,6 +178,21 @@ def _exact(item: Mapping[str, Any], expected: Mapping[str, object], label: str) 
             raise Layer12FixedFamilyPublicationError(f"{label}.{field} drift")
 
 
+def _fixed_import_fact(
+    *, owner: str, family_id: str, transition_token: str, label: str
+) -> tuple[str, str, int]:
+    expected_family = TOKEN_FAMILY_IDS.get(transition_token)
+    if owner != DSPX_OWNER or expected_family is None or family_id != expected_family:
+        raise Layer12FixedFamilyPublicationError(
+            f"{label} is outside the closed supported owner/token/family map"
+        )
+    return FIXED_IMPORT_FACTS[transition_token]
+
+
+def _fixed_withdrawal_ref(*, family_id: str, epoch: int) -> str:
+    return f"withdrawal:{DSPX_OWNER}:{family_id}:{epoch}"
+
+
 def _canonical_import(value: object, label: str) -> dict[str, object]:
     item = _object(value, label)
     fields = {
@@ -167,23 +222,27 @@ def _canonical_import(value: object, label: str) -> dict[str, object]:
     }
     if result["schema_version"] != "layer12-fixed-family-import-v1":
         raise Layer12FixedFamilyPublicationError(f"{label} schema drift")
-    fixed_family_to_token = {
-        family: token for token, family in TOKEN_FAMILY_IDS.items()
-    }
+    owner = result["owner"]
     family_id = result["family_id"]
     transition_token = result["transition_token"]
-    if result["owner"] == DSPX_OWNER:
-        expected_token = fixed_family_to_token.get(family_id)
-        expected_family = TOKEN_FAMILY_IDS.get(transition_token)
-        if (
-            expected_token is not None
-            and transition_token != expected_token
-            or expected_family is not None
-            and family_id != expected_family
-        ):
-            raise Layer12FixedFamilyPublicationError(
-                f"{label} owner/family contract fixed token/family identity drift"
-            )
+    expected_spec_digest, expected_publication_id, expected_epoch = _fixed_import_fact(
+        owner=owner,
+        family_id=family_id,
+        transition_token=transition_token,
+        label=label,
+    )
+    if result["spec_digest"] != expected_spec_digest:
+        raise Layer12FixedFamilyPublicationError(
+            f"{label}.spec_digest conflicts with immutable DSPx-owner fact"
+        )
+    if result["publication_id"] != expected_publication_id:
+        raise Layer12FixedFamilyPublicationError(
+            f"{label}.publication_id conflicts with immutable DSPx-owner fact"
+        )
+    if result["epoch"] != expected_epoch:
+        raise Layer12FixedFamilyPublicationError(
+            f"{label}.epoch conflicts with immutable DSPx-owner fact"
+        )
     if result["publication_scope"] != OWNER_LOCAL_SCOPE:
         raise Layer12FixedFamilyPublicationError(f"{label} publication scope drift")
     if result["authority_granted"] is not False:
@@ -291,25 +350,26 @@ def reconstruct_fixed_family_imports(
         transition_token = _text(
             watermark["transition_token"], f"{label}.transition_token"
         )
-        if owner == DSPX_OWNER:
-            fixed_family_to_token = {
-                family: token for token, family in TOKEN_FAMILY_IDS.items()
-            }
-            expected_token = fixed_family_to_token.get(family_id)
-            expected_family = TOKEN_FAMILY_IDS.get(transition_token)
-            if (
-                expected_token is not None
-                and transition_token != expected_token
-                or expected_family is not None
-                and family_id != expected_family
-            ):
-                raise Layer12FixedFamilyPublicationError(
-                    f"{label} owner/family contract fixed token/family identity drift"
-                )
-        watermark_contract = (
-            transition_token,
-            _digest(watermark["spec_digest"], f"{label}.spec_digest"),
+        expected_spec_digest, expected_publication_id, expected_epoch = (
+            _fixed_import_fact(
+                owner=owner,
+                family_id=family_id,
+                transition_token=transition_token,
+                label=label,
+            )
         )
+        watermark_spec_digest = _digest(
+            watermark["spec_digest"], f"{label}.spec_digest"
+        )
+        if watermark_spec_digest != expected_spec_digest:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.spec_digest conflicts with immutable DSPx-owner fact"
+            )
+        if epoch != expected_epoch:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.epoch conflicts with immutable DSPx-owner high-water fact"
+            )
+        watermark_contract = (transition_token, watermark_spec_digest)
         raw_used_ids = watermark["used_publication_ids"]
         if not isinstance(raw_used_ids, list) or not raw_used_ids:
             raise Layer12FixedFamilyPublicationError(
@@ -321,6 +381,10 @@ def reconstruct_fixed_family_imports(
         if len(set(used_ids)) != len(used_ids):
             raise Layer12FixedFamilyPublicationError(
                 f"{label}.used_publication_ids contains duplicates"
+            )
+        if used_ids != [expected_publication_id]:
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.used_publication_ids conflicts with immutable DSPx-owner history"
             )
         family_key = (owner, family_id)
         if family_key in epoch_high_watermarks:
@@ -406,6 +470,13 @@ def reconstruct_fixed_family_imports(
         withdrawal_ref = _text(
             withdrawal["withdrawal_ref"], "current_withdrawal.withdrawal_ref"
         )
+        expected_withdrawal_ref = _fixed_withdrawal_ref(
+            family_id=family_id, epoch=epoch
+        )
+        if withdrawal_ref != expected_withdrawal_ref:
+            raise Layer12FixedFamilyPublicationError(
+                "current_withdrawal.withdrawal_ref conflicts with exact owner/family/epoch identity"
+            )
         if withdrawal["owner_local_only"] is not True:
             raise Layer12FixedFamilyPublicationError("withdrawal scope widening")
         if withdrawal["authority_granted"] is not False:

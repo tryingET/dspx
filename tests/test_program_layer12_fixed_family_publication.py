@@ -565,226 +565,150 @@ def _high_watermarks(*imports: dict[str, object]) -> list[dict[str, object]]:
     ]
 
 
-def test_reconstruction_appends_per_family_and_preserves_unrelated_imports() -> None:
-    unrelated = _family_import(
-        OWNER, "unrelated.family", 7, "unrelated:7", "unrelated_transition_token"
+def _verified_b0_import() -> dict[str, object]:
+    return cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(PUBLICATION_PATH), **_kwargs())[
+            "canonical_import"
+        ],
     )
-    target_v1 = _family_import(OWNER, FAMILY_ID, 1, "target:1")
-    target_v2 = _family_import(OWNER, FAMILY_ID, 2, "target:2")
+
+
+def _verified_b1_import() -> dict[str, object]:
+    return cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(B1_PUBLICATION_PATH), **_b1_kwargs())[
+            "canonical_import"
+        ],
+    )
+
+
+def test_reconstruction_appends_supported_family_and_preserves_prior_bytes() -> None:
+    b0 = _verified_b0_import()
+    b1 = _verified_b1_import()
+    b0_bytes = canonical_json(b0).encode()
 
     result = reconstruct_fixed_family_imports(
-        prior_imports=[unrelated, target_v1],
-        prior_epoch_high_watermarks=_high_watermarks(unrelated, target_v1),
-        current_import=target_v2,
+        prior_imports=[b0],
+        prior_epoch_high_watermarks=_high_watermarks(b0),
+        current_import=b1,
         current_withdrawal=None,
     )
 
-    assert result["imports"] == [unrelated, target_v1, target_v2]
+    assert result["imports"] == [b0, b1]
+    assert canonical_json(cast(list[object], result["imports"])[0]).encode() == b0_bytes
     assert result["withdrawal_applied"] is False
     assert result["preserve_unrelated_imports"] is True
     assert result["authority_granted"] is False
-    schema = _load(SCHEMA_PATH)
-    validator = jsonschema.Draft202012Validator(schema)
-    for artifact in (unrelated, target_v1, target_v2, result):
-        validator.validate(artifact)
 
 
-def test_reconstruction_withdraws_only_exact_matching_family_epoch() -> None:
-    unrelated = _family_import(
-        OWNER, "unrelated.family", 4, "unrelated:4", "unrelated_transition_token"
-    )
-    target_v1 = _family_import(OWNER, FAMILY_ID, 1, "target:1")
-    other_owner = _family_import("other/owner", FAMILY_ID, 1, "other:1")
+def test_reconstruction_withdraws_only_exact_supported_family_epoch() -> None:
+    b0 = _verified_b0_import()
+    b1 = _verified_b1_import()
+    withdrawal = _withdrawal(OWNER, FAMILY_ID, 1, PUBLICATION_ID)
 
-    withdrawal = _withdrawal(OWNER, FAMILY_ID, 1, "target:1")
     result = reconstruct_fixed_family_imports(
-        prior_imports=[unrelated, target_v1, other_owner],
-        prior_epoch_high_watermarks=_high_watermarks(unrelated, target_v1, other_owner),
+        prior_imports=[b0, b1],
+        prior_epoch_high_watermarks=_high_watermarks(b0, b1),
         current_import=None,
         current_withdrawal=withdrawal,
     )
-    jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).validate(withdrawal)
 
-    assert result["imports"] == [unrelated, other_owner]
-    assert result["withdrawal_applied"] is True
+    assert result["imports"] == [b1]
     assert result["withdrawn_identity"] == {
         "owner": OWNER,
         "family_id": FAMILY_ID,
         "epoch": 1,
-        "publication_id": "target:1",
+        "publication_id": PUBLICATION_ID,
         "withdrawal_ref": f"withdrawal:{OWNER}:{FAMILY_ID}:1",
     }
 
 
-@pytest.mark.parametrize(
-    ("prior", "current", "message"),
-    [
-        (
-            [_family_import(OWNER, FAMILY_ID, 1, "target:1")],
-            _family_import(OWNER, FAMILY_ID, 1, "target:1"),
-            "duplicates or conflicts",
-        ),
-        (
-            [_family_import(OWNER, FAMILY_ID, 1, "target:1")],
-            _family_import(OWNER, FAMILY_ID, 1, "target:conflict"),
-            "duplicates or conflicts",
-        ),
-        (
-            [_family_import(OWNER, FAMILY_ID, 2, "target:2")],
-            _family_import(OWNER, FAMILY_ID, 1, "target:1"),
-            "strictly monotonic",
-        ),
-        (
-            [_family_import(OWNER, FAMILY_ID, 1, "target:1")],
-            _family_import(
-                OWNER, FAMILY_ID, 2, "target:2", "conflicting_transition_token"
-            ),
-            "owner/family contract",
-        ),
-        (
-            [_family_import(OWNER, FAMILY_ID, 1, "shared-id")],
-            _family_import(
-                OWNER,
-                "unrelated.family",
-                1,
-                "shared-id",
-                "unrelated_transition_token",
-            ),
-            "publication_id",
-        ),
-    ],
-)
-def test_reconstruction_rejects_duplicate_conflicting_or_nonmonotonic_history(
-    prior: list[object], current: object, message: str
-) -> None:
-    with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
+def test_reconstruction_rejects_duplicate_closed_family_history() -> None:
+    b0 = _verified_b0_import()
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="duplicates|high-water"
+    ):
         reconstruct_fixed_family_imports(
-            prior_imports=prior,
-            prior_epoch_high_watermarks=_high_watermarks(
-                *(cast(dict[str, object], item) for item in prior)
-            ),
-            current_import=current,
+            prior_imports=[b0],
+            prior_epoch_high_watermarks=_high_watermarks(b0),
+            current_import=b0,
             current_withdrawal=None,
         )
 
 
 def test_reconstruction_rejects_cross_family_and_conflicting_withdrawals() -> None:
-    target = _family_import(OWNER, FAMILY_ID, 1, "target:1")
-    unrelated = _family_import(
-        OWNER, "unrelated.family", 1, "unrelated:1", "unrelated_transition_token"
-    )
+    b0 = _verified_b0_import()
+    b1 = _verified_b1_import()
+    watermarks = _high_watermarks(b0, b1)
     with pytest.raises(Layer12FixedFamilyPublicationError, match="exactly one"):
         reconstruct_fixed_family_imports(
-            prior_imports=[target, unrelated],
-            prior_epoch_high_watermarks=_high_watermarks(target, unrelated),
+            prior_imports=[b0, b1],
+            prior_epoch_high_watermarks=watermarks,
             current_import=None,
-            current_withdrawal=_withdrawal(OWNER, "missing.family", 1, "target:1"),
+            current_withdrawal=_withdrawal(OWNER, B3_FAMILY_ID, 1, PUBLICATION_ID),
         )
     with pytest.raises(Layer12FixedFamilyPublicationError, match="publication_id"):
         reconstruct_fixed_family_imports(
-            prior_imports=[target, unrelated],
-            prior_epoch_high_watermarks=_high_watermarks(target, unrelated),
+            prior_imports=[b0, b1],
+            prior_epoch_high_watermarks=watermarks,
             current_import=None,
-            current_withdrawal=_withdrawal(OWNER, FAMILY_ID, 1, "forged-id"),
+            current_withdrawal=_withdrawal(OWNER, FAMILY_ID, 1, B1_PUBLICATION_ID),
         )
 
 
-def test_chained_reconstruction_preserves_withdrawn_epoch_high_watermark() -> None:
-    target_v2 = _family_import(OWNER, FAMILY_ID, 2, "target:2")
-    unrelated = _family_import(
-        OWNER, "unrelated.family", 9, "unrelated:9", "unrelated_token"
-    )
+def test_chained_reconstruction_preserves_sealed_withdrawn_high_watermark() -> None:
+    b0 = _verified_b0_import()
     withdrawn = reconstruct_fixed_family_imports(
-        prior_imports=[target_v2, unrelated],
-        prior_epoch_high_watermarks=_high_watermarks(target_v2, unrelated),
+        prior_imports=[b0],
+        prior_epoch_high_watermarks=_high_watermarks(b0),
         current_import=None,
-        current_withdrawal=_withdrawal(OWNER, FAMILY_ID, 2, "target:2"),
+        current_withdrawal=_withdrawal(OWNER, FAMILY_ID, 1, PUBLICATION_ID),
     )
-    imports = cast(list[object], withdrawn["imports"])
+    assert withdrawn["imports"] == []
     watermarks = cast(list[object], withdrawn["family_epoch_high_watermarks"])
-    assert imports == [unrelated]
-    assert any(
-        item["owner"] == OWNER and item["family_id"] == FAMILY_ID and item["epoch"] == 2
-        for item in cast(list[dict[str, object]], watermarks)
-    )
 
-    for replay in (
-        _family_import(OWNER, FAMILY_ID, 2, "target:2-reused"),
-        _family_import(OWNER, FAMILY_ID, 1, "target:1-regressed"),
-    ):
-        with pytest.raises(Layer12FixedFamilyPublicationError, match="high-water"):
-            reconstruct_fixed_family_imports(
-                prior_imports=imports,
-                prior_epoch_high_watermarks=watermarks,
-                current_import=replay,
-                current_withdrawal=None,
-            )
-
-    with pytest.raises(Layer12FixedFamilyPublicationError, match="durable"):
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="durable|high-water"):
         reconstruct_fixed_family_imports(
-            prior_imports=imports,
+            prior_imports=[],
             prior_epoch_high_watermarks=watermarks,
-            current_import=_family_import(OWNER, FAMILY_ID, 3, "target:2"),
+            current_import=b0,
             current_withdrawal=None,
         )
 
-    target_v3 = _family_import(OWNER, FAMILY_ID, 3, "target:3")
-    advanced = reconstruct_fixed_family_imports(
-        prior_imports=imports,
-        prior_epoch_high_watermarks=watermarks,
-        current_import=target_v3,
-        current_withdrawal=None,
-    )
-    assert advanced["imports"] == [unrelated, target_v3]
-    assert any(
-        item["owner"] == OWNER and item["family_id"] == FAMILY_ID and item["epoch"] == 3
-        for item in cast(
-            list[dict[str, object]], advanced["family_epoch_high_watermarks"]
-        )
-    )
 
-
-def test_reconstruction_rejects_missing_duplicate_and_regressed_watermarks() -> None:
-    target_v2 = _family_import(OWNER, FAMILY_ID, 2, "target:2")
-    valid = _high_watermarks(target_v2)
+def test_reconstruction_rejects_missing_duplicate_and_tampered_watermarks() -> None:
+    b0 = _verified_b0_import()
+    valid = _high_watermarks(b0)
     with pytest.raises(Layer12FixedFamilyPublicationError, match="require"):
         reconstruct_fixed_family_imports(
-            prior_imports=[target_v2],
+            prior_imports=[b0],
             prior_epoch_high_watermarks=[],
             current_import=None,
             current_withdrawal=None,
         )
     with pytest.raises(Layer12FixedFamilyPublicationError, match="duplicates"):
         reconstruct_fixed_family_imports(
-            prior_imports=[target_v2],
+            prior_imports=[b0],
             prior_epoch_high_watermarks=[*valid, *valid],
             current_import=None,
             current_withdrawal=None,
         )
-    regressed = copy.deepcopy(valid)
-    regressed[0]["epoch"] = 1
-    with pytest.raises(Layer12FixedFamilyPublicationError, match="regresses"):
+    tampered_epoch = copy.deepcopy(valid)
+    tampered_epoch[0]["epoch"] = 2
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="high-water fact"):
         reconstruct_fixed_family_imports(
-            prior_imports=[target_v2],
-            prior_epoch_high_watermarks=regressed,
+            prior_imports=[b0],
+            prior_epoch_high_watermarks=tampered_epoch,
             current_import=None,
             current_withdrawal=None,
         )
     omitted_id = copy.deepcopy(valid)
     omitted_id[0]["used_publication_ids"] = ["some-other-id"]
-    with pytest.raises(Layer12FixedFamilyPublicationError, match="omits"):
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="owner history"):
         reconstruct_fixed_family_imports(
-            prior_imports=[target_v2],
+            prior_imports=[b0],
             prior_epoch_high_watermarks=omitted_id,
-            current_import=None,
-            current_withdrawal=None,
-        )
-    duplicate_id = copy.deepcopy(valid)
-    duplicate_id[0]["used_publication_ids"] = ["target:2", "target:2"]
-    with pytest.raises(Layer12FixedFamilyPublicationError, match="contains duplicates"):
-        reconstruct_fixed_family_imports(
-            prior_imports=[target_v2],
-            prior_epoch_high_watermarks=duplicate_id,
             current_import=None,
             current_withdrawal=None,
         )
@@ -2124,3 +2048,107 @@ def test_b4_fixture_is_distinct_and_commits_only_public_verification_material() 
         assert "test_seed" not in text
     fixture = _load(B4_PUBLICATION_PATH)
     assert fixture["signer_evidence"]["public_key_b64"] == B4_PUBLIC_KEY_B64
+
+
+def _all_verified_fixed_imports() -> list[dict[str, object]]:
+    return [
+        _verified_b0_import(),
+        _verified_b1_import(),
+        *[_verified_b2_import(token) for token in B2_CASES],
+        cast(
+            dict[str, object],
+            check_fixed_family_publication(_load(B3_PUBLICATION_PATH), **_b3_kwargs())[
+                "canonical_import"
+            ],
+        ),
+        _verified_b4_import(),
+    ]
+
+
+def test_reconstruction_rejects_unknown_token_and_unknown_family_together() -> None:
+    escaped = _family_import(
+        OWNER,
+        "dspx.layer12.attacker-defined.v1",
+        1,
+        "attacker-publication",
+        "attacker_defined_transition",
+    )
+    assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(escaped)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="closed supported"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[],
+            current_import=escaped,
+            current_withdrawal=None,
+        )
+
+
+@pytest.mark.parametrize("index", range(7))
+def test_reconstruction_pins_every_fixed_family_to_immutable_spec_digest(
+    index: int,
+) -> None:
+    mutated = copy.deepcopy(_all_verified_fixed_imports()[index])
+    mutated["spec_digest"] = "sha256:" + "0" * 64
+    assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(mutated)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="spec_digest"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[],
+            current_import=mutated,
+            current_withdrawal=None,
+        )
+
+
+def test_b4_coordinated_import_and_watermark_digest_mutation_rejects() -> None:
+    b4 = _verified_b4_import()
+    watermark = _high_watermarks(b4)[0]
+    b4["spec_digest"] = "sha256:" + "a" * 64
+    watermark["spec_digest"] = b4["spec_digest"]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="spec_digest"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[b4],
+            prior_epoch_high_watermarks=[watermark],
+            current_import=None,
+            current_withdrawal=None,
+        )
+
+
+def test_b4_sealed_high_water_rejects_rollback_replay_encoding() -> None:
+    b4 = _verified_b4_import()
+    sealed_watermark = _high_watermarks(b4)[0]
+
+    forged_history = copy.deepcopy(sealed_watermark)
+    forged_history["epoch"] = 2
+    forged_history["used_publication_ids"] = [B4_PUBLICATION_ID, "b4-forged:2"]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="high-water fact"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[forged_history],
+            current_import=None,
+            current_withdrawal=None,
+        )
+
+    replay = copy.deepcopy(b4)
+    replay["epoch"] = 2
+    replay["publication_id"] = "b4-replayed-after-rolled-back-watermark"
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="owner fact"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[sealed_watermark],
+            current_import=replay,
+            current_withdrawal=None,
+        )
+
+
+def test_b4_withdrawal_ref_is_exact_not_caller_defined() -> None:
+    b4 = _verified_b4_import()
+    arbitrary = _withdrawal(OWNER, B4_FAMILY_ID, 1, B4_PUBLICATION_ID)
+    arbitrary["withdrawal_ref"] = "attacker-chosen-withdrawal-reference"
+    assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(arbitrary)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="withdrawal_ref"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[b4],
+            prior_epoch_high_watermarks=_high_watermarks(b4),
+            current_import=None,
+            current_withdrawal=arbitrary,
+        )

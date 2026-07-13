@@ -16,6 +16,8 @@ This deterministic IW14b B4 artifact publishes only DSPx owner-local TEST verifi
 - Decision gate: `decision_currentness=required_not_available` and `explicit_decision_authorization_available=false`.
 - Mutation boundary: `effects=none`, `read_only=true`, `zero_mutation=true`, `allowed_mutations=[]`, `open_decision_performed=false`, `decision_mutation_performed=false`, and `other_mutation_performed=false`.
 - Successor boundary: every one of the six pre-existing transition tokens is explicitly `unavailable`, `all_successors_unavailable=true`, and `generated_program_dispatch_ready=false`.
+- Sealed reconstruction: imports and epoch high-water marks admit only the seven exact DSPx owner token/family/spec-digest/publication-id/epoch facts; unknown families and caller-coordinated history substitutions fail closed.
+- Withdrawal identity: the B4 tombstone reference is exactly `withdrawal:softwareco/owned/dspx:dspx.layer12.open-decision.v1:1`; arbitrary or cross-family references fail closed.
 
 The artifact does not open or mutate a decision, execute a successor, contact AK, dispatch the generated program, or mutate any owner surface. It grants no AK trust or integration authority and no affected-use publication, apply, promotion, activation, dogfood, rollout, or closeout authority.
 
