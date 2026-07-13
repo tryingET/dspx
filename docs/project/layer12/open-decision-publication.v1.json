@@ -1,0 +1,170 @@
+{
+  "schema_version": "layer12-fixed-family-spec-v1",
+  "owner": "softwareco/owned/dspx",
+  "family_id": "dspx.layer12.open-decision.v1",
+  "protocol_version": "layer12-v1",
+  "transition_tokens": [
+    "open_decision"
+  ],
+  "scope_digest": "sha256:170fc5f6509d43d65c95b4a29bbd85ec00089c38b7ba1d2c827848f25afc59bb",
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "publication_contract": {
+    "publication_scope": "owner_local_artifact_only",
+    "signed_payload": "publication_object_without_signature",
+    "signature_algorithm": "Ed25519",
+    "external_trust_required": true
+  },
+  "reconstruction_contract": {
+    "mode": "cumulative_owner_local_family_epochs",
+    "identity_key": [
+      "owner",
+      "family_id"
+    ],
+    "epoch_order": "strictly_monotonic_per_family",
+    "withdrawal_scope": "matching_owner_family_epoch_only",
+    "preserve_unrelated_imports": true
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "authorization_evidence": {
+    "task_key": "B4-DSPx-publication",
+    "authorization_evidence_id": "4429",
+    "task_id": "3915",
+    "scope_digest": "sha256:170fc5f6509d43d65c95b4a29bbd85ec00089c38b7ba1d2c827848f25afc59bb",
+    "declaration_is_ak_authority": false,
+    "transition_authorized": false
+  },
+  "program_evidence": {
+    "program_intent": {
+      "schema_version": "program-intent-v2",
+      "name": "OpenDecision",
+      "program_id": "dspx.generated.open_decision.v1",
+      "objective": "Emit blocked owner-local evidence when an explicit current decision authorization is unavailable.",
+      "inputs": [
+        "decision_state",
+        "decision_authorization_evidence"
+      ],
+      "outputs": [
+        "decision_evidence",
+        "successor_availability",
+        "verifier_expectation"
+      ],
+      "family_id": "dspx.layer12.open-decision.v1",
+      "transition_token": "open_decision",
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "digest": "sha256:868e9c685916b13e09b9724dd3c154c8ff5c479ff9c759120680850ffaef1b57"
+    },
+    "module_graph": {
+      "schema_version": "dspx-fixed-module-graph-v1",
+      "program_id": "dspx.generated.open_decision.v1",
+      "signatures": [
+        {
+          "name": "InspectDecisionAuthorization",
+          "inputs": [
+            "decision_state",
+            "decision_authorization_evidence"
+          ],
+          "outputs": [
+            "observed_decision_currentness",
+            "explicit_authorization_available"
+          ]
+        },
+        {
+          "name": "SealUnavailableDecisionSuccessors",
+          "inputs": [
+            "observed_decision_currentness",
+            "explicit_authorization_available"
+          ],
+          "outputs": [
+            "decision_evidence",
+            "successor_availability",
+            "verifier_expectation"
+          ]
+        }
+      ],
+      "execution_order": [
+        "InspectDecisionAuthorization",
+        "SealUnavailableDecisionSuccessors"
+      ],
+      "edges": [
+        {
+          "source": "InspectDecisionAuthorization.observed_decision_currentness",
+          "target": "SealUnavailableDecisionSuccessors.observed_decision_currentness"
+        },
+        {
+          "source": "InspectDecisionAuthorization.explicit_authorization_available",
+          "target": "SealUnavailableDecisionSuccessors.explicit_authorization_available"
+        }
+      ],
+      "entry_signature": "InspectDecisionAuthorization",
+      "terminal_signature": "SealUnavailableDecisionSuccessors",
+      "closed": true,
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "digest": "sha256:72395d9d4bef24eaf5213803539bd0d598802d4dd7530df8f80917d772756728"
+    },
+    "controls_evidence": {
+      "schema_version": "dspx-open-decision-controls-evidence-v1",
+      "task_key": "B4-DSPx-publication",
+      "transition_token": "open_decision",
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "decision_currentness": "required_not_available",
+      "explicit_decision_authorization_available": false,
+      "open_decision_performed": false,
+      "decision_mutation_performed": false,
+      "other_mutation_performed": false,
+      "successor_availability": [
+        {
+          "transition_token": "continue_current_execution_task",
+          "availability": "unavailable"
+        },
+        {
+          "transition_token": "request_owner_route",
+          "availability": "unavailable"
+        },
+        {
+          "transition_token": "close_implementation_wave",
+          "availability": "unavailable"
+        },
+        {
+          "transition_token": "activate_guidance",
+          "availability": "unavailable"
+        },
+        {
+          "transition_token": "default_residual_adoption_hardening",
+          "availability": "unavailable"
+        },
+        {
+          "transition_token": "inspect_status_before_proceeding",
+          "availability": "unavailable"
+        }
+      ],
+      "all_successors_unavailable": true,
+      "generated_program_dispatch_ready": false,
+      "declaration_is_ak_authority": false,
+      "digest": "sha256:016bb015bb8c858dfb7bcf7fcd06f9489c8c2f7fc885e257b8d61a7a6c0f0fb3"
+    }
+  }
+}

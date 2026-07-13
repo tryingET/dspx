@@ -30,17 +30,19 @@ PROTOCOL_VERSION = "layer12-v1"
 B0_TOKEN = "continue_current_execution_task"
 B1_TOKEN = "request_owner_route"
 B3_TOKEN = "inspect_status_before_proceeding"
+B4_TOKEN = "open_decision"
 B2_TOKENS = (
     "close_implementation_wave",
     "activate_guidance",
     "default_residual_adoption_hardening",
 )
-SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN, B3_TOKEN, *B2_TOKENS}
+SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN, B3_TOKEN, B4_TOKEN, *B2_TOKENS}
 DSPX_OWNER = "softwareco/owned/dspx"
 AK_OWNER = "softwareco/owned/agent-kernel"
 B0_FAMILY_ID = "dspx.layer12.continue-current-execution-task.v1"
 B1_FAMILY_ID = "dspx.layer12.request-owner-route.v1"
 B3_FAMILY_ID = "dspx.layer12.inspect-status-before-proceeding.v1"
+B4_FAMILY_ID = "dspx.layer12.open-decision.v1"
 B2_FAMILY_IDS = {
     "close_implementation_wave": "dspx.layer12.close-implementation-wave.v1",
     "activate_guidance": "dspx.layer12.activate-guidance.v1",
@@ -50,6 +52,7 @@ TOKEN_FAMILY_IDS = {
     B0_TOKEN: B0_FAMILY_ID,
     B1_TOKEN: B1_FAMILY_ID,
     B3_TOKEN: B3_FAMILY_ID,
+    B4_TOKEN: B4_FAMILY_ID,
     **B2_FAMILY_IDS,
 }
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
@@ -524,6 +527,23 @@ B3_KEY_ID = "dspx-iw14b-b3-inspect-status-before-proceeding-test-key-v1"
 B3_PUBLIC_KEY_B64 = "hehxCHXTRUebtBnVtshHR8gr3VB1NZu84ndlf16sk1g="
 B3_PROGRAM_ID = "dspx.generated.inspect_status_before_proceeding.v1"
 
+B4_SCOPE_DIGEST = (
+    "sha256:170fc5f6509d43d65c95b4a29bbd85ec00089c38b7ba1d2c827848f25afc59bb"
+)
+B4_TASK_KEY = "B4-DSPx-publication"
+B4_AUTHORIZATION_EVIDENCE_ID = "4429"
+B4_TASK_ID = "3915"
+B4_PUBLICATION_ID = "dspx-iw14b-open-decision-owner-local-test-v1"
+B4_PUBLICATION_EPOCH = 1
+B4_PUBLISHED_AT = "2026-07-12T03:00:00Z"
+B4_KEY_ID = "dspx-iw14b-b4-open-decision-test-key-v1"
+B4_PUBLIC_KEY_B64 = "3Gtaag9hUzAEq+dHb9GP0bAR9XgQlY1ZYbewrn5+Bx4="
+B4_PROGRAM_ID = "dspx.generated.open_decision.v1"
+B4_SUCCESSOR_AVAILABILITY: list[dict[str, str]] = [
+    {"transition_token": token, "availability": "unavailable"}
+    for token in (B0_TOKEN, B1_TOKEN, *B2_TOKENS, B3_TOKEN)
+]
+
 B2_SCOPE_DIGEST = (
     "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
 )
@@ -989,6 +1009,125 @@ def _check_b3_program_evidence(value: object, *, expected_family_id: str) -> Non
     )
 
 
+def _check_b4_program_evidence(value: object, *, expected_family_id: str) -> None:
+    evidence = _object(value, "spec.program_evidence")
+    _closed(
+        evidence,
+        {"program_intent", "module_graph", "controls_evidence"},
+        "spec.program_evidence",
+    )
+    intent = _check_hash_bound(
+        evidence["program_intent"], "spec.program_evidence.program_intent"
+    )
+    _exact(
+        intent,
+        {
+            "schema_version": "program-intent-v2",
+            "name": "OpenDecision",
+            "program_id": B4_PROGRAM_ID,
+            "objective": "Emit blocked owner-local evidence when an explicit current decision authorization is unavailable.",
+            "inputs": ["decision_state", "decision_authorization_evidence"],
+            "outputs": [
+                "decision_evidence",
+                "successor_availability",
+                "verifier_expectation",
+            ],
+            "family_id": expected_family_id,
+            "transition_token": B4_TOKEN,
+            "effects": "none",
+            "read_only": True,
+            "zero_mutation": True,
+            "allowed_mutations": [],
+            "digest": intent["digest"],
+        },
+        "spec.program_evidence.program_intent",
+    )
+    graph = _check_hash_bound(
+        evidence["module_graph"], "spec.program_evidence.module_graph"
+    )
+    _exact(
+        graph,
+        {
+            "schema_version": "dspx-fixed-module-graph-v1",
+            "program_id": B4_PROGRAM_ID,
+            "signatures": [
+                {
+                    "name": "InspectDecisionAuthorization",
+                    "inputs": [
+                        "decision_state",
+                        "decision_authorization_evidence",
+                    ],
+                    "outputs": [
+                        "observed_decision_currentness",
+                        "explicit_authorization_available",
+                    ],
+                },
+                {
+                    "name": "SealUnavailableDecisionSuccessors",
+                    "inputs": [
+                        "observed_decision_currentness",
+                        "explicit_authorization_available",
+                    ],
+                    "outputs": [
+                        "decision_evidence",
+                        "successor_availability",
+                        "verifier_expectation",
+                    ],
+                },
+            ],
+            "execution_order": [
+                "InspectDecisionAuthorization",
+                "SealUnavailableDecisionSuccessors",
+            ],
+            "edges": [
+                {
+                    "source": "InspectDecisionAuthorization.observed_decision_currentness",
+                    "target": "SealUnavailableDecisionSuccessors.observed_decision_currentness",
+                },
+                {
+                    "source": "InspectDecisionAuthorization.explicit_authorization_available",
+                    "target": "SealUnavailableDecisionSuccessors.explicit_authorization_available",
+                },
+            ],
+            "entry_signature": "InspectDecisionAuthorization",
+            "terminal_signature": "SealUnavailableDecisionSuccessors",
+            "closed": True,
+            "effects": "none",
+            "read_only": True,
+            "zero_mutation": True,
+            "allowed_mutations": [],
+            "digest": graph["digest"],
+        },
+        "spec.program_evidence.module_graph",
+    )
+    controls = _check_hash_bound(
+        evidence["controls_evidence"], "spec.program_evidence.controls_evidence"
+    )
+    _exact(
+        controls,
+        {
+            "schema_version": "dspx-open-decision-controls-evidence-v1",
+            "task_key": B4_TASK_KEY,
+            "transition_token": B4_TOKEN,
+            "effects": "none",
+            "read_only": True,
+            "zero_mutation": True,
+            "allowed_mutations": [],
+            "decision_currentness": "required_not_available",
+            "explicit_decision_authorization_available": False,
+            "open_decision_performed": False,
+            "decision_mutation_performed": False,
+            "other_mutation_performed": False,
+            "successor_availability": B4_SUCCESSOR_AVAILABILITY,
+            "all_successors_unavailable": True,
+            "generated_program_dispatch_ready": False,
+            "declaration_is_ak_authority": False,
+            "digest": controls["digest"],
+        },
+        "spec.program_evidence.controls_evidence",
+    )
+
+
 def check_fixed_family_spec(
     spec: object,
     *,
@@ -1104,6 +1243,27 @@ def check_fixed_family_spec(
         _check_b3_program_evidence(
             item.get("program_evidence"), expected_family_id=expected_family_id
         )
+    elif pinned_token == B4_TOKEN:
+        if _digest(expected_scope_digest, "expected_scope_digest") != B4_SCOPE_DIGEST:
+            raise Layer12FixedFamilyPublicationError("B4 authorization scope drift")
+        authorization = _object(
+            item.get("authorization_evidence"), "spec.authorization_evidence"
+        )
+        _exact(
+            authorization,
+            {
+                "task_key": B4_TASK_KEY,
+                "authorization_evidence_id": B4_AUTHORIZATION_EVIDENCE_ID,
+                "task_id": B4_TASK_ID,
+                "scope_digest": B4_SCOPE_DIGEST,
+                "declaration_is_ak_authority": False,
+                "transition_authorized": False,
+            },
+            "spec.authorization_evidence",
+        )
+        _check_b4_program_evidence(
+            item.get("program_evidence"), expected_family_id=expected_family_id
+        )
     elif pinned_token in B2_TOKENS:
         if _digest(expected_scope_digest, "expected_scope_digest") != B2_SCOPE_DIGEST:
             raise Layer12FixedFamilyPublicationError("B2 authorization scope drift")
@@ -1207,7 +1367,7 @@ def check_fixed_family_publication(
 ) -> dict[str, object]:
     """Verify a publication against caller pins and closed owner fixture anchors."""
 
-    if expected_transition_token in {B1_TOKEN, B3_TOKEN, *B2_TOKENS}:
+    if expected_transition_token in {B1_TOKEN, B3_TOKEN, B4_TOKEN, *B2_TOKENS}:
         if expected_transition_token == B1_TOKEN:
             owner_anchor = {
                 "publication_id": REQUEST_OWNER_ROUTE_PUBLICATION_ID,
@@ -1223,6 +1383,14 @@ def check_fixed_family_publication(
                 "published_at": B3_PUBLISHED_AT,
                 "key_id": B3_KEY_ID,
                 "public_key_b64": B3_PUBLIC_KEY_B64,
+            }
+        elif expected_transition_token == B4_TOKEN:
+            owner_anchor = {
+                "publication_id": B4_PUBLICATION_ID,
+                "epoch": B4_PUBLICATION_EPOCH,
+                "published_at": B4_PUBLISHED_AT,
+                "key_id": B4_KEY_ID,
+                "public_key_b64": B4_PUBLIC_KEY_B64,
             }
         elif expected_transition_token in B2_TOKENS:
             owner_anchor = B2_PUBLICATION_ANCHORS[expected_transition_token]
@@ -1306,7 +1474,7 @@ def check_fixed_family_publication(
         raise Layer12FixedFamilyPublicationError(
             "publication_id does not match external pin"
         )
-    if expected_transition_token in {B1_TOKEN, B3_TOKEN, *B2_TOKENS}:
+    if expected_transition_token in {B1_TOKEN, B3_TOKEN, B4_TOKEN, *B2_TOKENS}:
         pinned_published_at = _text(expected_published_at, "expected_published_at")
         if item["published_at"] != pinned_published_at:
             raise Layer12FixedFamilyPublicationError(
@@ -1314,8 +1482,8 @@ def check_fixed_family_publication(
             )
         published_at = _time(pinned_published_at, "expected_published_at")
     else:
-        # Preserve B0's artifact-time behavior; only the closed B1 fixture adds
-        # an owner-fixed published_at lifecycle anchor.
+        # Preserve B0's artifact-time behavior; the later closed TEST fixtures
+        # carry owner-fixed published_at lifecycle anchors.
         published_at = _time(item["published_at"], "published_at")
     if item["publication_scope"] != OWNER_LOCAL_SCOPE:
         raise Layer12FixedFamilyPublicationError(
