@@ -41,7 +41,7 @@
     "rollout": false
   },
   "authorization_evidence": {
-    "task_key": "IW14b-B3-DSPx-publication",
+    "task_key": "B3-DSPx-publication",
     "authorization_evidence_id": "4345",
     "task_id": "3869",
     "scope_digest": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb",
@@ -122,7 +122,7 @@
     },
     "controls_evidence": {
       "schema_version": "dspx-read-only-controls-evidence-v1",
-      "task_key": "IW14b-B3-DSPx-publication",
+      "task_key": "B3-DSPx-publication",
       "transition_token": "inspect_status_before_proceeding",
       "effects": "none",
       "read_only": true,
@@ -131,7 +131,7 @@
       "transition_action_performed": false,
       "generated_program_dispatch_ready": false,
       "declaration_is_ak_authority": false,
-      "digest": "sha256:807b715e28945c0799e38a959196aa6720c4ee381d7cbdc9791cfc2b60aa9862"
+      "digest": "sha256:cd7065d0cf85772d6b082c26af9f9776c4276c91eb9b86ea436a24fd8426e9a4"
     }
   }
 }

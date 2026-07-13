@@ -14,7 +14,7 @@
     "protocol_version": "layer12-v1",
     "transition_token": "inspect_status_before_proceeding",
     "spec_schema_version": "layer12-fixed-family-spec-v1",
-    "spec_digest": "sha256:62191d3f3713a7625a42e62173e0ff0e0397663ebf6f9d2bd26faf4141060367",
+    "spec_digest": "sha256:cf7c6722cb780d7c1f8bb2c4242e77f5e2c77950d379cfb453b62fbc8c48dd30",
     "scope_digest": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
   },
   "ak_wire_evidence": {
@@ -46,7 +46,7 @@
   "signature": {
     "algorithm": "Ed25519",
     "key_id": "dspx-iw14b-b3-inspect-status-before-proceeding-test-key-v1",
-    "signed_payload_digest": "sha256:a296f2cd1a00a029cf0098d7fe499e8a1b10489c1ba5031446a7ec0fe622287d",
-    "signature_b64": "n2l8uOwg2aauZif1/8fyYj0yMhEZaqCvOEGNIIJ4LQlVTKoYOS5bLq41ZX1u4Dwgk9uOvMMf2ZVgvMQIc5w6DQ=="
+    "signed_payload_digest": "sha256:ef9c5b66c6b77b2e295db95c5b7679d15c75ca6fc47d210215cc484990590e48",
+    "signature_b64": "4YT4WHfg6N7VpzCEeGi+1rbI9Mz/K9fGFVeAuh652FNLrkzCFPCnmtAwnjSVQoomOTmfRJEcQpoZs30VXir0CQ=="
   }
 }

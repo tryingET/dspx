@@ -514,7 +514,7 @@ REQUEST_OWNER_ROUTE_KEY_VALID_UNTIL = "2026-08-01T00:00:00Z"
 B3_SCOPE_DIGEST = (
     "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
 )
-B3_TASK_KEY = "IW14b-B3-DSPx-publication"
+B3_TASK_KEY = "B3-DSPx-publication"
 B3_AUTHORIZATION_EVIDENCE_ID = "4345"
 B3_TASK_ID = "3869"
 B3_PUBLICATION_ID = "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"

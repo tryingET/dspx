@@ -1479,7 +1479,7 @@ B3_SCOPE_DIGEST = (
     "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
 )
 B3_SPEC_DIGEST = (
-    "sha256:62191d3f3713a7625a42e62173e0ff0e0397663ebf6f9d2bd26faf4141060367"
+    "sha256:cf7c6722cb780d7c1f8bb2c4242e77f5e2c77950d379cfb453b62fbc8c48dd30"
 )
 B3_PUBLICATION_ID = "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
 B3_KEY_ID = "dspx-iw14b-b3-inspect-status-before-proceeding-test-key-v1"
@@ -1527,7 +1527,7 @@ def test_b3_publication_is_closed_signed_read_only_and_schema_valid() -> None:
     assert result["transition_token"] == B3_TOKEN
     assert result["authority_granted"] is False
     assert spec["authorization_evidence"] == {
-        "task_key": "IW14b-B3-DSPx-publication",
+        "task_key": "B3-DSPx-publication",
         "authorization_evidence_id": "4345",
         "task_id": "3869",
         "scope_digest": B3_SCOPE_DIGEST,

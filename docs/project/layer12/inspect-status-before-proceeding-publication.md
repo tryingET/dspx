@@ -7,7 +7,7 @@ type: "reference"
 
 # `inspect_status_before_proceeding` owner-local publication
 
-This deterministic IW14b B3 artifact publishes only DSPx owner-local, read-only verification evidence for task 3869, authorization evidence 4345, and scope `sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb`. Those identifiers are evidence bindings, not trust roots.
+This deterministic IW14b B3 artifact publishes only DSPx owner-local, read-only verification evidence for task key `B3-DSPx-publication`, task 3869, authorization evidence 4345, and scope `sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb`. Those identifiers are evidence bindings, not trust roots.
 
 - Family: `dspx.layer12.inspect-status-before-proceeding.v1`, coupled exactly and bidirectionally to the one token; there is no generic or cross-token fallback.
 - Publication: `dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1`, epoch 1.
