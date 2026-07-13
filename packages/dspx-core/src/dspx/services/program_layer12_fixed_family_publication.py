@@ -326,10 +326,14 @@ def reconstruct_fixed_family_imports(
         family_contracts[family_key] = family_contract
         imports.append(item)
 
+    prior_import_tokens: list[str] = []
     for index, value in enumerate(prior_imports):
         append_import(value, f"prior_imports[{index}]", is_current=False)
+        prior_import_tokens.append(cast(str, imports[-1]["transition_token"]))
 
     epoch_high_watermarks: dict[tuple[str, str], int] = {}
+    watermark_tokens: list[str] = []
+    watermark_family_keys: list[tuple[str, str]] = []
     for index, value in enumerate(prior_epoch_high_watermarks):
         label = f"prior_epoch_high_watermarks[{index}]"
         watermark = _object(value, label)
@@ -427,24 +431,48 @@ def reconstruct_fixed_family_imports(
         family_contracts[family_key] = watermark_contract
         family_used_publication_ids[family_key] = used_ids
         durable_publication_ids.update(used_ids)
+        watermark_tokens.append(transition_token)
+        watermark_family_keys.append(family_key)
 
+    candidate = (
+        _canonical_import(current_import, "current_import")
+        if current_import is not None
+        else None
+    )
+
+    expected_watermark_tokens = list(FIXED_IMPORT_ORDER[: len(watermark_tokens)])
+    if watermark_tokens != expected_watermark_tokens:
+        raise Layer12FixedFamilyPublicationError(
+            "prior epoch high-watermark history must be an exact ordered prefix "
+            "of the sealed fixed-family history"
+        )
     missing_watermarks = set(last_epochs) - set(epoch_high_watermarks)
     if missing_watermarks:
         raise Layer12FixedFamilyPublicationError(
             "prior imports require an epoch high-water mark for every owner/family"
         )
+    retained_prior_tokens = set(prior_import_tokens)
+    expected_prior_import_tokens = [
+        token for token in watermark_tokens if token in retained_prior_tokens
+    ]
+    if prior_import_tokens != expected_prior_import_tokens:
+        raise Layer12FixedFamilyPublicationError(
+            "prior imports are not a lawful ordered sequence under the sealed "
+            "fixed-family history"
+        )
+    family_order[:] = watermark_family_keys
 
-    if current_import is not None:
-        candidate = _canonical_import(current_import, "current_import")
+    if candidate is not None:
         candidate_token = cast(str, candidate["transition_token"])
         candidate_position = FIXED_IMPORT_ORDER.index(candidate_token)
-        expected_predecessors = {
-            (DSPX_OWNER, TOKEN_FAMILY_IDS[token])
-            for token in FIXED_IMPORT_ORDER[:candidate_position]
-        }
-        if set(epoch_high_watermarks) != expected_predecessors:
+        expected_predecessor_tokens = list(FIXED_IMPORT_ORDER[:candidate_position])
+        if (
+            watermark_tokens != expected_predecessor_tokens
+            or prior_import_tokens != expected_predecessor_tokens
+        ):
             raise Layer12FixedFamilyPublicationError(
-                "current_import does not follow the sealed fixed-family predecessor history"
+                "current_import does not follow the exact ordered sealed "
+                "fixed-family predecessor history of imports"
             )
         append_import(candidate, "current_import", is_current=True)
         current_item = imports[-1]

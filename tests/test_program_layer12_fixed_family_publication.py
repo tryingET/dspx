@@ -2010,6 +2010,12 @@ def test_b4_appends_seventh_then_only_b4_withdrawal_preserves_prior_six_bytes() 
         current_withdrawal=None,
     )
     assert len(cast(list[object], cumulative["imports"])) == 7
+    cumulative_watermarks = cast(
+        list[dict[str, object]], cumulative["family_epoch_high_watermarks"]
+    )
+    assert [row["transition_token"] for row in cumulative_watermarks] == [
+        item["transition_token"] for item in [*prior_six, b4]
+    ]
     withdrawn = reconstruct_fixed_family_imports(
         prior_imports=cast(list[object], cumulative["imports"]),
         prior_epoch_high_watermarks=cast(
@@ -2020,12 +2026,15 @@ def test_b4_appends_seventh_then_only_b4_withdrawal_preserves_prior_six_bytes() 
     )
     retained = cast(list[dict[str, object]], withdrawn["imports"])
     assert [canonical_json(item).encode() for item in retained] == baseline_bytes
+    withdrawn_watermarks = cast(
+        list[dict[str, object]], withdrawn["family_epoch_high_watermarks"]
+    )
+    assert len(withdrawn_watermarks) == 7
+    assert [row["transition_token"] for row in withdrawn_watermarks] == [
+        item["transition_token"] for item in [*prior_six, b4]
+    ]
     history = next(
-        row
-        for row in cast(
-            list[dict[str, object]], withdrawn["family_epoch_high_watermarks"]
-        )
-        if row["family_id"] == B4_FAMILY_ID
+        row for row in withdrawn_watermarks if row["family_id"] == B4_FAMILY_ID
     )
     assert history["epoch"] == 1
     assert history["used_publication_ids"] == [B4_PUBLICATION_ID]
@@ -2067,6 +2076,39 @@ def _all_verified_fixed_imports() -> list[dict[str, object]]:
         ),
         _verified_b4_import(),
     ]
+
+
+def test_reconstruction_rejects_future_b4_singleton_sealed_snapshot() -> None:
+    b4 = _all_verified_fixed_imports()[-1]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="ordered prefix"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[b4],
+            prior_epoch_high_watermarks=_high_watermarks(b4),
+            current_import=None,
+            current_withdrawal=None,
+        )
+
+
+def test_reconstruction_rejects_discontinuous_b0_b4_watermarks() -> None:
+    b0, *_, b4 = _all_verified_fixed_imports()
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="ordered prefix"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[b0],
+            prior_epoch_high_watermarks=_high_watermarks(b0, b4),
+            current_import=None,
+            current_withdrawal=None,
+        )
+
+
+def test_reconstruction_rejects_reversed_b0_through_b3_before_b4() -> None:
+    *predecessors, b4 = _all_verified_fixed_imports()
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="lawful ordered"):
+        reconstruct_fixed_family_imports(
+            prior_imports=list(reversed(predecessors)),
+            prior_epoch_high_watermarks=_high_watermarks(*predecessors),
+            current_import=b4,
+            current_withdrawal=None,
+        )
 
 
 def test_reconstruction_rejects_unknown_token_and_unknown_family_together() -> None:
@@ -2153,14 +2195,14 @@ def test_b4_sealed_high_water_rejects_rollback_replay_encoding() -> None:
 
 
 def test_b4_withdrawal_ref_is_exact_not_caller_defined() -> None:
-    b4 = _verified_b4_import()
+    imports = _all_verified_fixed_imports()
     arbitrary = _withdrawal(OWNER, B4_FAMILY_ID, 1, B4_PUBLICATION_ID)
     arbitrary["withdrawal_ref"] = "attacker-chosen-withdrawal-reference"
     assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(arbitrary)
     with pytest.raises(Layer12FixedFamilyPublicationError, match="withdrawal_ref"):
         reconstruct_fixed_family_imports(
-            prior_imports=[b4],
-            prior_epoch_high_watermarks=_high_watermarks(b4),
+            prior_imports=imports,
+            prior_epoch_high_watermarks=_high_watermarks(*imports),
             current_import=None,
             current_withdrawal=arbitrary,
         )
