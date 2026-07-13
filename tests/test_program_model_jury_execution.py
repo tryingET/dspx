@@ -10,6 +10,8 @@ from pathlib import Path
 import os
 from typing import Any, Mapping
 
+import pytest
+
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
@@ -725,3 +727,40 @@ def test_program_promote_model_jury_rejects_candidate_root_output_before_provide
         "program model jury results output must not be written inside" in result.output
     )
     assert not (program_root / "model_jury_results.json").exists()
+
+
+def test_model_jury_rejects_changed_expected_input_snapshot_before_provider_calls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    evidence = tmp_path / "comparison.json"
+    evidence.write_text('{"status":"compared"}', encoding="utf-8")
+    input_paths = [
+        program_root / "manifest.json",
+        program_root / "jury.json",
+        program_root / "jury_selection.json",
+        program_root / "jury_rubric.json",
+        evidence,
+    ]
+    expected = {
+        path.resolve(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in input_paths
+    }
+    evidence.write_text('{"status":"substituted"}', encoding="utf-8")
+
+    def fail_provider(provider: str | None = None) -> dict[str, Any]:
+        raise AssertionError("provider must not be configured for changed input bytes")
+
+    monkeypatch.setattr(model_jury, "_configure_provider", fail_provider)
+    with pytest.raises(
+        model_jury.ProgramModelJuryExecutionError,
+        match="input snapshots do not match",
+    ):
+        model_jury.build_program_model_jury_execution_result(
+            manifest_path=program_root / "manifest.json",
+            evidence_paths=[evidence],
+            provider="stub",
+            expected_input_sha256=expected,
+            include_default_behavior=False,
+        )

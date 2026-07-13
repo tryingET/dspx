@@ -101,6 +101,75 @@ def consume_foundry_gepa_receipt(
         raise typer.Exit(code=1)
 
 
+@app.command("jury-foundry-gepa-comparison")
+def jury_foundry_gepa_comparison(
+    receipt: Path = typer.Option(
+        ...,
+        "--receipt",
+        help="Canonical successful foundry GEPA consumption-receipt.json",
+    ),
+    provider: str = typer.Option(
+        ...,
+        "--provider",
+        help="Explicit provider for program-specific juror calls",
+    ),
+    adjudicator_id: str = typer.Option(
+        "local_foundry_adjudicator",
+        "--adjudicator-id",
+        help="Local downstream adjudicator id recorded without transition authority",
+    ),
+    adjudicator_kind: str = typer.Option(
+        "local_foundry_adjudicator",
+        "--adjudicator-kind",
+        help="Local downstream adjudicator kind",
+    ),
+    adjudicator_repo: str | None = typer.Option(
+        None,
+        "--adjudicator-repo",
+        help="Owning repo for downstream adjudication, when known",
+    ),
+    max_jurors: int | None = typer.Option(
+        None,
+        "--max-jurors",
+        help="Optional positive bound on selected program-specific jurors",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print jury receipt JSON"),
+) -> None:
+    """Run one receipt-bound program-specific jury without transition authority."""
+    from dspx.services.program_foundry_gepa_comparison_jury import (
+        ProgramFoundryGepaComparisonJuryError,
+        execute_program_foundry_gepa_comparison_jury,
+    )
+
+    try:
+        payload = execute_program_foundry_gepa_comparison_jury(
+            consumption_receipt_path=receipt,
+            provider=provider,
+            adjudicator_id=adjudicator_id,
+            adjudicator_kind=adjudicator_kind,
+            adjudicator_repo=adjudicator_repo,
+            max_jurors=max_jurors,
+        )
+    except ProgramFoundryGepaComparisonJuryError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    except Exception as exc:
+        typer.echo(
+            f"Error: one or more comparison-jury provider calls may have occurred: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=3) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(receipt.parent / "comparison-jury-receipt.json"))
+        typer.echo(f"foundry_gepa_comparison_jury_status: {payload.get('status')}")
+    if payload.get("status") == "blocked_indeterminate":
+        raise typer.Exit(code=3)
+    if payload.get("status") != "ok":
+        raise typer.Exit(code=1)
+
+
 @app.command("optimize-gepa")
 def optimize_gepa(
     manifest: Path = typer.Option(

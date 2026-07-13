@@ -349,6 +349,89 @@ def _validate_existing_receipt(
     return {**receipt, "reused": True}
 
 
+def validate_successful_program_foundry_gepa_consumption_receipt(
+    consumption_receipt_path: Path,
+    *,
+    root_descriptor: int,
+) -> dict[str, Any]:
+    """Revalidate a successful comparison receipt and all of its bound artifacts."""
+
+    receipt_path = consumption_receipt_path.expanduser().absolute()
+    if receipt_path.name != "consumption-receipt.json":
+        raise ProgramFoundryGepaConsumptionError(
+            "foundry GEPA consumption receipt must be consumption-receipt.json"
+        )
+    experiment_root = receipt_path.parent
+    root = experiment_root.parent
+    if experiment_root.name != "gepa-experiment":
+        raise ProgramFoundryGepaConsumptionError(
+            "foundry GEPA consumption receipt must be in gepa-experiment"
+        )
+    assert_path_descriptor_identity(root, root_descriptor, label="foundry root")
+    execution_receipt_path = experiment_root / "execution-receipt.json"
+    try:
+        execution = validate_successful_program_foundry_gepa_execution_receipt(
+            execution_receipt_path,
+            root_descriptor=root_descriptor,
+        )
+    except ProgramFoundryGepaExecutionError as exc:
+        raise ProgramFoundryGepaConsumptionError(str(exc)) from exc
+    if Path(str(execution["experiment_root"])) != experiment_root:
+        raise ProgramFoundryGepaConsumptionError(
+            "GEPA execution and consumption receipts use different experiment roots"
+        )
+    paths = _paths(experiment_root)
+    if receipt_path != paths["receipt"]:
+        raise ProgramFoundryGepaConsumptionError(
+            "foundry GEPA consumption receipt path is not canonical"
+        )
+    _, attempt_sha256 = _load_json_snapshot(
+        paths["attempt"],
+        label="GEPA consumption attempt",
+    )
+    execution = {**execution, "consumption_attempt_sha256": attempt_sha256}
+    validated_receipt = _validate_existing_receipt(execution=execution, paths=paths)
+    if (
+        validated_receipt.get("status") != "ok"
+        or validated_receipt.get("comparison_status") != "compared"
+    ):
+        raise ProgramFoundryGepaConsumptionError(
+            "program-specific jury requires a successful compared GEPA candidate"
+        )
+    receipt_payload, receipt_sha256 = _load_json_snapshot(
+        receipt_path,
+        label="GEPA consumption receipt",
+    )
+    expected_payload = {
+        key: value for key, value in validated_receipt.items() if key != "reused"
+    }
+    if receipt_payload != expected_payload:
+        raise ProgramFoundryGepaConsumptionError(
+            "GEPA consumption receipt changed during validation"
+        )
+    bindings = receipt_payload.get("bindings")
+    if not isinstance(bindings, Mapping):
+        raise ProgramFoundryGepaConsumptionError(
+            "GEPA consumption receipt bindings are required"
+        )
+    return {
+        "root": root,
+        "experiment_root": experiment_root,
+        "receipt": receipt_payload,
+        "receipt_path": receipt_path,
+        "receipt_sha256": receipt_sha256,
+        "proposal_id": execution["proposal_id"],
+        "source_manifest_path": Path(str(bindings["source_manifest_path"])),
+        "source_manifest_sha256": str(bindings["source_manifest_sha256"]),
+        "candidate_manifest_path": Path(str(bindings["candidate_manifest_path"])),
+        "candidate_manifest_sha256": str(bindings["candidate_manifest_sha256"]),
+        "comparison_path": Path(str(bindings["comparison_path"])),
+        "comparison_sha256": str(bindings["comparison_sha256"]),
+        "execution_receipt_path": Path(str(bindings["execution_receipt_path"])),
+        "execution_receipt_sha256": str(bindings["execution_receipt_sha256"]),
+    }
+
+
 def consume_successful_program_foundry_gepa_receipt(
     *, execution_receipt_path: Path
 ) -> dict[str, Any]:

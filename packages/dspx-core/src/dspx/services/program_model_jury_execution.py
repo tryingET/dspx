@@ -43,12 +43,15 @@ class ProgramModelJuryExecutionError(ValueError):
     """Raised when model-backed jury execution inputs or outputs are invalid."""
 
 
-def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
+def _load_json_object_snapshot(path: Path, *, label: str) -> tuple[dict[str, Any], str]:
+    resolved = path.expanduser().resolve()
     try:
-        payload = json.loads(path.expanduser().resolve().read_text(encoding="utf-8"))
+        raw = resolved.read_bytes()
     except FileNotFoundError as exc:
         raise ProgramModelJuryExecutionError(f"{label} not found: {path}") from exc
-    except json.JSONDecodeError as exc:
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ProgramModelJuryExecutionError(
             f"{label} must be valid JSON: {path}"
         ) from exc
@@ -56,6 +59,11 @@ def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
         raise ProgramModelJuryExecutionError(
             f"{label} must contain a JSON object: {path}"
         )
+    return payload, hashlib.sha256(raw).hexdigest()
+
+
+def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
+    payload, _ = _load_json_object_snapshot(path, label=label)
     return payload
 
 
@@ -151,8 +159,8 @@ def _candidate_root(manifest_path: Path, manifest: Mapping[str, Any]) -> Path:
     return manifest_path.expanduser().resolve().parent
 
 
-def _load_manifest(path: Path) -> dict[str, Any]:
-    manifest = _load_json_object(path, label="program manifest")
+def _load_manifest(path: Path) -> tuple[dict[str, Any], str]:
+    manifest, digest = _load_json_object_snapshot(path, label="program manifest")
     _validate_schema(
         manifest, label="program manifest", expected_schema=PROGRAM_MANIFEST_SCHEMA
     )
@@ -160,7 +168,7 @@ def _load_manifest(path: Path) -> dict[str, Any]:
         raise ProgramModelJuryExecutionError(
             "program manifest does not expose candidate identity"
         )
-    return manifest
+    return manifest, digest
 
 
 def _load_jury_artifacts(
@@ -170,9 +178,11 @@ def _load_jury_artifacts(
     jury_path = root / "jury.json"
     selection_path = root / "jury_selection.json"
     rubric_path = root / "jury_rubric.json"
-    jury = _load_json_object(jury_path, label="jury")
-    selection = _load_json_object(selection_path, label="jury selection")
-    rubric = _load_json_object(rubric_path, label="jury rubric")
+    jury, jury_sha256 = _load_json_object_snapshot(jury_path, label="jury")
+    selection, selection_sha256 = _load_json_object_snapshot(
+        selection_path, label="jury selection"
+    )
+    rubric, rubric_sha256 = _load_json_object_snapshot(rubric_path, label="jury rubric")
     _validate_schema(jury, label="jury", expected_schema=PROGRAM_JURY_SCHEMA)
     _validate_schema(
         selection, label="jury selection", expected_schema=PROGRAM_JURY_SELECTION_SCHEMA
@@ -186,11 +196,11 @@ def _load_jury_artifacts(
         rubric,
         {
             "jury_path": str(jury_path.resolve()),
-            "jury_sha256": _sha256_file(jury_path),
+            "jury_sha256": jury_sha256,
             "jury_selection_path": str(selection_path.resolve()),
-            "jury_selection_sha256": _sha256_file(selection_path),
+            "jury_selection_sha256": selection_sha256,
             "jury_rubric_path": str(rubric_path.resolve()),
-            "jury_rubric_sha256": _sha256_file(rubric_path),
+            "jury_rubric_sha256": rubric_sha256,
         },
     )
 
@@ -241,16 +251,21 @@ def _load_extra_evidence(paths: Sequence[Path]) -> list[dict[str, Any]]:
                 entries.extend(_load_extra_evidence([child]))
             continue
         try:
-            size = resolved.stat().st_size
+            raw = resolved.read_bytes()
         except OSError as exc:
             raise ProgramModelJuryExecutionError(
-                f"evidence path cannot be statted: {resolved}"
+                f"evidence path cannot be read: {resolved}"
             ) from exc
-        if size > MAX_MODEL_JURY_EVIDENCE_BYTES:
+        if len(raw) > MAX_MODEL_JURY_EVIDENCE_BYTES:
             raise ProgramModelJuryExecutionError(
                 f"evidence path exceeds {MAX_MODEL_JURY_EVIDENCE_BYTES} byte limit: {resolved}"
             )
-        text = resolved.read_text(encoding="utf-8")
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ProgramModelJuryExecutionError(
+                f"evidence path must be UTF-8 text: {resolved}"
+            ) from exc
         try:
             payload: Any = json.loads(text)
         except json.JSONDecodeError:
@@ -260,7 +275,7 @@ def _load_extra_evidence(paths: Sequence[Path]) -> list[dict[str, Any]]:
             {
                 "kind": "explicit_evidence",
                 "path": str(resolved),
-                "sha256": _sha256_file(resolved),
+                "sha256": hashlib.sha256(raw).hexdigest(),
                 "schema_version": payload.get("schemaVersion")
                 or payload.get("schema_version")
                 if isinstance(payload, Mapping)
@@ -478,11 +493,13 @@ def build_program_model_jury_execution_result(
     adjudicator_kind: str = "target_repo_product_manager_agent",
     adjudicator_repo: str | None = None,
     max_jurors: int | None = None,
+    expected_input_sha256: Mapping[Path, str] | None = None,
+    include_default_behavior: bool = True,
 ) -> dict[str, Any]:
     """Run provider-backed juror deliberation over generated-program evidence."""
 
     manifest_path = manifest_path.expanduser().resolve()
-    manifest = _load_manifest(manifest_path)
+    manifest, manifest_sha256 = _load_manifest(manifest_path)
     jury, selection, rubric, jury_paths = _load_jury_artifacts(manifest_path, manifest)
     selected = [
         item
@@ -500,15 +517,39 @@ def build_program_model_jury_execution_result(
         for item in _safe_list(rubric.get("juror_rubrics"))
         if isinstance(item, Mapping)
     }
-    default_summary, default_entries = _load_default_behavior_evidence(
-        manifest_path, manifest
-    )
+    if include_default_behavior:
+        default_summary, default_entries = _load_default_behavior_evidence(
+            manifest_path, manifest
+        )
+    else:
+        default_summary, default_entries = (
+            {"present": False, "entry_count": 0, "kinds": []},
+            [],
+        )
     extra_entries = _load_extra_evidence(evidence_paths)
     evidence_entries = [*default_entries, *extra_entries]
     if not evidence_entries:
         raise ProgramModelJuryExecutionError(
             "model jury requires behavior evidence or at least one --evidence path"
         )
+    observed_input_hashes = {
+        manifest_path: manifest_sha256,
+        Path(jury_paths["jury_path"]): jury_paths["jury_sha256"],
+        Path(jury_paths["jury_selection_path"]): jury_paths["jury_selection_sha256"],
+        Path(jury_paths["jury_rubric_path"]): jury_paths["jury_rubric_sha256"],
+        **{
+            Path(str(entry["path"])): str(entry["sha256"]) for entry in evidence_entries
+        },
+    }
+    if expected_input_sha256 is not None:
+        expected = {
+            path.expanduser().resolve(): str(digest)
+            for path, digest in expected_input_sha256.items()
+        }
+        if observed_input_hashes != expected:
+            raise ProgramModelJuryExecutionError(
+                "model jury input snapshots do not match the expected receipt-bound bytes"
+            )
     provider_config = _configure_provider(provider)
     identity = _identity_from_manifest(manifest)
     candidate_identity = {
@@ -572,7 +613,7 @@ def build_program_model_jury_execution_result(
         "identity": identity,
         "created_from": {
             "manifest_path": str(manifest_path),
-            "manifest_sha256": _sha256_file(manifest_path),
+            "manifest_sha256": manifest_sha256,
             "manifest_schema_version": manifest.get("schema_version"),
             **jury_paths,
             "evidence_paths": [
