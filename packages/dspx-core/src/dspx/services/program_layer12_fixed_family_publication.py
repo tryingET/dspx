@@ -95,6 +95,13 @@ FIXED_IMPORT_FACTS: dict[str, tuple[str, str, int]] = {
         1,
     ),
 }
+FIXED_IMPORT_ORDER = (
+    B0_TOKEN,
+    B1_TOKEN,
+    *B2_TOKENS,
+    B3_TOKEN,
+    B4_TOKEN,
+)
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
 
 
@@ -428,7 +435,18 @@ def reconstruct_fixed_family_imports(
         )
 
     if current_import is not None:
-        append_import(current_import, "current_import", is_current=True)
+        candidate = _canonical_import(current_import, "current_import")
+        candidate_token = cast(str, candidate["transition_token"])
+        candidate_position = FIXED_IMPORT_ORDER.index(candidate_token)
+        expected_predecessors = {
+            (DSPX_OWNER, TOKEN_FAMILY_IDS[token])
+            for token in FIXED_IMPORT_ORDER[:candidate_position]
+        }
+        if set(epoch_high_watermarks) != expected_predecessors:
+            raise Layer12FixedFamilyPublicationError(
+                "current_import does not follow the sealed fixed-family predecessor history"
+            )
+        append_import(candidate, "current_import", is_current=True)
         current_item = imports[-1]
         current_key = (
             cast(str, current_item["owner"]),

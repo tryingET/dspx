@@ -627,7 +627,8 @@ def test_reconstruction_withdraws_only_exact_supported_family_epoch() -> None:
 def test_reconstruction_rejects_duplicate_closed_family_history() -> None:
     b0 = _verified_b0_import()
     with pytest.raises(
-        Layer12FixedFamilyPublicationError, match="duplicates|high-water"
+        Layer12FixedFamilyPublicationError,
+        match="duplicates|high-water|predecessor history",
     ):
         reconstruct_fixed_family_imports(
             prior_imports=[b0],
@@ -668,7 +669,10 @@ def test_chained_reconstruction_preserves_sealed_withdrawn_high_watermark() -> N
     assert withdrawn["imports"] == []
     watermarks = cast(list[object], withdrawn["family_epoch_high_watermarks"])
 
-    with pytest.raises(Layer12FixedFamilyPublicationError, match="durable|high-water"):
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError,
+        match="durable|high-water|predecessor history",
+    ):
         reconstruct_fixed_family_imports(
             prior_imports=[],
             prior_epoch_high_watermarks=watermarks,
@@ -2116,6 +2120,14 @@ def test_b4_coordinated_import_and_watermark_digest_mutation_rejects() -> None:
 def test_b4_sealed_high_water_rejects_rollback_replay_encoding() -> None:
     b4 = _verified_b4_import()
     sealed_watermark = _high_watermarks(b4)[0]
+
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="predecessor history"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[],
+            current_import=b4,
+            current_withdrawal=None,
+        )
 
     forged_history = copy.deepcopy(sealed_watermark)
     forged_history["epoch"] = 2

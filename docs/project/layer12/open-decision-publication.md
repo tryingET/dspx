@@ -16,9 +16,10 @@ This deterministic IW14b B4 artifact publishes only DSPx owner-local TEST verifi
 - Decision gate: `decision_currentness=required_not_available` and `explicit_decision_authorization_available=false`.
 - Mutation boundary: `effects=none`, `read_only=true`, `zero_mutation=true`, `allowed_mutations=[]`, `open_decision_performed=false`, `decision_mutation_performed=false`, and `other_mutation_performed=false`.
 - Successor boundary: every one of the six pre-existing transition tokens is explicitly `unavailable`, `all_successors_unavailable=true`, and `generated_program_dispatch_ready=false`.
-- Sealed reconstruction: imports and epoch high-water marks admit only the seven exact DSPx owner token/family/spec-digest/publication-id/epoch facts; unknown families and caller-coordinated history substitutions fail closed.
+- Sealed reconstruction: imports and epoch high-water marks admit only the seven exact DSPx owner token/family/spec-digest/publication-id/epoch facts in their fixed predecessor order; unknown families, direct B4 replay without the six-family predecessor history, and caller-coordinated field substitutions fail closed.
 - Withdrawal identity: the B4 tombstone reference is exactly `withdrawal:softwareco/owned/dspx:dspx.layer12.open-decision.v1:1`; arbitrary or cross-family references fail closed.
 
 The artifact does not open or mutate a decision, execute a successor, contact AK, dispatch the generated program, or mutate any owner surface. It grants no AK trust or integration authority and no affected-use publication, apply, promotion, activation, dogfood, rollout, or closeout authority.
 
 Reconstruction appends this seventh import to byte-identical B0–B3 six-import history. An exact B4-only withdrawal returns those six imports unchanged while retaining the B4 epoch high-water mark and used publication-id tombstone append-only.
+The caller must durably preserve the latest reconstruction output. As a pure stateless verifier, reconstruction cannot distinguish a wholesale rollback to a byte-identical, previously valid six-family snapshot from the original pre-B4 snapshot; preventing that stale-snapshot substitution requires an external monotonic storage/root owner and is not bootstrapped from caller-supplied artifact declarations.
