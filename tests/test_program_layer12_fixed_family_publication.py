@@ -2255,7 +2255,7 @@ def test_stale_seven_imports_reject_with_retained_post_b4_withdrawal_watermarks(
 def test_withdrawn_publication_marker_tampering_rejects(mutation: str) -> None:
     stale_imports, withdrawn = _post_b4_withdrawal_snapshot()
     if mutation == "add":
-        prior_imports: list[object] = stale_imports
+        prior_imports = cast(list[object], stale_imports)
         watermarks = _high_watermarks(*stale_imports)
     else:
         prior_imports = cast(list[object], withdrawn["imports"])
