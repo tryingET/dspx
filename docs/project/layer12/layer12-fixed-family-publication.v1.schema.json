@@ -2329,7 +2329,9 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/familyImport"
-          }
+          },
+          "maxItems": 7,
+          "uniqueItems": true
         },
         "withdrawal_applied": {
           "type": "boolean"
@@ -2354,9 +2356,923 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/epochHighWatermark"
+          },
+          "maxItems": 7,
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.continue-current-execution-task.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.continue-current-execution-task.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.continue-current-execution-task.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.continue-current-execution-task.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.continue-current-execution-task.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.continue-current-execution-task.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.request-owner-route.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.request-owner-route.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.request-owner-route.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-request-owner-route-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.request-owner-route.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.request-owner-route.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-request-owner-route-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.request-owner-route.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.close-implementation-wave.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.close-implementation-wave.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.close-implementation-wave.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.close-implementation-wave.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.close-implementation-wave.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.close-implementation-wave.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.activate-guidance.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.activate-guidance.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.activate-guidance.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-activate-guidance-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.activate-guidance.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.activate-guidance.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-activate-guidance-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.activate-guidance.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.open-decision.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.open-decision.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.open-decision.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-open-decision-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.open-decision.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.open-decision.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-open-decision-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.open-decision.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
           }
         }
-      }
+      ]
     },
     "epochHighWatermark": {
       "type": "object",
@@ -2368,7 +3284,8 @@
         "epoch",
         "transition_token",
         "spec_digest",
-        "used_publication_ids"
+        "used_publication_ids",
+        "withdrawn_publication_ids"
       ],
       "properties": {
         "schema_version": {
@@ -2400,6 +3317,15 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "withdrawn_publication_ids": {
+          "type": "array",
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "oneOf": [
@@ -2420,6 +3346,14 @@
             "used_publication_ids": {
               "const": [
                 "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+              ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-continue-current-execution-task-owner-local-v1"
+                ]
               ]
             }
           }
@@ -2442,6 +3376,14 @@
               "const": [
                 "dspx-iw14b-request-owner-route-owner-local-test-v1"
               ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-request-owner-route-owner-local-test-v1"
+                ]
+              ]
             }
           }
         },
@@ -2462,6 +3404,14 @@
             "used_publication_ids": {
               "const": [
                 "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+              ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-close-implementation-wave-owner-local-test-v1"
+                ]
               ]
             }
           }
@@ -2484,6 +3434,14 @@
               "const": [
                 "dspx-iw14b-activate-guidance-owner-local-test-v1"
               ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-activate-guidance-owner-local-test-v1"
+                ]
+              ]
             }
           }
         },
@@ -2504,6 +3462,14 @@
             "used_publication_ids": {
               "const": [
                 "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+              ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-default-residual-adoption-hardening-owner-local-test-v1"
+                ]
               ]
             }
           }
@@ -2526,6 +3492,14 @@
               "const": [
                 "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
               ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+                ]
+              ]
             }
           }
         },
@@ -2546,6 +3520,14 @@
             "used_publication_ids": {
               "const": [
                 "dspx-iw14b-open-decision-owner-local-test-v1"
+              ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-open-decision-owner-local-test-v1"
+                ]
               ]
             }
           }

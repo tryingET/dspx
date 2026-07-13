@@ -273,6 +273,7 @@ def reconstruct_fixed_family_imports(
     family_contracts: dict[tuple[str, str], tuple[str, str]] = {}
     family_order: list[tuple[str, str]] = []
     family_used_publication_ids: dict[tuple[str, str], list[str]] = {}
+    family_withdrawn_publication_ids: dict[tuple[str, str], list[str]] = {}
     durable_publication_ids: set[str] = set()
 
     def remember_family(key: tuple[str, str]) -> None:
@@ -347,6 +348,7 @@ def reconstruct_fixed_family_imports(
                 "spec_digest",
                 "transition_token",
                 "used_publication_ids",
+                "withdrawn_publication_ids",
             },
             label,
         )
@@ -397,6 +399,23 @@ def reconstruct_fixed_family_imports(
             raise Layer12FixedFamilyPublicationError(
                 f"{label}.used_publication_ids conflicts with immutable DSPx-owner history"
             )
+        raw_withdrawn_ids = watermark["withdrawn_publication_ids"]
+        if not isinstance(raw_withdrawn_ids, list):
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.withdrawn_publication_ids must be a list"
+            )
+        withdrawn_ids = [
+            _text(value, f"{label}.withdrawn_publication_ids")
+            for value in raw_withdrawn_ids
+        ]
+        if len(set(withdrawn_ids)) != len(withdrawn_ids):
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.withdrawn_publication_ids contains duplicates"
+            )
+        if withdrawn_ids not in ([], [expected_publication_id]):
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.withdrawn_publication_ids conflicts with immutable DSPx-owner history"
+            )
         family_key = (owner, family_id)
         if family_key in epoch_high_watermarks:
             raise Layer12FixedFamilyPublicationError(
@@ -421,6 +440,16 @@ def reconstruct_fixed_family_imports(
             raise Layer12FixedFamilyPublicationError(
                 f"{label} omits publication ids from imported family history"
             )
+        expected_withdrawn_ids = [] if imported_ids else [expected_publication_id]
+        if withdrawn_ids != expected_withdrawn_ids:
+            state = (
+                "retained active"
+                if imported_ids
+                else "historically imported but absent"
+            )
+            raise Layer12FixedFamilyPublicationError(
+                f"{label}.withdrawn_publication_ids does not match the {state} family state"
+            )
         reused_ids = durable_publication_ids.intersection(used_ids)
         if reused_ids:
             raise Layer12FixedFamilyPublicationError(
@@ -430,6 +459,7 @@ def reconstruct_fixed_family_imports(
         epoch_high_watermarks[family_key] = epoch
         family_contracts[family_key] = watermark_contract
         family_used_publication_ids[family_key] = used_ids
+        family_withdrawn_publication_ids[family_key] = withdrawn_ids
         durable_publication_ids.update(used_ids)
         watermark_tokens.append(transition_token)
         watermark_family_keys.append(family_key)
@@ -485,6 +515,7 @@ def reconstruct_fixed_family_imports(
         family_used_publication_ids.setdefault(current_key, []).append(
             current_publication_id
         )
+        family_withdrawn_publication_ids[current_key] = []
         durable_publication_ids.add(current_publication_id)
 
     withdrawal_applied = False
@@ -544,6 +575,8 @@ def reconstruct_fixed_family_imports(
                 "withdrawal publication_id conflicts with matching family epoch"
             )
         imports.pop(index)
+        withdrawn_key = (owner, family_id)
+        family_withdrawn_publication_ids[withdrawn_key] = [publication_id]
         withdrawal_applied = True
         withdrawn_identity = {
             "owner": owner,
@@ -562,6 +595,9 @@ def reconstruct_fixed_family_imports(
             "transition_token": family_contracts[(owner, family_id)][0],
             "spec_digest": family_contracts[(owner, family_id)][1],
             "used_publication_ids": family_used_publication_ids[(owner, family_id)],
+            "withdrawn_publication_ids": family_withdrawn_publication_ids[
+                (owner, family_id)
+            ],
         }
         for owner, family_id in family_order
     ]

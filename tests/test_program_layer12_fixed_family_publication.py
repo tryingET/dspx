@@ -560,6 +560,7 @@ def _high_watermarks(*imports: dict[str, object]) -> list[dict[str, object]]:
             "transition_token": item["transition_token"],
             "spec_digest": item["spec_digest"],
             "used_publication_ids": used_ids[(owner, family_id)],
+            "withdrawn_publication_ids": [],
         }
         for (owner, family_id), item in maxima.items()
     ]
@@ -949,6 +950,7 @@ def test_b0_and_b1_reconstruct_cumulatively_then_withdraw_only_b1() -> None:
     b1_history = next(row for row in watermarks if row["family_id"] == B1_FAMILY_ID)
     assert b1_history["epoch"] == 1
     assert b1_history["used_publication_ids"] == [B1_PUBLICATION_ID]
+    assert b1_history["withdrawn_publication_ids"] == [B1_PUBLICATION_ID]
 
 
 def test_request_owner_route_test_key_has_no_private_material_in_artifacts() -> None:
@@ -1390,6 +1392,11 @@ def test_all_seven_b2_withdrawal_subsets_preserve_b0_b1_and_history(
         history = watermark_by_family[cast(str, current["family_id"])]
         assert history["epoch"] == 1
         assert history["used_publication_ids"] == [current["publication_id"]]
+        assert history["withdrawn_publication_ids"] == (
+            [current["publication_id"]]
+            if withdrawal_mask & (1 << b2_imports.index(current))
+            else []
+        )
 
 
 B3_SPEC_PATH = Path(
@@ -1632,6 +1639,7 @@ def test_b3_appends_sixth_then_exact_withdrawal_restores_byte_identical_five() -
     )
     assert history["epoch"] == 1
     assert history["used_publication_ids"] == [B3_PUBLICATION_ID]
+    assert history["withdrawn_publication_ids"] == [B3_PUBLICATION_ID]
 
 
 def test_b3_fixture_commits_only_public_verification_material() -> None:
@@ -2038,6 +2046,10 @@ def test_b4_appends_seventh_then_only_b4_withdrawal_preserves_prior_six_bytes() 
     )
     assert history["epoch"] == 1
     assert history["used_publication_ids"] == [B4_PUBLICATION_ID]
+    assert history["withdrawn_publication_ids"] == [B4_PUBLICATION_ID]
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    validator.validate(cumulative)
+    validator.validate(withdrawn)
     assert withdrawn["withdrawn_identity"] == {
         "owner": OWNER,
         "family_id": B4_FAMILY_ID,
@@ -2091,10 +2103,12 @@ def test_reconstruction_rejects_future_b4_singleton_sealed_snapshot() -> None:
 
 def test_reconstruction_rejects_discontinuous_b0_b4_watermarks() -> None:
     b0, *_, b4 = _all_verified_fixed_imports()
+    watermarks = _high_watermarks(b0, b4)
+    watermarks[-1]["withdrawn_publication_ids"] = [B4_PUBLICATION_ID]
     with pytest.raises(Layer12FixedFamilyPublicationError, match="ordered prefix"):
         reconstruct_fixed_family_imports(
             prior_imports=[b0],
-            prior_epoch_high_watermarks=_high_watermarks(b0, b4),
+            prior_epoch_high_watermarks=watermarks,
             current_import=None,
             current_withdrawal=None,
         )
@@ -2162,6 +2176,7 @@ def test_b4_coordinated_import_and_watermark_digest_mutation_rejects() -> None:
 def test_b4_sealed_high_water_rejects_rollback_replay_encoding() -> None:
     b4 = _verified_b4_import()
     sealed_watermark = _high_watermarks(b4)[0]
+    sealed_watermark["withdrawn_publication_ids"] = [B4_PUBLICATION_ID]
 
     with pytest.raises(Layer12FixedFamilyPublicationError, match="predecessor history"):
         reconstruct_fixed_family_imports(
@@ -2205,4 +2220,74 @@ def test_b4_withdrawal_ref_is_exact_not_caller_defined() -> None:
             prior_epoch_high_watermarks=_high_watermarks(*imports),
             current_import=None,
             current_withdrawal=arbitrary,
+        )
+
+
+def _post_b4_withdrawal_snapshot() -> tuple[list[dict[str, object]], dict[str, object]]:
+    imports = _all_verified_fixed_imports()
+    withdrawn = reconstruct_fixed_family_imports(
+        prior_imports=imports,
+        prior_epoch_high_watermarks=_high_watermarks(*imports),
+        current_import=None,
+        current_withdrawal=_withdrawal(OWNER, B4_FAMILY_ID, 1, B4_PUBLICATION_ID),
+    )
+    return imports, withdrawn
+
+
+def test_stale_seven_imports_reject_with_retained_post_b4_withdrawal_watermarks() -> (
+    None
+):
+    stale_imports, withdrawn = _post_b4_withdrawal_snapshot()
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="withdrawn_publication_ids"
+    ):
+        reconstruct_fixed_family_imports(
+            prior_imports=stale_imports,
+            prior_epoch_high_watermarks=cast(
+                list[object], withdrawn["family_epoch_high_watermarks"]
+            ),
+            current_import=None,
+            current_withdrawal=None,
+        )
+
+
+@pytest.mark.parametrize("mutation", ["omit", "add", "duplicate", "substitute"])
+def test_withdrawn_publication_marker_tampering_rejects(mutation: str) -> None:
+    stale_imports, withdrawn = _post_b4_withdrawal_snapshot()
+    if mutation == "add":
+        prior_imports: list[object] = stale_imports
+        watermarks = _high_watermarks(*stale_imports)
+    else:
+        prior_imports = cast(list[object], withdrawn["imports"])
+        watermarks = copy.deepcopy(
+            cast(list[dict[str, object]], withdrawn["family_epoch_high_watermarks"])
+        )
+    marker = next(row for row in watermarks if row["family_id"] == B4_FAMILY_ID)
+    if mutation == "omit":
+        del marker["withdrawn_publication_ids"]
+    elif mutation == "add":
+        marker["withdrawn_publication_ids"] = [B4_PUBLICATION_ID]
+    elif mutation == "duplicate":
+        marker["withdrawn_publication_ids"] = [B4_PUBLICATION_ID, B4_PUBLICATION_ID]
+    else:
+        marker["withdrawn_publication_ids"] = ["substituted-publication-id"]
+
+    assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(
+        {
+            "schema_version": "layer12-fixed-family-reconstruction-v1",
+            "mode": "cumulative_owner_local_family_epochs",
+            "imports": prior_imports,
+            "family_epoch_high_watermarks": watermarks,
+            "withdrawal_applied": False,
+            "withdrawn_identity": None,
+            "preserve_unrelated_imports": True,
+            "authority_granted": False,
+        }
+    )
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="fields|withdrawn"):
+        reconstruct_fixed_family_imports(
+            prior_imports=prior_imports,
+            prior_epoch_high_watermarks=watermarks,
+            current_import=None,
+            current_withdrawal=None,
         )
