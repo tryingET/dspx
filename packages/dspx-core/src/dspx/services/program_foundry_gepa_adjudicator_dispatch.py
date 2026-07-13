@@ -259,6 +259,81 @@ def _dispatch_envelope(
     }
 
 
+def validate_program_foundry_gepa_adjudicator_request(
+    request_path: Path,
+    *,
+    root_descriptor: int,
+    registration_paths: Sequence[Path],
+) -> dict[str, Any]:
+    """Rebuild a persisted dispatch request from current jury and registration bytes."""
+
+    lexical = _lexical_path(request_path)
+    if (
+        lexical.name != "comparison-adjudicator-request.json"
+        or lexical.parent.name != "gepa-experiment"
+    ):
+        raise ProgramFoundryGepaAdjudicatorDispatchError(
+            "foundry adjudicator request path is not canonical"
+        )
+    artifact = read_stable_json_artifact(
+        lexical,
+        label="foundry adjudicator request",
+        error_type=ProgramFoundryGepaAdjudicatorDispatchError,
+    )
+    request = artifact.payload
+    snapshot = request.get("registration_snapshot")
+    entries = snapshot.get("entries") if isinstance(snapshot, Mapping) else None
+    if not isinstance(entries, list):
+        raise ProgramFoundryGepaAdjudicatorDispatchError(
+            "foundry adjudicator registration snapshot is invalid"
+        )
+    explicit_entries, explicit_registrations = _registration_snapshot(
+        registration_paths
+    )
+    if entries != explicit_entries:
+        raise ProgramFoundryGepaAdjudicatorDispatchError(
+            "foundry adjudicator request registration sources do not match explicit inputs"
+        )
+    fallback = request.get("include_builtin_fallback")
+    if not isinstance(fallback, bool):
+        raise ProgramFoundryGepaAdjudicatorDispatchError(
+            "foundry adjudicator fallback declaration must be boolean"
+        )
+    try:
+        selection = select_task_adjudicator(
+            task_kind=FOUNDRY_GEPA_COMPARISON_TASK_KIND,
+            registrations=explicit_registrations,
+            include_builtin_fallback=fallback,
+        )
+        validated_jury = (
+            validate_successful_program_foundry_gepa_comparison_jury_receipt(
+                lexical.parent / "comparison-jury-receipt.json",
+                root_descriptor=root_descriptor,
+            )
+        )
+    except (
+        ProgramAdjudicatorProtocolError,
+        ProgramFoundryGepaComparisonJuryError,
+    ) as exc:
+        raise ProgramFoundryGepaAdjudicatorDispatchError(str(exc)) from exc
+    expected = _request_payload(
+        validated_jury=validated_jury,
+        registration_entries=explicit_entries,
+        selection=selection,
+        include_builtin_fallback=fallback,
+    )
+    if request != expected:
+        raise ProgramFoundryGepaAdjudicatorDispatchError(
+            "foundry adjudicator request or bound inputs drifted"
+        )
+    return {
+        "request": request,
+        "request_path": lexical,
+        "request_sha256": artifact.sha256,
+        "validated_jury": validated_jury,
+    }
+
+
 def _validate_deterministic_result_binding(
     *,
     request: Mapping[str, Any],

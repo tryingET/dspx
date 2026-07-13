@@ -316,6 +316,70 @@ def dispatch_foundry_gepa_adjudicator(
         raise typer.Exit(code=1)
 
 
+@app.command("record-foundry-gepa-adjudicator-submission")
+def record_foundry_gepa_adjudicator_submission(
+    request: Path = typer.Option(
+        ...,
+        "--request",
+        help="Canonical pending comparison-adjudicator-request.json",
+    ),
+    registration: list[Path] = typer.Option(
+        ...,
+        "--registration",
+        help="Exact registration source used by dispatch (repeatable)",
+    ),
+    declare_request_id: str = typer.Option(
+        ...,
+        "--declare-request-id",
+        help="Exact request_id acknowledging the pending dispatch request",
+    ),
+    subject: str = typer.Option(
+        ...,
+        "--subject",
+        help="Caller-declared human subject label from the selected registration",
+    ),
+    disposition: str = typer.Option(
+        ...,
+        "--disposition",
+        help="Claimed disposition: promote_locally, reject_locally, require_review, or abstain",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print unverified submission receipt JSON"
+    ),
+) -> None:
+    """Record an unverified human claim that cannot satisfy quorum or transition."""
+    from dspx.services.program_foundry_gepa_adjudicator_submission import (
+        ProgramFoundryGepaAdjudicatorSubmissionError,
+        ProgramFoundryGepaAdjudicatorSubmissionIndeterminateError,
+        record_program_foundry_gepa_adjudicator_submission,
+    )
+
+    try:
+        payload = record_program_foundry_gepa_adjudicator_submission(
+            request_path=request,
+            registration_paths=registration,
+            declared_request_id=declare_request_id,
+            subject=subject,
+            disposition=disposition,
+        )
+    except ProgramFoundryGepaAdjudicatorSubmissionIndeterminateError as exc:
+        typer.echo(
+            f"Error: unverified submission receipt may have committed: {exc}", err=True
+        )
+        raise typer.Exit(code=3) from exc
+    except ProgramFoundryGepaAdjudicatorSubmissionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(f"submission_status: {payload.get('status')}")
+        typer.echo(
+            f"counts_toward_quorum: {payload.get('effect', {}).get('counts_toward_quorum')}"
+        )
+        typer.echo(f"path: {payload.get('path')}")
+
+
 @app.command("optimize-gepa")
 def optimize_gepa(
     manifest: Path = typer.Option(

@@ -112,6 +112,33 @@ def test_external_human_panel_dispatch_stays_pending_and_is_reused(
     assert request["registration_snapshot"]["entries"][0]["source_path"] == str(
         registration_path.absolute()
     )
+    request_path = receipt.parent / "comparison-adjudicator-request.json"
+    with dispatch.foundry_lock(validated["root"]) as root_descriptor:
+        validated_request = dispatch.validate_program_foundry_gepa_adjudicator_request(
+            request_path,
+            root_descriptor=root_descriptor,
+            registration_paths=[registration_path],
+        )
+    assert validated_request["request"] == request
+    assert validated_request["request_path"] == request_path
+    alternate = protocol.build_task_adjudicator_registration(
+        task_kind=protocol.FOUNDRY_GEPA_COMPARISON_TASK_KIND,
+        kind="human",
+        implementation_id="different-person",
+        subjects=["person-c"],
+    )
+    alternate_path = registration_path.parent / "alternate.json"
+    _write_registration(alternate_path, alternate)
+    with dispatch.foundry_lock(validated["root"]) as root_descriptor:
+        with pytest.raises(
+            dispatch.ProgramFoundryGepaAdjudicatorDispatchError,
+            match="do not match explicit inputs",
+        ):
+            dispatch.validate_program_foundry_gepa_adjudicator_request(
+                request_path,
+                root_descriptor=root_descriptor,
+                registration_paths=[alternate_path],
+            )
 
 
 def test_request_commit_followed_by_lock_release_failure_is_indeterminate(
