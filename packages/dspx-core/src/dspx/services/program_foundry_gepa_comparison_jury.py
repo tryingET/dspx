@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -60,6 +61,47 @@ def _canonical_json(value: object) -> str:
 
 def _load_json_snapshot(path: Path, *, label: str) -> tuple[dict[str, Any], str]:
     raw = read_regular_bytes(path, label=label)
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProgramFoundryGepaComparisonJuryError(
+            f"{label} must be valid JSON"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ProgramFoundryGepaComparisonJuryError(
+            f"{label} must contain one JSON object"
+        )
+    return ({str(key): item for key, item in payload.items()}, _sha256_bytes(raw))
+
+
+def _load_json_snapshot_at(
+    directory_descriptor: int,
+    name: str,
+    *,
+    label: str,
+) -> tuple[dict[str, Any], str]:
+    try:
+        descriptor = os.open(
+            name,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=directory_descriptor,
+        )
+    except OSError as exc:
+        raise ProgramFoundryGepaComparisonJuryError(
+            f"{label} cannot be opened safely"
+        ) from exc
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ProgramFoundryGepaComparisonJuryError(
+                f"{label} must be a regular file"
+            )
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            raw = stream.read()
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -363,6 +405,146 @@ def _validate_existing_receipt(
             "comparison jury receipt or bound artifacts drifted"
         )
     return {**receipt, "reused": True}
+
+
+def validate_successful_program_foundry_gepa_comparison_jury_receipt(
+    comparison_jury_receipt_path: Path,
+    *,
+    root_descriptor: int,
+) -> dict[str, Any]:
+    """Revalidate a terminal comparison-jury receipt and its complete lineage."""
+
+    receipt_path = comparison_jury_receipt_path.expanduser().absolute()
+    if (
+        receipt_path.name != "comparison-jury-receipt.json"
+        or receipt_path.parent.name != "gepa-experiment"
+    ):
+        raise ProgramFoundryGepaComparisonJuryError(
+            "comparison jury receipt must be canonical gepa-experiment/comparison-jury-receipt.json"
+        )
+    experiment_root = receipt_path.parent
+    root = experiment_root.parent
+    assert_path_descriptor_identity(root, root_descriptor, label="foundry root")
+    experiment_descriptor = os.open(
+        "gepa-experiment",
+        os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+        dir_fd=root_descriptor,
+    )
+    try:
+        assert_path_descriptor_identity(
+            experiment_root,
+            experiment_descriptor,
+            label="foundry GEPA experiment directory",
+        )
+        try:
+            validated = validate_successful_program_foundry_gepa_consumption_receipt(
+                experiment_root / "consumption-receipt.json",
+                root_descriptor=root_descriptor,
+            )
+        except ProgramFoundryGepaConsumptionError as exc:
+            raise ProgramFoundryGepaComparisonJuryError(str(exc)) from exc
+        input_sha256 = _jury_input_sha256(validated)
+        receipt, receipt_sha256 = _load_json_snapshot_at(
+            experiment_descriptor,
+            "comparison-jury-receipt.json",
+            label="comparison jury receipt",
+        )
+        raw_request = receipt.get("execution_request")
+        if not isinstance(raw_request, Mapping) or set(raw_request) != {
+            "provider",
+            "adjudicator_id",
+            "adjudicator_kind",
+            "adjudicator_repo",
+            "max_jurors",
+        }:
+            raise ProgramFoundryGepaComparisonJuryError(
+                "comparison jury receipt execution_request is invalid"
+            )
+        provider = raw_request.get("provider")
+        adjudicator_id = raw_request.get("adjudicator_id")
+        adjudicator_kind = raw_request.get("adjudicator_kind")
+        adjudicator_repo = raw_request.get("adjudicator_repo")
+        max_jurors = raw_request.get("max_jurors")
+        if (
+            not isinstance(provider, str)
+            or not isinstance(adjudicator_id, str)
+            or not isinstance(adjudicator_kind, str)
+            or (adjudicator_repo is not None and not isinstance(adjudicator_repo, str))
+            or (
+                max_jurors is not None
+                and (isinstance(max_jurors, bool) or not isinstance(max_jurors, int))
+            )
+        ):
+            raise ProgramFoundryGepaComparisonJuryError(
+                "comparison jury receipt execution_request types are invalid"
+            )
+        request = _execution_request(
+            provider=provider,
+            adjudicator_id=adjudicator_id,
+            adjudicator_kind=adjudicator_kind,
+            adjudicator_repo=adjudicator_repo,
+            max_jurors=max_jurors,
+        )
+        if request != dict(raw_request):
+            raise ProgramFoundryGepaComparisonJuryError(
+                "comparison jury receipt execution_request is not normalized"
+            )
+        paths = _paths(experiment_root)
+        validated_receipt = _validate_existing_receipt(
+            validated=validated,
+            request=request,
+            input_sha256=input_sha256,
+            paths=paths,
+        )
+        expected_receipt = {
+            key: value for key, value in validated_receipt.items() if key != "reused"
+        }
+        if receipt != expected_receipt or receipt.get("status") != "ok":
+            raise ProgramFoundryGepaComparisonJuryError(
+                "comparison jury receipt changed during validation"
+            )
+        path_jury_result, path_jury_result_sha256 = _validate_jury_result(
+            result_path=paths["result"],
+            validated=validated,
+        )
+        jury_result, jury_result_sha256 = _load_json_snapshot_at(
+            experiment_descriptor,
+            "comparison-jury-results.json",
+            label="comparison jury results",
+        )
+        bindings = receipt.get("bindings")
+        if not isinstance(bindings, Mapping):
+            raise ProgramFoundryGepaComparisonJuryError(
+                "comparison jury receipt bindings are required"
+            )
+        if (
+            jury_result != path_jury_result
+            or jury_result_sha256 != path_jury_result_sha256
+            or jury_result_sha256 != bindings.get("jury_results_sha256")
+            or receipt.get("aggregate") != jury_result.get("aggregate")
+            or receipt.get("jury_status") != jury_result.get("status")
+        ):
+            raise ProgramFoundryGepaComparisonJuryError(
+                "comparison jury result changed during receipt validation"
+            )
+        assert_path_descriptor_identity(
+            experiment_root,
+            experiment_descriptor,
+            label="foundry GEPA experiment directory",
+        )
+        return {
+            **validated,
+            "jury_receipt": receipt,
+            "jury_receipt_path": receipt_path,
+            "jury_receipt_sha256": receipt_sha256,
+            "jury_result": jury_result,
+            "jury_result_path": paths["result"],
+            "jury_result_sha256": jury_result_sha256,
+            "jury_status": receipt["jury_status"],
+            "aggregate": receipt["aggregate"],
+        }
+    finally:
+        os.close(experiment_descriptor)
 
 
 def execute_program_foundry_gepa_comparison_jury(

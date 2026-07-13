@@ -170,6 +170,40 @@ def jury_foundry_gepa_comparison(
         raise typer.Exit(code=1)
 
 
+@app.command("adjudicate-foundry-gepa-comparison")
+def adjudicate_foundry_gepa_comparison(
+    receipt: Path = typer.Option(
+        ...,
+        "--receipt",
+        help="Canonical successful foundry GEPA comparison-jury-receipt.json",
+    ),
+    json_out: bool = typer.Option(
+        False,
+        "--json",
+        help="Print bounded local adjudication JSON",
+    ),
+) -> None:
+    """Record a deterministic bounded local disposition from jury evidence."""
+    from dspx.services.program_foundry_gepa_comparison_adjudication import (
+        ProgramFoundryGepaComparisonAdjudicationError,
+        adjudicate_program_foundry_gepa_comparison,
+    )
+
+    try:
+        payload = adjudicate_program_foundry_gepa_comparison(
+            comparison_jury_receipt_path=receipt,
+        )
+    except ProgramFoundryGepaComparisonAdjudicationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(str(receipt.parent / "comparison-adjudication.json"))
+        typer.echo(f"local_disposition: {payload.get('disposition')}")
+        typer.echo(f"reused: {payload.get('reused')}")
+
+
 @app.command("optimize-gepa")
 def optimize_gepa(
     manifest: Path = typer.Option(

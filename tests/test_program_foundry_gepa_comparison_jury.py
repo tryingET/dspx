@@ -206,6 +206,16 @@ def test_executes_program_specific_comparison_jury_once_and_reuses_receipt(
     assert (experiment / "comparison-jury-attempt.json").exists()
     assert (experiment / "comparison-jury-results.json").exists()
     assert (experiment / "comparison-jury-receipt.json").exists()
+    with comparison_jury.foundry_lock(validated["root"]) as root_descriptor:
+        validated_receipt = comparison_jury.validate_successful_program_foundry_gepa_comparison_jury_receipt(
+            experiment / "comparison-jury-receipt.json",
+            root_descriptor=root_descriptor,
+        )
+    assert (
+        validated_receipt["jury_result_sha256"]
+        == first["bindings"]["jury_results_sha256"]
+    )
+    assert validated_receipt["aggregate"] == first["aggregate"]
 
 
 def test_comparison_jury_attempt_blocks_replay_after_possible_provider_effect(
