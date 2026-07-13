@@ -246,6 +246,26 @@ def test_request_drift_before_commit_writes_nothing(
     assert not submissions.exists() or not list(submissions.glob("*.json"))
 
 
+def test_terminal_completion_closes_submission_recording(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    request, validated = _request_fixture(tmp_path)
+    _install_validation(monkeypatch, validated)
+    (request.parent / "comparison-adjudicator-completion.json").write_text(
+        "{}", encoding="utf-8"
+    )
+
+    with pytest.raises(
+        submission.ProgramFoundryGepaAdjudicatorSubmissionError,
+        match="submissions are closed",
+    ):
+        _record_submission(
+            request_path=request,
+            subject="person-a",
+            disposition="abstain",
+        )
+
+
 def test_commit_followed_by_lock_release_failure_is_indeterminate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

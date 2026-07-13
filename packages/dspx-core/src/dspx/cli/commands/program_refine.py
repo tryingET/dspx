@@ -380,6 +380,78 @@ def record_foundry_gepa_adjudicator_submission(
         typer.echo(f"path: {payload.get('path')}")
 
 
+@app.command("import-foundry-gepa-adjudicator-completion")
+def import_foundry_gepa_adjudicator_completion(
+    request: Path = typer.Option(
+        ..., "--request", help="Canonical pending comparison-adjudicator-request.json"
+    ),
+    registration: list[Path] = typer.Option(
+        ...,
+        "--registration",
+        help="Exact registration source used by dispatch (repeatable)",
+    ),
+    completion: Path = typer.Option(
+        ..., "--completion", help="Externally signed owner completion receipt JSON"
+    ),
+    verifier_policy: Path = typer.Option(
+        ...,
+        "--verifier-policy",
+        help="Scoped external verifier trust-policy JSON",
+    ),
+    trusted_policy_sha256: str = typer.Option(
+        ...,
+        "--trusted-policy-sha256",
+        help="Out-of-band trusted SHA-256 pin for canonical verifier-policy JSON",
+    ),
+    declare_request_id: str = typer.Option(
+        ..., "--declare-request-id", help="Exact pending dispatch request_id"
+    ),
+    declare_owner_receipt_id: str = typer.Option(
+        ...,
+        "--declare-owner-receipt-id",
+        help="Exact externally assigned owner completion receipt id",
+    ),
+    json_out: bool = typer.Option(
+        False, "--json", help="Print terminal completion receipt JSON"
+    ),
+) -> None:
+    """Import signed verification under a digest-pinned scoped trust policy."""
+    from dspx.services.program_foundry_gepa_adjudicator_completion import (
+        ProgramFoundryGepaAdjudicatorCompletionError,
+        ProgramFoundryGepaAdjudicatorCompletionIndeterminateError,
+        import_program_foundry_gepa_adjudicator_completion,
+    )
+
+    try:
+        payload = import_program_foundry_gepa_adjudicator_completion(
+            request_path=request,
+            registration_paths=registration,
+            owner_completion_path=completion,
+            verifier_policy_path=verifier_policy,
+            trusted_policy_sha256=trusted_policy_sha256,
+            declared_request_id=declare_request_id,
+            expected_owner_receipt_id=declare_owner_receipt_id,
+        )
+    except ProgramFoundryGepaAdjudicatorCompletionIndeterminateError as exc:
+        typer.echo(
+            f"Error: terminal adjudicator completion may have committed: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=3) from exc
+    except ProgramFoundryGepaAdjudicatorCompletionError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(f"completion_status: {payload.get('status')}")
+        typer.echo(f"disposition: {payload.get('disposition')}")
+        typer.echo(
+            f"quorum_satisfied: {payload.get('quorum', {}).get('quorum_satisfied')}"
+        )
+        typer.echo(f"path: {payload.get('path')}")
+
+
 @app.command("optimize-gepa")
 def optimize_gepa(
     manifest: Path = typer.Option(

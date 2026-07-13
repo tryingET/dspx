@@ -205,6 +205,13 @@ def _record_program_foundry_gepa_adjudicator_submission(
             raise ProgramFoundryGepaAdjudicatorSubmissionError(
                 "declared request id does not match the persisted adjudicator request"
             )
+        terminal_path = (
+            lexical_request.parent / "comparison-adjudicator-completion.json"
+        )
+        if terminal_path.exists() or terminal_path.is_symlink():
+            raise ProgramFoundryGepaAdjudicatorSubmissionError(
+                "terminal adjudicator completion already exists; submissions are closed"
+            )
         receipt, subject_key = _submission_payload(
             validated_request=validated_request,
             subject=subject,
@@ -229,6 +236,10 @@ def _record_program_foundry_gepa_adjudicator_submission(
             return {**existing, "reused": True, "path": str(output_path)}
 
         def precommit() -> None:
+            if terminal_path.exists() or terminal_path.is_symlink():
+                raise ProgramFoundryGepaAdjudicatorSubmissionError(
+                    "terminal adjudicator completion appeared during submission recording"
+                )
             try:
                 current = validate_program_foundry_gepa_adjudicator_request(
                     lexical_request,
