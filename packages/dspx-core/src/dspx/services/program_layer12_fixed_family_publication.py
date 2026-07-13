@@ -1,11 +1,11 @@
 # summary: "Verifies the closed DSPx owner-local publication for one Layer-12 transition family."
 # read_when:
-#   - "Changing the fixed continue-current-execution-task family, signed publication fixture, or external trust pins."
+#   - "Changing a fixed Layer-12 family, signed publication fixture, or external trust pin."
 
 """Pure verification for the DSPx-owned Layer-12 fixed-family publication.
 
 The verifier has no AK integration and performs no publication. Caller pins are
-required, while the closed B1 TEST fixture also has DSPx-owner-fixed identity and
+required, while closed TEST fixtures also have DSPx-owner-fixed identity and
 signer-lifecycle anchors. Those local anchors and declarations inside the artifact
 never bootstrap AK trust; AK must independently pin its own trust later.
 """
@@ -29,22 +29,29 @@ PUBLICATION_SCHEMA = "layer12-fixed-family-publication-v1"
 PROTOCOL_VERSION = "layer12-v1"
 B0_TOKEN = "continue_current_execution_task"
 B1_TOKEN = "request_owner_route"
+B3_TOKEN = "inspect_status_before_proceeding"
 B2_TOKENS = (
     "close_implementation_wave",
     "activate_guidance",
     "default_residual_adoption_hardening",
 )
-SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN, *B2_TOKENS}
+SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN, B3_TOKEN, *B2_TOKENS}
 DSPX_OWNER = "softwareco/owned/dspx"
 AK_OWNER = "softwareco/owned/agent-kernel"
 B0_FAMILY_ID = "dspx.layer12.continue-current-execution-task.v1"
 B1_FAMILY_ID = "dspx.layer12.request-owner-route.v1"
+B3_FAMILY_ID = "dspx.layer12.inspect-status-before-proceeding.v1"
 B2_FAMILY_IDS = {
     "close_implementation_wave": "dspx.layer12.close-implementation-wave.v1",
     "activate_guidance": "dspx.layer12.activate-guidance.v1",
     "default_residual_adoption_hardening": "dspx.layer12.default-residual-adoption-hardening.v1",
 }
-TOKEN_FAMILY_IDS = {B0_TOKEN: B0_FAMILY_ID, B1_TOKEN: B1_FAMILY_ID, **B2_FAMILY_IDS}
+TOKEN_FAMILY_IDS = {
+    B0_TOKEN: B0_FAMILY_ID,
+    B1_TOKEN: B1_FAMILY_ID,
+    B3_TOKEN: B3_FAMILY_ID,
+    **B2_FAMILY_IDS,
+}
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
 
 
@@ -278,8 +285,26 @@ def reconstruct_fixed_family_imports(
         owner = _text(watermark["owner"], f"{label}.owner")
         family_id = _text(watermark["family_id"], f"{label}.family_id")
         epoch = _positive_integer(watermark["epoch"], f"{label}.epoch")
+        transition_token = _text(
+            watermark["transition_token"], f"{label}.transition_token"
+        )
+        if owner == DSPX_OWNER:
+            fixed_family_to_token = {
+                family: token for token, family in TOKEN_FAMILY_IDS.items()
+            }
+            expected_token = fixed_family_to_token.get(family_id)
+            expected_family = TOKEN_FAMILY_IDS.get(transition_token)
+            if (
+                expected_token is not None
+                and transition_token != expected_token
+                or expected_family is not None
+                and family_id != expected_family
+            ):
+                raise Layer12FixedFamilyPublicationError(
+                    f"{label} owner/family contract fixed token/family identity drift"
+                )
         watermark_contract = (
-            _text(watermark["transition_token"], f"{label}.transition_token"),
+            transition_token,
             _digest(watermark["spec_digest"], f"{label}.spec_digest"),
         )
         raw_used_ids = watermark["used_publication_ids"]
@@ -485,6 +510,19 @@ REQUEST_OWNER_ROUTE_PUBLIC_KEY_B64 = "GRimrSyXK+wK5YcYE7ZnDM5lYWei4ccNXZtikAYqlH
 REQUEST_OWNER_ROUTE_KEY_STATUS = "active"
 REQUEST_OWNER_ROUTE_KEY_VALID_FROM = "2026-07-01T00:00:00Z"
 REQUEST_OWNER_ROUTE_KEY_VALID_UNTIL = "2026-08-01T00:00:00Z"
+
+B3_SCOPE_DIGEST = (
+    "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
+)
+B3_TASK_KEY = "IW14b-B3-DSPx-publication"
+B3_AUTHORIZATION_EVIDENCE_ID = "4345"
+B3_TASK_ID = "3869"
+B3_PUBLICATION_ID = "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+B3_PUBLICATION_EPOCH = 1
+B3_PUBLISHED_AT = "2026-07-12T02:00:00Z"
+B3_KEY_ID = "dspx-iw14b-b3-inspect-status-before-proceeding-test-key-v1"
+B3_PUBLIC_KEY_B64 = "hehxCHXTRUebtBnVtshHR8gr3VB1NZu84ndlf16sk1g="
+B3_PROGRAM_ID = "dspx.generated.inspect_status_before_proceeding.v1"
 
 B2_SCOPE_DIGEST = (
     "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
@@ -858,6 +896,99 @@ def _check_b2_program_evidence(
     )
 
 
+def _check_b3_program_evidence(value: object, *, expected_family_id: str) -> None:
+    evidence = _object(value, "spec.program_evidence")
+    _closed(
+        evidence,
+        {"program_intent", "module_graph", "controls_evidence"},
+        "spec.program_evidence",
+    )
+    intent = _check_hash_bound(
+        evidence["program_intent"], "spec.program_evidence.program_intent"
+    )
+    _exact(
+        intent,
+        {
+            "schema_version": "program-intent-v2",
+            "name": "InspectStatusBeforeProceeding",
+            "program_id": B3_PROGRAM_ID,
+            "objective": "Inspect supplied execution state and emit read-only evidence without performing a transition.",
+            "inputs": ["execution_state", "inspection_context"],
+            "outputs": ["inspection_evidence", "verifier_expectation"],
+            "family_id": expected_family_id,
+            "transition_token": B3_TOKEN,
+            "effects": "none",
+            "read_only": True,
+            "zero_mutation": True,
+            "allowed_mutations": [],
+            "digest": intent["digest"],
+        },
+        "spec.program_evidence.program_intent",
+    )
+    graph = _check_hash_bound(
+        evidence["module_graph"], "spec.program_evidence.module_graph"
+    )
+    _exact(
+        graph,
+        {
+            "schema_version": "dspx-fixed-module-graph-v1",
+            "program_id": B3_PROGRAM_ID,
+            "signatures": [
+                {
+                    "name": "InspectExecutionState",
+                    "inputs": ["execution_state", "inspection_context"],
+                    "outputs": ["observed_state", "missing_evidence"],
+                },
+                {
+                    "name": "SealReadOnlyInspection",
+                    "inputs": ["observed_state", "missing_evidence"],
+                    "outputs": ["inspection_evidence", "verifier_expectation"],
+                },
+            ],
+            "execution_order": ["InspectExecutionState", "SealReadOnlyInspection"],
+            "edges": [
+                {
+                    "source": "InspectExecutionState.observed_state",
+                    "target": "SealReadOnlyInspection.observed_state",
+                },
+                {
+                    "source": "InspectExecutionState.missing_evidence",
+                    "target": "SealReadOnlyInspection.missing_evidence",
+                },
+            ],
+            "entry_signature": "InspectExecutionState",
+            "terminal_signature": "SealReadOnlyInspection",
+            "closed": True,
+            "effects": "none",
+            "read_only": True,
+            "zero_mutation": True,
+            "allowed_mutations": [],
+            "digest": graph["digest"],
+        },
+        "spec.program_evidence.module_graph",
+    )
+    controls = _check_hash_bound(
+        evidence["controls_evidence"], "spec.program_evidence.controls_evidence"
+    )
+    _exact(
+        controls,
+        {
+            "schema_version": "dspx-read-only-controls-evidence-v1",
+            "task_key": B3_TASK_KEY,
+            "transition_token": B3_TOKEN,
+            "effects": "none",
+            "read_only": True,
+            "zero_mutation": True,
+            "allowed_mutations": [],
+            "transition_action_performed": False,
+            "generated_program_dispatch_ready": False,
+            "declaration_is_ak_authority": False,
+            "digest": controls["digest"],
+        },
+        "spec.program_evidence.controls_evidence",
+    )
+
+
 def check_fixed_family_spec(
     spec: object,
     *,
@@ -952,7 +1083,28 @@ def check_fixed_family_spec(
         _check_request_owner_route_program_evidence(
             item.get("program_evidence"), expected_family_id=expected_family_id
         )
-    else:
+    elif pinned_token == B3_TOKEN:
+        if _digest(expected_scope_digest, "expected_scope_digest") != B3_SCOPE_DIGEST:
+            raise Layer12FixedFamilyPublicationError("B3 authorization scope drift")
+        authorization = _object(
+            item.get("authorization_evidence"), "spec.authorization_evidence"
+        )
+        _exact(
+            authorization,
+            {
+                "task_key": B3_TASK_KEY,
+                "authorization_evidence_id": B3_AUTHORIZATION_EVIDENCE_ID,
+                "task_id": B3_TASK_ID,
+                "scope_digest": B3_SCOPE_DIGEST,
+                "declaration_is_ak_authority": False,
+                "transition_authorized": False,
+            },
+            "spec.authorization_evidence",
+        )
+        _check_b3_program_evidence(
+            item.get("program_evidence"), expected_family_id=expected_family_id
+        )
+    elif pinned_token in B2_TOKENS:
         if _digest(expected_scope_digest, "expected_scope_digest") != B2_SCOPE_DIGEST:
             raise Layer12FixedFamilyPublicationError("B2 authorization scope drift")
         authorization = _object(
@@ -974,6 +1126,10 @@ def check_fixed_family_spec(
             item.get("program_evidence"),
             token=pinned_token,
             expected_family_id=expected_family_id,
+        )
+    else:
+        raise Layer12FixedFamilyPublicationError(
+            "unsupported exact transition-token pin"
         )
 
     publication = _object(item["publication_contract"], "spec.publication_contract")
@@ -1049,9 +1205,9 @@ def check_fixed_family_publication(
     expected_key_valid_until: str,
     verification_time: str,
 ) -> dict[str, object]:
-    """Verify a publication against caller pins and closed B1 owner anchors."""
+    """Verify a publication against caller pins and closed owner fixture anchors."""
 
-    if expected_transition_token in {B1_TOKEN, *B2_TOKENS}:
+    if expected_transition_token in {B1_TOKEN, B3_TOKEN, *B2_TOKENS}:
         if expected_transition_token == B1_TOKEN:
             owner_anchor = {
                 "publication_id": REQUEST_OWNER_ROUTE_PUBLICATION_ID,
@@ -1060,9 +1216,21 @@ def check_fixed_family_publication(
                 "key_id": REQUEST_OWNER_ROUTE_KEY_ID,
                 "public_key_b64": REQUEST_OWNER_ROUTE_PUBLIC_KEY_B64,
             }
-        else:
+        elif expected_transition_token == B3_TOKEN:
+            owner_anchor = {
+                "publication_id": B3_PUBLICATION_ID,
+                "epoch": B3_PUBLICATION_EPOCH,
+                "published_at": B3_PUBLISHED_AT,
+                "key_id": B3_KEY_ID,
+                "public_key_b64": B3_PUBLIC_KEY_B64,
+            }
+        elif expected_transition_token in B2_TOKENS:
             owner_anchor = B2_PUBLICATION_ANCHORS[expected_transition_token]
-        b1_owner_pins: tuple[tuple[object, object, str], ...] = (
+        else:
+            raise Layer12FixedFamilyPublicationError(
+                "unsupported owner-fixed fixture token"
+            )
+        owner_pins: tuple[tuple[object, object, str], ...] = (
             (
                 expected_publication_id,
                 owner_anchor["publication_id"],
@@ -1092,7 +1260,7 @@ def check_fixed_family_publication(
                 "valid_until",
             ),
         )
-        for supplied, owner_fixed, label in b1_owner_pins:
+        for supplied, owner_fixed, label in owner_pins:
             if supplied != owner_fixed:
                 raise Layer12FixedFamilyPublicationError(
                     f"{expected_transition_token} {label} conflicts with DSPx-owner-fixed TEST fixture"
@@ -1138,7 +1306,7 @@ def check_fixed_family_publication(
         raise Layer12FixedFamilyPublicationError(
             "publication_id does not match external pin"
         )
-    if expected_transition_token in {B1_TOKEN, *B2_TOKENS}:
+    if expected_transition_token in {B1_TOKEN, B3_TOKEN, *B2_TOKENS}:
         pinned_published_at = _text(expected_published_at, "expected_published_at")
         if item["published_at"] != pinned_published_at:
             raise Layer12FixedFamilyPublicationError(

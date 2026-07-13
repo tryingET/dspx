@@ -1,0 +1,137 @@
+{
+  "schema_version": "layer12-fixed-family-spec-v1",
+  "owner": "softwareco/owned/dspx",
+  "family_id": "dspx.layer12.inspect-status-before-proceeding.v1",
+  "protocol_version": "layer12-v1",
+  "transition_tokens": [
+    "inspect_status_before_proceeding"
+  ],
+  "scope_digest": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb",
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "publication_contract": {
+    "publication_scope": "owner_local_artifact_only",
+    "signed_payload": "publication_object_without_signature",
+    "signature_algorithm": "Ed25519",
+    "external_trust_required": true
+  },
+  "reconstruction_contract": {
+    "mode": "cumulative_owner_local_family_epochs",
+    "identity_key": [
+      "owner",
+      "family_id"
+    ],
+    "epoch_order": "strictly_monotonic_per_family",
+    "withdrawal_scope": "matching_owner_family_epoch_only",
+    "preserve_unrelated_imports": true
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "authorization_evidence": {
+    "task_key": "IW14b-B3-DSPx-publication",
+    "authorization_evidence_id": "4345",
+    "task_id": "3869",
+    "scope_digest": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb",
+    "declaration_is_ak_authority": false,
+    "transition_authorized": false
+  },
+  "program_evidence": {
+    "program_intent": {
+      "schema_version": "program-intent-v2",
+      "name": "InspectStatusBeforeProceeding",
+      "program_id": "dspx.generated.inspect_status_before_proceeding.v1",
+      "objective": "Inspect supplied execution state and emit read-only evidence without performing a transition.",
+      "inputs": [
+        "execution_state",
+        "inspection_context"
+      ],
+      "outputs": [
+        "inspection_evidence",
+        "verifier_expectation"
+      ],
+      "family_id": "dspx.layer12.inspect-status-before-proceeding.v1",
+      "transition_token": "inspect_status_before_proceeding",
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "digest": "sha256:d636fe511fac428f70197dcb56f7f38367c8317dc76b66d45355c70007981bea"
+    },
+    "module_graph": {
+      "schema_version": "dspx-fixed-module-graph-v1",
+      "program_id": "dspx.generated.inspect_status_before_proceeding.v1",
+      "signatures": [
+        {
+          "name": "InspectExecutionState",
+          "inputs": [
+            "execution_state",
+            "inspection_context"
+          ],
+          "outputs": [
+            "observed_state",
+            "missing_evidence"
+          ]
+        },
+        {
+          "name": "SealReadOnlyInspection",
+          "inputs": [
+            "observed_state",
+            "missing_evidence"
+          ],
+          "outputs": [
+            "inspection_evidence",
+            "verifier_expectation"
+          ]
+        }
+      ],
+      "execution_order": [
+        "InspectExecutionState",
+        "SealReadOnlyInspection"
+      ],
+      "edges": [
+        {
+          "source": "InspectExecutionState.observed_state",
+          "target": "SealReadOnlyInspection.observed_state"
+        },
+        {
+          "source": "InspectExecutionState.missing_evidence",
+          "target": "SealReadOnlyInspection.missing_evidence"
+        }
+      ],
+      "entry_signature": "InspectExecutionState",
+      "terminal_signature": "SealReadOnlyInspection",
+      "closed": true,
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "digest": "sha256:6bacf90b030ee34aa239511b5fd5dd373c35cf023b731fcdbc0f24b75b53e916"
+    },
+    "controls_evidence": {
+      "schema_version": "dspx-read-only-controls-evidence-v1",
+      "task_key": "IW14b-B3-DSPx-publication",
+      "transition_token": "inspect_status_before_proceeding",
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "transition_action_performed": false,
+      "generated_program_dispatch_ready": false,
+      "declaration_is_ak_authority": false,
+      "digest": "sha256:807b715e28945c0799e38a959196aa6720c4ee381d7cbdc9791cfc2b60aa9862"
+    }
+  }
+}

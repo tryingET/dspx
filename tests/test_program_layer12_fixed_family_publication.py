@@ -1351,7 +1351,12 @@ def _verified_b2_import(token: str) -> dict[str, object]:
 
 @pytest.mark.parametrize(
     "token",
-    ["continue_current_execution_task", "request_owner_route", *B2_CASES],
+    [
+        "continue_current_execution_task",
+        "request_owner_route",
+        "inspect_status_before_proceeding",
+        *B2_CASES,
+    ],
 )
 def test_reconstruction_rejects_fixed_token_with_generic_family(token: str) -> None:
     escaped = _family_import(
@@ -1457,3 +1462,323 @@ def test_all_seven_b2_withdrawal_subsets_preserve_b0_b1_and_history(
         history = watermark_by_family[cast(str, current["family_id"])]
         assert history["epoch"] == 1
         assert history["used_publication_ids"] == [current["publication_id"]]
+
+
+B3_SPEC_PATH = Path(
+    "docs/project/layer12/inspect-status-before-proceeding-publication.v1.json"
+)
+B3_PUBLICATION_PATH = Path(
+    "docs/project/layer12/fixtures/iw14b-inspect-status-before-proceeding-publication.v1.json"
+)
+B3_DOC_PATH = Path(
+    "docs/project/layer12/inspect-status-before-proceeding-publication.md"
+)
+B3_FAMILY_ID = "dspx.layer12.inspect-status-before-proceeding.v1"
+B3_TOKEN = "inspect_status_before_proceeding"
+B3_SCOPE_DIGEST = (
+    "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
+)
+B3_SPEC_DIGEST = (
+    "sha256:62191d3f3713a7625a42e62173e0ff0e0397663ebf6f9d2bd26faf4141060367"
+)
+B3_PUBLICATION_ID = "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+B3_KEY_ID = "dspx-iw14b-b3-inspect-status-before-proceeding-test-key-v1"
+B3_PUBLIC_KEY_B64 = "hehxCHXTRUebtBnVtshHR8gr3VB1NZu84ndlf16sk1g="
+
+
+def _b3_kwargs() -> PublicationKwargs:
+    return {
+        "spec": _load(B3_SPEC_PATH),
+        "expected_owner": OWNER,
+        "expected_family_id": B3_FAMILY_ID,
+        "expected_spec_digest": B3_SPEC_DIGEST,
+        "expected_scope_digest": B3_SCOPE_DIGEST,
+        "expected_transition_token": B3_TOKEN,
+        "expected_ak_wire_source_owner": "softwareco/owned/agent-kernel",
+        "expected_ak_wire_identity": AK_WIRE_IDENTITY,
+        "expected_ak_wire_digest": AK_WIRE_DIGEST,
+        "expected_publication_id": B3_PUBLICATION_ID,
+        "expected_publication_epoch": 1,
+        "expected_published_at": "2026-07-12T02:00:00Z",
+        "expected_publication_state": "published",
+        "expected_withdrawal_ref": None,
+        "expected_key_id": B3_KEY_ID,
+        "trusted_public_key_b64": B3_PUBLIC_KEY_B64,
+        "expected_key_status": "active",
+        "expected_key_valid_from": KEY_VALID_FROM,
+        "expected_key_valid_until": KEY_VALID_UNTIL,
+        "verification_time": VERIFY_AT,
+    }
+
+
+def test_b3_publication_is_closed_signed_read_only_and_schema_valid() -> None:
+    schema = _load(SCHEMA_PATH)
+    validator = jsonschema.Draft202012Validator(
+        schema, format_checker=jsonschema.FormatChecker()
+    )
+    spec = _load(B3_SPEC_PATH)
+    publication = _load(B3_PUBLICATION_PATH)
+    validator.validate(spec)
+    validator.validate(publication)
+    assert sha256_digest(spec) == B3_SPEC_DIGEST
+    result = check_fixed_family_publication(publication, **_b3_kwargs())
+    assert result["verified"] is True
+    assert result["family_id"] == B3_FAMILY_ID
+    assert result["transition_token"] == B3_TOKEN
+    assert result["authority_granted"] is False
+    assert spec["authorization_evidence"] == {
+        "task_key": "IW14b-B3-DSPx-publication",
+        "authorization_evidence_id": "4345",
+        "task_id": "3869",
+        "scope_digest": B3_SCOPE_DIGEST,
+        "declaration_is_ak_authority": False,
+        "transition_authorized": False,
+    }
+    for record in (
+        spec["program_evidence"]["program_intent"],
+        spec["program_evidence"]["module_graph"],
+        spec["program_evidence"]["controls_evidence"],
+    ):
+        assert record["effects"] == "none"
+        assert record["read_only"] is True
+        assert record["zero_mutation"] is True
+        assert record["allowed_mutations"] == []
+    controls = spec["program_evidence"]["controls_evidence"]
+    assert controls["transition_action_performed"] is False
+    assert controls["generated_program_dispatch_ready"] is False
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value"),
+    [
+        ("program_intent", "effects", "write"),
+        ("program_intent", "read_only", False),
+        ("program_intent", "zero_mutation", False),
+        ("program_intent", "allowed_mutations", ["cache"]),
+        ("module_graph", "closed", False),
+        ("module_graph", "execution_order", ["SealReadOnlyInspection"]),
+        ("module_graph", "effects", "write"),
+        ("module_graph", "allowed_mutations", ["anything"]),
+        ("controls_evidence", "read_only", False),
+        ("controls_evidence", "transition_action_performed", True),
+        ("controls_evidence", "generated_program_dispatch_ready", True),
+        ("controls_evidence", "allowed_mutations", ["anything"]),
+    ],
+)
+def test_b3_program_mutation_or_dispatch_drift_fails_closed(
+    section: str, field: str, value: object
+) -> None:
+    spec = _load(B3_SPEC_PATH)
+    spec["program_evidence"][section][field] = value
+    with pytest.raises(Layer12FixedFamilyPublicationError):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=B3_FAMILY_ID,
+            expected_scope_digest=B3_SCOPE_DIGEST,
+            expected_transition_token=B3_TOKEN,
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
+            expected_ak_wire_identity=AK_WIRE_IDENTITY,
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("expected_family_id", B1_FAMILY_ID, "family"),
+        ("expected_transition_token", B1_TOKEN, "owner-fixed"),
+        ("expected_scope_digest", B2_SCOPE_DIGEST, "scope"),
+        ("expected_publication_id", "co-substituted-id", "publication_id"),
+        ("expected_published_at", "2026-07-12T02:00:01Z", "published_at"),
+        ("expected_key_id", "co-substituted-key", "key_id"),
+        (
+            "trusted_public_key_b64",
+            base64.b64encode(b"q" * 32).decode(),
+            "public_key_b64",
+        ),
+    ],
+)
+def test_b3_rejects_cross_token_and_owner_anchor_co_substitution(
+    field: str, value: object, message: str
+) -> None:
+    kwargs = _b3_kwargs()
+    kwargs[field] = value  # ty: ignore[invalid-key]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
+        check_fixed_family_publication(_load(B3_PUBLICATION_PATH), **kwargs)
+
+
+def test_b3_schema_couples_family_and_token_bidirectionally() -> None:
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    wrong_token = _load(B3_SPEC_PATH)
+    wrong_token["transition_tokens"] = [B1_TOKEN]
+    assert not validator.is_valid(wrong_token)
+    wrong_family = _load(B3_SPEC_PATH)
+    wrong_family["family_id"] = B1_FAMILY_ID
+    assert not validator.is_valid(wrong_family)
+
+    verified = check_fixed_family_publication(
+        _load(B3_PUBLICATION_PATH), **_b3_kwargs()
+    )
+    family_import = copy.deepcopy(cast(dict[str, object], verified["canonical_import"]))
+    family_import["family_id"] = B1_FAMILY_ID
+    assert not validator.is_valid(family_import)
+    family_import = copy.deepcopy(cast(dict[str, object], verified["canonical_import"]))
+    family_import["transition_token"] = B1_TOKEN
+    assert not validator.is_valid(family_import)
+
+
+def test_b3_graph_is_closed_and_has_no_unbound_inputs() -> None:
+    evidence = _load(B3_SPEC_PATH)["program_evidence"]
+    intent_inputs = set(evidence["program_intent"]["inputs"])
+    produced: set[str] = set()
+    edges = evidence["module_graph"]["edges"]
+    for signature in evidence["module_graph"]["signatures"]:
+        inbound = {
+            edge["target"].split(".", 1)[1]
+            for edge in edges
+            if edge["target"].split(".", 1)[0] == signature["name"]
+        }
+        assert set(signature["inputs"]) <= intent_inputs | inbound
+        produced.update(
+            f"{signature['name']}.{field}" for field in signature["outputs"]
+        )
+    assert {edge["source"] for edge in edges} <= produced
+
+
+def test_b3_appends_sixth_then_exact_withdrawal_restores_byte_identical_five() -> None:
+    b0 = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(PUBLICATION_PATH), **_kwargs())[
+            "canonical_import"
+        ],
+    )
+    b1 = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(B1_PUBLICATION_PATH), **_b1_kwargs())[
+            "canonical_import"
+        ],
+    )
+    five = [b0, b1, *[_verified_b2_import(token) for token in B2_CASES]]
+    baseline_bytes = [canonical_json(item).encode() for item in five]
+    imports: list[object] = []
+    watermarks: list[object] = []
+    for current in five:
+        cumulative = reconstruct_fixed_family_imports(
+            prior_imports=imports,
+            prior_epoch_high_watermarks=watermarks,
+            current_import=current,
+            current_withdrawal=None,
+        )
+        imports = cast(list[object], cumulative["imports"])
+        watermarks = cast(list[object], cumulative["family_epoch_high_watermarks"])
+    b3 = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(B3_PUBLICATION_PATH), **_b3_kwargs())[
+            "canonical_import"
+        ],
+    )
+    cumulative = reconstruct_fixed_family_imports(
+        prior_imports=imports,
+        prior_epoch_high_watermarks=watermarks,
+        current_import=b3,
+        current_withdrawal=None,
+    )
+    assert len(cast(list[object], cumulative["imports"])) == 6
+    withdrawn = reconstruct_fixed_family_imports(
+        prior_imports=cast(list[object], cumulative["imports"]),
+        prior_epoch_high_watermarks=cast(
+            list[object], cumulative["family_epoch_high_watermarks"]
+        ),
+        current_import=None,
+        current_withdrawal=_withdrawal(OWNER, B3_FAMILY_ID, 1, B3_PUBLICATION_ID),
+    )
+    retained = cast(list[dict[str, object]], withdrawn["imports"])
+    assert [canonical_json(item).encode() for item in retained] == baseline_bytes
+    history = next(
+        row
+        for row in cast(
+            list[dict[str, object]], withdrawn["family_epoch_high_watermarks"]
+        )
+        if row["family_id"] == B3_FAMILY_ID
+    )
+    assert history["epoch"] == 1
+    assert history["used_publication_ids"] == [B3_PUBLICATION_ID]
+
+
+def test_b3_fixture_commits_only_public_verification_material() -> None:
+    for path in (B3_SPEC_PATH, B3_PUBLICATION_PATH, B3_DOC_PATH):
+        text = path.read_text(encoding="utf-8").lower()
+        assert "private_key" not in text
+        assert "test_seed" not in text
+    fixture = _load(B3_PUBLICATION_PATH)
+    assert fixture["signer_evidence"]["public_key_b64"] == B3_PUBLIC_KEY_B64
+
+
+@pytest.mark.parametrize(
+    ("family_id", "transition_token"),
+    [
+        (B3_FAMILY_ID, B1_TOKEN),
+        ("dspx.layer12.generic-family.v1", B3_TOKEN),
+    ],
+)
+def test_b3_withdrawn_history_rejects_poisoned_token_family_coupling(
+    family_id: str, transition_token: str
+) -> None:
+    b3_import = cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(B3_PUBLICATION_PATH), **_b3_kwargs())[
+            "canonical_import"
+        ],
+    )
+    watermark = _high_watermarks(b3_import)[0]
+    watermark["family_id"] = family_id
+    watermark["transition_token"] = transition_token
+    assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(watermark)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="token/family"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[watermark],
+            current_import=None,
+            current_withdrawal=None,
+        )
+
+
+def test_schema_rejects_b2_b3_authorization_co_substitution_both_directions() -> None:
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    b2_spec, _ = _b2_paths("close_implementation_wave")
+    b2_with_b3_authorization = _load(b2_spec)
+    b2_with_b3_authorization["authorization_evidence"] = _load(B3_SPEC_PATH)[
+        "authorization_evidence"
+    ]
+    assert not validator.is_valid(b2_with_b3_authorization)
+
+    b3_with_b2_authorization = _load(B3_SPEC_PATH)
+    b3_with_b2_authorization["authorization_evidence"] = _load(b2_spec)[
+        "authorization_evidence"
+    ]
+    assert not validator.is_valid(b3_with_b2_authorization)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "b1_b3_program",
+        "b1_b3_authorization",
+        "b1_b3_program_and_authorization",
+        "b0_b3_authorization",
+    ],
+)
+def test_schema_rejects_b3_evidence_on_b0_or_b1_family(case: str) -> None:
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    b3 = _load(B3_SPEC_PATH)
+    if case.startswith("b1"):
+        specimen = _load(B1_SPEC_PATH)
+        if "program" in case:
+            specimen["program_evidence"] = b3["program_evidence"]
+        if "authorization" in case:
+            specimen["authorization_evidence"] = b3["authorization_evidence"]
+    else:
+        specimen = _load(SPEC_PATH)
+        specimen["authorization_evidence"] = b3["authorization_evidence"]
+    assert not validator.is_valid(specimen)

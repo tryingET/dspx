@@ -126,7 +126,8 @@
             "dspx.layer12.request-owner-route.v1",
             "dspx.layer12.close-implementation-wave.v1",
             "dspx.layer12.activate-guidance.v1",
-            "dspx.layer12.default-residual-adoption-hardening.v1"
+            "dspx.layer12.default-residual-adoption-hardening.v1",
+            "dspx.layer12.inspect-status-before-proceeding.v1"
           ]
         },
         "protocol_version": {
@@ -141,7 +142,8 @@
                 "request_owner_route",
                 "close_implementation_wave",
                 "activate_guidance",
-                "default_residual_adoption_hardening"
+                "default_residual_adoption_hardening",
+                "inspect_status_before_proceeding"
               ]
             }
           ],
@@ -225,36 +227,72 @@
           "$ref": "#/$defs/programEvidence"
         },
         "authorization_evidence": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "task_key",
-            "authorization_evidence_id",
-            "task_id",
-            "scope_digest",
-            "declaration_is_ak_authority",
-            "transition_authorized"
-          ],
-          "properties": {
-            "task_key": {
-              "const": "B2-DSPx-publications"
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "task_key",
+                "authorization_evidence_id",
+                "task_id",
+                "scope_digest",
+                "declaration_is_ak_authority",
+                "transition_authorized"
+              ],
+              "properties": {
+                "task_key": {
+                  "const": "B2-DSPx-publications"
+                },
+                "authorization_evidence_id": {
+                  "const": "4231"
+                },
+                "task_id": {
+                  "const": "3836"
+                },
+                "scope_digest": {
+                  "const": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
+                },
+                "declaration_is_ak_authority": {
+                  "const": false
+                },
+                "transition_authorized": {
+                  "const": false
+                }
+              }
             },
-            "authorization_evidence_id": {
-              "const": "4231"
-            },
-            "task_id": {
-              "const": "3836"
-            },
-            "scope_digest": {
-              "const": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
-            },
-            "declaration_is_ak_authority": {
-              "const": false
-            },
-            "transition_authorized": {
-              "const": false
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "task_key",
+                "authorization_evidence_id",
+                "task_id",
+                "scope_digest",
+                "declaration_is_ak_authority",
+                "transition_authorized"
+              ],
+              "properties": {
+                "task_key": {
+                  "const": "IW14b-B3-DSPx-publication"
+                },
+                "authorization_evidence_id": {
+                  "const": "4345"
+                },
+                "task_id": {
+                  "const": "3869"
+                },
+                "scope_digest": {
+                  "const": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
+                },
+                "declaration_is_ak_authority": {
+                  "const": false
+                },
+                "transition_authorized": {
+                  "const": false
+                }
+              }
             }
-          }
+          ]
         }
       },
       "allOf": [
@@ -278,8 +316,17 @@
               }
             },
             "not": {
-              "required": [
-                "program_evidence"
+              "anyOf": [
+                {
+                  "required": [
+                    "program_evidence"
+                  ]
+                },
+                {
+                  "required": [
+                    "authorization_evidence"
+                  ]
+                }
               ]
             }
           }
@@ -304,7 +351,173 @@
                 "const": [
                   "request_owner_route"
                 ]
+              },
+              "program_evidence": {
+                "const": {
+                  "program_intent": {
+                    "schema_version": "program-intent-v2",
+                    "name": "DirectionController",
+                    "program_id": "dspx.generated.direction_controller.v1",
+                    "objective": "Produce advisory Layer-12 transition IR for deterministic AK verification.",
+                    "inputs": [
+                      "operator_intent",
+                      "direction_controller_status",
+                      "legal_controls",
+                      "blocked_controls"
+                    ],
+                    "outputs": [
+                      "repaired_transition",
+                      "verifier_expectation"
+                    ],
+                    "family_id": "dspx.layer12.request-owner-route.v1",
+                    "transition_token": "request_owner_route",
+                    "effects": "none",
+                    "digest": "sha256:31916ed199adc9b4202e927296f1232f13b67c9be4beb1ee654002cd17bda578"
+                  },
+                  "module_graph": {
+                    "schema_version": "dspx-fixed-module-graph-v1",
+                    "program_id": "dspx.generated.direction_controller.v1",
+                    "signatures": [
+                      {
+                        "name": "ExtractLayer12PolicyFacts",
+                        "inputs": [
+                          "operator_intent",
+                          "direction_controller_status"
+                        ],
+                        "outputs": [
+                          "policy_facts",
+                          "non_authorizations"
+                        ]
+                      },
+                      {
+                        "name": "DeriveLayer12StateVector",
+                        "inputs": [
+                          "direction_controller_status"
+                        ],
+                        "outputs": [
+                          "state_vector",
+                          "missing_facts"
+                        ]
+                      },
+                      {
+                        "name": "ProposeLayer12Transition",
+                        "inputs": [
+                          "operator_intent",
+                          "state_vector",
+                          "legal_controls",
+                          "blocked_controls"
+                        ],
+                        "outputs": [
+                          "transition",
+                          "rationale"
+                        ]
+                      },
+                      {
+                        "name": "CritiqueAuthorityDrift",
+                        "inputs": [
+                          "proposed_transition",
+                          "non_authorizations"
+                        ],
+                        "outputs": [
+                          "authority_drift_risk",
+                          "required_repair"
+                        ]
+                      },
+                      {
+                        "name": "CritiqueTheaterTraps",
+                        "inputs": [
+                          "proposed_transition",
+                          "direction_controller_status"
+                        ],
+                        "outputs": [
+                          "theater_risk",
+                          "required_repair"
+                        ]
+                      },
+                      {
+                        "name": "RepairLayer12IR",
+                        "inputs": [
+                          "proposed_transition",
+                          "authority_drift_risk",
+                          "theater_risk"
+                        ],
+                        "outputs": [
+                          "repaired_transition",
+                          "verifier_expectation"
+                        ]
+                      }
+                    ],
+                    "execution_order": [
+                      "ExtractLayer12PolicyFacts",
+                      "DeriveLayer12StateVector",
+                      "ProposeLayer12Transition",
+                      "CritiqueAuthorityDrift",
+                      "CritiqueTheaterTraps",
+                      "RepairLayer12IR"
+                    ],
+                    "entry_signature": "ExtractLayer12PolicyFacts",
+                    "terminal_signature": "RepairLayer12IR",
+                    "closed": true,
+                    "digest": "sha256:a365b85511a86007c20fcbad649d2776e5ec7589f176de73fbc453e5b689ab99",
+                    "edges": [
+                      {
+                        "source": "DeriveLayer12StateVector.state_vector",
+                        "target": "ProposeLayer12Transition.state_vector"
+                      },
+                      {
+                        "source": "ExtractLayer12PolicyFacts.non_authorizations",
+                        "target": "CritiqueAuthorityDrift.non_authorizations"
+                      },
+                      {
+                        "source": "ProposeLayer12Transition.transition",
+                        "target": "CritiqueAuthorityDrift.proposed_transition"
+                      },
+                      {
+                        "source": "ProposeLayer12Transition.transition",
+                        "target": "CritiqueTheaterTraps.proposed_transition"
+                      },
+                      {
+                        "source": "ProposeLayer12Transition.transition",
+                        "target": "RepairLayer12IR.proposed_transition"
+                      },
+                      {
+                        "source": "CritiqueAuthorityDrift.authority_drift_risk",
+                        "target": "RepairLayer12IR.authority_drift_risk"
+                      },
+                      {
+                        "source": "CritiqueTheaterTraps.theater_risk",
+                        "target": "RepairLayer12IR.theater_risk"
+                      }
+                    ]
+                  },
+                  "verification_sink": {
+                    "source_owner": "softwareco/owned/agent-kernel",
+                    "surface": "ak.direction_controller.verify",
+                    "expected_command": "ak direction-controller verify --repo . --proposal <saved-proposal.json> -F json",
+                    "declaration_is_trust_root": false,
+                    "apply_performed": false
+                  },
+                  "controls_evidence": {
+                    "schema_version": "ak-direction-controller-controls-evidence-v1",
+                    "transition_token": "request_owner_route",
+                    "legal": false,
+                    "verdict": "blocked",
+                    "dispatch_ready": false,
+                    "owner_route_sent": false,
+                    "missing_preconditions": [
+                      "owner_route_destination_resolved",
+                      "owner_route_dispatch_authorized"
+                    ],
+                    "declaration_is_ak_authority": false,
+                    "digest": "sha256:fc8463680fcd5505f8ac6b8ad6346afc85fa92e4fe6bf46ce2f6f8305cbfe182"
+                  }
+                }
               }
+            },
+            "not": {
+              "required": [
+                "authorization_evidence"
+              ]
             }
           }
         },
@@ -438,6 +651,16 @@
                     "declaration_is_ak_authority": false,
                     "digest": "sha256:d4cf45cd2670c3167c62164ca2fd94db17955e39a2154fa5a1ed09397d8a632e"
                   }
+                }
+              },
+              "authorization_evidence": {
+                "const": {
+                  "task_key": "B2-DSPx-publications",
+                  "authorization_evidence_id": "4231",
+                  "task_id": "3836",
+                  "scope_digest": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca",
+                  "declaration_is_ak_authority": false,
+                  "transition_authorized": false
                 }
               }
             }
@@ -574,6 +797,16 @@
                     "digest": "sha256:f9374f92495d8c1d4f6b841c6183617f34710ea7041f4663c11833f1db038992"
                   }
                 }
+              },
+              "authorization_evidence": {
+                "const": {
+                  "task_key": "B2-DSPx-publications",
+                  "authorization_evidence_id": "4231",
+                  "task_id": "3836",
+                  "scope_digest": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca",
+                  "declaration_is_ak_authority": false,
+                  "transition_authorized": false
+                }
               }
             }
           }
@@ -709,6 +942,163 @@
                     "digest": "sha256:a13c9914d5ac16940410b1208b6226283b63337882852f45ba4971027f7534ec"
                   }
                 }
+              },
+              "authorization_evidence": {
+                "const": {
+                  "task_key": "B2-DSPx-publications",
+                  "authorization_evidence_id": "4231",
+                  "task_id": "3836",
+                  "scope_digest": "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca",
+                  "declaration_is_ak_authority": false,
+                  "transition_authorized": false
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+              }
+            },
+            "required": [
+              "family_id"
+            ]
+          },
+          "then": {
+            "required": [
+              "program_evidence",
+              "authorization_evidence"
+            ],
+            "properties": {
+              "transition_tokens": {
+                "const": [
+                  "inspect_status_before_proceeding"
+                ]
+              },
+              "scope_digest": {
+                "const": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
+              },
+              "program_evidence": {
+                "const": {
+                  "program_intent": {
+                    "schema_version": "program-intent-v2",
+                    "name": "InspectStatusBeforeProceeding",
+                    "program_id": "dspx.generated.inspect_status_before_proceeding.v1",
+                    "objective": "Inspect supplied execution state and emit read-only evidence without performing a transition.",
+                    "inputs": [
+                      "execution_state",
+                      "inspection_context"
+                    ],
+                    "outputs": [
+                      "inspection_evidence",
+                      "verifier_expectation"
+                    ],
+                    "family_id": "dspx.layer12.inspect-status-before-proceeding.v1",
+                    "transition_token": "inspect_status_before_proceeding",
+                    "effects": "none",
+                    "read_only": true,
+                    "zero_mutation": true,
+                    "allowed_mutations": [],
+                    "digest": "sha256:d636fe511fac428f70197dcb56f7f38367c8317dc76b66d45355c70007981bea"
+                  },
+                  "module_graph": {
+                    "schema_version": "dspx-fixed-module-graph-v1",
+                    "program_id": "dspx.generated.inspect_status_before_proceeding.v1",
+                    "signatures": [
+                      {
+                        "name": "InspectExecutionState",
+                        "inputs": [
+                          "execution_state",
+                          "inspection_context"
+                        ],
+                        "outputs": [
+                          "observed_state",
+                          "missing_evidence"
+                        ]
+                      },
+                      {
+                        "name": "SealReadOnlyInspection",
+                        "inputs": [
+                          "observed_state",
+                          "missing_evidence"
+                        ],
+                        "outputs": [
+                          "inspection_evidence",
+                          "verifier_expectation"
+                        ]
+                      }
+                    ],
+                    "execution_order": [
+                      "InspectExecutionState",
+                      "SealReadOnlyInspection"
+                    ],
+                    "edges": [
+                      {
+                        "source": "InspectExecutionState.observed_state",
+                        "target": "SealReadOnlyInspection.observed_state"
+                      },
+                      {
+                        "source": "InspectExecutionState.missing_evidence",
+                        "target": "SealReadOnlyInspection.missing_evidence"
+                      }
+                    ],
+                    "entry_signature": "InspectExecutionState",
+                    "terminal_signature": "SealReadOnlyInspection",
+                    "closed": true,
+                    "effects": "none",
+                    "read_only": true,
+                    "zero_mutation": true,
+                    "allowed_mutations": [],
+                    "digest": "sha256:6bacf90b030ee34aa239511b5fd5dd373c35cf023b731fcdbc0f24b75b53e916"
+                  },
+                  "controls_evidence": {
+                    "schema_version": "dspx-read-only-controls-evidence-v1",
+                    "task_key": "IW14b-B3-DSPx-publication",
+                    "transition_token": "inspect_status_before_proceeding",
+                    "effects": "none",
+                    "read_only": true,
+                    "zero_mutation": true,
+                    "allowed_mutations": [],
+                    "transition_action_performed": false,
+                    "generated_program_dispatch_ready": false,
+                    "declaration_is_ak_authority": false,
+                    "digest": "sha256:807b715e28945c0799e38a959196aa6720c4ee381d7cbdc9791cfc2b60aa9862"
+                  }
+                }
+              },
+              "authorization_evidence": {
+                "const": {
+                  "task_key": "IW14b-B3-DSPx-publication",
+                  "authorization_evidence_id": "4345",
+                  "task_id": "3869",
+                  "scope_digest": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb",
+                  "declaration_is_ak_authority": false,
+                  "transition_authorized": false
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition_tokens": {
+                "const": [
+                  "inspect_status_before_proceeding"
+                ]
+              }
+            },
+            "required": [
+              "transition_tokens"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
               }
             }
           }
@@ -766,7 +1156,8 @@
                 "dspx.layer12.request-owner-route.v1",
                 "dspx.layer12.close-implementation-wave.v1",
                 "dspx.layer12.activate-guidance.v1",
-                "dspx.layer12.default-residual-adoption-hardening.v1"
+                "dspx.layer12.default-residual-adoption-hardening.v1",
+                "dspx.layer12.inspect-status-before-proceeding.v1"
               ]
             },
             "protocol_version": {
@@ -778,7 +1169,8 @@
                 "request_owner_route",
                 "close_implementation_wave",
                 "activate_guidance",
-                "default_residual_adoption_hardening"
+                "default_residual_adoption_hardening",
+                "inspect_status_before_proceeding"
               ]
             },
             "spec_schema_version": {
@@ -883,6 +1275,44 @@
                 "properties": {
                   "transition_token": {
                     "const": "default_residual_adoption_hardening"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "transition_token": {
+                    "const": "inspect_status_before_proceeding"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "transition_token": {
+                    "const": "inspect_status_before_proceeding"
+                  }
+                },
+                "required": [
+                  "transition_token"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.inspect-status-before-proceeding.v1"
                   }
                 }
               }
@@ -1158,6 +1588,74 @@
                   },
                   "valid_until": {
                     "const": "2026-08-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "identity": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              }
+            },
+            "required": [
+              "identity"
+            ]
+          },
+          "then": {
+            "properties": {
+              "publication_id": {
+                "const": "dspx-iw14b-inspect-status-before-proceeding-owner-local-test-v1"
+              },
+              "published_at": {
+                "const": "2026-07-12T02:00:00Z"
+              },
+              "publication_lifecycle": {
+                "properties": {
+                  "epoch": {
+                    "const": 1
+                  }
+                }
+              },
+              "signer_evidence": {
+                "properties": {
+                  "key_id": {
+                    "const": "dspx-iw14b-b3-inspect-status-before-proceeding-test-key-v1"
+                  },
+                  "public_key_b64": {
+                    "const": "hehxCHXTRUebtBnVtshHR8gr3VB1NZu84ndlf16sk1g="
+                  },
+                  "valid_from": {
+                    "const": "2026-07-01T00:00:00Z"
+                  },
+                  "valid_until": {
+                    "const": "2026-08-01T00:00:00Z"
+                  }
+                }
+              },
+              "identity": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                  },
+                  "transition_token": {
+                    "const": "inspect_status_before_proceeding"
+                  },
+                  "spec_digest": {
+                    "const": "sha256:62191d3f3713a7625a42e62173e0ff0e0397663ebf6f9d2bd26faf4141060367"
+                  },
+                  "scope_digest": {
+                    "const": "sha256:906123d6dae3a2da1e002b991f53e15103418ce4fd89d91409a748198044b4fb"
                   }
                 }
               }
@@ -1444,6 +1942,52 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "inspect_status_before_proceeding"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "inspect_status_before_proceeding"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+              }
+            }
+          }
         }
       ]
     },
@@ -1619,7 +2163,285 @@
             "minLength": 1
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.continue-current-execution-task.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "continue_current_execution_task"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.request-owner-route.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "request_owner_route"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.close-implementation-wave.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "close_implementation_wave"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.activate-guidance.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "activate_guidance"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "default_residual_adoption_hardening"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "continue_current_execution_task"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.continue-current-execution-task.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "request_owner_route"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.request-owner-route.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "close_implementation_wave"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.close-implementation-wave.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "activate_guidance"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.activate-guidance.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "default_residual_adoption_hardening"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "family_id": {
+                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+              }
+            },
+            "required": [
+              "owner",
+              "family_id"
+            ]
+          },
+          "then": {
+            "properties": {
+              "transition_token": {
+                "const": "inspect_status_before_proceeding"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "owner": {
+                "const": "softwareco/owned/dspx"
+              },
+              "transition_token": {
+                "const": "inspect_status_before_proceeding"
+              }
+            },
+            "required": [
+              "owner",
+              "transition_token"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+              }
+            }
+          }
+        }
+      ]
     },
     "hashBound": {
       "type": "object",
@@ -2114,6 +2936,94 @@
               ],
               "declaration_is_ak_authority": false,
               "digest": "sha256:a13c9914d5ac16940410b1208b6226283b63337882852f45ba4971027f7534ec"
+            }
+          }
+        },
+        {
+          "const": {
+            "program_intent": {
+              "schema_version": "program-intent-v2",
+              "name": "InspectStatusBeforeProceeding",
+              "program_id": "dspx.generated.inspect_status_before_proceeding.v1",
+              "objective": "Inspect supplied execution state and emit read-only evidence without performing a transition.",
+              "inputs": [
+                "execution_state",
+                "inspection_context"
+              ],
+              "outputs": [
+                "inspection_evidence",
+                "verifier_expectation"
+              ],
+              "family_id": "dspx.layer12.inspect-status-before-proceeding.v1",
+              "transition_token": "inspect_status_before_proceeding",
+              "effects": "none",
+              "read_only": true,
+              "zero_mutation": true,
+              "allowed_mutations": [],
+              "digest": "sha256:d636fe511fac428f70197dcb56f7f38367c8317dc76b66d45355c70007981bea"
+            },
+            "module_graph": {
+              "schema_version": "dspx-fixed-module-graph-v1",
+              "program_id": "dspx.generated.inspect_status_before_proceeding.v1",
+              "signatures": [
+                {
+                  "name": "InspectExecutionState",
+                  "inputs": [
+                    "execution_state",
+                    "inspection_context"
+                  ],
+                  "outputs": [
+                    "observed_state",
+                    "missing_evidence"
+                  ]
+                },
+                {
+                  "name": "SealReadOnlyInspection",
+                  "inputs": [
+                    "observed_state",
+                    "missing_evidence"
+                  ],
+                  "outputs": [
+                    "inspection_evidence",
+                    "verifier_expectation"
+                  ]
+                }
+              ],
+              "execution_order": [
+                "InspectExecutionState",
+                "SealReadOnlyInspection"
+              ],
+              "edges": [
+                {
+                  "source": "InspectExecutionState.observed_state",
+                  "target": "SealReadOnlyInspection.observed_state"
+                },
+                {
+                  "source": "InspectExecutionState.missing_evidence",
+                  "target": "SealReadOnlyInspection.missing_evidence"
+                }
+              ],
+              "entry_signature": "InspectExecutionState",
+              "terminal_signature": "SealReadOnlyInspection",
+              "closed": true,
+              "effects": "none",
+              "read_only": true,
+              "zero_mutation": true,
+              "allowed_mutations": [],
+              "digest": "sha256:6bacf90b030ee34aa239511b5fd5dd373c35cf023b731fcdbc0f24b75b53e916"
+            },
+            "controls_evidence": {
+              "schema_version": "dspx-read-only-controls-evidence-v1",
+              "task_key": "IW14b-B3-DSPx-publication",
+              "transition_token": "inspect_status_before_proceeding",
+              "effects": "none",
+              "read_only": true,
+              "zero_mutation": true,
+              "allowed_mutations": [],
+              "transition_action_performed": false,
+              "generated_program_dispatch_ready": false,
+              "declaration_is_ak_authority": false,
+              "digest": "sha256:807b715e28945c0799e38a959196aa6720c4ee381d7cbdc9791cfc2b60aa9862"
             }
           }
         }
