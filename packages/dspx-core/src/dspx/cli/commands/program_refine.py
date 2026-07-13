@@ -183,7 +183,7 @@ def adjudicate_foundry_gepa_comparison(
         help="Print bounded local adjudication JSON",
     ),
 ) -> None:
-    """Record a deterministic bounded local disposition from jury evidence."""
+    """Run the built-in deterministic adjudicator backend over jury evidence."""
     from dspx.services.program_foundry_gepa_comparison_adjudication import (
         ProgramFoundryGepaComparisonAdjudicationError,
         adjudicate_program_foundry_gepa_comparison,
@@ -202,6 +202,67 @@ def adjudicate_foundry_gepa_comparison(
         typer.echo(str(receipt.parent / "comparison-adjudication.json"))
         typer.echo(f"local_disposition: {payload.get('disposition')}")
         typer.echo(f"reused: {payload.get('reused')}")
+
+
+@app.command("select-adjudicator")
+def select_adjudicator(
+    task_kind: str = typer.Option(
+        "foundry_gepa_comparison",
+        "--task-kind",
+        help="Exact task kind requiring an adjudicator",
+    ),
+    registration: list[Path] = typer.Option(
+        [],
+        "--registration",
+        help="Task adjudicator registration JSON (repeatable)",
+    ),
+    builtin_fallback: bool = typer.Option(
+        True,
+        "--builtin-fallback/--no-builtin-fallback",
+        help="Allow the built-in deterministic foundry adjudicator when no registration matches",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print selection JSON"),
+) -> None:
+    """Select a task-specific adjudicator without executing or authenticating it."""
+    from dspx.services.program_adjudicator_protocol import (
+        ProgramAdjudicatorProtocolError,
+        load_task_adjudicator_registration,
+        select_task_adjudicator,
+    )
+
+    try:
+        loaded = [
+            (path, *load_task_adjudicator_registration(path)) for path in registration
+        ]
+        payload = select_task_adjudicator(
+            task_kind=task_kind,
+            registrations=[item[1] for item in loaded],
+            include_builtin_fallback=builtin_fallback,
+        )
+        payload["registration_sources"] = [
+            {
+                "path": str(path.expanduser().resolve()),
+                "sha256": digest,
+                "registration_id": registration_payload["registration_id"],
+            }
+            for path, registration_payload, digest in loaded
+        ]
+    except ProgramAdjudicatorProtocolError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(f"selection_status: {payload.get('status')}")
+        typer.echo(f"disposition: {payload.get('disposition')}")
+        selected = payload.get("selected_registration")
+        if isinstance(selected, dict):
+            typer.echo(f"adjudicator_kind: {selected.get('backend', {}).get('kind')}")
+            typer.echo(
+                f"execution_support: {selected.get('backend', {}).get('execution_support')}"
+            )
+    if payload.get("status") == "require_review":
+        raise typer.Exit(code=1)
 
 
 @app.command("optimize-gepa")
