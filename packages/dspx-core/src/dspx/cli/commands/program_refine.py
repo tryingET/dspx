@@ -265,6 +265,57 @@ def select_adjudicator(
         raise typer.Exit(code=1)
 
 
+@app.command("dispatch-foundry-gepa-adjudicator")
+def dispatch_foundry_gepa_adjudicator(
+    receipt: Path = typer.Option(
+        ...,
+        "--receipt",
+        help="Canonical successful foundry GEPA comparison-jury-receipt.json",
+    ),
+    registration: list[Path] = typer.Option(
+        [],
+        "--registration",
+        help="Task adjudicator registration JSON (repeatable)",
+    ),
+    builtin_fallback: bool = typer.Option(
+        True,
+        "--builtin-fallback/--no-builtin-fallback",
+        help="Use the trusted built-in deterministic backend when no registration matches",
+    ),
+    json_out: bool = typer.Option(False, "--json", help="Print dispatch JSON"),
+) -> None:
+    """Persist one receipt-bound request and execute no external adjudicator."""
+    from dspx.services.program_foundry_gepa_adjudicator_dispatch import (
+        ProgramFoundryGepaAdjudicatorDispatchError,
+        ProgramFoundryGepaAdjudicatorDispatchIndeterminateError,
+        dispatch_program_foundry_gepa_comparison_adjudicator,
+    )
+
+    try:
+        payload = dispatch_program_foundry_gepa_comparison_adjudicator(
+            comparison_jury_receipt_path=receipt,
+            registration_paths=registration,
+            include_builtin_fallback=builtin_fallback,
+        )
+    except ProgramFoundryGepaAdjudicatorDispatchIndeterminateError as exc:
+        typer.echo(
+            f"Error: adjudicator request publication may have committed: {exc}",
+            err=True,
+        )
+        raise typer.Exit(code=3) from exc
+    except ProgramFoundryGepaAdjudicatorDispatchError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+    if json_out:
+        typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        typer.echo(f"dispatch_status: {payload.get('status')}")
+        typer.echo(f"disposition: {payload.get('disposition')}")
+        typer.echo(f"request_path: {payload.get('request_path')}")
+    if payload.get("status") == "require_review":
+        raise typer.Exit(code=1)
+
+
 @app.command("optimize-gepa")
 def optimize_gepa(
     manifest: Path = typer.Option(

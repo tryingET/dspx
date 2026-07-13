@@ -54,6 +54,12 @@ class ProgramFoundryGepaComparisonAdjudicationError(ValueError):
     """Raised when a comparison jury cannot be adjudicated safely."""
 
 
+class ProgramFoundryGepaComparisonAdjudicationIndeterminateError(
+    ProgramFoundryGepaComparisonAdjudicationError
+):
+    """Raised when an adjudication target may already have committed."""
+
+
 def _load_json(path: Path, *, label: str) -> dict[str, Any]:
     try:
         payload = json.loads(read_regular_bytes(path, label=label).decode("utf-8"))
@@ -99,6 +105,7 @@ def _write_json_atomic_no_clobber(
         f".comparison-adjudication.{os.getpid()}.{secrets.token_hex(8)}.tmp"
     )
     temporary_created = False
+    published = False
     failure_in_flight = False
     try:
         assert_path_descriptor_identity(
@@ -134,6 +141,7 @@ def _write_json_atomic_no_clobber(
             dst_dir_fd=experiment_descriptor,
             follow_symlinks=False,
         )
+        published = True
         os.fsync(experiment_descriptor)
         os.fsync(root_descriptor)
     except ProgramFoundryGepaComparisonAdjudicationError:
@@ -146,8 +154,15 @@ def _write_json_atomic_no_clobber(
         ) from exc
     except OSError as exc:
         failure_in_flight = True
-        raise ProgramFoundryGepaComparisonAdjudicationError(
+        error_type = (
+            ProgramFoundryGepaComparisonAdjudicationIndeterminateError
+            if published
+            else ProgramFoundryGepaComparisonAdjudicationError
+        )
+        raise error_type(
             "comparison adjudication persistence failed; a valid target may already be recorded"
+            if published
+            else "comparison adjudication persistence failed before publication"
         ) from exc
     finally:
         cleanup_error: OSError | None = None
@@ -162,8 +177,15 @@ def _write_json_atomic_no_clobber(
         except OSError as exc:
             cleanup_error = cleanup_error or exc
         if cleanup_error is not None and not failure_in_flight:
-            raise ProgramFoundryGepaComparisonAdjudicationError(
+            error_type = (
+                ProgramFoundryGepaComparisonAdjudicationIndeterminateError
+                if published
+                else ProgramFoundryGepaComparisonAdjudicationError
+            )
+            raise error_type(
                 "comparison adjudication was recorded but temporary cleanup is indeterminate"
+                if published
+                else "comparison adjudication temporary cleanup failed before publication"
             ) from cleanup_error
 
 
@@ -376,7 +398,7 @@ def validate_program_foundry_gepa_comparison_adjudication_contract(
         )
 
 
-def adjudicate_program_foundry_gepa_comparison(
+def _adjudicate_program_foundry_gepa_comparison(
     *,
     comparison_jury_receipt_path: Path,
 ) -> dict[str, Any]:
@@ -431,9 +453,41 @@ def adjudicate_program_foundry_gepa_comparison(
             expected,
             root_descriptor=root_descriptor,
         )
-        persisted = _load_json(output_path, label="comparison adjudication")
-        validate_program_foundry_gepa_comparison_adjudication_contract(
-            persisted,
-            validated_jury=validated_jury,
-        )
+        try:
+            persisted = _load_json(output_path, label="comparison adjudication")
+            validate_program_foundry_gepa_comparison_adjudication_contract(
+                persisted,
+                validated_jury=validated_jury,
+            )
+        except ProgramFoundryGepaComparisonAdjudicationIndeterminateError:
+            raise
+        except Exception as exc:
+            raise ProgramFoundryGepaComparisonAdjudicationIndeterminateError(
+                "comparison adjudication committed but terminal validation failed"
+            ) from exc
         return {**persisted, "reused": False}
+
+
+def adjudicate_program_foundry_gepa_comparison(
+    *,
+    comparison_jury_receipt_path: Path,
+) -> dict[str, Any]:
+    """Record or reuse one deterministic disposition with commit-aware errors."""
+
+    receipt_path = comparison_jury_receipt_path.expanduser().absolute()
+    output_path = receipt_path.parent / "comparison-adjudication.json"
+    existed_before = output_path.exists() or output_path.is_symlink()
+    try:
+        return _adjudicate_program_foundry_gepa_comparison(
+            comparison_jury_receipt_path=receipt_path,
+        )
+    except ProgramFoundryGepaComparisonAdjudicationIndeterminateError:
+        raise
+    except Exception as exc:
+        if not existed_before and (output_path.exists() or output_path.is_symlink()):
+            raise ProgramFoundryGepaComparisonAdjudicationIndeterminateError(
+                "comparison adjudication may have committed before lock release"
+            ) from exc
+        if isinstance(exc, ProgramFoundryGepaComparisonAdjudicationError):
+            raise
+        raise ProgramFoundryGepaComparisonAdjudicationError(str(exc)) from exc

@@ -391,7 +391,12 @@ def validate_task_adjudicator_registration(
 def load_task_adjudicator_registration(path: Path) -> tuple[dict[str, Any], str]:
     """Load one external protocol registration; executable claims fail closed."""
 
-    raw = read_regular_bytes(path, label="task adjudicator registration")
+    try:
+        raw = read_regular_bytes(path, label="task adjudicator registration")
+    except (OSError, ValueError) as exc:
+        raise ProgramAdjudicatorProtocolError(
+            f"task adjudicator registration cannot be read safely: {path}"
+        ) from exc
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -418,10 +423,16 @@ def select_task_adjudicator(
         raise ProgramAdjudicatorProtocolError(
             "adjudicator selection task_kind is required"
         )
-    validated = [validate_task_adjudicator_registration(item) for item in registrations]
+    validated_by_id = {
+        item["registration_id"]: item
+        for item in (
+            validate_task_adjudicator_registration(candidate)
+            for candidate in registrations
+        )
+    }
     matches = [
         item
-        for item in validated
+        for item in validated_by_id.values()
         if item["task_selector"]["task_kind"] == normalized_task_kind
         and item["task_selector"]["policy_scope"] == BOUNDED_LOCAL_DISPOSITION_SCOPE
     ]

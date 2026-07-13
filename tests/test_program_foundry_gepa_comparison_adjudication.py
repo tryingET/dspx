@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from pathlib import Path
 from typing import Any
 
@@ -152,6 +154,38 @@ def test_adjudication_policy_records_bounded_local_dispositions(
     assert first["effect"]["candidate_files_mutated"] is False
     assert first["effect"]["production_activation_applied"] is False
     assert first["non_authority"]["production_promotion_authority"] is False
+    assert (receipt.parent / "comparison-adjudication.json").exists()
+
+
+def test_adjudication_commit_followed_by_lock_release_failure_is_indeterminate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt, validated = _validated_jury(
+        tmp_path,
+        recommendation="supports_review_evidence_only",
+        counts=_counts(supports_review_evidence=1),
+    )
+    monkeypatch.setattr(
+        adjudication,
+        "validate_successful_program_foundry_gepa_comparison_jury_receipt",
+        lambda path, **kwargs: dict(validated),
+    )
+    real_lock = adjudication.foundry_lock
+
+    @contextmanager
+    def failing_release(root: Path):
+        with real_lock(root) as descriptor:
+            yield descriptor
+        raise OSError("simulated lock release failure")
+
+    monkeypatch.setattr(adjudication, "foundry_lock", failing_release)
+    with pytest.raises(
+        adjudication.ProgramFoundryGepaComparisonAdjudicationIndeterminateError,
+        match="may have committed before lock release",
+    ):
+        adjudication.adjudicate_program_foundry_gepa_comparison(
+            comparison_jury_receipt_path=receipt
+        )
     assert (receipt.parent / "comparison-adjudication.json").exists()
 
 
