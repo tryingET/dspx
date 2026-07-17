@@ -26,7 +26,7 @@ def _factory() -> PiRPCLM:
     thinking = os.getenv("DSPX_PI_THINKING") or None
     cwd = os.getenv("DSPX_PI_CWD") or None
     timeout = float(os.getenv("DSPX_PI_TIMEOUT", "0") or 0) or None
-    strict = _truthy("DSPX_PI_STRICT", False)
+    strict = _truthy("DSPX_PI_STRICT", True)
     no_tools = _truthy("DSPX_PI_NO_TOOLS", True)
     no_session = _truthy("DSPX_PI_NO_SESSION", True)
     disable_resources = _truthy("DSPX_PI_DISABLE_RESOURCES", True)

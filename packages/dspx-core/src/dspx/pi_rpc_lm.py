@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -179,7 +180,7 @@ class PiRPCLM(DSPyBaseLM):
         ) or ""
         if self.verbose:
             ts = datetime.now().strftime("%H:%M:%S")
-            print(f"[{ts}] PiRPCLM: prompting pi rpc …")
+            print(f"[{ts}] PiRPCLM: prompting pi rpc …", file=sys.stderr)
 
         t0 = time.time()
         error: Optional[str] = None
@@ -266,7 +267,8 @@ class PiRPCLM(DSPyBaseLM):
         self._bin_warned = True
         try:
             print(
-                f"[PiRPCLM] CLI '{self.binary}' not found in PATH. Install '@mariozechner/pi-coding-agent'."
+                f"[PiRPCLM] CLI '{self.binary}' not found in PATH. Install '@mariozechner/pi-coding-agent'.",
+                file=sys.stderr,
             )
         except Exception:
             pass

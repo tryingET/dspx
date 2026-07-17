@@ -260,7 +260,7 @@ def providers_benchmark(
         "Reply with the single word: hello",
         help="Prompt used for benchmarking calls",
     ),
-    repeats: int = typer.Option(3, help="Number of measured calls per provider"),
+    repeats: int = typer.Option(3, min=1, help="Number of measured calls per provider"),
     warmup: int = typer.Option(0, help="Warmup calls per provider before timing"),
     max_tokens: Optional[int] = typer.Option(
         16, help="Max tokens per benchmark call (best effort)"
@@ -278,7 +278,7 @@ def providers_benchmark(
     payload = benchmark_providers(
         providers,
         prompt=prompt,
-        repeats=max(0, int(repeats)),
+        repeats=int(repeats),
         warmup=max(0, int(warmup)),
         max_tokens=max_tokens,
     )
@@ -297,3 +297,5 @@ def providers_benchmark(
                     model=row.get("model"),
                 )
             )
+    if not payload.get("ok", False):
+        raise typer.Exit(code=2)

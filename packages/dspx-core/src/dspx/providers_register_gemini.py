@@ -11,10 +11,18 @@ from .provider_registry import register_provider
 from dspx.gemini_cli_lm import GeminiCLILM
 
 
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw not in {"", "0", "false", "False", "no", "No"}
+
+
 def _factory() -> GeminiCLILM:
     binary = os.getenv("GEMINI_BIN", "gemini")
     cwd = os.getenv("GEMINI_CWD") or None
     timeout = int(os.getenv("GEMINI_TIMEOUT", "0") or 0) or None
+    strict = _env_flag("DSPX_GEMINI_STRICT", True)
     extra = os.getenv("GEMINI_EXTRA_FLAGS") or ""
     extra_flags: list[str] = [str(s) for s in extra.split() if s]
     # Allow model selection via env GEMINI_MODEL; we simply pass env through
@@ -22,7 +30,12 @@ def _factory() -> GeminiCLILM:
     if os.getenv("GEMINI_MODEL"):
         env["GEMINI_MODEL"] = os.getenv("GEMINI_MODEL", "")
     return GeminiCLILM(
-        binary=binary, cwd=cwd, extra_flags=extra_flags, env=env, timeout=timeout
+        binary=binary,
+        cwd=cwd,
+        extra_flags=extra_flags,
+        env=env,
+        timeout=timeout,
+        strict=strict,
     )
 
 

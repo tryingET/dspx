@@ -254,7 +254,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
 
     @staticmethod
     def _raise_on_error_payload(resp: Any) -> None:
-        if not isinstance(resp, dict) or not resp.get("_dspx_error"):
+        if not isinstance(resp, dict) or resp.get("_dspx_error") is not True:
             return
         error_text = str(
             resp.get("error") or "dspy-lm-auth provider execution failed"
@@ -450,6 +450,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             started = time.time()
             try:
                 resp = self.forward(prompt=prompt, max_tokens=max_tokens)
+                self._raise_on_error_payload(resp)
                 text = self._extract_text(resp)
                 payload["probe"] = {
                     "ok": True,
@@ -542,17 +543,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 {"role": m.role, "content": m.content} for m in (request.messages or [])
             ]
             resp = self.forward(messages=msgs, **kwargs)
-        if isinstance(resp, dict) and resp.get("_dspx_error"):
-            choices = resp.get("choices") or [{}]
-            first = choices[0] if isinstance(choices, list) and choices else {}
-            text = first.get("text") if isinstance(first, dict) else None
-            usage = resp.get("usage") if isinstance(resp.get("usage"), dict) else None
-            return LMResponse(
-                outputs=[str(text or resp.get("error") or "")],
-                model=getattr(self, "model", None),
-                usage=usage,
-                raw=resp,
-            )
+        self._raise_on_error_payload(resp)
         return LMResponse(
             outputs=[self._extract_text(resp)],
             model=getattr(self, "model", None),

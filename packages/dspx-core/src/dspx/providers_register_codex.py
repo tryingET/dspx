@@ -16,12 +16,20 @@ from pathlib import Path
 _SANDBOX_HOLDERS: list[TemporaryDirectory] = []  # keep refs to avoid GC cleanup
 
 
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw not in {"", "0", "false", "False", "no", "No"}
+
+
 def _factory() -> CodexExecLM:
     model = os.getenv("CODEX_MODEL", "gpt-5")
     reasoning = os.getenv("CODEX_REASONING", "minimal")
     bypass = os.getenv("CODEX_BYPASS", "0") not in {"", "0", "false", "False"}
     search = os.getenv("CODEX_SEARCH", "0") not in {"", "0", "false", "False"}
     timeout = int(os.getenv("CODEX_TIMEOUT", "0") or 0) or None
+    strict = _env_flag("DSPX_CODEX_STRICT", True)
     workspace = os.getenv("DSPX_CODEX_WORKSPACE")
     # Optional isolated worktree for safety: create ephemeral cwd
     if os.getenv("DSPX_SANDBOX_WORKTREE", "0") not in {"", "0", "false", "False"}:
@@ -44,6 +52,7 @@ def _factory() -> CodexExecLM:
         enable_search=search,
         workspace=workspace,
         timeout=timeout,
+        strict=strict,
     )
 
 

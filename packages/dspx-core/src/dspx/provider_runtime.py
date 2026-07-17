@@ -49,6 +49,13 @@ _SENSITIVE_FIELD_SUFFIXES = (
 )
 
 
+class ProviderInvocationError(RuntimeError):
+    """Raised when a provider returns an explicit failure result."""
+
+
+_FAILURE_HEALTH_STATUSES = {"error", "failed", "failure", "unhealthy"}
+
+
 def _normalized_field_name(name: str) -> str:
     return str(name or "").strip().lower().replace("-", "_").replace(".", "_")
 
@@ -118,6 +125,74 @@ def sanitize_payload(value: Any) -> Any:
 
 _sanitize_text = sanitize_text
 _sanitize_payload = sanitize_payload
+
+
+def raise_for_explicit_provider_error(result: Any) -> None:
+    """Reject provider-owned failure signals without interpreting model text."""
+
+    candidates = (result, getattr(result, "raw", None))
+    for candidate in candidates:
+        if not isinstance(candidate, MappingABC):
+            continue
+        marker = candidate.get("_dspx_error") is True
+        declared_error = candidate.get("error")
+        error_text = str(declared_error).strip() if declared_error is not None else ""
+        status = str(candidate.get("status") or "").strip().lower()
+        if not marker and not error_text and status not in _FAILURE_HEALTH_STATUSES:
+            continue
+        error = sanitize_text(
+            error_text
+            or (
+                f"provider execution reported status={status}"
+                if status in _FAILURE_HEALTH_STATUSES
+                else "provider execution failed"
+            )
+        )
+        error_type = sanitize_text(str(candidate.get("_dspx_error_type") or ""))
+        prefix = f"{error_type}: " if marker and error_type else ""
+        raise ProviderInvocationError(f"{prefix}{error}")
+
+
+def normalize_provider_health_payload(
+    payload: MappingABC[str, Any], *, probe: bool
+) -> dict[str, Any]:
+    """Require exact success signals from provider-owned health payloads."""
+
+    normalized = dict(payload)
+    probe_payload = normalized.get("probe")
+    error: str | None = None
+    try:
+        raise_for_explicit_provider_error(normalized)
+        if isinstance(probe_payload, MappingABC):
+            raise_for_explicit_provider_error(probe_payload)
+    except ProviderInvocationError as exc:
+        error = str(exc)
+
+    declared_error = normalized.get("error")
+    if declared_error is not None and str(declared_error).strip():
+        error = error or str(declared_error)
+    if isinstance(probe_payload, MappingABC):
+        probe_error = probe_payload.get("error")
+        if probe_error is not None and str(probe_error).strip():
+            error = error or str(probe_error)
+        probe_status = str(probe_payload.get("status") or "").strip().lower()
+        if probe_status in _FAILURE_HEALTH_STATUSES:
+            error = error or f"provider probe reported status={probe_status}"
+    status = str(normalized.get("status") or "").strip().lower()
+    if status in _FAILURE_HEALTH_STATUSES:
+        error = error or f"provider healthcheck reported status={status}"
+    if normalized.get("ok") is not True:
+        error = error or "provider healthcheck failed"
+    if isinstance(probe_payload, MappingABC):
+        if probe_payload.get("ok") is not True:
+            error = error or "provider probe did not report success"
+    elif probe:
+        error = error or "provider probe did not report success"
+    if error is not None:
+        normalized["ok"] = False
+        normalized["status"] = "error"
+        normalized["error"] = sanitize_text(error)
+    return normalized
 
 
 def extract_text_from_result(result: Any) -> str:
@@ -203,6 +278,7 @@ def invoke_provider(
             result = lm.forward(prompt=prompt, max_tokens=max_tokens)
         except TypeError:
             result = lm.forward(prompt=prompt)
+    raise_for_explicit_provider_error(result)
     return extract_text_from_result(result), usage_from_result(result)
 
 
@@ -261,6 +337,7 @@ def check_provider_health(
             payload["provider"] = provider
         if "metadata" not in payload:
             payload["metadata"] = provider_metadata_from_instance(provider, lm)
+        payload = normalize_provider_health_payload(payload, probe=probe)
         return sanitize_payload(payload)
 
     payload = provider_metadata_from_instance(provider, lm)
@@ -309,6 +386,8 @@ def benchmark_providers(
     ensure_default_providers()
     started = time.time()
     results: list[dict[str, Any]] = []
+    if repeats < 1:
+        raise ValueError("provider benchmark repeats must be at least 1")
 
     for provider in providers:
         provider_started = time.time()
@@ -380,8 +459,10 @@ def benchmark_providers(
             float(row.get("duration_median_ms") or float("inf")),
         ),
     )
+    ok = bool(results) and all(row.get("ok") is True for row in results)
     return {
         "providers": list(providers),
+        "ok": ok,
         "prompt": sanitize_text(prompt),
         "prompt_raw_persisted": False,
         "repeats": repeats,

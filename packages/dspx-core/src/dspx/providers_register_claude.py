@@ -43,6 +43,7 @@ def _factory() -> ClaudeHeadlessLM:
     cwd = os.getenv("CLAUDE_CWD") or None
     timeout = int(os.getenv("CLAUDE_TIMEOUT", "0") or 0) or None
     use_cli_cwd = _env_flag("CLAUDE_USE_CLI_CWD", default_false=False)
+    strict = _env_flag("DSPX_CLAUDE_STRICT", default_false=False)
 
     return ClaudeHeadlessLM(
         binary=binary,
@@ -60,6 +61,7 @@ def _factory() -> ClaudeHeadlessLM:
         cwd=cwd,
         timeout=timeout,
         use_cli_cwd=use_cli_cwd,
+        strict=strict,
     )
 
 

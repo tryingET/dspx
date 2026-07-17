@@ -17,6 +17,7 @@ from typer.testing import CliRunner
 from dspx.cli.dspx import app
 from dspx.dspy_lm_auth_lm import (
     DspyLMAuthCodexStreamResponse,
+    DspyLMAuthResponseError,
     DspyLMAuthLM,
     DspyLMAuthMinimalResponse,
 )
@@ -177,7 +178,7 @@ def test_dspy_lm_auth_healthcheck_redacts_direct_errors(monkeypatch) -> None:
     assert health["checks"][-1]["detail"] == health["error"]
 
 
-def test_dspy_lm_auth_generate_preserves_non_strict_error_payload(monkeypatch) -> None:
+def test_dspy_lm_auth_generate_rejects_non_strict_error_payload(monkeypatch) -> None:
     class BadInner:
         def forward(self, **kwargs):
             raise RuntimeError("boom api_key=supersecret-value")
@@ -185,13 +186,46 @@ def test_dspy_lm_auth_generate_preserves_non_strict_error_payload(monkeypatch) -
     lm = DspyLMAuthLM(strict=False)
     monkeypatch.setattr(lm, "_build_inner", lambda: BadInner())
 
-    result = lm.generate(LMRequest(prompt="hello"))
+    with pytest.raises(DspyLMAuthResponseError) as captured:
+        lm.generate(LMRequest(prompt="hello"))
 
-    assert result.outputs == ["boom api_key=[REDACTED]"]
-    assert result.raw is not None
-    assert result.raw["_dspx_error"] is True
-    assert result.raw["_dspx_error_type"] == "RuntimeError"
-    assert "supersecret" not in json.dumps(result.raw)
+    assert "supersecret" not in str(captured.value)
+    assert "[REDACTED]" in str(captured.value)
+
+
+@pytest.mark.parametrize("marker", [False, "false", 1, None])
+def test_dspy_lm_auth_error_marker_requires_typed_true(marker) -> None:
+    DspyLMAuthLM._raise_on_error_payload({"_dspx_error": marker, "error": ""})
+
+
+def test_dspy_lm_auth_health_probe_rejects_non_strict_error_payload(
+    monkeypatch,
+) -> None:
+    class GoodAuthStorage:
+        def __init__(self, path=None):
+            self.path = path
+
+        def has_auth(self, provider: str) -> bool:
+            return True
+
+    class BadInner:
+        def forward(self, **kwargs):
+            raise RuntimeError("boom api_key=supersecret-value")
+
+    lm = DspyLMAuthLM(strict=False)
+    monkeypatch.setattr(
+        lm,
+        "_import_module",
+        lambda: types.SimpleNamespace(AuthStorage=GoodAuthStorage),
+    )
+    monkeypatch.setattr(lm, "_build_inner", lambda: BadInner())
+
+    health = lm.healthcheck(probe=True)
+
+    assert health["ok"] is False
+    assert health["probe"]["ok"] is False
+    assert "supersecret" not in json.dumps(health)
+    assert "[REDACTED]" in health["error"]
 
 
 def test_dspy_lm_auth_wrapper_import_error_mentions_repo_helper(monkeypatch) -> None:

@@ -37,6 +37,30 @@ Support a production-grade mixed-provider DSPx workflow:
 - `dspx providers health [--probe]`
 - `dspx providers benchmark --provider ...`
 
+## Failure semantics
+
+Registered subprocess/RPC providers fail closed by default. A transport exception,
+timeout, failed RPC acknowledgement, or non-zero provider process exit is an error;
+its diagnostic text is never treated as model output. Health, smoke, and benchmark
+commands therefore report failure and exit non-zero instead of emitting a
+success-shaped result.
+
+Legacy soft-failure behavior is available only through explicit compatibility
+opt-outs and is unsuitable for production probes or evidence-producing runs:
+
+- `DSPX_PI_STRICT=0`
+- `DSPX_CODEX_STRICT=0`
+- `DSPX_CLAUDE_STRICT=0`
+- `DSPX_GEMINI_STRICT=0`
+
+DSPx classifies failure from provider-owned process/RPC status, typed error markers
+set to true, non-empty explicit error fields, and declared failure statuses. Empty
+optional error fields and false error markers are not failures. DSPx does not infer
+failure from model text; a successful provider may return error-looking prose.
+
+Benchmarks require at least one measured call, and any provider failure makes the
+aggregate benchmark unsuccessful and the CLI exit non-zero.
+
 ## Local editable checkout note
 
 When DSPx should use a local editable `dspy-lm-auth` checkout, prefer the workspace contrib repo instead of an unrelated upstream clone:
