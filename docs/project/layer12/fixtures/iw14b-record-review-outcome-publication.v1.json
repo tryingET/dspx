@@ -1,0 +1,52 @@
+{
+  "schema_version": "layer12-fixed-family-publication-v1",
+  "publication_id": "dspx-iw14b-record-review-outcome-owner-local-test-v1",
+  "published_at": "2026-07-17T19:30:00Z",
+  "publication_scope": "owner_local_artifact_only",
+  "publication_lifecycle": {
+    "epoch": 1,
+    "state_at_signing": "published",
+    "withdrawal_ref_at_signing": null
+  },
+  "identity": {
+    "owner": "softwareco/owned/dspx",
+    "family_id": "dspx.layer12.record-review-outcome.v1",
+    "protocol_version": "layer12-v1",
+    "transition_token": "record_review_outcome",
+    "spec_schema_version": "layer12-fixed-family-spec-v1",
+    "spec_digest": "sha256:de0679063ac72ed585c95621eb91be742cc8ae770a7ba0fd2a3334af1c30fdec",
+    "scope_digest": "sha256:f4d8bd86068b354255bb23a67af59574e996e1e8badb90b77bcef5bf0e94f17a"
+  },
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "signer_evidence": {
+    "algorithm": "Ed25519",
+    "key_id": "dspx-iw14b-b5-record-review-outcome-test-key-v1",
+    "public_key_b64": "ZbYJN72Mv8sb50KbL4ILayH2TokEFgbcONDmOjaBLMQ=",
+    "key_status": "active",
+    "valid_from": "2026-07-01T00:00:00Z",
+    "valid_until": "2026-08-01T00:00:00Z",
+    "declaration_is_trust_root": false
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "key_id": "dspx-iw14b-b5-record-review-outcome-test-key-v1",
+    "signed_payload_digest": "sha256:153030de1c4ccaa651fcc1ac54e4efc45f37b813bcfdc0c592ffd0b3915ded30",
+    "signature_b64": "/yzkK0HPa0UdUMFNexA3maH5Bc/cXhL9YQY+jvaQDvYsi2YvMVLhcom4/iOFiEWaibeI6xPSfWsDV0U1AtXGCg=="
+  }
+}

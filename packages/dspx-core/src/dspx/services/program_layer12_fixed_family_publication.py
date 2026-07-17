@@ -31,18 +31,27 @@ B0_TOKEN = "continue_current_execution_task"
 B1_TOKEN = "request_owner_route"
 B3_TOKEN = "inspect_status_before_proceeding"
 B4_TOKEN = "open_decision"
+B5_TOKEN = "record_review_outcome"
 B2_TOKENS = (
     "close_implementation_wave",
     "activate_guidance",
     "default_residual_adoption_hardening",
 )
-SUPPORTED_TOKENS = {B0_TOKEN, B1_TOKEN, B3_TOKEN, B4_TOKEN, *B2_TOKENS}
+SUPPORTED_TOKENS = {
+    B0_TOKEN,
+    B1_TOKEN,
+    B3_TOKEN,
+    B4_TOKEN,
+    B5_TOKEN,
+    *B2_TOKENS,
+}
 DSPX_OWNER = "softwareco/owned/dspx"
 AK_OWNER = "softwareco/owned/agent-kernel"
 B0_FAMILY_ID = "dspx.layer12.continue-current-execution-task.v1"
 B1_FAMILY_ID = "dspx.layer12.request-owner-route.v1"
 B3_FAMILY_ID = "dspx.layer12.inspect-status-before-proceeding.v1"
 B4_FAMILY_ID = "dspx.layer12.open-decision.v1"
+B5_FAMILY_ID = "dspx.layer12.record-review-outcome.v1"
 B2_FAMILY_IDS = {
     "close_implementation_wave": "dspx.layer12.close-implementation-wave.v1",
     "activate_guidance": "dspx.layer12.activate-guidance.v1",
@@ -53,6 +62,7 @@ TOKEN_FAMILY_IDS = {
     B1_TOKEN: B1_FAMILY_ID,
     B3_TOKEN: B3_FAMILY_ID,
     B4_TOKEN: B4_FAMILY_ID,
+    B5_TOKEN: B5_FAMILY_ID,
     **B2_FAMILY_IDS,
 }
 # Immutable DSPx-owner facts for the only imports this closed reconstruction
@@ -94,6 +104,11 @@ FIXED_IMPORT_FACTS: dict[str, tuple[str, str, int]] = {
         "dspx-iw14b-open-decision-owner-local-test-v1",
         1,
     ),
+    B5_TOKEN: (
+        "sha256:de0679063ac72ed585c95621eb91be742cc8ae770a7ba0fd2a3334af1c30fdec",
+        "dspx-iw14b-record-review-outcome-owner-local-test-v1",
+        1,
+    ),
 }
 FIXED_IMPORT_ORDER = (
     B0_TOKEN,
@@ -101,6 +116,7 @@ FIXED_IMPORT_ORDER = (
     *B2_TOKENS,
     B3_TOKEN,
     B4_TOKEN,
+    B5_TOKEN,
 )
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
 
@@ -697,6 +713,24 @@ B4_SUCCESSOR_AVAILABILITY: list[dict[str, str]] = [
     for token in (B0_TOKEN, B1_TOKEN, *B2_TOKENS, B3_TOKEN)
 ]
 
+B5_SCOPE_DIGEST = (
+    "sha256:f4d8bd86068b354255bb23a67af59574e996e1e8badb90b77bcef5bf0e94f17a"
+)
+B5_TASK_KEY = "B5-DSPx-publication"
+B5_AUTHORIZATION_EVIDENCE_ID = "4695"
+B5_TASK_ID = "4010"
+B5_PUBLICATION_ID = "dspx-iw14b-record-review-outcome-owner-local-test-v1"
+B5_PUBLICATION_EPOCH = 1
+B5_PUBLISHED_AT = "2026-07-17T19:30:00Z"
+B5_KEY_ID = "dspx-iw14b-b5-record-review-outcome-test-key-v1"
+B5_PUBLIC_KEY_B64 = "ZbYJN72Mv8sb50KbL4ILayH2TokEFgbcONDmOjaBLMQ="
+B5_PROGRAM_ID = "dspx.generated.record_review_outcome.v1"
+B5_PROGRAM_EVIDENCE_DIGESTS = {
+    "program_intent": "sha256:8440e0cf04115f644f748f7a43502d123097bbcd0a81e57a52559d97d6010c0a",
+    "module_graph": "sha256:47ee2a208aeedecbd4001a28c0478bf5b9c15850266078b9fc10d7c74a5855e4",
+    "controls_evidence": "sha256:13887a20573cd9edd9a77b589296a0f3b1516a5fd7ce36a285c630d31c054e8a",
+}
+
 B2_SCOPE_DIGEST = (
     "sha256:8783fc9276dafc434003277b6a690b92fe466a8249a4e0e50f82071dc30b98ca"
 )
@@ -1281,6 +1315,21 @@ def _check_b4_program_evidence(value: object, *, expected_family_id: str) -> Non
     )
 
 
+def _check_b5_program_evidence(value: object, *, expected_family_id: str) -> None:
+    if expected_family_id != B5_FAMILY_ID:
+        raise Layer12FixedFamilyPublicationError("B5 program family drift")
+    evidence = _object(value, "spec.program_evidence")
+    _closed(evidence, set(B5_PROGRAM_EVIDENCE_DIGESTS), "spec.program_evidence")
+    for component, expected_digest in B5_PROGRAM_EVIDENCE_DIGESTS.items():
+        item = _check_hash_bound(
+            evidence[component], f"spec.program_evidence.{component}"
+        )
+        if item["digest"] != expected_digest:
+            raise Layer12FixedFamilyPublicationError(
+                f"spec.program_evidence.{component} owner-fixed digest drift"
+            )
+
+
 def check_fixed_family_spec(
     spec: object,
     *,
@@ -1417,6 +1466,27 @@ def check_fixed_family_spec(
         _check_b4_program_evidence(
             item.get("program_evidence"), expected_family_id=expected_family_id
         )
+    elif pinned_token == B5_TOKEN:
+        if _digest(expected_scope_digest, "expected_scope_digest") != B5_SCOPE_DIGEST:
+            raise Layer12FixedFamilyPublicationError("B5 authorization scope drift")
+        authorization = _object(
+            item.get("authorization_evidence"), "spec.authorization_evidence"
+        )
+        _exact(
+            authorization,
+            {
+                "task_key": B5_TASK_KEY,
+                "authorization_evidence_id": B5_AUTHORIZATION_EVIDENCE_ID,
+                "task_id": B5_TASK_ID,
+                "scope_digest": B5_SCOPE_DIGEST,
+                "declaration_is_ak_authority": False,
+                "transition_authorized": False,
+            },
+            "spec.authorization_evidence",
+        )
+        _check_b5_program_evidence(
+            item.get("program_evidence"), expected_family_id=expected_family_id
+        )
     elif pinned_token in B2_TOKENS:
         if _digest(expected_scope_digest, "expected_scope_digest") != B2_SCOPE_DIGEST:
             raise Layer12FixedFamilyPublicationError("B2 authorization scope drift")
@@ -1520,7 +1590,13 @@ def check_fixed_family_publication(
 ) -> dict[str, object]:
     """Verify a publication against caller pins and closed owner fixture anchors."""
 
-    if expected_transition_token in {B1_TOKEN, B3_TOKEN, B4_TOKEN, *B2_TOKENS}:
+    if expected_transition_token in {
+        B1_TOKEN,
+        B3_TOKEN,
+        B4_TOKEN,
+        B5_TOKEN,
+        *B2_TOKENS,
+    }:
         if expected_transition_token == B1_TOKEN:
             owner_anchor = {
                 "publication_id": REQUEST_OWNER_ROUTE_PUBLICATION_ID,
@@ -1544,6 +1620,14 @@ def check_fixed_family_publication(
                 "published_at": B4_PUBLISHED_AT,
                 "key_id": B4_KEY_ID,
                 "public_key_b64": B4_PUBLIC_KEY_B64,
+            }
+        elif expected_transition_token == B5_TOKEN:
+            owner_anchor = {
+                "publication_id": B5_PUBLICATION_ID,
+                "epoch": B5_PUBLICATION_EPOCH,
+                "published_at": B5_PUBLISHED_AT,
+                "key_id": B5_KEY_ID,
+                "public_key_b64": B5_PUBLIC_KEY_B64,
             }
         elif expected_transition_token in B2_TOKENS:
             owner_anchor = B2_PUBLICATION_ANCHORS[expected_transition_token]
@@ -1627,7 +1711,13 @@ def check_fixed_family_publication(
         raise Layer12FixedFamilyPublicationError(
             "publication_id does not match external pin"
         )
-    if expected_transition_token in {B1_TOKEN, B3_TOKEN, B4_TOKEN, *B2_TOKENS}:
+    if expected_transition_token in {
+        B1_TOKEN,
+        B3_TOKEN,
+        B4_TOKEN,
+        B5_TOKEN,
+        *B2_TOKENS,
+    }:
         pinned_published_at = _text(expected_published_at, "expected_published_at")
         if item["published_at"] != pinned_published_at:
             raise Layer12FixedFamilyPublicationError(

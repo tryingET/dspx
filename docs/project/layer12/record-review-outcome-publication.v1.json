@@ -1,0 +1,273 @@
+{
+  "schema_version": "layer12-fixed-family-spec-v1",
+  "owner": "softwareco/owned/dspx",
+  "family_id": "dspx.layer12.record-review-outcome.v1",
+  "protocol_version": "layer12-v1",
+  "transition_tokens": [
+    "record_review_outcome"
+  ],
+  "scope_digest": "sha256:f4d8bd86068b354255bb23a67af59574e996e1e8badb90b77bcef5bf0e94f17a",
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "publication_contract": {
+    "publication_scope": "owner_local_artifact_only",
+    "signed_payload": "publication_object_without_signature",
+    "signature_algorithm": "Ed25519",
+    "external_trust_required": true
+  },
+  "reconstruction_contract": {
+    "mode": "cumulative_owner_local_family_epochs",
+    "identity_key": [
+      "owner",
+      "family_id"
+    ],
+    "epoch_order": "strictly_monotonic_per_family",
+    "withdrawal_scope": "matching_owner_family_epoch_only",
+    "preserve_unrelated_imports": true
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "authorization_evidence": {
+    "task_key": "B5-DSPx-publication",
+    "authorization_evidence_id": "4695",
+    "task_id": "4010",
+    "scope_digest": "sha256:f4d8bd86068b354255bb23a67af59574e996e1e8badb90b77bcef5bf0e94f17a",
+    "declaration_is_ak_authority": false,
+    "transition_authorized": false
+  },
+  "program_evidence": {
+    "program_intent": {
+      "schema_version": "program-intent-v2",
+      "name": "RecordReviewOutcomeReadiness",
+      "program_id": "dspx.generated.record_review_outcome.v1",
+      "objective": "Emit blocked owner-local readiness evidence for one proposed review outcome without recording it or dispatching a successor.",
+      "inputs": [
+        "decision_position",
+        "review_position",
+        "position_controls",
+        "review_outcome_authorization_evidence"
+      ],
+      "outputs": [
+        "readiness_verdict",
+        "outcome_successor_requirements",
+        "verifier_expectation"
+      ],
+      "family_id": "dspx.layer12.record-review-outcome.v1",
+      "transition_token": "record_review_outcome",
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "digest": "sha256:8440e0cf04115f644f748f7a43502d123097bbcd0a81e57a52559d97d6010c0a"
+    },
+    "module_graph": {
+      "schema_version": "dspx-fixed-module-graph-v1",
+      "program_id": "dspx.generated.record_review_outcome.v1",
+      "signatures": [
+        {
+          "name": "InspectCurrentDecisionReviewPosition",
+          "inputs": [
+            "decision_position",
+            "review_position",
+            "position_controls"
+          ],
+          "outputs": [
+            "governing_decision_count",
+            "decision_current",
+            "review_position_current",
+            "controlling_review_role",
+            "existing_legal_review_closure",
+            "proposed_review_outcome"
+          ]
+        },
+        {
+          "name": "SealBlockedReviewOutcomeReadiness",
+          "inputs": [
+            "governing_decision_count",
+            "decision_current",
+            "review_position_current",
+            "controlling_review_role",
+            "existing_legal_review_closure",
+            "proposed_review_outcome",
+            "review_outcome_authorization_evidence"
+          ],
+          "outputs": [
+            "readiness_verdict",
+            "outcome_successor_requirements",
+            "verifier_expectation"
+          ]
+        }
+      ],
+      "execution_order": [
+        "InspectCurrentDecisionReviewPosition",
+        "SealBlockedReviewOutcomeReadiness"
+      ],
+      "edges": [
+        {
+          "source": "InspectCurrentDecisionReviewPosition.governing_decision_count",
+          "target": "SealBlockedReviewOutcomeReadiness.governing_decision_count"
+        },
+        {
+          "source": "InspectCurrentDecisionReviewPosition.decision_current",
+          "target": "SealBlockedReviewOutcomeReadiness.decision_current"
+        },
+        {
+          "source": "InspectCurrentDecisionReviewPosition.review_position_current",
+          "target": "SealBlockedReviewOutcomeReadiness.review_position_current"
+        },
+        {
+          "source": "InspectCurrentDecisionReviewPosition.controlling_review_role",
+          "target": "SealBlockedReviewOutcomeReadiness.controlling_review_role"
+        },
+        {
+          "source": "InspectCurrentDecisionReviewPosition.existing_legal_review_closure",
+          "target": "SealBlockedReviewOutcomeReadiness.existing_legal_review_closure"
+        },
+        {
+          "source": "InspectCurrentDecisionReviewPosition.proposed_review_outcome",
+          "target": "SealBlockedReviewOutcomeReadiness.proposed_review_outcome"
+        }
+      ],
+      "entry_signature": "InspectCurrentDecisionReviewPosition",
+      "terminal_signature": "SealBlockedReviewOutcomeReadiness",
+      "closed": true,
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "digest": "sha256:47ee2a208aeedecbd4001a28c0478bf5b9c15850266078b9fc10d7c74a5855e4"
+    },
+    "controls_evidence": {
+      "schema_version": "dspx-record-review-outcome-controls-evidence-v1",
+      "task_key": "B5-DSPx-publication",
+      "transition_token": "record_review_outcome",
+      "availability": "blocked_readiness_only",
+      "legal": false,
+      "effects": "none",
+      "read_only": true,
+      "zero_mutation": true,
+      "allowed_mutations": [],
+      "apply_performed": false,
+      "transition_action_performed": false,
+      "review_outcome_recorded": false,
+      "decision_mutation_performed": false,
+      "generated_program_dispatch_ready": false,
+      "position_contracts": {
+        "decision_position_fields": [
+          "decision_id",
+          "title",
+          "state",
+          "rfc_ref",
+          "review_closure_mode",
+          "review_outcome",
+          "adr_ref",
+          "outcome",
+          "updated_at",
+          "direction_key",
+          "link_role",
+          "current"
+        ],
+        "review_position_fields": [
+          "decision_id",
+          "reviewed_artifact_ref",
+          "summary_aligned_with_legal_closure",
+          "latest_attempt_id",
+          "latest_attempt_role",
+          "latest_attempt_artifact_ref",
+          "latest_attempt_outcome",
+          "legal_closure_artifact_id",
+          "legal_closure_artifact_ref",
+          "legal_closure_outcome",
+          "required_tracks",
+          "missing_required_tracks",
+          "synthesis_required",
+          "synthesis_present",
+          "next_required_attempt_role",
+          "current"
+        ],
+        "unknown_fields": "deny",
+        "currentness": "same_decision_rfc_and_source_bound_wave_frame",
+        "distinct_decision_ambiguity": "fail_closed"
+      },
+      "position_controls": {
+        "governing_decision_count": 1,
+        "decision_state": "in_review",
+        "decision_current": true,
+        "review_position_current": true,
+        "reviewed_artifact_ref": "docs/project/example-rfc.md",
+        "review_closure_mode": "multi_lane_requires_synthesis",
+        "required_tracks": [
+          "architecture",
+          "authority"
+        ],
+        "missing_required_tracks": [],
+        "next_required_attempt_role": "synthesis",
+        "existing_legal_review_closure": false,
+        "proposed_review_outcome": "ready_for_adr",
+        "explicit_review_authorization_required": true,
+        "explicit_review_authorization_available": false,
+        "review_outcome_recorded": false,
+        "decision_mutation_performed": false
+      },
+      "supported_review_outcomes": [
+        "ready_for_adr",
+        "revise_rfc",
+        "reject_current_direction"
+      ],
+      "outcome_successors": [
+        {
+          "review_outcome": "ready_for_adr",
+          "next_transition": "record_adr",
+          "separate_authorization_required": true,
+          "successor_mutation_performed": false,
+          "successor_dispatch_performed": false
+        },
+        {
+          "review_outcome": "revise_rfc",
+          "next_transition": "start_new_current_review_cycle",
+          "separate_authorization_required": true,
+          "successor_mutation_performed": false,
+          "successor_dispatch_performed": false
+        },
+        {
+          "review_outcome": "reject_current_direction",
+          "next_transition": "reframe_or_park_direction",
+          "separate_authorization_required": true,
+          "successor_mutation_performed": false,
+          "successor_dispatch_performed": false
+        }
+      ],
+      "existing_legal_closure_behavior": "fail_closed_to_recorded_outcome_successor_without_second_closure",
+      "missing_preconditions": [
+        "owner-published record_review_outcome program family/spec",
+        "explicit review-outcome mutation authorization for the exact current decision and review attempt"
+      ],
+      "forbidden_mutations": [
+        "no_review_outcome_mutation",
+        "no_decision_mutation",
+        "no_record_adr",
+        "no_record_post_adr_plans",
+        "no_selection",
+        "no_recommendation_for_affected_use",
+        "no_affected_use",
+        "no_apply",
+        "no_owner_route_or_action"
+      ],
+      "declaration_is_ak_authority": false,
+      "digest": "sha256:13887a20573cd9edd9a77b589296a0f3b1516a5fd7ce36a285c630d31c054e8a"
+    }
+  }
+}
