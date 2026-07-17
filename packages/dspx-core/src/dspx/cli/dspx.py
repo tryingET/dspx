@@ -1295,12 +1295,87 @@ def program_foundry(
         "--gepa-metric",
         help="Explicit bounded optimizer metric recorded in the proposal",
     ),
+    declare_gepa_reviewed: Optional[str] = typer.Option(
+        None,
+        "--declare-gepa-reviewed",
+        help="Exact proposal_id declaring reviewed GEPA execution intent",
+    ),
+    operator_label: Optional[str] = typer.Option(
+        None,
+        "--operator-label",
+        help="Unauthenticated operator label recorded with GEPA execution intent",
+    ),
+    jury_provider: Optional[str] = typer.Option(
+        None,
+        "--jury-provider",
+        help="Explicit provider for the receipt-bound comparison jury",
+    ),
+    jury_adjudicator_id: str = typer.Option(
+        "local_foundry_adjudicator",
+        "--jury-adjudicator-id",
+        help="Comparison-jury adjudicator identity label",
+    ),
+    jury_adjudicator_kind: str = typer.Option(
+        "local_foundry_adjudicator",
+        "--jury-adjudicator-kind",
+        help="Comparison-jury adjudicator kind label",
+    ),
+    jury_adjudicator_repo: Optional[str] = typer.Option(
+        None,
+        "--jury-adjudicator-repo",
+        help="Optional comparison-jury adjudicator repository label",
+    ),
+    jury_max_jurors: Optional[int] = typer.Option(
+        None,
+        "--jury-max-jurors",
+        min=1,
+        help="Optional bound on program-specific jurors",
+    ),
+    adjudicator_registration: List[Path] = typer.Option(
+        [],
+        "--adjudicator-registration",
+        help="Exact task adjudicator registration JSON (repeatable)",
+    ),
+    builtin_adjudicator_fallback: bool = typer.Option(
+        True,
+        "--builtin-adjudicator-fallback/--no-builtin-adjudicator-fallback",
+        help="Use the trusted deterministic adjudicator when no registration matches",
+    ),
+    adjudicator_completion: Optional[Path] = typer.Option(
+        None,
+        "--adjudicator-completion",
+        help="Optional externally signed owner completion receipt JSON",
+    ),
+    verifier_policy: Optional[Path] = typer.Option(
+        None,
+        "--verifier-policy",
+        help="Scoped external adjudicator verifier policy JSON",
+    ),
+    trusted_policy_sha256: Optional[str] = typer.Option(
+        None,
+        "--trusted-policy-sha256",
+        help="Out-of-band canonical SHA-256 pin for the verifier policy",
+    ),
+    declare_adjudicator_request_id: Optional[str] = typer.Option(
+        None,
+        "--declare-adjudicator-request-id",
+        help="Exact pending adjudicator request_id for completion import",
+    ),
+    declare_owner_receipt_id: Optional[str] = typer.Option(
+        None,
+        "--declare-owner-receipt-id",
+        help="Exact externally assigned owner completion receipt ID",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Print foundry workflow JSON"),
 ) -> None:
     """Run or safely resume accepted intent through runtime Oracle semantics."""
     from dspx.services.program_foundry import (
         foundry_failure_message,
         run_program_foundry,
+    )
+    from dspx.services.program_foundry_gepa_workflow import (
+        ProgramFoundryGepaWorkflowError,
+        run_program_foundry_gepa_workflow,
     )
 
     if not intent.exists():
@@ -1330,6 +1405,67 @@ def program_foundry(
         typer.echo(f"Error: foundry failed: {foundry_failure_message(exc)}", err=True)
         raise typer.Exit(code=2) from exc
 
+    continuation_inputs = any(
+        (
+            declare_gepa_reviewed,
+            operator_label,
+            jury_provider,
+            adjudicator_registration,
+            adjudicator_completion,
+            verifier_policy,
+            trusted_policy_sha256,
+            declare_adjudicator_request_id,
+            declare_owner_receipt_id,
+        )
+    )
+    proposal_path = outdir.expanduser().absolute() / "gepa_experiment_proposal.json"
+    proposal_stage = (payload.get("stages") or {}).get("gepa_experiment_proposal") or {}
+    current_proposal_ready = (
+        payload.get("status") != "blocked_indeterminate"
+        and proposal_stage.get("status") == "proposal_ready_for_review"
+        and Path(str(proposal_stage.get("path"))).absolute() == proposal_path
+        and proposal_stage.get("proposal_id")
+    )
+    if continuation_inputs and not current_proposal_ready:
+        typer.echo(
+            "Error: foundry continuation requires this invocation to explicitly "
+            "produce or revalidate --propose-gepa-experiment",
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    continuation: Optional[dict[str, Any]] = None
+    if current_proposal_ready:
+        try:
+            continuation = run_program_foundry_gepa_workflow(
+                proposal_path=proposal_path,
+                expected_proposal_id=str(proposal_stage["proposal_id"]),
+                declared_reviewed=declare_gepa_reviewed,
+                operator_label=operator_label,
+                jury_provider=jury_provider,
+                jury_adjudicator_id=jury_adjudicator_id,
+                jury_adjudicator_kind=jury_adjudicator_kind,
+                jury_adjudicator_repo=jury_adjudicator_repo,
+                jury_max_jurors=jury_max_jurors,
+                registration_paths=adjudicator_registration,
+                include_builtin_fallback=builtin_adjudicator_fallback,
+                owner_completion_path=adjudicator_completion,
+                verifier_policy_path=verifier_policy,
+                trusted_policy_sha256=trusted_policy_sha256,
+                declared_request_id=declare_adjudicator_request_id,
+                expected_owner_receipt_id=declare_owner_receipt_id,
+            )
+        except ProgramFoundryGepaWorkflowError as exc:
+            typer.echo(
+                f"Error: foundry continuation failed: {foundry_failure_message(exc)}",
+                err=True,
+            )
+            raise typer.Exit(code=2) from exc
+        payload = {
+            **payload,
+            "gepa_continuation": continuation,
+            "continuation_status": continuation.get("status"),
+        }
+
     if json_out:
         typer.echo(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     else:
@@ -1343,6 +1479,16 @@ def program_foundry(
         ):
             stage = (payload.get("stages") or {}).get(name) or {}
             typer.echo(f"{name}: {stage.get('status')} ({stage.get('disposition')})")
+        if continuation is not None:
+            typer.echo(f"gepa_continuation: {continuation.get('status')}")
+            typer.echo(f"local_disposition: {continuation.get('disposition')}")
+    if (
+        continuation is not None
+        and continuation.get("status") == "blocked_indeterminate"
+    ):
+        raise typer.Exit(code=3)
+    if continuation is not None and continuation.get("status") == "require_review":
+        raise typer.Exit(code=1)
     if payload.get("status") != "ok":
         raise typer.Exit(code=1)
 
