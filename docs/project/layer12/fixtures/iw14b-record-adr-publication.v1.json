@@ -1,0 +1,52 @@
+{
+  "schema_version": "layer12-fixed-family-publication-v1",
+  "publication_id": "dspx-iw14b-record-adr-owner-local-test-v1",
+  "published_at": "2026-07-18T10:00:00Z",
+  "publication_scope": "owner_local_artifact_only",
+  "publication_lifecycle": {
+    "epoch": 1,
+    "state_at_signing": "published",
+    "withdrawal_ref_at_signing": null
+  },
+  "identity": {
+    "owner": "softwareco/owned/dspx",
+    "family_id": "dspx.layer12.record-adr.v1",
+    "protocol_version": "layer12-v1",
+    "transition_token": "record_adr",
+    "spec_schema_version": "layer12-fixed-family-spec-v1",
+    "spec_digest": "sha256:7ac06ea8b555896d1c610080541284f0e5ed4f21e0bc40328d03db9316b25f61",
+    "scope_digest": "sha256:789219a85ad06150d80ebcaccad934bd4a7fdb6d66fc83d1e7286a8a9f8f514a"
+  },
+  "ak_wire_evidence": {
+    "source_owner": "softwareco/owned/agent-kernel",
+    "wire_identity": "ak.direction-controller.transition-token.v1",
+    "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+    "declaration_is_trust_root": false
+  },
+  "signer_evidence": {
+    "algorithm": "Ed25519",
+    "key_id": "dspx-iw14b-b6-record-adr-test-key-v1",
+    "public_key_b64": "PgvLGPwHNhF9RQGDgw6yTz97AIIXBQslXaQWN4sSpaE=",
+    "key_status": "active",
+    "valid_from": "2026-07-01T00:00:00Z",
+    "valid_until": "2026-08-01T00:00:00Z",
+    "declaration_is_trust_root": false
+  },
+  "authority_boundary": {
+    "owner_local_artifact_publication": true,
+    "affected_use_publication": false,
+    "ak_legality": false,
+    "policy_selection": false,
+    "apply": false,
+    "promotion": false,
+    "activation": false,
+    "dogfood": false,
+    "rollout": false
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "key_id": "dspx-iw14b-b6-record-adr-test-key-v1",
+    "signed_payload_digest": "sha256:2b5261fe053f2cea840cb6ca18eec33726f9c50506de1b003e2ffa370a4ce459",
+    "signature_b64": "E2bFgXxs6CXRWIE+8R6viY5TUM9Evbi5+7d+6/gHqTeNcfispLunFRB/3tsDOLQs4IPQQzhqvuBLjNlXZNDzDQ=="
+  }
+}

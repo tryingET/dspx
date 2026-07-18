@@ -2807,3 +2807,522 @@ def test_b5_fixture_is_distinct_public_only_and_not_live_decision_50() -> None:
         assert '"decision_id": 50' not in text
     fixture = _load(B5_PUBLICATION_PATH)
     assert fixture["signer_evidence"]["public_key_b64"] == B5_PUBLIC_KEY_B64
+
+
+B6_SPEC_PATH = Path("docs/project/layer12/record-adr-publication.v1.json")
+B6_PUBLICATION_PATH = Path(
+    "docs/project/layer12/fixtures/iw14b-record-adr-publication.v1.json"
+)
+B6_DOC_PATH = Path("docs/project/layer12/record-adr-publication.md")
+B6_FAMILY_ID = "dspx.layer12.record-adr.v1"
+B6_TOKEN = "record_adr"
+B6_SCOPE_DIGEST = (
+    "sha256:789219a85ad06150d80ebcaccad934bd4a7fdb6d66fc83d1e7286a8a9f8f514a"
+)
+B6_SPEC_DIGEST = (
+    "sha256:7ac06ea8b555896d1c610080541284f0e5ed4f21e0bc40328d03db9316b25f61"
+)
+B6_PUBLICATION_ID = "dspx-iw14b-record-adr-owner-local-test-v1"
+B6_KEY_ID = "dspx-iw14b-b6-record-adr-test-key-v1"
+B6_PUBLIC_KEY_B64 = "PgvLGPwHNhF9RQGDgw6yTz97AIIXBQslXaQWN4sSpaE="
+B6_PATHS = [
+    "docs/project/layer12/fixtures/iw14b-record-adr-publication.v1.json",
+    "docs/project/layer12/layer12-fixed-family-publication.v1.schema.json",
+    "docs/project/layer12/record-adr-publication.md",
+    "docs/project/layer12/record-adr-publication.v1.json",
+    "packages/dspx-core/src/dspx/services/program_layer12_fixed_family_publication.py",
+    "tests/test_program_layer12_fixed_family_publication.py",
+]
+
+
+def _b6_kwargs() -> PublicationKwargs:
+    return {
+        "spec": _load(B6_SPEC_PATH),
+        "expected_owner": OWNER,
+        "expected_family_id": B6_FAMILY_ID,
+        "expected_spec_digest": B6_SPEC_DIGEST,
+        "expected_scope_digest": B6_SCOPE_DIGEST,
+        "expected_transition_token": B6_TOKEN,
+        "expected_ak_wire_source_owner": "softwareco/owned/agent-kernel",
+        "expected_ak_wire_identity": AK_WIRE_IDENTITY,
+        "expected_ak_wire_digest": AK_WIRE_DIGEST,
+        "expected_publication_id": B6_PUBLICATION_ID,
+        "expected_publication_epoch": 1,
+        "expected_published_at": "2026-07-18T10:00:00Z",
+        "expected_publication_state": "published",
+        "expected_withdrawal_ref": None,
+        "expected_key_id": B6_KEY_ID,
+        "trusted_public_key_b64": B6_PUBLIC_KEY_B64,
+        "expected_key_status": "active",
+        "expected_key_valid_from": KEY_VALID_FROM,
+        "expected_key_valid_until": KEY_VALID_UNTIL,
+        "verification_time": "2026-07-18T12:00:00Z",
+    }
+
+
+def _verified_b6_import() -> dict[str, object]:
+    return cast(
+        dict[str, object],
+        check_fixed_family_publication(_load(B6_PUBLICATION_PATH), **_b6_kwargs())[
+            "canonical_import"
+        ],
+    )
+
+
+def _b6_prior_eight() -> list[dict[str, object]]:
+    return [*_all_verified_fixed_imports(), _verified_b5_import()]
+
+
+def test_b6_scope_digest_binds_task_owner_allowed_and_required_paths() -> None:
+    framed = "\0".join(
+        ["B6-DSPx-publication", "dspx", *sorted(B6_PATHS), *sorted(B6_PATHS)]
+    ).encode()
+    assert "sha256:" + hashlib.sha256(framed).hexdigest() == B6_SCOPE_DIGEST
+
+
+def test_b6_publication_is_closed_signed_blocked_and_schema_valid() -> None:
+    validator = jsonschema.Draft202012Validator(
+        _load(SCHEMA_PATH), format_checker=jsonschema.FormatChecker()
+    )
+    spec = _load(B6_SPEC_PATH)
+    publication = _load(B6_PUBLICATION_PATH)
+    validator.validate(spec)
+    validator.validate(publication)
+    assert sha256_digest(spec) == B6_SPEC_DIGEST
+    result = check_fixed_family_publication(publication, **_b6_kwargs())
+    assert result["verified"] is True
+    assert result["family_id"] == B6_FAMILY_ID
+    assert result["transition_token"] == B6_TOKEN
+    assert result["authority_granted"] is False
+    assert spec["authorization_evidence"] == {
+        "task_key": "B6-DSPx-publication",
+        "authorization_evidence_id": "4856",
+        "task_id": "4059",
+        "scope_digest": B6_SCOPE_DIGEST,
+        "declaration_is_ak_authority": False,
+        "transition_authorized": False,
+    }
+    controls = spec["program_evidence"]["controls_evidence"]
+    assert controls["availability"] == "blocked_readiness_only"
+    assert controls["legal"] is False
+    assert controls["observed_duplicate_position"]["adr_recorded"] is True
+    assert (
+        controls["observed_duplicate_position"]["duplicate_recording_forbidden"] is True
+    )
+    assert controls["recordable_position_requirements"]["adr_recorded"] is False
+    assert (
+        controls["recordable_position_requirements"]["post_adr_position_absent"] is True
+    )
+    assert controls["existing_adr_behavior"] == (
+        "fail_closed_without_duplicate_recording_or_successor_dispatch"
+    )
+    for field in [
+        "apply_performed",
+        "transition_action_performed",
+        "adr_recording_performed",
+        "decision_mutation_performed",
+        "post_adr_mutation_performed",
+        "successor_dispatch_performed",
+        "generated_program_dispatch_ready",
+        "generic_fallback",
+        "cross_token_fallback",
+        "current_lifecycle_successor",
+    ]:
+        assert controls[field] is False
+    for record in (
+        spec["program_evidence"]["program_intent"],
+        spec["program_evidence"]["module_graph"],
+        controls,
+    ):
+        assert record["effects"] == "none"
+        assert record["read_only"] is True
+        assert record["zero_mutation"] is True
+        assert record["allowed_mutations"] == []
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("availability",), "ready"),
+        (("legal",), True),
+        (("apply_performed",), True),
+        (("adr_recording_performed",), True),
+        (("decision_mutation_performed",), True),
+        (("post_adr_mutation_performed",), True),
+        (("successor_dispatch_performed",), True),
+        (("generic_fallback",), True),
+        (("cross_token_fallback",), True),
+        (("current_lifecycle_successor",), True),
+        (("observed_duplicate_position", "decision_current"), False),
+        (("observed_duplicate_position", "adr_recorded"), False),
+        (("observed_duplicate_position", "duplicate_recording_forbidden"), False),
+        (("recordable_position_requirements", "adr_recorded"), True),
+        (("position_contracts", "unknown_fields"), "allow"),
+    ],
+)
+def test_b6_position_duplicate_and_mutation_drift_fail_closed(
+    path: tuple[str, ...], value: object
+) -> None:
+    spec = _load(B6_SPEC_PATH)
+    controls = spec["program_evidence"]["controls_evidence"]
+    target = controls
+    for field in path[:-1]:
+        target = target[field]
+    target[path[-1]] = value
+    _recompute_evidence_digest(controls)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="digest drift"):
+        check_fixed_family_spec(
+            spec,
+            expected_owner=OWNER,
+            expected_family_id=B6_FAMILY_ID,
+            expected_scope_digest=B6_SCOPE_DIGEST,
+            expected_transition_token=B6_TOKEN,
+            expected_ak_wire_source_owner="softwareco/owned/agent-kernel",
+            expected_ak_wire_identity=AK_WIRE_IDENTITY,
+            expected_ak_wire_digest=AK_WIRE_DIGEST,
+        )
+
+
+def test_b6_graph_is_closed_and_has_no_unbound_inputs() -> None:
+    evidence = _load(B6_SPEC_PATH)["program_evidence"]
+    intent_inputs = set(evidence["program_intent"]["inputs"])
+    produced: set[str] = set()
+    edges = evidence["module_graph"]["edges"]
+    for signature in evidence["module_graph"]["signatures"]:
+        inbound = {
+            edge["target"].split(".", 1)[1]
+            for edge in edges
+            if edge["target"].split(".", 1)[0] == signature["name"]
+        }
+        assert set(signature["inputs"]) <= intent_inputs | inbound
+        produced.update(
+            f"{signature['name']}.{field}" for field in signature["outputs"]
+        )
+    assert {edge["source"] for edge in edges} <= produced
+    assert evidence["module_graph"]["closed"] is True
+
+
+def test_b6_schema_couples_family_token_program_and_authorization_exactly() -> None:
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    for field, value in (
+        ("family_id", B5_FAMILY_ID),
+        ("transition_tokens", [B5_TOKEN]),
+        ("scope_digest", B5_SCOPE_DIGEST),
+    ):
+        specimen = _load(B6_SPEC_PATH)
+        specimen[field] = value
+        assert not validator.is_valid(specimen)
+    wrong_authorization = _load(B6_SPEC_PATH)
+    wrong_authorization["authorization_evidence"] = _load(B5_SPEC_PATH)[
+        "authorization_evidence"
+    ]
+    assert not validator.is_valid(wrong_authorization)
+    wrong_program = _load(B6_SPEC_PATH)
+    wrong_program["program_evidence"] = _load(B5_SPEC_PATH)["program_evidence"]
+    assert not validator.is_valid(wrong_program)
+    family_import = _verified_b6_import()
+    for field, value in (("family_id", B5_FAMILY_ID), ("transition_token", B5_TOKEN)):
+        substituted = copy.deepcopy(family_import)
+        substituted[field] = value
+        assert not validator.is_valid(substituted)
+
+
+def test_b6_rejects_generic_family_cross_token_and_conflicting_scope() -> None:
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    generic = _family_import(
+        OWNER,
+        "dspx.layer12.generic-family.v1",
+        1,
+        "generic-family:record-adr",
+        B6_TOKEN,
+    )
+    assert not validator.is_valid(generic)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="token/family"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[],
+            current_import=generic,
+            current_withdrawal=None,
+        )
+    cross_token = _verified_b6_import()
+    cross_token["transition_token"] = B5_TOKEN
+    assert not validator.is_valid(cross_token)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="token/family"):
+        reconstruct_fixed_family_imports(
+            prior_imports=[],
+            prior_epoch_high_watermarks=[],
+            current_import=cross_token,
+            current_withdrawal=None,
+        )
+    kwargs = _b6_kwargs()
+    kwargs["expected_scope_digest"] = B5_SCOPE_DIGEST
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="scope"):
+        check_fixed_family_publication(_load(B6_PUBLICATION_PATH), **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("expected_publication_id", "co-substituted-id", "publication_id"),
+        ("expected_publication_epoch", 2, "publication_epoch"),
+        ("expected_published_at", "2026-07-18T10:00:01Z", "published_at"),
+        ("expected_key_id", "co-substituted-key", "key_id"),
+        (
+            "trusted_public_key_b64",
+            base64.b64encode(b"d" * 32).decode(),
+            "public_key_b64",
+        ),
+    ],
+)
+def test_b6_owner_fixed_public_material_cannot_be_co_substituted(
+    field: str, value: object, message: str
+) -> None:
+    kwargs = _b6_kwargs()
+    kwargs[field] = value  # ty: ignore[invalid-key]
+    with pytest.raises(Layer12FixedFamilyPublicationError, match=message):
+        check_fixed_family_publication(_load(B6_PUBLICATION_PATH), **kwargs)
+
+
+def test_b6_signature_framing_excludes_signature_and_rejects_tampering() -> None:
+    publication = _load(B6_PUBLICATION_PATH)
+    payload = {key: value for key, value in publication.items() if key != "signature"}
+    assert publication["signature"]["signed_payload_digest"] == sha256_digest(payload)
+    tampered = copy.deepcopy(publication)
+    tampered["signature"]["signature_b64"] = base64.b64encode(b"0" * 64).decode()
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="invalid publication signature"
+    ):
+        check_fixed_family_publication(tampered, **_b6_kwargs())
+
+
+def test_b6_appends_ninth_then_withdrawal_restores_byte_identical_prior_eight() -> None:
+    prior_eight = _b6_prior_eight()
+    baseline_bytes = [canonical_json(item).encode() for item in prior_eight]
+    active = reconstruct_fixed_family_imports(
+        prior_imports=prior_eight,
+        prior_epoch_high_watermarks=_high_watermarks(*prior_eight),
+        current_import=_verified_b6_import(),
+        current_withdrawal=None,
+    )
+    assert len(cast(list[object], active["imports"])) == 9
+    assert len(cast(list[object], active["family_epoch_high_watermarks"])) == 9
+    withdrawn = reconstruct_fixed_family_imports(
+        prior_imports=cast(list[object], active["imports"]),
+        prior_epoch_high_watermarks=cast(
+            list[object], active["family_epoch_high_watermarks"]
+        ),
+        current_import=None,
+        current_withdrawal=_withdrawal(OWNER, B6_FAMILY_ID, 1, B6_PUBLICATION_ID),
+    )
+    retained = cast(list[dict[str, object]], withdrawn["imports"])
+    assert [canonical_json(item).encode() for item in retained] == baseline_bytes
+    watermarks = cast(
+        list[dict[str, object]], withdrawn["family_epoch_high_watermarks"]
+    )
+    assert len(watermarks) == 9
+    history = next(row for row in watermarks if row["family_id"] == B6_FAMILY_ID)
+    assert history["used_publication_ids"] == [B6_PUBLICATION_ID]
+    assert history["withdrawn_publication_ids"] == [B6_PUBLICATION_ID]
+    assert withdrawn["withdrawn_identity"] == {
+        "owner": OWNER,
+        "family_id": B6_FAMILY_ID,
+        "epoch": 1,
+        "publication_id": B6_PUBLICATION_ID,
+        "withdrawal_ref": f"withdrawal:{OWNER}:{B6_FAMILY_ID}:1",
+    }
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    validator.validate(active)
+    validator.validate(withdrawn)
+
+
+@pytest.mark.parametrize("predecessor_index", range(8))
+def test_b6_complete_history_rejects_predecessor_family_withdrawal(
+    predecessor_index: int,
+) -> None:
+    prior_eight = _b6_prior_eight()
+    active = reconstruct_fixed_family_imports(
+        prior_imports=prior_eight,
+        prior_epoch_high_watermarks=_high_watermarks(*prior_eight),
+        current_import=_verified_b6_import(),
+        current_withdrawal=None,
+    )
+    active_imports = cast(list[dict[str, object]], active["imports"])
+    predecessor = active_imports[predecessor_index]
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="only exact B6-family withdrawal"
+    ):
+        reconstruct_fixed_family_imports(
+            prior_imports=active_imports,
+            prior_epoch_high_watermarks=cast(
+                list[object], active["family_epoch_high_watermarks"]
+            ),
+            current_import=None,
+            current_withdrawal=_withdrawal(
+                cast(str, predecessor["owner"]),
+                cast(str, predecessor["family_id"]),
+                cast(int, predecessor["epoch"]),
+                cast(str, predecessor["publication_id"]),
+            ),
+        )
+
+
+@pytest.mark.parametrize("predecessor_index", range(8))
+def test_b6_same_call_append_rejects_predecessor_family_withdrawal(
+    predecessor_index: int,
+) -> None:
+    prior_eight = _b6_prior_eight()
+    predecessor = prior_eight[predecessor_index]
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="only exact B6-family withdrawal"
+    ):
+        reconstruct_fixed_family_imports(
+            prior_imports=prior_eight,
+            prior_epoch_high_watermarks=_high_watermarks(*prior_eight),
+            current_import=_verified_b6_import(),
+            current_withdrawal=_withdrawal(
+                cast(str, predecessor["owner"]),
+                cast(str, predecessor["family_id"]),
+                cast(int, predecessor["epoch"]),
+                cast(str, predecessor["publication_id"]),
+            ),
+        )
+
+
+def test_b6_schema_rejects_reordered_incomplete_and_singleton_histories() -> None:
+    prior_eight = _b6_prior_eight()
+    active = reconstruct_fixed_family_imports(
+        prior_imports=prior_eight,
+        prior_epoch_high_watermarks=_high_watermarks(*prior_eight),
+        current_import=_verified_b6_import(),
+        current_withdrawal=None,
+    )
+    validator = jsonschema.Draft202012Validator(_load(SCHEMA_PATH))
+    reordered_imports = copy.deepcopy(cast(list[object], active["imports"]))
+    reordered_watermarks = copy.deepcopy(
+        cast(list[object], active["family_epoch_high_watermarks"])
+    )
+    reordered_imports[-2:] = reversed(reordered_imports[-2:])
+    reordered_watermarks[-2:] = reversed(reordered_watermarks[-2:])
+    assert not validator.is_valid(
+        {
+            **active,
+            "imports": reordered_imports,
+            "family_epoch_high_watermarks": reordered_watermarks,
+        }
+    )
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="ordered prefix"):
+        reconstruct_fixed_family_imports(
+            prior_imports=reordered_imports,
+            prior_epoch_high_watermarks=reordered_watermarks,
+            current_import=None,
+            current_withdrawal=None,
+        )
+    incomplete = prior_eight[:-1]
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="ordered prefix|predecessor history"
+    ):
+        reconstruct_fixed_family_imports(
+            prior_imports=incomplete,
+            prior_epoch_high_watermarks=_high_watermarks(*incomplete),
+            current_import=_verified_b6_import(),
+            current_withdrawal=None,
+        )
+    singleton = {
+        **active,
+        "imports": [_verified_b6_import()],
+        "family_epoch_high_watermarks": _high_watermarks(_verified_b6_import()),
+    }
+    assert not validator.is_valid(singleton)
+
+
+def test_b6_withdrawal_ref_is_exact_not_caller_defined() -> None:
+    imports = [*_b6_prior_eight(), _verified_b6_import()]
+    arbitrary = _withdrawal(OWNER, B6_FAMILY_ID, 1, B6_PUBLICATION_ID)
+    arbitrary["withdrawal_ref"] = "attacker-chosen-b6-withdrawal-reference"
+    assert not jsonschema.Draft202012Validator(_load(SCHEMA_PATH)).is_valid(arbitrary)
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="withdrawal_ref"):
+        reconstruct_fixed_family_imports(
+            prior_imports=imports,
+            prior_epoch_high_watermarks=_high_watermarks(*imports),
+            current_import=None,
+            current_withdrawal=arbitrary,
+        )
+
+
+def test_b6_withdrawn_identity_epoch_cannot_replay_or_be_reused() -> None:
+    imports = [*_b6_prior_eight(), _verified_b6_import()]
+    withdrawn = reconstruct_fixed_family_imports(
+        prior_imports=imports,
+        prior_epoch_high_watermarks=_high_watermarks(*imports),
+        current_import=None,
+        current_withdrawal=_withdrawal(OWNER, B6_FAMILY_ID, 1, B6_PUBLICATION_ID),
+    )
+    sealed = cast(list[object], withdrawn["family_epoch_high_watermarks"])
+    with pytest.raises(
+        Layer12FixedFamilyPublicationError, match="withdrawn|predecessor history"
+    ):
+        reconstruct_fixed_family_imports(
+            prior_imports=cast(list[object], withdrawn["imports"]),
+            prior_epoch_high_watermarks=sealed,
+            current_import=_verified_b6_import(),
+            current_withdrawal=None,
+        )
+    replay = _verified_b6_import()
+    replay["epoch"] = 2
+    replay["publication_id"] = "b6-replayed-after-withdrawal"
+    with pytest.raises(Layer12FixedFamilyPublicationError, match="owner fact"):
+        reconstruct_fixed_family_imports(
+            prior_imports=cast(list[object], withdrawn["imports"]),
+            prior_epoch_high_watermarks=sealed,
+            current_import=replay,
+            current_withdrawal=None,
+        )
+
+
+def test_b6_replay_guard_requires_complete_durable_watermark_snapshot() -> None:
+    prior_eight = _b6_prior_eight()
+    pre_b6_watermarks = _high_watermarks(*prior_eight)
+    first = reconstruct_fixed_family_imports(
+        prior_imports=prior_eight,
+        prior_epoch_high_watermarks=pre_b6_watermarks,
+        current_import=_verified_b6_import(),
+        current_withdrawal=None,
+    )
+    withdrawn = reconstruct_fixed_family_imports(
+        prior_imports=cast(list[object], first["imports"]),
+        prior_epoch_high_watermarks=cast(
+            list[object], first["family_epoch_high_watermarks"]
+        ),
+        current_import=None,
+        current_withdrawal=_withdrawal(OWNER, B6_FAMILY_ID, 1, B6_PUBLICATION_ID),
+    )
+    assert len(cast(list[object], withdrawn["family_epoch_high_watermarks"])) == 9
+    replay_without_durable_history = reconstruct_fixed_family_imports(
+        prior_imports=prior_eight,
+        prior_epoch_high_watermarks=pre_b6_watermarks,
+        current_import=_verified_b6_import(),
+        current_withdrawal=None,
+    )
+    assert len(cast(list[object], replay_without_durable_history["imports"])) == 9
+    assert "complete durable nine-watermark snapshot" in B6_DOC_PATH.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_b6_fixture_is_distinct_public_only_and_not_live_decision_50() -> None:
+    existing_keys = {
+        PUBLIC_KEY_B64,
+        B1_PUBLIC_KEY_B64,
+        B3_PUBLIC_KEY_B64,
+        B4_PUBLIC_KEY_B64,
+        B5_PUBLIC_KEY_B64,
+        *(case["public_key_b64"] for case in B2_CASES.values()),
+    }
+    assert B6_PUBLIC_KEY_B64 not in existing_keys
+    for path in (B6_SPEC_PATH, B6_PUBLICATION_PATH, B6_DOC_PATH):
+        text = path.read_text(encoding="utf-8").lower()
+        assert "private_key" not in text
+        assert "test_seed" not in text
+        assert '"decision_id": 50' not in text
+    fixture = _load(B6_PUBLICATION_PATH)
+    assert fixture["signer_evidence"]["public_key_b64"] == B6_PUBLIC_KEY_B64

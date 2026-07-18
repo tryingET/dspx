@@ -129,7 +129,8 @@
             "dspx.layer12.default-residual-adoption-hardening.v1",
             "dspx.layer12.inspect-status-before-proceeding.v1",
             "dspx.layer12.open-decision.v1",
-            "dspx.layer12.record-review-outcome.v1"
+            "dspx.layer12.record-review-outcome.v1",
+            "dspx.layer12.record-adr.v1"
           ]
         },
         "protocol_version": {
@@ -147,7 +148,8 @@
                 "default_residual_adoption_hardening",
                 "inspect_status_before_proceeding",
                 "open_decision",
-                "record_review_outcome"
+                "record_review_outcome",
+                "record_adr"
               ]
             }
           ],
@@ -312,6 +314,16 @@
                 "authorization_evidence_id": "4695",
                 "task_id": "4010",
                 "scope_digest": "sha256:f4d8bd86068b354255bb23a67af59574e996e1e8badb90b77bcef5bf0e94f17a",
+                "declaration_is_ak_authority": false,
+                "transition_authorized": false
+              }
+            },
+            {
+              "const": {
+                "task_key": "B6-DSPx-publication",
+                "authorization_evidence_id": "4856",
+                "task_id": "4059",
+                "scope_digest": "sha256:789219a85ad06150d80ebcaccad934bd4a7fdb6d66fc83d1e7286a8a9f8f514a",
                 "declaration_is_ak_authority": false,
                 "transition_authorized": false
               }
@@ -1589,6 +1601,306 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.record-adr.v1"
+              }
+            },
+            "required": [
+              "family_id"
+            ]
+          },
+          "then": {
+            "required": [
+              "program_evidence",
+              "authorization_evidence"
+            ],
+            "properties": {
+              "transition_tokens": {
+                "const": [
+                  "record_adr"
+                ]
+              },
+              "scope_digest": {
+                "const": "sha256:789219a85ad06150d80ebcaccad934bd4a7fdb6d66fc83d1e7286a8a9f8f514a"
+              },
+              "program_evidence": {
+                "const": {
+                  "program_intent": {
+                    "schema_version": "program-intent-v2",
+                    "name": "RecordAdrReadiness",
+                    "program_id": "dspx.generated.record_adr.v1",
+                    "objective": "Emit blocked owner-local readiness evidence for record_adr while rejecting duplicate ADR recording and performing no mutation.",
+                    "inputs": [
+                      "decision_position",
+                      "review_position",
+                      "adr_position",
+                      "post_adr_position",
+                      "position_controls",
+                      "adr_authorization_evidence"
+                    ],
+                    "outputs": [
+                      "readiness_verdict",
+                      "duplicate_prevention",
+                      "recordable_position_requirements",
+                      "verifier_expectation"
+                    ],
+                    "family_id": "dspx.layer12.record-adr.v1",
+                    "transition_token": "record_adr",
+                    "effects": "none",
+                    "read_only": true,
+                    "zero_mutation": true,
+                    "allowed_mutations": [],
+                    "digest": "sha256:e44efa53e49b66e5d7407d6d91d56c990457b6751a528c8647b56d8ca74a15e3"
+                  },
+                  "module_graph": {
+                    "schema_version": "dspx-fixed-module-graph-v1",
+                    "program_id": "dspx.generated.record_adr.v1",
+                    "signatures": [
+                      {
+                        "name": "InspectCurrentAdrPosition",
+                        "inputs": [
+                          "decision_position",
+                          "review_position",
+                          "adr_position",
+                          "post_adr_position",
+                          "position_controls"
+                        ],
+                        "outputs": [
+                          "governing_decision_count",
+                          "decision_current",
+                          "review_position_current",
+                          "adr_position_current",
+                          "post_adr_position_current",
+                          "adr_recorded",
+                          "legal_review_closure_outcome"
+                        ]
+                      },
+                      {
+                        "name": "SealBlockedAdrReadiness",
+                        "inputs": [
+                          "governing_decision_count",
+                          "decision_current",
+                          "review_position_current",
+                          "adr_position_current",
+                          "post_adr_position_current",
+                          "adr_recorded",
+                          "legal_review_closure_outcome",
+                          "adr_authorization_evidence"
+                        ],
+                        "outputs": [
+                          "readiness_verdict",
+                          "duplicate_prevention",
+                          "recordable_position_requirements",
+                          "verifier_expectation"
+                        ]
+                      }
+                    ],
+                    "execution_order": [
+                      "InspectCurrentAdrPosition",
+                      "SealBlockedAdrReadiness"
+                    ],
+                    "edges": [
+                      {
+                        "source": "InspectCurrentAdrPosition.governing_decision_count",
+                        "target": "SealBlockedAdrReadiness.governing_decision_count"
+                      },
+                      {
+                        "source": "InspectCurrentAdrPosition.decision_current",
+                        "target": "SealBlockedAdrReadiness.decision_current"
+                      },
+                      {
+                        "source": "InspectCurrentAdrPosition.review_position_current",
+                        "target": "SealBlockedAdrReadiness.review_position_current"
+                      },
+                      {
+                        "source": "InspectCurrentAdrPosition.adr_position_current",
+                        "target": "SealBlockedAdrReadiness.adr_position_current"
+                      },
+                      {
+                        "source": "InspectCurrentAdrPosition.post_adr_position_current",
+                        "target": "SealBlockedAdrReadiness.post_adr_position_current"
+                      },
+                      {
+                        "source": "InspectCurrentAdrPosition.adr_recorded",
+                        "target": "SealBlockedAdrReadiness.adr_recorded"
+                      },
+                      {
+                        "source": "InspectCurrentAdrPosition.legal_review_closure_outcome",
+                        "target": "SealBlockedAdrReadiness.legal_review_closure_outcome"
+                      }
+                    ],
+                    "entry_signature": "InspectCurrentAdrPosition",
+                    "terminal_signature": "SealBlockedAdrReadiness",
+                    "closed": true,
+                    "effects": "none",
+                    "read_only": true,
+                    "zero_mutation": true,
+                    "allowed_mutations": [],
+                    "digest": "sha256:eddfb296e29a3f69d7fc544859cc507f6273d1beb891154ef5829a72ca789764"
+                  },
+                  "controls_evidence": {
+                    "schema_version": "dspx-record-adr-controls-evidence-v1",
+                    "task_key": "B6-DSPx-publication",
+                    "transition_token": "record_adr",
+                    "availability": "blocked_readiness_only",
+                    "legal": false,
+                    "effects": "none",
+                    "read_only": true,
+                    "zero_mutation": true,
+                    "allowed_mutations": [],
+                    "apply_performed": false,
+                    "transition_action_performed": false,
+                    "adr_recording_performed": false,
+                    "decision_mutation_performed": false,
+                    "post_adr_mutation_performed": false,
+                    "successor_dispatch_performed": false,
+                    "generated_program_dispatch_ready": false,
+                    "position_contracts": {
+                      "decision_position_fields": [
+                        "decision_id",
+                        "title",
+                        "state",
+                        "rfc_ref",
+                        "review_closure_mode",
+                        "review_outcome",
+                        "adr_ref",
+                        "outcome",
+                        "updated_at",
+                        "direction_key",
+                        "link_role",
+                        "current"
+                      ],
+                      "review_position_fields": [
+                        "decision_id",
+                        "reviewed_artifact_ref",
+                        "summary_aligned_with_legal_closure",
+                        "latest_attempt_id",
+                        "latest_attempt_role",
+                        "latest_attempt_artifact_ref",
+                        "latest_attempt_outcome",
+                        "legal_closure_artifact_id",
+                        "legal_closure_artifact_ref",
+                        "legal_closure_outcome",
+                        "required_tracks",
+                        "missing_required_tracks",
+                        "synthesis_required",
+                        "synthesis_present",
+                        "next_required_attempt_role",
+                        "current"
+                      ],
+                      "adr_position_fields": [
+                        "decision_id",
+                        "adr_recorded",
+                        "adr_ref",
+                        "decision_outcome",
+                        "review_outcome",
+                        "legal_review_closure_artifact_id",
+                        "legal_review_closure_artifact_ref",
+                        "legal_review_closure_outcome",
+                        "current"
+                      ],
+                      "post_adr_position_fields": [
+                        "decision_id",
+                        "current_implementation_plan",
+                        "current_validation_rollout_rollback",
+                        "missing_execution_artifacts",
+                        "pending_linked_task_reevaluations",
+                        "ready_for_post_adr_execution_tracking",
+                        "ready_for_unblocked",
+                        "current"
+                      ],
+                      "unknown_fields": "deny",
+                      "currentness": "same_decision_review_closure_adr_and_source_bound_wave_frame",
+                      "distinct_decision_ambiguity": "fail_closed"
+                    },
+                    "observed_duplicate_position": {
+                      "governing_decision_count": 1,
+                      "decision_state": "unblocked",
+                      "decision_current": true,
+                      "review_position_current": true,
+                      "review_outcome": "ready_for_adr",
+                      "legal_review_closure_outcome": "ready_for_adr",
+                      "adr_position_current": true,
+                      "adr_recorded": true,
+                      "decision_outcome": "accepted",
+                      "post_adr_position_current": true,
+                      "ready_for_post_adr_execution_tracking": true,
+                      "duplicate_recording_forbidden": true,
+                      "explicit_adr_authorization_required": true,
+                      "explicit_adr_authorization_available": false
+                    },
+                    "recordable_position_requirements": {
+                      "governing_decision_count": 1,
+                      "decision_current": true,
+                      "review_position_current": true,
+                      "legal_review_closure_outcome": "ready_for_adr",
+                      "adr_position_current": true,
+                      "adr_recorded": false,
+                      "post_adr_position_absent": true,
+                      "explicit_adr_authorization_required": true
+                    },
+                    "existing_adr_behavior": "fail_closed_without_duplicate_recording_or_successor_dispatch",
+                    "missing_preconditions": [
+                      "new current decision with ready_for_adr closure and no recorded ADR",
+                      "explicit ADR mutation authorization for that exact current decision and legal review closure"
+                    ],
+                    "forbidden_mutations": [
+                      "no_duplicate_adr_recording",
+                      "no_adr_mutation",
+                      "no_decision_mutation",
+                      "no_post_adr_mutation",
+                      "no_successor_dispatch",
+                      "no_selection",
+                      "no_recommendation_for_affected_use",
+                      "no_affected_use",
+                      "no_apply",
+                      "no_owner_route_or_action"
+                    ],
+                    "generic_fallback": false,
+                    "cross_token_fallback": false,
+                    "current_lifecycle_successor": false,
+                    "declaration_is_ak_authority": false,
+                    "digest": "sha256:b69288bc268d34efa774017fb71fb39dac3c593d83442aba863f2f46577f4f0f"
+                  }
+                }
+              },
+              "authorization_evidence": {
+                "const": {
+                  "task_key": "B6-DSPx-publication",
+                  "authorization_evidence_id": "4856",
+                  "task_id": "4059",
+                  "scope_digest": "sha256:789219a85ad06150d80ebcaccad934bd4a7fdb6d66fc83d1e7286a8a9f8f514a",
+                  "declaration_is_ak_authority": false,
+                  "transition_authorized": false
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transition_tokens": {
+                "const": [
+                  "record_adr"
+                ]
+              }
+            },
+            "required": [
+              "transition_tokens"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_id": {
+                "const": "dspx.layer12.record-adr.v1"
+              }
+            }
+          }
         }
       ]
     },
@@ -1646,7 +1958,8 @@
                 "dspx.layer12.default-residual-adoption-hardening.v1",
                 "dspx.layer12.inspect-status-before-proceeding.v1",
                 "dspx.layer12.open-decision.v1",
-                "dspx.layer12.record-review-outcome.v1"
+                "dspx.layer12.record-review-outcome.v1",
+                "dspx.layer12.record-adr.v1"
               ]
             },
             "protocol_version": {
@@ -1661,7 +1974,8 @@
                 "default_residual_adoption_hardening",
                 "inspect_status_before_proceeding",
                 "open_decision",
-                "record_review_outcome"
+                "record_review_outcome",
+                "record_adr"
               ]
             },
             "spec_schema_version": {
@@ -1880,6 +2194,44 @@
                 "properties": {
                   "family_id": {
                     "const": "dspx.layer12.record-review-outcome.v1"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.record-adr.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "transition_token": {
+                    "const": "record_adr"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "transition_token": {
+                    "const": "record_adr"
+                  }
+                },
+                "required": [
+                  "transition_token"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.record-adr.v1"
                   }
                 }
               }
@@ -2370,6 +2722,80 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "identity": {
+                "properties": {
+                  "family_id": {
+                    "const": "dspx.layer12.record-adr.v1"
+                  }
+                },
+                "required": [
+                  "family_id"
+                ]
+              }
+            },
+            "required": [
+              "identity"
+            ]
+          },
+          "then": {
+            "properties": {
+              "publication_id": {
+                "const": "dspx-iw14b-record-adr-owner-local-test-v1"
+              },
+              "published_at": {
+                "const": "2026-07-18T10:00:00Z"
+              },
+              "publication_lifecycle": {
+                "properties": {
+                  "epoch": {
+                    "const": 1
+                  }
+                }
+              },
+              "signer_evidence": {
+                "const": {
+                  "algorithm": "Ed25519",
+                  "key_id": "dspx-iw14b-b6-record-adr-test-key-v1",
+                  "public_key_b64": "PgvLGPwHNhF9RQGDgw6yTz97AIIXBQslXaQWN4sSpaE=",
+                  "key_status": "active",
+                  "valid_from": "2026-07-01T00:00:00Z",
+                  "valid_until": "2026-08-01T00:00:00Z",
+                  "declaration_is_trust_root": false
+                }
+              },
+              "identity": {
+                "const": {
+                  "owner": "softwareco/owned/dspx",
+                  "family_id": "dspx.layer12.record-adr.v1",
+                  "protocol_version": "layer12-v1",
+                  "transition_token": "record_adr",
+                  "spec_schema_version": "layer12-fixed-family-spec-v1",
+                  "spec_digest": "sha256:7ac06ea8b555896d1c610080541284f0e5ed4f21e0bc40328d03db9316b25f61",
+                  "scope_digest": "sha256:789219a85ad06150d80ebcaccad934bd4a7fdb6d66fc83d1e7286a8a9f8f514a"
+                }
+              },
+              "ak_wire_evidence": {
+                "const": {
+                  "source_owner": "softwareco/owned/agent-kernel",
+                  "wire_identity": "ak.direction-controller.transition-token.v1",
+                  "wire_digest": "sha256:b452d674c7439df87e41c5d84e91906a2586fa50b426513f49e5b405aec8a4f7",
+                  "declaration_is_trust_root": false
+                }
+              },
+              "signature": {
+                "const": {
+                  "algorithm": "Ed25519",
+                  "key_id": "dspx-iw14b-b6-record-adr-test-key-v1",
+                  "signed_payload_digest": "sha256:2b5261fe053f2cea840cb6ca18eec33726f9c50506de1b003e2ffa370a4ce459",
+                  "signature_b64": "E2bFgXxs6CXRWIE+8R6viY5TUM9Evbi5+7d+6/gHqTeNcfispLunFRB/3tsDOLQs4IPQQzhqvuBLjNlXZNDzDQ=="
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2572,6 +2998,25 @@
               "const": "sha256:de0679063ac72ed585c95621eb91be742cc8ae770a7ba0fd2a3334af1c30fdec"
             }
           }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.record-adr.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-record-adr-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "record_adr"
+            },
+            "spec_digest": {
+              "const": "sha256:7ac06ea8b555896d1c610080541284f0e5ed4f21e0bc40328d03db9316b25f61"
+            }
+          }
         }
       ]
     },
@@ -2746,6 +3191,22 @@
               "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.record-review-outcome.v1:1"
             }
           }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.record-adr.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-record-adr-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.record-adr.v1:1"
+            }
+          }
         }
       ]
     },
@@ -2774,7 +3235,7 @@
           "items": {
             "$ref": "#/$defs/familyImport"
           },
-          "maxItems": 8,
+          "maxItems": 9,
           "uniqueItems": true
         },
         "withdrawal_applied": {
@@ -2798,7 +3259,7 @@
         },
         "family_epoch_high_watermarks": {
           "type": "array",
-          "maxItems": 8,
+          "maxItems": 9,
           "uniqueItems": true,
           "prefixItems": [
             {
@@ -2929,6 +3390,23 @@
                   "properties": {
                     "family_id": {
                       "const": "dspx.layer12.record-review-outcome.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/epochHighWatermark"
+                },
+                {
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.record-adr.v1"
                     }
                   },
                   "required": [
@@ -3996,6 +4474,19 @@
                   "required": [
                     "family_id"
                   ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.record-adr.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
                 }
               }
             },
@@ -4337,6 +4828,528 @@
             ]
           },
           "x-dspx-contract": "b5_exact_history"
+        },
+        {
+          "if": {
+            "properties": {
+              "imports": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.record-adr.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "imports"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.record-adr.v1"
+                    },
+                    "withdrawn_publication_ids": {
+                      "const": []
+                    }
+                  },
+                  "required": [
+                    "family_id",
+                    "withdrawn_publication_ids"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.record-adr.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-record-adr-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "else": {
+            "if": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.record-adr.v1"
+                      }
+                    },
+                    "required": [
+                      "family_id"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            },
+            "then": {
+              "properties": {
+                "family_epoch_high_watermarks": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "family_id": {
+                        "const": "dspx.layer12.record-adr.v1"
+                      },
+                      "withdrawn_publication_ids": {
+                        "const": [
+                          "dspx-iw14b-record-adr-owner-local-test-v1"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "family_id",
+                      "withdrawn_publication_ids"
+                    ]
+                  },
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "family_id": {
+                          "const": "dspx.layer12.record-adr.v1"
+                        },
+                        "withdrawn_publication_ids": {
+                          "const": []
+                        }
+                      },
+                      "required": [
+                        "family_id",
+                        "withdrawn_publication_ids"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "family_epoch_high_watermarks"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "family_id": {
+                      "const": "dspx.layer12.record-adr.v1"
+                    }
+                  },
+                  "required": [
+                    "family_id"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "family_epoch_high_watermarks"
+            ]
+          },
+          "then": {
+            "properties": {
+              "family_epoch_high_watermarks": {
+                "minItems": 9,
+                "maxItems": 9
+              }
+            },
+            "oneOf": [
+              {
+                "properties": {
+                  "imports": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.continue-current-execution-task.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.request-owner-route.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.close-implementation-wave.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.activate-guidance.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.open-decision.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.record-review-outcome.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.record-adr.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 9,
+                    "maxItems": 9
+                  },
+                  "family_epoch_high_watermarks": {
+                    "prefixItems": [
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {
+                        "properties": {
+                          "withdrawn_publication_ids": {
+                            "const": []
+                          }
+                        },
+                        "required": [
+                          "withdrawn_publication_ids"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "imports": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.continue-current-execution-task.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.request-owner-route.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.close-implementation-wave.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.activate-guidance.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.default-residual-adoption-hardening.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.inspect-status-before-proceeding.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.open-decision.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "allOf": [
+                          {
+                            "$ref": "#/$defs/familyImport"
+                          },
+                          {
+                            "properties": {
+                              "family_id": {
+                                "const": "dspx.layer12.record-review-outcome.v1"
+                              }
+                            },
+                            "required": [
+                              "family_id"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 8,
+                    "maxItems": 8
+                  },
+                  "family_epoch_high_watermarks": {
+                    "prefixItems": [
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {},
+                      {
+                        "properties": {
+                          "withdrawn_publication_ids": {
+                            "const": [
+                              "dspx-iw14b-record-adr-owner-local-test-v1"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "withdrawn_publication_ids"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "x-dspx-contract": "b6_exact_history"
         }
       ]
     },
@@ -4622,6 +5635,35 @@
                 [],
                 [
                   "dspx-iw14b-record-review-outcome-owner-local-test-v1"
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.record-adr.v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "transition_token": {
+              "const": "record_adr"
+            },
+            "spec_digest": {
+              "const": "sha256:7ac06ea8b555896d1c610080541284f0e5ed4f21e0bc40328d03db9316b25f61"
+            },
+            "used_publication_ids": {
+              "const": [
+                "dspx-iw14b-record-adr-owner-local-test-v1"
+              ]
+            },
+            "withdrawn_publication_ids": {
+              "enum": [
+                [],
+                [
+                  "dspx-iw14b-record-adr-owner-local-test-v1"
                 ]
               ]
             }
@@ -5557,6 +6599,247 @@
               "digest": "sha256:13887a20573cd9edd9a77b589296a0f3b1516a5fd7ce36a285c630d31c054e8a"
             }
           }
+        },
+        {
+          "const": {
+            "program_intent": {
+              "schema_version": "program-intent-v2",
+              "name": "RecordAdrReadiness",
+              "program_id": "dspx.generated.record_adr.v1",
+              "objective": "Emit blocked owner-local readiness evidence for record_adr while rejecting duplicate ADR recording and performing no mutation.",
+              "inputs": [
+                "decision_position",
+                "review_position",
+                "adr_position",
+                "post_adr_position",
+                "position_controls",
+                "adr_authorization_evidence"
+              ],
+              "outputs": [
+                "readiness_verdict",
+                "duplicate_prevention",
+                "recordable_position_requirements",
+                "verifier_expectation"
+              ],
+              "family_id": "dspx.layer12.record-adr.v1",
+              "transition_token": "record_adr",
+              "effects": "none",
+              "read_only": true,
+              "zero_mutation": true,
+              "allowed_mutations": [],
+              "digest": "sha256:e44efa53e49b66e5d7407d6d91d56c990457b6751a528c8647b56d8ca74a15e3"
+            },
+            "module_graph": {
+              "schema_version": "dspx-fixed-module-graph-v1",
+              "program_id": "dspx.generated.record_adr.v1",
+              "signatures": [
+                {
+                  "name": "InspectCurrentAdrPosition",
+                  "inputs": [
+                    "decision_position",
+                    "review_position",
+                    "adr_position",
+                    "post_adr_position",
+                    "position_controls"
+                  ],
+                  "outputs": [
+                    "governing_decision_count",
+                    "decision_current",
+                    "review_position_current",
+                    "adr_position_current",
+                    "post_adr_position_current",
+                    "adr_recorded",
+                    "legal_review_closure_outcome"
+                  ]
+                },
+                {
+                  "name": "SealBlockedAdrReadiness",
+                  "inputs": [
+                    "governing_decision_count",
+                    "decision_current",
+                    "review_position_current",
+                    "adr_position_current",
+                    "post_adr_position_current",
+                    "adr_recorded",
+                    "legal_review_closure_outcome",
+                    "adr_authorization_evidence"
+                  ],
+                  "outputs": [
+                    "readiness_verdict",
+                    "duplicate_prevention",
+                    "recordable_position_requirements",
+                    "verifier_expectation"
+                  ]
+                }
+              ],
+              "execution_order": [
+                "InspectCurrentAdrPosition",
+                "SealBlockedAdrReadiness"
+              ],
+              "edges": [
+                {
+                  "source": "InspectCurrentAdrPosition.governing_decision_count",
+                  "target": "SealBlockedAdrReadiness.governing_decision_count"
+                },
+                {
+                  "source": "InspectCurrentAdrPosition.decision_current",
+                  "target": "SealBlockedAdrReadiness.decision_current"
+                },
+                {
+                  "source": "InspectCurrentAdrPosition.review_position_current",
+                  "target": "SealBlockedAdrReadiness.review_position_current"
+                },
+                {
+                  "source": "InspectCurrentAdrPosition.adr_position_current",
+                  "target": "SealBlockedAdrReadiness.adr_position_current"
+                },
+                {
+                  "source": "InspectCurrentAdrPosition.post_adr_position_current",
+                  "target": "SealBlockedAdrReadiness.post_adr_position_current"
+                },
+                {
+                  "source": "InspectCurrentAdrPosition.adr_recorded",
+                  "target": "SealBlockedAdrReadiness.adr_recorded"
+                },
+                {
+                  "source": "InspectCurrentAdrPosition.legal_review_closure_outcome",
+                  "target": "SealBlockedAdrReadiness.legal_review_closure_outcome"
+                }
+              ],
+              "entry_signature": "InspectCurrentAdrPosition",
+              "terminal_signature": "SealBlockedAdrReadiness",
+              "closed": true,
+              "effects": "none",
+              "read_only": true,
+              "zero_mutation": true,
+              "allowed_mutations": [],
+              "digest": "sha256:eddfb296e29a3f69d7fc544859cc507f6273d1beb891154ef5829a72ca789764"
+            },
+            "controls_evidence": {
+              "schema_version": "dspx-record-adr-controls-evidence-v1",
+              "task_key": "B6-DSPx-publication",
+              "transition_token": "record_adr",
+              "availability": "blocked_readiness_only",
+              "legal": false,
+              "effects": "none",
+              "read_only": true,
+              "zero_mutation": true,
+              "allowed_mutations": [],
+              "apply_performed": false,
+              "transition_action_performed": false,
+              "adr_recording_performed": false,
+              "decision_mutation_performed": false,
+              "post_adr_mutation_performed": false,
+              "successor_dispatch_performed": false,
+              "generated_program_dispatch_ready": false,
+              "position_contracts": {
+                "decision_position_fields": [
+                  "decision_id",
+                  "title",
+                  "state",
+                  "rfc_ref",
+                  "review_closure_mode",
+                  "review_outcome",
+                  "adr_ref",
+                  "outcome",
+                  "updated_at",
+                  "direction_key",
+                  "link_role",
+                  "current"
+                ],
+                "review_position_fields": [
+                  "decision_id",
+                  "reviewed_artifact_ref",
+                  "summary_aligned_with_legal_closure",
+                  "latest_attempt_id",
+                  "latest_attempt_role",
+                  "latest_attempt_artifact_ref",
+                  "latest_attempt_outcome",
+                  "legal_closure_artifact_id",
+                  "legal_closure_artifact_ref",
+                  "legal_closure_outcome",
+                  "required_tracks",
+                  "missing_required_tracks",
+                  "synthesis_required",
+                  "synthesis_present",
+                  "next_required_attempt_role",
+                  "current"
+                ],
+                "adr_position_fields": [
+                  "decision_id",
+                  "adr_recorded",
+                  "adr_ref",
+                  "decision_outcome",
+                  "review_outcome",
+                  "legal_review_closure_artifact_id",
+                  "legal_review_closure_artifact_ref",
+                  "legal_review_closure_outcome",
+                  "current"
+                ],
+                "post_adr_position_fields": [
+                  "decision_id",
+                  "current_implementation_plan",
+                  "current_validation_rollout_rollback",
+                  "missing_execution_artifacts",
+                  "pending_linked_task_reevaluations",
+                  "ready_for_post_adr_execution_tracking",
+                  "ready_for_unblocked",
+                  "current"
+                ],
+                "unknown_fields": "deny",
+                "currentness": "same_decision_review_closure_adr_and_source_bound_wave_frame",
+                "distinct_decision_ambiguity": "fail_closed"
+              },
+              "observed_duplicate_position": {
+                "governing_decision_count": 1,
+                "decision_state": "unblocked",
+                "decision_current": true,
+                "review_position_current": true,
+                "review_outcome": "ready_for_adr",
+                "legal_review_closure_outcome": "ready_for_adr",
+                "adr_position_current": true,
+                "adr_recorded": true,
+                "decision_outcome": "accepted",
+                "post_adr_position_current": true,
+                "ready_for_post_adr_execution_tracking": true,
+                "duplicate_recording_forbidden": true,
+                "explicit_adr_authorization_required": true,
+                "explicit_adr_authorization_available": false
+              },
+              "recordable_position_requirements": {
+                "governing_decision_count": 1,
+                "decision_current": true,
+                "review_position_current": true,
+                "legal_review_closure_outcome": "ready_for_adr",
+                "adr_position_current": true,
+                "adr_recorded": false,
+                "post_adr_position_absent": true,
+                "explicit_adr_authorization_required": true
+              },
+              "existing_adr_behavior": "fail_closed_without_duplicate_recording_or_successor_dispatch",
+              "missing_preconditions": [
+                "new current decision with ready_for_adr closure and no recorded ADR",
+                "explicit ADR mutation authorization for that exact current decision and legal review closure"
+              ],
+              "forbidden_mutations": [
+                "no_duplicate_adr_recording",
+                "no_adr_mutation",
+                "no_decision_mutation",
+                "no_post_adr_mutation",
+                "no_successor_dispatch",
+                "no_selection",
+                "no_recommendation_for_affected_use",
+                "no_affected_use",
+                "no_apply",
+                "no_owner_route_or_action"
+              ],
+              "generic_fallback": false,
+              "cross_token_fallback": false,
+              "current_lifecycle_successor": false,
+              "declaration_is_ak_authority": false,
+              "digest": "sha256:b69288bc268d34efa774017fb71fb39dac3c593d83442aba863f2f46577f4f0f"
+            }
+          }
         }
       ]
     },
@@ -5717,6 +7000,22 @@
             },
             "withdrawal_ref": {
               "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.record-review-outcome.v1:1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "family_id": {
+              "const": "dspx.layer12.record-adr.v1"
+            },
+            "publication_id": {
+              "const": "dspx-iw14b-record-adr-owner-local-test-v1"
+            },
+            "epoch": {
+              "const": 1
+            },
+            "withdrawal_ref": {
+              "const": "withdrawal:softwareco/owned/dspx:dspx.layer12.record-adr.v1:1"
             }
           }
         }

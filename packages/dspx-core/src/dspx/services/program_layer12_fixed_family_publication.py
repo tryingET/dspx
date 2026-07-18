@@ -32,6 +32,7 @@ B1_TOKEN = "request_owner_route"
 B3_TOKEN = "inspect_status_before_proceeding"
 B4_TOKEN = "open_decision"
 B5_TOKEN = "record_review_outcome"
+B6_TOKEN = "record_adr"
 B2_TOKENS = (
     "close_implementation_wave",
     "activate_guidance",
@@ -43,6 +44,7 @@ SUPPORTED_TOKENS = {
     B3_TOKEN,
     B4_TOKEN,
     B5_TOKEN,
+    B6_TOKEN,
     *B2_TOKENS,
 }
 DSPX_OWNER = "softwareco/owned/dspx"
@@ -52,6 +54,7 @@ B1_FAMILY_ID = "dspx.layer12.request-owner-route.v1"
 B3_FAMILY_ID = "dspx.layer12.inspect-status-before-proceeding.v1"
 B4_FAMILY_ID = "dspx.layer12.open-decision.v1"
 B5_FAMILY_ID = "dspx.layer12.record-review-outcome.v1"
+B6_FAMILY_ID = "dspx.layer12.record-adr.v1"
 B2_FAMILY_IDS = {
     "close_implementation_wave": "dspx.layer12.close-implementation-wave.v1",
     "activate_guidance": "dspx.layer12.activate-guidance.v1",
@@ -63,6 +66,7 @@ TOKEN_FAMILY_IDS = {
     B3_TOKEN: B3_FAMILY_ID,
     B4_TOKEN: B4_FAMILY_ID,
     B5_TOKEN: B5_FAMILY_ID,
+    B6_TOKEN: B6_FAMILY_ID,
     **B2_FAMILY_IDS,
 }
 # Immutable DSPx-owner facts for the only imports this closed reconstruction
@@ -109,6 +113,11 @@ FIXED_IMPORT_FACTS: dict[str, tuple[str, str, int]] = {
         "dspx-iw14b-record-review-outcome-owner-local-test-v1",
         1,
     ),
+    B6_TOKEN: (
+        "sha256:7ac06ea8b555896d1c610080541284f0e5ed4f21e0bc40328d03db9316b25f61",
+        "dspx-iw14b-record-adr-owner-local-test-v1",
+        1,
+    ),
 }
 FIXED_IMPORT_ORDER = (
     B0_TOKEN,
@@ -117,6 +126,7 @@ FIXED_IMPORT_ORDER = (
     B3_TOKEN,
     B4_TOKEN,
     B5_TOKEN,
+    B6_TOKEN,
 )
 OWNER_LOCAL_SCOPE = "owner_local_artifact_only"
 
@@ -556,6 +566,13 @@ def reconstruct_fixed_family_imports(
             raise Layer12FixedFamilyPublicationError("withdrawal schema drift")
         owner = _text(withdrawal["owner"], "current_withdrawal.owner")
         family_id = _text(withdrawal["family_id"], "current_withdrawal.family_id")
+        b6_history_present = B6_TOKEN in watermark_tokens or (
+            candidate is not None and candidate["transition_token"] == B6_TOKEN
+        )
+        if b6_history_present and family_id != B6_FAMILY_ID:
+            raise Layer12FixedFamilyPublicationError(
+                "complete B6 history permits only exact B6-family withdrawal"
+            )
         publication_id = _text(
             withdrawal["publication_id"], "current_withdrawal.publication_id"
         )
@@ -729,6 +746,24 @@ B5_PROGRAM_EVIDENCE_DIGESTS = {
     "program_intent": "sha256:8440e0cf04115f644f748f7a43502d123097bbcd0a81e57a52559d97d6010c0a",
     "module_graph": "sha256:47ee2a208aeedecbd4001a28c0478bf5b9c15850266078b9fc10d7c74a5855e4",
     "controls_evidence": "sha256:13887a20573cd9edd9a77b589296a0f3b1516a5fd7ce36a285c630d31c054e8a",
+}
+
+B6_SCOPE_DIGEST = (
+    "sha256:789219a85ad06150d80ebcaccad934bd4a7fdb6d66fc83d1e7286a8a9f8f514a"
+)
+B6_TASK_KEY = "B6-DSPx-publication"
+B6_AUTHORIZATION_EVIDENCE_ID = "4856"
+B6_TASK_ID = "4059"
+B6_PUBLICATION_ID = "dspx-iw14b-record-adr-owner-local-test-v1"
+B6_PUBLICATION_EPOCH = 1
+B6_PUBLISHED_AT = "2026-07-18T10:00:00Z"
+B6_KEY_ID = "dspx-iw14b-b6-record-adr-test-key-v1"
+B6_PUBLIC_KEY_B64 = "PgvLGPwHNhF9RQGDgw6yTz97AIIXBQslXaQWN4sSpaE="
+B6_PROGRAM_ID = "dspx.generated.record_adr.v1"
+B6_PROGRAM_EVIDENCE_DIGESTS = {
+    "program_intent": "sha256:e44efa53e49b66e5d7407d6d91d56c990457b6751a528c8647b56d8ca74a15e3",
+    "module_graph": "sha256:eddfb296e29a3f69d7fc544859cc507f6273d1beb891154ef5829a72ca789764",
+    "controls_evidence": "sha256:b69288bc268d34efa774017fb71fb39dac3c593d83442aba863f2f46577f4f0f",
 }
 
 B2_SCOPE_DIGEST = (
@@ -1330,6 +1365,21 @@ def _check_b5_program_evidence(value: object, *, expected_family_id: str) -> Non
             )
 
 
+def _check_b6_program_evidence(value: object, *, expected_family_id: str) -> None:
+    if expected_family_id != B6_FAMILY_ID:
+        raise Layer12FixedFamilyPublicationError("B6 program family drift")
+    evidence = _object(value, "spec.program_evidence")
+    _closed(evidence, set(B6_PROGRAM_EVIDENCE_DIGESTS), "spec.program_evidence")
+    for component, expected_digest in B6_PROGRAM_EVIDENCE_DIGESTS.items():
+        item = _check_hash_bound(
+            evidence[component], f"spec.program_evidence.{component}"
+        )
+        if item["digest"] != expected_digest:
+            raise Layer12FixedFamilyPublicationError(
+                f"spec.program_evidence.{component} owner-fixed digest drift"
+            )
+
+
 def check_fixed_family_spec(
     spec: object,
     *,
@@ -1487,6 +1537,27 @@ def check_fixed_family_spec(
         _check_b5_program_evidence(
             item.get("program_evidence"), expected_family_id=expected_family_id
         )
+    elif pinned_token == B6_TOKEN:
+        if _digest(expected_scope_digest, "expected_scope_digest") != B6_SCOPE_DIGEST:
+            raise Layer12FixedFamilyPublicationError("B6 authorization scope drift")
+        authorization = _object(
+            item.get("authorization_evidence"), "spec.authorization_evidence"
+        )
+        _exact(
+            authorization,
+            {
+                "task_key": B6_TASK_KEY,
+                "authorization_evidence_id": B6_AUTHORIZATION_EVIDENCE_ID,
+                "task_id": B6_TASK_ID,
+                "scope_digest": B6_SCOPE_DIGEST,
+                "declaration_is_ak_authority": False,
+                "transition_authorized": False,
+            },
+            "spec.authorization_evidence",
+        )
+        _check_b6_program_evidence(
+            item.get("program_evidence"), expected_family_id=expected_family_id
+        )
     elif pinned_token in B2_TOKENS:
         if _digest(expected_scope_digest, "expected_scope_digest") != B2_SCOPE_DIGEST:
             raise Layer12FixedFamilyPublicationError("B2 authorization scope drift")
@@ -1595,6 +1666,7 @@ def check_fixed_family_publication(
         B3_TOKEN,
         B4_TOKEN,
         B5_TOKEN,
+        B6_TOKEN,
         *B2_TOKENS,
     }:
         if expected_transition_token == B1_TOKEN:
@@ -1628,6 +1700,14 @@ def check_fixed_family_publication(
                 "published_at": B5_PUBLISHED_AT,
                 "key_id": B5_KEY_ID,
                 "public_key_b64": B5_PUBLIC_KEY_B64,
+            }
+        elif expected_transition_token == B6_TOKEN:
+            owner_anchor = {
+                "publication_id": B6_PUBLICATION_ID,
+                "epoch": B6_PUBLICATION_EPOCH,
+                "published_at": B6_PUBLISHED_AT,
+                "key_id": B6_KEY_ID,
+                "public_key_b64": B6_PUBLIC_KEY_B64,
             }
         elif expected_transition_token in B2_TOKENS:
             owner_anchor = B2_PUBLICATION_ANCHORS[expected_transition_token]
@@ -1716,6 +1796,7 @@ def check_fixed_family_publication(
         B3_TOKEN,
         B4_TOKEN,
         B5_TOKEN,
+        B6_TOKEN,
         *B2_TOKENS,
     }:
         pinned_published_at = _text(expected_published_at, "expected_published_at")
