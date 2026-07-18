@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import inspect
+import math
 import queue
 import threading
 import time
@@ -66,6 +67,15 @@ class ProviderResult:
     started_at: float
     ended_at: float
     error: Optional[Exception] = None
+    indeterminate: bool = False
+
+
+class ProviderResponseError(RuntimeError):
+    """Raised when a child provider returns no usable completion."""
+
+
+class MultiProviderIndeterminateError(RuntimeError):
+    """Raised when aggregate fallback would replay an indeterminate attempt."""
 
 
 @dataclass(frozen=True)
@@ -162,15 +172,140 @@ def _safe_error_text(error: Exception) -> str:
     return _safe_diagnostic_text(error, fallback=type(error).__name__)
 
 
-def _raise_if_all_failed(results: Sequence[ProviderResult]) -> None:
-    """Fail closed when every attempted provider returned an error."""
-    if results and all(result.error is not None for result in results):
+def _positive_finite_timeout(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    timeout_s = float(value)
+    return timeout_s if timeout_s > 0.0 and math.isfinite(timeout_s) else None
+
+
+def _is_timeout_type_name(value: object) -> bool:
+    normalized = "".join(
+        character for character in str(value).lower() if character.isalnum()
+    )
+    return (
+        normalized in {"timeout", "timeouterror", "timeoutexpired"}
+        or normalized.endswith(
+            (
+                "readtimeout",
+                "readtimeouterror",
+                "connecttimeout",
+                "connecttimeouterror",
+                "writetimeout",
+                "writetimeouterror",
+                "pooltimeout",
+                "pooltimeouterror",
+                "requesttimeout",
+                "requesttimeouterror",
+            )
+        )
+        or normalized in {"deadlineexceeded", "deadlineexceedederror"}
+        or normalized.endswith("deadlineexceeded")
+    )
+
+
+def _is_timeout_exception(error: BaseException) -> bool:
+    if isinstance(error, (TimeoutError, MultiProviderIndeterminateError)):
+        return True
+    return any(_is_timeout_type_name(cls.__name__) for cls in type(error).__mro__)
+
+
+def _response_failure_candidates(result: Any) -> tuple[Any, ...]:
+    nested = (
+        result.get("raw")
+        if isinstance(result, Mapping)
+        else getattr(result, "raw", None)
+    )
+    if nested is None or nested is result:
+        return (result,)
+    return (result, nested)
+
+
+def _payload_declares_timeout(result: Any) -> bool:
+    for candidate in _response_failure_candidates(result):
+        if not isinstance(candidate, Mapping):
+            continue
+        marker = candidate.get("_dspx_error") is True
+        error_text = str(candidate.get("error") or "").strip()
+        status = str(candidate.get("status") or "").strip().lower()
+        if (
+            not marker
+            and not error_text
+            and status
+            not in {
+                "error",
+                "failed",
+                "failure",
+                "unhealthy",
+            }
+        ):
+            continue
+        error_type = str(candidate.get("_dspx_error_type") or "").strip()
+        if _is_timeout_type_name(error_type):
+            return True
+    return False
+
+
+def _raise_for_unusable_results(results: Sequence[ProviderResult]) -> None:
+    """Reject indeterminate, empty, and all-failed aggregate outcomes."""
+    indeterminate = [result for result in results if result.indeterminate]
+    if indeterminate:
+        summary = "; ".join(
+            f"{_safe_diagnostic_text(result.name, fallback='provider')}: "
+            f"{_safe_error_text(result.error or TimeoutError('provider timeout'))}"
+            for result in indeterminate
+        )
+        raise MultiProviderIndeterminateError(
+            "Provider outcome is indeterminate; fallback was stopped: " + summary
+        )
+    if not results:
+        raise RuntimeError("No providers were attempted")
+    if all(result.error is not None for result in results):
         summary = "; ".join(
             f"{_safe_diagnostic_text(result.name, fallback='provider')}: {_safe_error_text(result.error)}"
             for result in results
             if result.error is not None
         )
         raise RuntimeError(f"All providers failed: {summary}")
+    if not any(result.error is None and result.text.strip() for result in results):
+        raise RuntimeError("No provider returned a usable completion")
+
+
+def _results_metadata(results: Sequence[ProviderResult]) -> dict[str, Any]:
+    def structured_raw(value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return value
+        nested = getattr(value, "raw", None)
+        if isinstance(nested, (Mapping, list, tuple)) or nested is None:
+            return nested
+        return {"response_type": type(value).__name__}
+
+    try:
+        from dspx.provider_runtime import sanitize_payload
+    except Exception:  # pragma: no cover - import fallback only
+
+        def sanitize_payload(value: Any) -> Any:
+            return _safe_diagnostic_text(value)
+
+    metadata: dict[str, Any] = {}
+    name_counts: dict[str, int] = {}
+    for result in results:
+        count = name_counts.get(result.name, 0) + 1
+        while True:
+            key = result.name if count == 1 else f"{result.name}#{count}"
+            if key not in metadata:
+                break
+            count += 1
+        name_counts[result.name] = count
+        metadata[key] = {
+            "model": result.model,
+            "text": result.text,
+            "raw": sanitize_payload(structured_raw(result.raw)),
+            "error": _safe_error_text(result.error) if result.error else None,
+            "indeterminate": result.indeterminate,
+            "duration_s": result.ended_at - result.started_at,
+        }
+    return metadata
 
 
 def _build_lm_request_messages(
@@ -191,47 +326,76 @@ def _build_lm_request_messages(
     return typed_messages
 
 
+def _text_field(value: Any) -> str:
+    return value if isinstance(value, str) else ""
+
+
 def _extract_text_from_response(resp: Any) -> str:
-    """Best-effort extraction from a DSPy BaseLM-like response object."""
+    """Extract text only from recognized, type-valid response envelopes."""
     if resp is None:
         return ""
     try:
-        # dict form
-        if isinstance(resp, dict):
-            ch = (resp.get("choices") or [None])[0]
-            if isinstance(ch, dict):
-                if "text" in ch:
-                    return str(ch["text"]) or ""
-                msg = ch.get("message")
-                if isinstance(msg, dict) and "content" in msg:
-                    return str(msg["content"]) or ""
-        # object form
-        chs = getattr(resp, "choices", None)
-        if isinstance(chs, list) and chs:
-            ch0 = chs[0]
-            if isinstance(ch0, dict):
-                if "text" in ch0:
-                    return str(ch0["text"]) or ""
-                msg = ch0.get("message")
-                if isinstance(msg, dict) and "content" in msg:
-                    return str(msg["content"]) or ""
-            else:
-                # attr-style
-                t = getattr(ch0, "text", None)
-                if t:
-                    return str(t)
-                msg = getattr(ch0, "message", None)
-                if msg is not None:
-                    c = getattr(msg, "content", None)
-                    if c:
-                        return str(c)
-    except Exception:
-        pass
-    # fallback
-    try:
-        return str(resp)
+        if isinstance(resp, Mapping):
+            if "outputs" in resp:
+                outputs = resp.get("outputs")
+                if not isinstance(outputs, (list, tuple)) or not outputs:
+                    return ""
+                return _text_field(outputs[0])
+            choices = resp.get("choices")
+            if not isinstance(choices, (list, tuple)) or not choices:
+                return ""
+            choice = choices[0]
+            if not isinstance(choice, Mapping):
+                return ""
+            if "text" in choice:
+                return _text_field(choice.get("text"))
+            message = choice.get("message")
+            if not isinstance(message, Mapping):
+                return ""
+            return _text_field(message.get("content"))
+
+        outputs = getattr(resp, "outputs", None)
+        if outputs is not None:
+            if not isinstance(outputs, (list, tuple)) or not outputs:
+                return ""
+            return _text_field(outputs[0])
+        text = getattr(resp, "text", None)
+        if text is not None:
+            return _text_field(text)
+        choices = getattr(resp, "choices", None)
+        if not isinstance(choices, (list, tuple)) or not choices:
+            return ""
+        choice = choices[0]
+        if isinstance(choice, Mapping):
+            if "text" in choice:
+                return _text_field(choice.get("text"))
+            message = choice.get("message")
+            if not isinstance(message, Mapping):
+                return ""
+            return _text_field(message.get("content"))
+        choice_text = getattr(choice, "text", None)
+        if choice_text is not None:
+            return _text_field(choice_text)
+        message = getattr(choice, "message", None)
+        return _text_field(getattr(message, "content", None))
     except Exception:
         return ""
+
+
+def _response_text_or_raise(response: Any) -> str:
+    from dspx.provider_runtime import raise_for_explicit_provider_error
+
+    for candidate in _response_failure_candidates(response):
+        try:
+            raise_for_explicit_provider_error(candidate)
+        except Exception as exc:
+            if _payload_declares_timeout(response):
+                raise MultiProviderIndeterminateError(str(exc)) from exc
+            raise
+    text = _extract_text_from_response(response)
+    if not text.strip():
+        raise ProviderResponseError("provider returned no usable completion")
+    return text
 
 
 def _combine_caps(providers: Sequence[Any]) -> ProviderCapabilities | None:
@@ -344,6 +508,7 @@ class MultiProviderLM(DSPyBaseLM):
         worktree_branch_prefix: str = "dspx-multi",
         worktree_commitish: str = "HEAD",
         cleanup_isolated: bool = True,
+        provider_timeout_s: float = 60.0,
         validator: Optional[
             Any
         ] = None,  # callable: (text, provider, prompt, messages) -> bool
@@ -383,6 +548,12 @@ class MultiProviderLM(DSPyBaseLM):
         self.worktree_branch_prefix = worktree_branch_prefix
         self.worktree_commitish = worktree_commitish
         self.cleanup_isolated = cleanup_isolated
+        timeout_s = _positive_finite_timeout(provider_timeout_s)
+        if timeout_s is None:
+            raise ValueError("provider_timeout_s must be a positive finite number")
+        self.provider_timeout_s = timeout_s
+        for provider in self.providers:
+            self._apply_provider_timeout_default(provider)
         self._async_cleanup_grace_s = 1.0
         self._async_cleanup_poll_s = 0.05
         self._async_cleanup_kill_wait_s = 0.2
@@ -414,15 +585,14 @@ class MultiProviderLM(DSPyBaseLM):
         )
         self.last_results = list(results)
 
-        # If every provider failed, raise an aggregated error instead of
-        # returning an empty-string completion that masquerades as success.
-        _raise_if_all_failed(results)
+        _raise_for_unusable_results(results)
 
         text = self._reduce_text(results)
         return _MinimalResponse(
             model=self.model,
             choices=[{"text": text}],
             usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            raw=_results_metadata(results),
         )
 
     # Internal DTO entrypoint
@@ -449,18 +619,14 @@ class MultiProviderLM(DSPyBaseLM):
             call_options=call_options,
         )
         self.last_results = list(results)
-        _raise_if_all_failed(results)
+        _raise_for_unusable_results(results)
         text = self._reduce_text(results)
-        raw = {
-            self.names[i] if i < len(self.names) else str(i): {
-                "model": getattr(self.providers[i], "model", None),
-                "text": r.text,
-                "error": str(r.error) if r.error else None,
-                "duration_s": r.ended_at - r.started_at,
-            }
-            for i, r in enumerate(results)
-        }
-        return LMResponse(outputs=[text], model=self.model, usage=None, raw=raw)
+        return LMResponse(
+            outputs=[text],
+            model=self.model,
+            usage=None,
+            raw=_results_metadata(results),
+        )
 
     # Execution helpers
     def _run_all(
@@ -480,18 +646,20 @@ class MultiProviderLM(DSPyBaseLM):
                 call_options=call_options,
             )
         if strat in {"collect_concat", "collect_longest"}:
-            # sequential collection to avoid simultaneous side-effects
+            # Sequential collection avoids simultaneous side-effects. A timeout
+            # is indeterminate, so partial output must not trigger more work.
             outs: List[ProviderResult] = []
             for idx, p in enumerate(self.providers):
-                outs.append(
-                    self._run_one(
-                        idx,
-                        p,
-                        prompt=prompt,
-                        messages=materialized_messages,
-                        call_options=call_options,
-                    )
+                result = self._run_one(
+                    idx,
+                    p,
+                    prompt=prompt,
+                    messages=materialized_messages,
+                    call_options=call_options,
                 )
+                outs.append(result)
+                if result.indeterminate:
+                    break
             return outs
         # default: sequential_first
         outs2: List[ProviderResult] = []
@@ -504,6 +672,8 @@ class MultiProviderLM(DSPyBaseLM):
                 call_options=call_options,
             )
             outs2.append(res)
+            if res.indeterminate:
+                break
             if (res.error is None) and res.text.strip():
                 return [res]
         return outs2
@@ -535,7 +705,7 @@ class MultiProviderLM(DSPyBaseLM):
                     resp = forward(prompt=prompt, messages=messages, **options)
                 else:
                     resp = forward(prompt=prompt, messages=messages)
-                text = _extract_text_from_response(resp)
+                text = _response_text_or_raise(resp)
             elif LMRequest is not None and hasattr(provider, "generate"):
                 req = LMRequest(
                     prompt=prompt,
@@ -547,9 +717,7 @@ class MultiProviderLM(DSPyBaseLM):
                     r = generate(req, **options)
                 else:
                     r = generate(req)
-                text = (
-                    (r.outputs or [""])[0] if r and getattr(r, "outputs", None) else ""
-                )
+                text = _response_text_or_raise(r)
             else:
                 raise RuntimeError("Provider lacks forward/generate")
             t1 = time.time()
@@ -571,6 +739,7 @@ class MultiProviderLM(DSPyBaseLM):
                 started_at=t0,
                 ended_at=t1,
                 error=e,
+                indeterminate=_is_timeout_exception(e),
             )
         finally:
             self._exit_provider_overrides(provider, lock, prev_cwd, policy_state)
@@ -655,6 +824,9 @@ class MultiProviderLM(DSPyBaseLM):
         ) -> Optional[ProviderResult]:
             finished[i] = result
             completion_order.append(result)
+            if result.indeterminate:
+                _terminate_pending_async(skip=i)
+                return result
             if self.validator is not None and result.error is None:
                 try:
                     ok = bool(
@@ -667,16 +839,18 @@ class MultiProviderLM(DSPyBaseLM):
                     )
                 except Exception:
                     ok = False
-                if ok and self.abort_others_on_validate:
+                if not ok:
+                    result.error = ProviderResponseError(
+                        "provider completion failed aggregate validation"
+                    )
+                elif self.abort_others_on_validate:
                     _terminate_pending_async(skip=i)
                     return result
             if self.validator is None and self.reducer is None:
-                # Only select the first finished result if it actually succeeded.
-                # A fast-failing provider must not suppress slower successful ones.
-                if result.error is None:
+                # Only a classified, non-empty success may win the race.
+                if result.error is None and result.text.strip():
                     _terminate_pending_async(skip=i)
                     return result
-                # Errored result: record it but keep waiting for a successful one.
                 return None
             return None
 
@@ -743,41 +917,58 @@ class MultiProviderLM(DSPyBaseLM):
                         run = start(prompt=prompt, messages=messages)
                 except Exception as _start_exc:
                     self._exit_provider_overrides(prov, lock, prev_cwd, policy_state)
-                    # Record startup failure so it surfaces in results instead of
-                    # silently degrading to sync execution.
+                    # Startup was already attempted. Record its outcome and never
+                    # replay the same provider through the synchronous path.
                     ended_at = time.time()
-                    sync_results.put(
-                        (
-                            i,
-                            ProviderResult(
-                                name=self.names[i]
-                                if i < len(self.names)
-                                else f"prov{i}",
-                                model=getattr(prov, "model", None),
-                                text="",
-                                raw=None,
-                                started_at=ended_at,
-                                ended_at=ended_at,
-                                error=_start_exc,
-                            ),
-                        )
+                    start_result = ProviderResult(
+                        name=self.names[i] if i < len(self.names) else f"prov{i}",
+                        model=getattr(prov, "model", None),
+                        text="",
+                        raw=None,
+                        started_at=ended_at,
+                        ended_at=ended_at,
+                        error=_start_exc,
+                        indeterminate=_is_timeout_exception(_start_exc),
                     )
-                else:
-                    if run is not None:
-                        run_started_at = getattr(run, "started_at", time.time())
-                        async_runs[i] = PendingAsyncRun(
-                            run=run,
-                            lock=lock,
-                            prev_cwd=prev_cwd,
-                            policy_state=policy_state,
-                            started_at=run_started_at,
-                            ready_deadline=(
-                                run_started_at + self._provider_ready_timeout_s(prov)
+                    pending_sync.add(i)
+                    sync_results.put((i, start_result))
+                    if start_result.indeterminate:
+                        break
+                    continue
+                if run is not None:
+                    run_started_at = getattr(run, "started_at", time.time())
+                    async_runs[i] = PendingAsyncRun(
+                        run=run,
+                        lock=lock,
+                        prev_cwd=prev_cwd,
+                        policy_state=policy_state,
+                        started_at=run_started_at,
+                        ready_deadline=(
+                            run_started_at + self._provider_ready_timeout_s(prov)
+                        ),
+                    )
+                    async_cleanup_runs.append(run)
+                    continue
+                self._exit_provider_overrides(prov, lock, prev_cwd, policy_state)
+                ended_at = time.time()
+                pending_sync.add(i)
+                sync_results.put(
+                    (
+                        i,
+                        ProviderResult(
+                            name=self.names[i] if i < len(self.names) else f"prov{i}",
+                            model=getattr(prov, "model", None),
+                            text="",
+                            raw=None,
+                            started_at=ended_at,
+                            ended_at=ended_at,
+                            error=ProviderResponseError(
+                                "async provider start returned no run handle"
                             ),
-                        )
-                        async_cleanup_runs.append(run)
-                        continue
-                    self._exit_provider_overrides(prov, lock, prev_cwd, policy_state)
+                        ),
+                    )
+                )
+                continue
             _start_sync_worker(i, prov, cwd_override)
 
         remaining_async = set(i for i, run in enumerate(async_runs) if run is not None)
@@ -823,6 +1014,7 @@ class MultiProviderLM(DSPyBaseLM):
                             started_at=pending.started_at,
                             ended_at=ended_at,
                             error=TimeoutError(detail),
+                            indeterminate=True,
                         )
                         _release_async_run(i, pending)
                         async_runs[i] = None
@@ -834,28 +1026,20 @@ class MultiProviderLM(DSPyBaseLM):
                         continue
 
                     try:
-                        if hasattr(prov, "collect"):
-                            cres = prov.collect(pending.run)
-                            text = getattr(cres, "text", "")
-                            t1 = getattr(cres, "ended_at", time.time())
-                            t0 = getattr(cres, "started_at", t1)
-                            res = ProviderResult(
-                                name=self.names[i],
-                                model=getattr(prov, "model", None),
-                                text=text,
-                                raw=cres,
-                                started_at=t0,
-                                ended_at=t1,
-                            )
-                        else:
-                            res = ProviderResult(
-                                name=self.names[i],
-                                model=getattr(prov, "model", None),
-                                text="",
-                                raw=None,
-                                started_at=time.time(),
-                                ended_at=time.time(),
-                            )
+                        if not hasattr(prov, "collect"):
+                            raise ProviderResponseError("async provider lacks collect")
+                        cres = prov.collect(pending.run)
+                        text = _response_text_or_raise(cres)
+                        t1 = getattr(cres, "ended_at", time.time())
+                        t0 = getattr(cres, "started_at", t1)
+                        res = ProviderResult(
+                            name=self.names[i],
+                            model=getattr(prov, "model", None),
+                            text=text,
+                            raw=cres,
+                            started_at=t0,
+                            ended_at=t1,
+                        )
                     except Exception as e:
                         res = ProviderResult(
                             name=self.names[i],
@@ -865,6 +1049,7 @@ class MultiProviderLM(DSPyBaseLM):
                             started_at=time.time(),
                             ended_at=time.time(),
                             error=e,
+                            indeterminate=_is_timeout_exception(e),
                         )
                     _release_async_run(i, pending)
                     async_runs[i] = None
@@ -892,20 +1077,25 @@ class MultiProviderLM(DSPyBaseLM):
         candidates = completion_order
         if not candidates:
             return []
-        if self.reducer is not None:
+        successful = [
+            result
+            for result in candidates
+            if result.error is None and result.text.strip()
+        ]
+        if self.reducer is not None and successful:
             try:
                 ctx = {
                     "prompt": prompt,
                     "messages": messages,
                     "strategy": self.strategy,
                 }
-                picked = self.reducer.pick(candidates, ctx)
+                picked = self.reducer.pick(successful, ctx)
                 idx = getattr(picked, "winner_index", 0)
-                if isinstance(idx, int) and 0 <= idx < len(candidates):
-                    return [candidates[idx]]
+                if isinstance(idx, int) and 0 <= idx < len(successful):
+                    return [successful[idx]]
             except Exception:
                 pass
-        return [candidates[0]]
+        return [successful[0]] if successful else candidates
 
     def _refresh_capabilities(self) -> None:
         try:
@@ -1046,21 +1236,32 @@ class MultiProviderLM(DSPyBaseLM):
         self._restore_alignment_policy(provider, policy_state)
         lock.release()
 
-    def _provider_ready_timeout_s(self, provider: Any) -> float:
-        for attr in ("ready_timeout_s", "ready_timeout", "timeout"):
+    def _apply_provider_timeout_default(self, provider: Any) -> None:
+        """Fill unset timeout contracts without overriding explicit finite values."""
+        for attr in ("timeout_s", "timeout"):
+            if not hasattr(provider, attr):
+                continue
             try:
-                value = getattr(provider, attr)
+                current = getattr(provider, attr)
             except Exception:
                 continue
-            if isinstance(value, (int, float)):
-                timeout_s = float(value)
-                if (
-                    timeout_s > 0.0
-                    and timeout_s == timeout_s
-                    and timeout_s < float("inf")
-                ):
-                    return timeout_s
-        return self._parallel_ready_timeout_s
+            if _positive_finite_timeout(current) is not None:
+                continue
+            try:
+                setattr(provider, attr, self.provider_timeout_s)
+            except Exception:
+                pass
+
+    def _provider_ready_timeout_s(self, provider: Any) -> float:
+        candidates = [self.provider_timeout_s, self._parallel_ready_timeout_s]
+        for attr in ("ready_timeout_s", "ready_timeout", "timeout_s", "timeout"):
+            try:
+                timeout_s = _positive_finite_timeout(getattr(provider, attr))
+            except Exception:
+                continue
+            if timeout_s is not None:
+                candidates.append(timeout_s)
+        return min(candidates)
 
     def _apply_cwd(self, provider: Any, cwd: Optional[str]) -> ProviderCwdState:
         state = ProviderCwdState(
@@ -1369,12 +1570,10 @@ class MultiProviderLM(DSPyBaseLM):
     def _reduce_text(self, results: List[ProviderResult]) -> str:
         if not results:
             return ""
-        # Filter out errored results before reduction.
-        successful = [r for r in results if r.error is None]
-        # If all results errored, fall through with original list so callers
-        # still get *something* (forward() will raise before reaching here
-        # when *all* failed, but internal callers may not).
-        pool = successful if successful else results
+        # Reduction only sees classified, non-empty successes.
+        pool = [r for r in results if r.error is None and r.text.strip()]
+        if not pool:
+            return ""
         strat = self.strategy
         # If we got a single result (sequential_first or parallel_first), return it
         if len(pool) == 1:
@@ -1394,8 +1593,13 @@ class MultiProviderLM(DSPyBaseLM):
 
 class _MinimalResponse:
     def __init__(
-        self, model: str, choices: List[Dict[str, Any]], usage: Dict[str, Any]
+        self,
+        model: str,
+        choices: List[Dict[str, Any]],
+        usage: Dict[str, Any],
+        raw: Any | None = None,
     ):
         self.model = model
         self.choices = choices
         self.usage = usage
+        self.raw = raw

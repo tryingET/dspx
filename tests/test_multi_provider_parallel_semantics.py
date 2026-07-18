@@ -10,8 +10,10 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
-from dspx.dtos import LMRequest, Message
-from dspx.multi_provider_lm import MultiProviderLM
+import pytest
+
+from dspx.dtos import LMRequest, LMResponse, Message
+from dspx.multi_provider_lm import MultiProviderIndeterminateError, MultiProviderLM
 
 
 class _FakeProc:
@@ -752,3 +754,234 @@ def test_restore_cwd_restores_none_value() -> None:
     lm._restore_cwd(provider, state)
 
     assert provider.cwd is None
+
+
+class _PayloadForwardProvider:
+    def __init__(self, model: str, payload: dict[str, object], text: str) -> None:
+        self.model = model
+        self.payload = payload
+        self.text = text
+
+    def forward(self, prompt=None, messages=None):
+        return SimpleNamespace(
+            choices=[{"text": self.text}],
+            raw=dict(self.payload),
+        )
+
+
+class _PayloadGenerateProvider:
+    def __init__(self, model: str, payload: dict[str, object], text: str) -> None:
+        self.model = model
+        self.payload = payload
+        self.text = text
+
+    def generate(self, request: LMRequest, **kwargs):
+        return LMResponse(
+            outputs=[self.text],
+            model=self.model,
+            raw=dict(self.payload),
+        )
+
+
+class _CountingForwardProvider(_SyncProvider):
+    def __init__(self, model: str) -> None:
+        super().__init__(model)
+        self.calls = 0
+
+    def forward(self, prompt=None, messages=None):
+        self.calls += 1
+        return super().forward(prompt=prompt, messages=messages)
+
+
+class _TimeoutForwardProvider:
+    model = "timeout"
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.timeout = None
+
+    def forward(self, prompt=None, messages=None):
+        self.calls += 1
+        raise TimeoutError("provider deadline expired")
+
+
+class _AsyncResponseProvider:
+    def __init__(self, model: str, response: object) -> None:
+        self.model = model
+        self.response = response
+
+    def start(self, prompt=None, messages=None):
+        return SimpleNamespace(started_at=time.time())
+
+    def collect(self, run):
+        return self.response
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"_dspx_error": True, "error": "provider failed"},
+        {"error": "provider failed"},
+        {"status": "failure"},
+    ],
+)
+def test_sequential_explicit_failure_payload_falls_through(
+    payload: dict[str, object],
+) -> None:
+    good = _CountingForwardProvider("good")
+    lm = MultiProviderLM(
+        [_PayloadForwardProvider("bad", payload, "invalid"), good],
+        names=["bad", "good"],
+    )
+
+    response = lm.forward(prompt="hello")
+
+    assert response.choices[0]["text"] == "good"
+    assert set(response.raw) == {"good"}
+    assert good.calls == 1
+
+
+def test_generate_only_explicit_failure_payload_falls_through() -> None:
+    good = _PayloadGenerateProvider("good", {}, "valid")
+    lm = MultiProviderLM(
+        [
+            _PayloadGenerateProvider(
+                "bad",
+                {"_dspx_error": True, "error": "provider failed"},
+                "invalid",
+            ),
+            good,
+        ],
+        names=["bad", "good"],
+    )
+
+    response = lm.generate(LMRequest(prompt="hello"))
+
+    assert response.outputs == ["valid"]
+    assert set(response.raw) == {"good"}
+    assert response.raw["good"]["model"] == "good"
+
+
+@pytest.mark.parametrize("marker", [False, "false", 1])
+def test_multi_provider_preserves_exact_non_error_marker_semantics(
+    marker: object,
+) -> None:
+    lm = MultiProviderLM(
+        [
+            _PayloadForwardProvider(
+                "child",
+                {"_dspx_error": marker, "error": ""},
+                "authentication failed",
+            )
+        ]
+    )
+
+    response = lm.forward(prompt="hello")
+
+    assert response.choices[0]["text"] == "authentication failed"
+
+
+def test_sequential_timeout_is_indeterminate_and_never_falls_back() -> None:
+    timed_out = _TimeoutForwardProvider()
+    fallback = _CountingForwardProvider("fallback")
+    lm = MultiProviderLM([timed_out, fallback], names=["timeout", "fallback"])
+
+    with pytest.raises(MultiProviderIndeterminateError, match="fallback was stopped"):
+        lm.forward(prompt="hello")
+
+    assert timed_out.calls == 1
+    assert fallback.calls == 0
+
+
+def test_collect_timeout_rejects_partial_output_and_stops_later_calls() -> None:
+    first = _CountingForwardProvider("first")
+    timed_out = _TimeoutForwardProvider()
+    later = _CountingForwardProvider("later")
+    lm = MultiProviderLM(
+        [first, timed_out, later],
+        names=["first", "timeout", "later"],
+        strategy="collect_concat",
+    )
+
+    with pytest.raises(MultiProviderIndeterminateError, match="fallback was stopped"):
+        lm.forward(prompt="hello")
+
+    assert first.calls == 1
+    assert timed_out.calls == 1
+    assert later.calls == 0
+
+
+def test_parallel_async_marked_failure_cannot_beat_valid_response() -> None:
+    failed = _AsyncResponseProvider(
+        "failed",
+        LMResponse(
+            outputs=["invalid"],
+            model="failed",
+            raw={"_dspx_error": True, "error": "provider failed"},
+        ),
+    )
+    valid = _AsyncResponseProvider(
+        "valid",
+        LMResponse(outputs=["winner"], model="valid"),
+    )
+    lm = MultiProviderLM(
+        [failed, valid],
+        names=["failed", "valid"],
+        strategy="parallel_first",
+    )
+
+    response = lm.forward(prompt="hello")
+
+    assert response.choices[0]["text"] == "winner"
+    assert set(response.raw) == {"valid"}
+
+
+def test_parallel_empty_response_cannot_beat_valid_response() -> None:
+    empty = _AsyncResponseProvider(
+        "empty",
+        LMResponse(outputs=["  "], model="empty"),
+    )
+    valid = _AsyncResponseProvider(
+        "valid",
+        LMResponse(outputs=["winner"], model="valid"),
+    )
+    lm = MultiProviderLM(
+        [empty, valid],
+        names=["empty", "valid"],
+        strategy="parallel_first",
+    )
+
+    response = lm.forward(prompt="hello")
+
+    assert response.choices[0]["text"] == "winner"
+
+
+def test_parallel_readiness_timeout_poisons_request_before_slower_success() -> None:
+    class _NeverReady:
+        model = "never-ready"
+        timeout = 0.05
+
+        def __init__(self) -> None:
+            self.terminated = 0
+
+        def start(self, prompt=None, messages=None):
+            return SimpleNamespace(started_at=time.time())
+
+        def ready(self, run):
+            return False
+
+        def terminate(self, run):
+            self.terminated += 1
+
+    never = _NeverReady()
+    slow = _AsyncProvider("slow", delay=0.2)
+    lm = MultiProviderLM(
+        [never, slow],
+        names=["never", "slow"],
+        strategy="parallel_first",
+    )
+
+    with pytest.raises(MultiProviderIndeterminateError, match="fallback was stopped"):
+        lm.forward(prompt="hello")
+
+    assert never.terminated == 1

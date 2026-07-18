@@ -61,6 +61,42 @@ failure from model text; a successful provider may return error-looking prose.
 Benchmarks require at least one measured call, and any provider failure makes the
 aggregate benchmark unsuccessful and the CLI exit non-zero.
 
+### Multi-provider classification and fallback
+
+`MultiProviderLM` applies the same provider-owned failure membrane to child
+`forward`, `generate`, and async `collect` responses before accepting text. Typed
+`_dspx_error: true`, non-empty explicit error fields, declared failure statuses,
+missing or malformed response envelopes, and empty completions are conclusive
+child failures. Error-looking model prose remains valid when those provider-owned
+signals are absent.
+
+Sequential and collection strategies may continue after a conclusive child
+failure. A timeout is different: invocation may have begun without a determinate
+result, so it is classified as indeterminate. Sequential fallback stops,
+collection refuses partial output and stops before later children, and a parallel
+timeout observed before a valid winner poisons the request. DSPx performs no
+fallback replay after that timeout.
+
+The registered `multi` provider uses a positive finite child-provider timeout
+default:
+
+```bash
+DSPX_MULTI_TIMEOUT=60
+```
+
+The default is 60 seconds. A positive finite timeout already configured on a
+child is preserved; an unset or non-finite `timeout`/`timeout_s` attribute is
+filled from `DSPX_MULTI_TIMEOUT`. Invalid values fail provider construction.
+Async readiness remains separately bounded and is capped by this multi-provider
+timeout. Direct custom Python providers that expose no timeout contract remain
+responsible for their own transport deadline; DSPx does not claim it can safely
+cancel arbitrary Python callables.
+
+Aggregate raw metadata is attributed by the actual child result and sanitized
+before exposure. Provider authentication and transport remain source-owned by
+the child provider; DSPx owns only aggregate classification, fallback policy,
+timeout defaults, redaction, and local evidence behavior.
+
 ## Local editable checkout note
 
 When DSPx should use a local editable `dspy-lm-auth` checkout, prefer the workspace contrib repo instead of an unrelated upstream clone:

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from typing import List
 
@@ -17,6 +18,17 @@ def _parse_list(env_name: str, default: str) -> List[str]:
     if "," in v:
         return [s.strip() for s in v.split(",") if s.strip()]
     return [s for s in v.split() if s]
+
+
+def _positive_timeout(env_name: str, default: float) -> float:
+    raw = os.getenv(env_name)
+    try:
+        value = default if raw is None else float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{env_name} must be a positive finite number") from exc
+    if value <= 0.0 or not math.isfinite(value):
+        raise ValueError(f"{env_name} must be a positive finite number")
+    return value
 
 
 def _factory() -> MultiProviderLM:
@@ -53,6 +65,7 @@ def _factory() -> MultiProviderLM:
         "False",
     }
     worktree_commitish = os.getenv("DSPX_MULTI_WORKTREE_COMMITISH", "HEAD")
+    provider_timeout_s = _positive_timeout("DSPX_MULTI_TIMEOUT", 60.0)
     provs = []
     resolved_names: List[str] = []
     resolution_errors: list[str] = []
@@ -79,6 +92,7 @@ def _factory() -> MultiProviderLM:
         worktree_commitish=worktree_commitish,
         abort_others_on_validate=abort_on_validate,
         cleanup_isolated=cleanup_isolated,
+        provider_timeout_s=provider_timeout_s,
         policy_bypass_permissions=True if policy_bypass else None,
         policy_allowed_tools=policy_allowed,
         policy_disallowed_tools=policy_disallowed,
