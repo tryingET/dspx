@@ -85,6 +85,10 @@ def test_oracle_index_from_program_evidence_cli_indexes_coordinate_record(
     assert payload["index_stats"]["by_run_kind"]["program-oracle-evidence"] == 1
     assert payload["backend"] == "mock"
     assert payload["dimension"] == 384
+    assert payload["embedding_backend"]["effective_backend"] == "mock"
+    assert payload["embedding_backend"]["explicitly_selected"] is True
+    assert payload["semantic_claim"] == "plumbing_only_not_production_semantics"
+    assert payload["production_semantic_claim_allowed"] is False
     assert payload["non_authority_confirmed"] is True
 
     index = CoordinateIndex(db_path=index_path)
@@ -113,6 +117,7 @@ def test_oracle_index_from_program_evidence_cli_indexes_coordinate_record(
     assert embedding.metadata["non_authority"] == oracle_evidence["non_authority"]
     assert embedding.metadata["evidence_path"] == str(root / "oracle_evidence.json")
     assert embedding.metadata["evidence_hash"]
+    assert embedding.metadata["embedding_backend"] == payload["embedding_backend"]
     assert embedding.metadata["non_authority"] == {
         "oracle_ranking": False,
         "oracle_pruning": False,
@@ -146,6 +151,37 @@ def test_oracle_index_from_program_evidence_cli_indexes_coordinate_record(
     assert second_payload["indexed"] == 1
     assert CoordinateIndex(db_path=index_path).stats()["total"] == 1
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_oracle_index_without_backend_fails_before_index_creation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import dspx.coordinates.embeddings as embeddings
+
+    monkeypatch.delenv("DSPX_ORACLE_EMBEDDING_BACKEND", raising=False)
+    monkeypatch.setattr(embeddings, "find_spec", lambda _name: None)
+    reset_embedding_engine()
+    index_path = tmp_path / "oracle" / "coordinates.db"
+
+    result = runner.invoke(
+        app,
+        [
+            "oracle",
+            "index",
+            "--from-program-evidence",
+            "--path",
+            str(tmp_path),
+            "--index-path",
+            str(index_path),
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "mock requires explicit selection" in result.output
+    assert not index_path.exists()
+    assert not index_path.parent.exists()
+    reset_embedding_engine()
 
 
 def test_oracle_index_combined_mode_does_not_confirm_non_authority_when_receipts_error(

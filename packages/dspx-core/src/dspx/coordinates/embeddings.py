@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from importlib import import_module
 from importlib.util import find_spec
 from pathlib import Path
-from typing import Any, Literal, Protocol, runtime_checkable
+from typing import Any, cast, Literal, Mapping, Protocol, runtime_checkable
 
 from dspx.run_receipts import resolve_run_identity
 
@@ -29,37 +29,149 @@ logger = logging.getLogger(__name__)
 # Embedding schema version - bump when changing embedding behavior
 EMBEDDING_VERSION = 1
 
-# Optional embedding backends
-_EMBEDDING_BACKEND: Literal["none", "mock", "sentence-transformers"] | None = None
+EmbeddingBackendName = Literal["none", "mock", "sentence-transformers"]
+EmbeddingBackendRequest = Literal["auto", "none", "mock", "sentence-transformers"]
+EMBEDDING_BACKEND_IDENTITY_SCHEMA = "dspx-embedding-backend-identity-v1"
+_EMBEDDING_BACKEND_ENV = "DSPX_ORACLE_EMBEDDING_BACKEND"
+_VALID_EMBEDDING_BACKENDS = {"none", "mock", "sentence-transformers"}
+
+
+class EmbeddingBackendConfigurationError(RuntimeError):
+    """Raised when no truthful embedding backend can be selected."""
+
+
+@dataclass(frozen=True)
+class EmbeddingBackendSelection:
+    """Read-only resolution of the requested and effective embedding backend."""
+
+    requested_backend: str
+    effective_backend: EmbeddingBackendName
+    selection_source: str
+    explicitly_selected: bool
+    available: bool
+    reason: str
+
+    @property
+    def semantic_class(self) -> str:
+        if self.effective_backend == "mock":
+            return "deterministic_test_double"
+        if self.effective_backend == "sentence-transformers":
+            return "model_backed_semantic_embedding"
+        return "disabled"
+
+    @property
+    def semantic_claim(self) -> str:
+        if self.effective_backend == "mock":
+            return "plumbing_only_not_production_semantics"
+        if self.effective_backend == "sentence-transformers":
+            return "model_backed_semantics_not_production_validated"
+        return "no_embedding_backend_available"
+
+    def to_dict(
+        self,
+        *,
+        model_name: str | None = None,
+        dimension: int | None = None,
+    ) -> dict[str, Any]:
+        if self.effective_backend == "mock":
+            resolved_model = "sha256-deterministic-test-double-v1"
+        elif self.effective_backend == "sentence-transformers":
+            resolved_model = model_name
+        else:
+            resolved_model = None
+        return {
+            "schema_version": EMBEDDING_BACKEND_IDENTITY_SCHEMA,
+            "requested_backend": self.requested_backend,
+            "effective_backend": self.effective_backend,
+            "selection_source": self.selection_source,
+            "explicitly_selected": self.explicitly_selected,
+            "available": self.available,
+            "reason": self.reason,
+            "model": resolved_model,
+            "dimension": dimension,
+            "semantic_class": self.semantic_class,
+            "semantic_claim": self.semantic_claim,
+            "production_semantic_claim_allowed": False,
+        }
+
+
 _ENGINE_LOCK = threading.Lock()
 
 
-def _detect_embedding_backend() -> Literal["none", "mock", "sentence-transformers"]:
-    """Detect available embedding backend.
+def resolve_embedding_backend(
+    backend: EmbeddingBackendRequest = "auto",
+    *,
+    environ: Mapping[str, str] | None = None,
+) -> EmbeddingBackendSelection:
+    """Resolve backend identity without importing a model or creating state.
 
-    Precedence:
-    1. DSPX_ORACLE_EMBEDDING_BACKEND env var (none, mock, sentence-transformers)
-    2. sentence-transformers if installed
-    3. mock (deterministic hash-based vectors for testing)
+    Mock vectors are never an implicit fallback. They remain available for tests and
+    plumbing proofs only when selected explicitly. ``none`` truthfully disables
+    embedding rather than executing a mock backend under a false identity.
     """
-    global _EMBEDDING_BACKEND
-    if _EMBEDDING_BACKEND is not None:
-        return _EMBEDDING_BACKEND
 
-    env_backend = os.getenv("DSPX_ORACLE_EMBEDDING_BACKEND", "").lower().strip()
-    if env_backend == "none":
-        _EMBEDDING_BACKEND = "none"
-    elif env_backend == "mock":
-        _EMBEDDING_BACKEND = "mock"
-    elif env_backend == "sentence-transformers":
-        _EMBEDDING_BACKEND = "sentence-transformers"
+    env = os.environ if environ is None else environ
+    if backend != "auto":
+        if backend not in _VALID_EMBEDDING_BACKENDS:
+            raise EmbeddingBackendConfigurationError(
+                f"Unsupported Oracle embedding backend {backend!r}; expected "
+                "none, mock, or sentence-transformers"
+            )
+        selected = backend
+        source = "explicit_argument"
+        explicitly_selected = True
     else:
-        if find_spec("sentence_transformers") is not None:
-            _EMBEDDING_BACKEND = "sentence-transformers"
+        configured = str(env.get(_EMBEDDING_BACKEND_ENV, "")).strip().lower()
+        if configured and configured not in _VALID_EMBEDDING_BACKENDS:
+            raise EmbeddingBackendConfigurationError(
+                f"Invalid {_EMBEDDING_BACKEND_ENV}={configured!r}; expected "
+                "none, mock, or sentence-transformers"
+            )
+        if configured:
+            selected = configured
+            source = _EMBEDDING_BACKEND_ENV
+            explicitly_selected = True
+        elif find_spec("sentence_transformers") is not None:
+            selected = "sentence-transformers"
+            source = "automatic_dependency_detection"
+            explicitly_selected = False
         else:
-            _EMBEDDING_BACKEND = "mock"
+            selected = "none"
+            source = "automatic_no_model_backend"
+            explicitly_selected = False
 
-    return _EMBEDDING_BACKEND
+    effective_backend = cast(EmbeddingBackendName, selected)
+    if effective_backend == "none":
+        reason = (
+            "embedding backend explicitly disabled"
+            if explicitly_selected
+            else "no model-backed embedding dependency detected; mock requires explicit selection"
+        )
+        available = False
+    elif effective_backend == "mock":
+        reason = "explicit deterministic test-double selection"
+        available = True
+    else:
+        available = find_spec("sentence_transformers") is not None
+        reason = (
+            "sentence-transformers dependency detected"
+            if available
+            else "sentence-transformers selected but dependency is unavailable"
+        )
+
+    selection = EmbeddingBackendSelection(
+        requested_backend=(
+            str(env.get(_EMBEDDING_BACKEND_ENV, "")).strip().lower() or "auto"
+            if backend == "auto"
+            else backend
+        ),
+        effective_backend=effective_backend,
+        selection_source=source,
+        explicitly_selected=explicitly_selected,
+        available=available,
+        reason=reason,
+    )
+    return selection
 
 
 @runtime_checkable
@@ -316,33 +428,31 @@ class EmbeddingEngine:
 
     def __init__(
         self,
-        backend: Literal["auto", "none", "mock", "sentence-transformers"] = "auto",
+        backend: EmbeddingBackendRequest = "auto",
         model_name: str = "all-MiniLM-L6-v2",
         mock_dimension: int = 384,
     ):
-        if backend == "auto":
-            backend = _detect_embedding_backend()
+        selection = resolve_embedding_backend(backend)
+        if not selection.available:
+            raise EmbeddingBackendConfigurationError(
+                f"Oracle embedding backend unavailable: {selection.reason}. "
+                f"Set {_EMBEDDING_BACKEND_ENV}=mock only for explicit test/plumbing use, "
+                "or install and select sentence-transformers."
+            )
 
-        self._backend_name = backend
+        self._selection = selection
+        self._backend_name = selection.effective_backend
         self._model_name = model_name
         self._mock_dimension = mock_dimension
 
-        # BUG 3 FIX: Handle "none" explicitly
-        if backend == "none":
-            # Treat "none" as mock for now, but log it
-            logger.info(
-                "Using 'none' backend - falling back to mock embedder. "
-                "Set DSPX_ORACLE_EMBEDDING_BACKEND=mock explicitly if intended."
+        if self._backend_name == "sentence-transformers":
+            self._embedder: EmbedderProtocol = SentenceTransformerEmbedder(model_name)
+        elif self._backend_name == "mock":
+            self._embedder = MockEmbedder(dimension=mock_dimension)
+        else:  # guarded by selection.available; retained as a fail-closed invariant
+            raise EmbeddingBackendConfigurationError(
+                f"Oracle embedding backend {self._backend_name!r} cannot encode vectors"
             )
-            self._embedder: EmbedderProtocol = MockEmbedder(dimension=mock_dimension)
-        elif backend == "sentence-transformers":
-            self._embedder = SentenceTransformerEmbedder(model_name)
-        elif backend == "mock":
-            self._embedder = MockEmbedder(dimension=mock_dimension)
-        else:
-            # Unknown backend, use mock
-            logger.warning(f"Unknown backend '{backend}', falling back to mock")
-            self._embedder = MockEmbedder(dimension=mock_dimension)
 
         self._dimension = self._embedder.get_dimension()
 
@@ -360,6 +470,15 @@ class EmbeddingEngine:
     def model_name(self) -> str:
         """Return the model name (for sentence-transformers)."""
         return self._model_name
+
+    @property
+    def backend_identity(self) -> dict[str, Any]:
+        """Return the persisted claim boundary for vectors created by this engine."""
+
+        return self._selection.to_dict(
+            model_name=self._model_name,
+            dimension=self._dimension,
+        )
 
     def embed_text(self, text: str) -> list[float]:
         """Embed a single text string."""
@@ -407,7 +526,11 @@ class EmbeddingEngine:
             created_at=_canonical_execution_time(created_at),
             dimension=self._dimension,
             source_path=source_path,
-            metadata=metadata or {},
+            metadata={
+                **(metadata or {}),
+                # Reserved producer identity wins over caller-supplied metadata.
+                "embedding_backend": self.backend_identity,
+            },
             embedding_version=EMBEDDING_VERSION,
         )
 
@@ -577,13 +700,11 @@ class EmbeddingEngine:
 
 # Global engine instance and its configuration
 _ENGINE: EmbeddingEngine | None = None
-_ENGINE_CONFIG: tuple[str, str, int] | None = (
-    None  # (backend, model_name, mock_dimension)
-)
+_ENGINE_CONFIG: tuple[str, str, str, bool, str, int] | None = None
 
 
 def get_embedding_engine(
-    backend: Literal["auto", "none", "mock", "sentence-transformers"] = "auto",
+    backend: EmbeddingBackendRequest = "auto",
     model_name: str = "all-MiniLM-L6-v2",
     mock_dimension: int = 384,
     force_new: bool = False,
@@ -605,18 +726,22 @@ def get_embedding_engine(
     global _ENGINE, _ENGINE_CONFIG
 
     with _ENGINE_LOCK:
-        # Resolve auto backend
-        resolved_backend = backend
-        if backend == "auto":
-            resolved_backend = _detect_embedding_backend()
+        selection = resolve_embedding_backend(backend)
 
         # Check if we need to create a new engine
-        config = (resolved_backend, model_name, mock_dimension)
+        config = (
+            selection.requested_backend,
+            selection.effective_backend,
+            selection.selection_source,
+            selection.explicitly_selected,
+            model_name,
+            mock_dimension,
+        )
         needs_new = (
             force_new
             or _ENGINE is None
             or _ENGINE_CONFIG != config
-            or _ENGINE.backend != resolved_backend
+            or _ENGINE.backend != selection.effective_backend
         )
 
         if needs_new:
@@ -634,8 +759,7 @@ def get_embedding_engine(
 
 def reset_embedding_engine() -> None:
     """Reset the global embedding engine (mainly for testing)."""
-    global _ENGINE, _ENGINE_CONFIG, _EMBEDDING_BACKEND
+    global _ENGINE, _ENGINE_CONFIG
     with _ENGINE_LOCK:
         _ENGINE = None
         _ENGINE_CONFIG = None
-        _EMBEDDING_BACKEND = None

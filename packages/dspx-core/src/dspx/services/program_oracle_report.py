@@ -35,6 +35,93 @@ def _safe_mapping(value: object) -> dict[str, Any]:
     return {str(key): item for key, item in value.items()}
 
 
+def _embedding_backend_identity(
+    metadata: Mapping[str, Any], *, expected_dimension: int
+) -> dict[str, Any]:
+    raw = _safe_mapping(metadata.get("embedding_backend"))
+    required = {
+        "schema_version",
+        "effective_backend",
+        "model",
+        "semantic_class",
+        "semantic_claim",
+        "production_semantic_claim_allowed",
+    }
+    backend = raw.get("effective_backend")
+    dimension = raw.get("dimension")
+    common_valid = (
+        raw.get("schema_version") == "dspx-embedding-backend-identity-v1"
+        and required.issubset(raw)
+        and isinstance(dimension, int)
+        and not isinstance(dimension, bool)
+        and dimension > 0
+        and dimension == expected_dimension
+        and raw.get("production_semantic_claim_allowed") is False
+    )
+    mock_valid = (
+        backend == "mock"
+        and raw.get("model") == "sha256-deterministic-test-double-v1"
+        and raw.get("semantic_class") == "deterministic_test_double"
+        and raw.get("semantic_claim") == "plumbing_only_not_production_semantics"
+    )
+    model_valid = (
+        backend == "sentence-transformers"
+        and isinstance(raw.get("model"), str)
+        and bool(str(raw.get("model")).strip())
+        and raw.get("semantic_class") == "model_backed_semantic_embedding"
+        and raw.get("semantic_claim")
+        == "model_backed_semantics_not_production_validated"
+    )
+    if common_valid and (mock_valid or model_valid):
+        return raw
+    return {
+        "schema_version": "dspx-embedding-backend-identity-unknown",
+        "effective_backend": "unknown",
+        "model": None,
+        "dimension": None,
+        "semantic_class": "unknown",
+        "semantic_claim": "unknown_legacy_or_invalid_backend_identity",
+        "production_semantic_claim_allowed": False,
+    }
+
+
+def _embedding_backend_posture(records: list[dict[str, Any]]) -> dict[str, Any]:
+    if not records:
+        return {
+            "status": "no_records",
+            "semantic_claim": "no_embedding_evidence",
+            "production_semantic_claim_allowed": False,
+        }
+    identities = {
+        (
+            str(identity.get("effective_backend") or "unknown"),
+            str(identity.get("model") or ""),
+            str(identity.get("dimension") or "unknown"),
+            str(identity.get("semantic_claim") or "unknown"),
+        )
+        for record in records
+        for identity in [_safe_mapping(record.get("embedding_backend"))]
+    }
+    if any(identity[0] == "unknown" for identity in identities):
+        status = "unknown_backend_identity_fail_closed"
+        semantic_claim = "unknown_legacy_or_invalid_backend_identity"
+    elif len(identities) != 1:
+        status = "mixed_backend_identity_fail_closed"
+        semantic_claim = "mixed_embedding_semantics_not_comparable"
+    else:
+        backend, _, _, claim = next(iter(identities))
+        if backend == "mock":
+            status = "explicit_mock_plumbing_only"
+        else:
+            status = "model_backed_not_production_validated"
+        semantic_claim = claim
+    return {
+        "status": status,
+        "semantic_claim": semantic_claim,
+        "production_semantic_claim_allowed": False,
+    }
+
+
 def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -181,6 +268,9 @@ def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
         source_kinds = _behavior_source_kinds(behavior)
     return {
         "run_id": embedding.run_id,
+        "embedding_backend": _embedding_backend_identity(
+            metadata, expected_dimension=embedding.dimension
+        ),
         "identity": identity,
         "behavior_status": _normalize_behavior_status(
             summary.get("status") or facets.get("behavior_status")
@@ -224,8 +314,17 @@ def summarize_program_oracle_evidence(
     evidence_source_count = 0
     runtime_trace_module_call_count = 0
     runtime_trace_final_output_trace_count = 0
+    embedding_backend_counts: Counter[str] = Counter()
+    embedding_semantic_claim_counts: Counter[str] = Counter()
 
     for record in records:
+        embedding_backend = _safe_mapping(record.get("embedding_backend"))
+        embedding_backend_counts[
+            str(embedding_backend.get("effective_backend") or "unknown")
+        ] += 1
+        embedding_semantic_claim_counts[
+            str(embedding_backend.get("semantic_claim") or "unknown")
+        ] += 1
         behavior_status_counts[str(record["behavior_status"])] += 1
         task_type_counts[str(record["task_type"])] += 1
         metric_counts[str(record["metric"])] += 1
@@ -268,6 +367,11 @@ def summarize_program_oracle_evidence(
         ),
         "runtime_trace_module_call_count": runtime_trace_module_call_count,
         "runtime_trace_final_output_trace_count": runtime_trace_final_output_trace_count,
+        "embedding_backend_counts": _counter_payload(embedding_backend_counts),
+        "embedding_semantic_claim_counts": _counter_payload(
+            embedding_semantic_claim_counts
+        ),
+        "embedding_backend_posture": _embedding_backend_posture(records),
         "evidence_source_count": evidence_source_count,
         "total_evaluation_count": total_evaluation_count,
         "records": records,
@@ -307,7 +411,9 @@ def _build_interpretation(summary: Mapping[str, Any]) -> dict[str, Any]:
         f"record(s) across {summary.get('evidence_source_count', 0)} behavior "
         f"source(s); the most common behavior status is {status_phrase} under "
         f"{metric_phrase} evidence. Sources: {source_phrase}. This is an "
-        "evidence-grounded behavior summary and is not live authority."
+        "evidence-grounded behavior summary and is not live authority. "
+        f"Embedding claim posture: "
+        f"{_safe_mapping(summary.get('embedding_backend_posture')).get('semantic_claim', 'unknown')}."
     )
 
     notable_patterns = [

@@ -80,8 +80,13 @@ def oracle_backend_status(
 ) -> None:
     """Report the current Oracle storage/backend posture without mutations."""
     from dspx.services.oracle_backend_status import build_oracle_backend_status
+    from dspx.coordinates.embeddings import EmbeddingBackendConfigurationError
 
-    status = build_oracle_backend_status(index_path=index_path)
+    try:
+        status = build_oracle_backend_status(index_path=index_path)
+    except EmbeddingBackendConfigurationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     if json_out:
         typer.echo(json.dumps(status, ensure_ascii=False, indent=2))
         return
@@ -90,6 +95,14 @@ def oracle_backend_status(
     typer.echo(f"Status: {status['status']}")
     typer.echo(f"Index backend: {status['coordinate_index']['backend']}")
     typer.echo(f"Index path: {status['coordinate_index']['path']}")
+    embedding = status["embedding_backend"]
+    typer.echo(f"Embedding backend: {embedding['effective_backend']}")
+    typer.echo(f"Embedding selection: {embedding['selection_source']}")
+    typer.echo(f"Embedding semantic claim: {embedding['semantic_claim']}")
+    typer.echo(
+        "Production semantic claim allowed: "
+        f"{embedding['production_semantic_claim_allowed']}"
+    )
     shared = status["shared_postgres_backend"]
     typer.echo(f"Shared Postgres supported: {shared['supported']}")
     typer.echo(f"Shared Postgres production ready: {shared['production_ready']}")
@@ -782,6 +795,7 @@ def oracle_index(
         parse_since,
         ParseSinceError,
     )
+    from dspx.coordinates.embeddings import EmbeddingBackendConfigurationError
 
     # Catch parse_since errors
     try:
@@ -803,9 +817,13 @@ def oracle_index(
         )
         raise typer.Exit(code=2)
 
-    # Initialize index only after validating that an explicit mode was selected.
+    # Resolve embedding configuration before creating or mutating an index.
+    try:
+        engine = get_embedding_engine()
+    except EmbeddingBackendConfigurationError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
     index = CoordinateIndex(db_path=index_path)
-    engine = get_embedding_engine()
 
     if from_receipts:
         # Scan for .meta.json files
@@ -1006,6 +1024,9 @@ def oracle_index(
         "index_stats": stats,
         "backend": engine.backend,
         "dimension": engine.dimension,
+        "embedding_backend": engine.backend_identity,
+        "semantic_claim": engine.backend_identity["semantic_claim"],
+        "production_semantic_claim_allowed": False,
         "non_authority_confirmed": (
             bool(program_non_authority_confirmed) and errors == 0
             if from_program_evidence
@@ -1159,15 +1180,21 @@ def oracle_stats(
     json_out: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Show statistics about the coordinate index."""
-    from dspx.coordinates import CoordinateIndex, get_embedding_engine
+    from dspx.coordinates import CoordinateIndex
+    from dspx.coordinates.embeddings import resolve_embedding_backend
 
     index = CoordinateIndex(db_path=index_path)
-    engine = get_embedding_engine()
+    selection = resolve_embedding_backend()
+    backend_identity = selection.to_dict(
+        model_name="all-MiniLM-L6-v2",
+        dimension=384 if selection.effective_backend == "mock" else None,
+    )
 
     stats = index.stats()
-    # Use index dimensions, not current engine dimension
-    stats["engine_backend"] = engine.backend
-    stats["engine_dimension"] = engine.dimension
+    # Report backend selection without loading a model or requiring vector production.
+    stats["engine_backend"] = backend_identity["effective_backend"]
+    stats["engine_dimension"] = backend_identity["dimension"]
+    stats["embedding_backend"] = backend_identity
 
     if json_out:
         typer.echo(json.dumps(stats, ensure_ascii=False, indent=2))

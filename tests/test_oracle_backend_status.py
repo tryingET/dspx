@@ -4,15 +4,28 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import json
 from pathlib import Path
+
+import pytest
 
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
+from dspx.coordinates import reset_embedding_engine
+from dspx.coordinates.embeddings import EmbeddingBackendConfigurationError
 from dspx.services.oracle_backend_status import build_oracle_backend_status
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def _reset_embedding_backend_cache() -> Iterator[None]:
+    reset_embedding_engine()
+    yield
+    reset_embedding_engine()
 
 
 def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
@@ -21,10 +34,11 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     index_path = tmp_path / "oracle" / "coordinates.db"
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "none")
 
     status = build_oracle_backend_status(index_path=index_path)
 
-    assert status["schema_version"] == "oracle-backend-status-v1"
+    assert status["schema_version"] == "oracle-backend-status-v2"
     assert status["status"] == "local_sqlite_default_shared_postgres_opt_in"
     assert status["coordinate_index"] == {
         "backend": "sqlite",
@@ -33,6 +47,20 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         "path_source": "explicit_argument",
         "exists": False,
         "created_by_status_check": False,
+    }
+    assert status["embedding_backend"] == {
+        "schema_version": "dspx-embedding-backend-identity-v1",
+        "requested_backend": "none",
+        "effective_backend": "none",
+        "selection_source": "DSPX_ORACLE_EMBEDDING_BACKEND",
+        "explicitly_selected": True,
+        "available": False,
+        "reason": "embedding backend explicitly disabled",
+        "model": None,
+        "dimension": None,
+        "semantic_class": "disabled",
+        "semantic_claim": "no_embedding_backend_available",
+        "production_semantic_claim_allowed": False,
     }
     shared = status["shared_postgres_backend"]
     assert shared["supported"] is True
@@ -63,6 +91,39 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         "governance_mutated": False,
     }
     assert not index_path.exists()
+
+
+def test_oracle_backend_status_reports_explicit_mock_as_plumbing_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+
+    status = build_oracle_backend_status()
+
+    embedding = status["embedding_backend"]
+    assert embedding["effective_backend"] == "mock"
+    assert embedding["explicitly_selected"] is True
+    assert embedding["semantic_class"] == "deterministic_test_double"
+    assert embedding["semantic_claim"] == "plumbing_only_not_production_semantics"
+    assert embedding["production_semantic_claim_allowed"] is False
+    assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_oracle_backend_status_rejects_invalid_embedding_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "production")
+
+    with pytest.raises(
+        EmbeddingBackendConfigurationError,
+        match="Invalid DSPX_ORACLE_EMBEDDING_BACKEND",
+    ):
+        build_oracle_backend_status()
+
+    result = runner.invoke(app, ["oracle", "backend-status", "--json"])
+    assert result.exit_code == 2
+    assert "Invalid DSPX_ORACLE_EMBEDDING_BACKEND" in result.output
 
 
 def test_oracle_backend_status_reports_postgres_env_without_secret_values(
@@ -117,6 +178,28 @@ def test_oracle_backend_status_separates_ambient_database_url_from_publication_c
     assert shared["publication_config"]["ambient_database_url_present"] is True
     assert shared["publication_config"]["publication_ready_configured"] is False
     assert "ambient-secret" not in json.dumps(status)
+
+
+def test_oracle_stats_does_not_require_operational_embedding_backend(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "none")
+    index_path = tmp_path / "oracle" / "coordinates.db"
+
+    result = runner.invoke(
+        app,
+        ["oracle", "stats", "--index-path", str(index_path), "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["engine_backend"] == "none"
+    assert payload["engine_dimension"] is None
+    assert payload["embedding_backend"]["available"] is False
+    assert payload["embedding_backend"]["semantic_claim"] == (
+        "no_embedding_backend_available"
+    )
 
 
 def test_oracle_backend_status_cli_json(tmp_path: Path, monkeypatch) -> None:

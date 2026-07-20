@@ -38,6 +38,10 @@ from dspx.coordinates import (
     simple_kmeans,
     find_cluster_for_embedding,
 )
+from dspx.coordinates.embeddings import (
+    EmbeddingBackendConfigurationError,
+    resolve_embedding_backend,
+)
 
 
 # =============================================================================
@@ -124,6 +128,39 @@ class TestExecutionEmbedding:
         emb2 = ExecutionEmbedding.from_dict(data)
         assert emb2.run_id == emb.run_id
         assert emb2.vector == emb.vector
+        assert emb.metadata["embedding_backend"] == {
+            "schema_version": "dspx-embedding-backend-identity-v1",
+            "requested_backend": "mock",
+            "effective_backend": "mock",
+            "selection_source": "explicit_argument",
+            "explicitly_selected": True,
+            "available": True,
+            "reason": "explicit deterministic test-double selection",
+            "model": "sha256-deterministic-test-double-v1",
+            "dimension": 64,
+            "semantic_class": "deterministic_test_double",
+            "semantic_claim": "plumbing_only_not_production_semantics",
+            "production_semantic_claim_allowed": False,
+        }
+
+    def test_backend_identity_cannot_be_spoofed_by_caller_metadata(self) -> None:
+        engine = EmbeddingEngine(backend="mock", mock_dimension=8)
+
+        embedding = engine.embed_execution(
+            run_id="spoof-test",
+            input_text="input",
+            output_text="output",
+            metadata={
+                "embedding_backend": {
+                    "effective_backend": "sentence-transformers",
+                    "production_semantic_claim_allowed": True,
+                }
+            },
+        )
+
+        identity = embedding.metadata["embedding_backend"]
+        assert identity["effective_backend"] == "mock"
+        assert identity["production_semantic_claim_allowed"] is False
 
     def test_dimension_validation(self) -> None:
         """BUG 5 FIX: Dimension must match vector length."""
@@ -186,12 +223,32 @@ class TestGlobalEngine:
         assert engine1 is engine2
         reset_embedding_engine()
 
-    def test_force_new_engine(self) -> None:
-        """Can force new engine."""
+    def test_force_new_engine(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Can force a new explicitly selected engine."""
+        monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
         reset_embedding_engine()
         engine1 = get_embedding_engine()
         engine2 = get_embedding_engine(force_new=True)
         assert engine1 is not engine2
+        assert engine2.backend_identity["selection_source"] == (
+            "DSPX_ORACLE_EMBEDDING_BACKEND"
+        )
+        reset_embedding_engine()
+
+    def test_engine_cache_identity_includes_selection_provenance(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        reset_embedding_engine()
+        explicit = get_embedding_engine(backend="mock")
+        assert explicit.backend_identity["selection_source"] == "explicit_argument"
+
+        monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+        environment_selected = get_embedding_engine()
+
+        assert environment_selected is not explicit
+        assert environment_selected.backend_identity["selection_source"] == (
+            "DSPX_ORACLE_EMBEDDING_BACKEND"
+        )
         reset_embedding_engine()
 
     def test_parameter_change_creates_new_engine(self) -> None:
@@ -216,11 +273,46 @@ class TestGlobalEngine:
         """Reset clears both engine and backend auto-detection caches."""
         monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "none")
         reset_embedding_engine()
-        assert get_embedding_engine().backend == "none"
+        with pytest.raises(
+            EmbeddingBackendConfigurationError, match="explicitly disabled"
+        ):
+            get_embedding_engine()
 
         monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
         reset_embedding_engine()
         assert get_embedding_engine().backend == "mock"
+        reset_embedding_engine()
+
+    def test_auto_without_model_backend_fails_closed(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import dspx.coordinates.embeddings as embeddings
+
+        monkeypatch.delenv("DSPX_ORACLE_EMBEDDING_BACKEND", raising=False)
+        monkeypatch.setattr(embeddings, "find_spec", lambda _name: None)
+        reset_embedding_engine()
+
+        selection = resolve_embedding_backend()
+        assert selection.effective_backend == "none"
+        assert selection.selection_source == "automatic_no_model_backend"
+        assert selection.semantic_claim == "no_embedding_backend_available"
+        with pytest.raises(
+            EmbeddingBackendConfigurationError, match="mock requires explicit selection"
+        ):
+            get_embedding_engine()
+        reset_embedding_engine()
+
+    def test_invalid_environment_backend_is_rejected(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "production")
+        reset_embedding_engine()
+
+        with pytest.raises(
+            EmbeddingBackendConfigurationError,
+            match="Invalid DSPX_ORACLE_EMBEDDING_BACKEND",
+        ):
+            get_embedding_engine()
         reset_embedding_engine()
 
 
@@ -305,8 +397,10 @@ class TestSemanticDistance:
 class TestDriftScore:
     """Tests for drift scoring."""
 
-    def test_identical_embeddings(self) -> None:
+    def test_identical_embeddings(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Identical embeddings have zero drift."""
+        monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
+        reset_embedding_engine()
         engine = EmbeddingEngine(backend="mock", mock_dimension=32)
         emb = engine.embed_execution(
             run_id="test",

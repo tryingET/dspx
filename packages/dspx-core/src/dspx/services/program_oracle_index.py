@@ -329,5 +329,8 @@ def index_program_oracle_evidence_path(
         "index_stats": index.stats(),
         "backend": engine.backend,
         "dimension": engine.dimension,
+        "embedding_backend": engine.backend_identity,
+        "semantic_claim": engine.backend_identity["semantic_claim"],
+        "production_semantic_claim_allowed": False,
         "non_authority_confirmed": indexed > 0 and errors == 0,
     }

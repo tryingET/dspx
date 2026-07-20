@@ -40,6 +40,49 @@ def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
             fh.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def _summary_embedding(
+    run_id: str, embedding_backend: dict[str, object] | None
+) -> ExecutionEmbedding:
+    metadata: dict[str, object] = {
+        "oracle_facets": {"behavior_status": "passed", "task_type": "test"},
+        "behavior": {"summary": {"status": "passed"}},
+        "identity": {"episode_id": run_id},
+    }
+    if embedding_backend is not None:
+        metadata["embedding_backend"] = embedding_backend
+    raw_dimension = embedding_backend.get("dimension") if embedding_backend else 1
+    dimension = raw_dimension if isinstance(raw_dimension, int) else 1
+    return ExecutionEmbedding(
+        run_id=run_id,
+        vector=[1.0] + [0.0] * (dimension - 1),
+        input_text="input",
+        output_text="output",
+        config_text="config",
+        run_kind="program-oracle-evidence",
+        provider="stub",
+        template_version=None,
+        created_at="2026-07-20T00:00:00Z",
+        dimension=dimension,
+        metadata=metadata,
+    )
+
+
+def _backend_identity(backend: str, model: str, claim: str) -> dict[str, object]:
+    return {
+        "schema_version": "dspx-embedding-backend-identity-v1",
+        "effective_backend": backend,
+        "model": model,
+        "dimension": 1,
+        "semantic_class": (
+            "deterministic_test_double"
+            if backend == "mock"
+            else "model_backed_semantic_embedding"
+        ),
+        "semantic_claim": claim,
+        "production_semantic_claim_allowed": False,
+    }
+
+
 def _materialize_indexed_program(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Path]:
@@ -115,6 +158,85 @@ def test_program_oracle_report_preserves_review_only_execution_category() -> Non
     assert report["behavior_status_counts"]["executed"] == 1
     assert report["behavior_status_counts"]["unknown"] == 0
     assert report["records"][0]["behavior_status"] == "executed"
+    assert report["embedding_backend_counts"] == {"unknown": 1}
+    assert report["embedding_backend_posture"] == {
+        "status": "unknown_backend_identity_fail_closed",
+        "semantic_claim": "unknown_legacy_or_invalid_backend_identity",
+        "production_semantic_claim_allowed": False,
+    }
+
+
+def test_program_oracle_report_fails_closed_for_mixed_backend_identity() -> None:
+    mock = _summary_embedding(
+        "mock",
+        _backend_identity(
+            "mock",
+            "sha256-deterministic-test-double-v1",
+            "plumbing_only_not_production_semantics",
+        ),
+    )
+    model = _summary_embedding(
+        "model",
+        _backend_identity(
+            "sentence-transformers",
+            "all-MiniLM-L6-v2",
+            "model_backed_semantics_not_production_validated",
+        ),
+    )
+
+    report = summarize_program_oracle_evidence([mock, model])
+
+    assert report["embedding_backend_counts"] == {
+        "mock": 1,
+        "sentence-transformers": 1,
+    }
+    assert report["embedding_backend_posture"] == {
+        "status": "mixed_backend_identity_fail_closed",
+        "semantic_claim": "mixed_embedding_semantics_not_comparable",
+        "production_semantic_claim_allowed": False,
+    }
+
+
+def test_program_oracle_report_fails_closed_for_mixed_dimensions() -> None:
+    first_identity = _backend_identity(
+        "mock",
+        "sha256-deterministic-test-double-v1",
+        "plumbing_only_not_production_semantics",
+    )
+    second_identity = dict(first_identity)
+    second_identity["dimension"] = 2
+
+    report = summarize_program_oracle_evidence(
+        [
+            _summary_embedding("mock-1d", first_identity),
+            _summary_embedding("mock-2d", second_identity),
+        ]
+    )
+
+    assert report["embedding_backend_posture"]["status"] == (
+        "mixed_backend_identity_fail_closed"
+    )
+    assert (
+        report["embedding_backend_posture"]["production_semantic_claim_allowed"]
+        is False
+    )
+
+
+def test_program_oracle_report_rejects_contradictory_backend_claim() -> None:
+    contradictory = _backend_identity(
+        "mock",
+        "sha256-deterministic-test-double-v1",
+        "model_backed_semantics_not_production_validated",
+    )
+
+    report = summarize_program_oracle_evidence(
+        [_summary_embedding("contradictory", contradictory)]
+    )
+
+    assert report["embedding_backend_counts"] == {"unknown": 1}
+    assert report["embedding_backend_posture"]["status"] == (
+        "unknown_backend_identity_fail_closed"
+    )
 
 
 def test_program_oracle_report_service_summarizes_indexed_evidence(
@@ -132,6 +254,15 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
     assert report["index_path"] == str(index_path)
     assert report["run_kind"] == "program-oracle-evidence"
     assert report["total_records"] == 1
+    assert report["embedding_backend_counts"] == {"mock": 1}
+    assert report["embedding_semantic_claim_counts"] == {
+        "plumbing_only_not_production_semantics": 1
+    }
+    assert report["embedding_backend_posture"] == {
+        "status": "explicit_mock_plumbing_only",
+        "semantic_claim": "plumbing_only_not_production_semantics",
+        "production_semantic_claim_allowed": False,
+    }
     assert report["non_authority"] == {
         "oracle_interpretation_only": True,
         "oracle_ranking": False,
@@ -158,6 +289,8 @@ def test_program_oracle_report_service_summarizes_indexed_evidence(
 
     record = report["records"][0]
     assert record["run_id"].startswith("program-oracle-evidence:")
+    assert record["embedding_backend"]["effective_backend"] == "mock"
+    assert record["embedding_backend"]["production_semantic_claim_allowed"] is False
     assert record["identity"]["receipt_bundle_id"]
     assert record["behavior_status"] in {
         "passed",
@@ -346,6 +479,12 @@ def test_program_oracle_report_empty_index_is_valid_and_non_mutating(
     assert payload["schema_version"] == "program-oracle-evidence-report-v1"
     assert payload["status"] == "no_program_oracle_evidence"
     assert payload["total_records"] == 0
+    assert payload["embedding_backend_counts"] == {}
+    assert payload["embedding_backend_posture"] == {
+        "status": "no_records",
+        "semantic_claim": "no_embedding_evidence",
+        "production_semantic_claim_allowed": False,
+    }
     assert payload["behavior_status_counts"] == {
         "passed": 0,
         "failed": 0,

@@ -8,13 +8,15 @@ import os
 from pathlib import Path
 from typing import Any
 
+from dspx.coordinates.embeddings import resolve_embedding_backend
+
 from dspx.coordinates.postgres_store import (
     configured_postgres_env_keys,
     redact_database_url,
 )
 from dspx.coordinates.storage import get_default_index_path
 
-ORACLE_BACKEND_STATUS_SCHEMA = "oracle-backend-status-v1"
+ORACLE_BACKEND_STATUS_SCHEMA = "oracle-backend-status-v2"
 DS1621_ORACLE_INFRA_CONTRACT = {
     "owner": "softwareco/infra/ds1621-admin",
     "status": "pilot_deployed_not_production_ready",
@@ -93,6 +95,8 @@ def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, 
     oracle_specific_url = os.getenv("DSPX_ORACLE_DATABASE_URL") or os.getenv(
         "DSPX_ORACLE_POSTGRES_URL"
     )
+    embedding_selection = resolve_embedding_backend()
+    embedding_backend = embedding_selection.to_dict()
 
     return {
         "schema_version": ORACLE_BACKEND_STATUS_SCHEMA,
@@ -111,6 +115,7 @@ def build_oracle_backend_status(*, index_path: Path | None = None) -> dict[str, 
             "exists": resolved_index_path.exists(),
             "created_by_status_check": False,
         },
+        "embedding_backend": embedding_backend,
         "shared_postgres_backend": {
             "supported": True,
             "adapter_available": True,
