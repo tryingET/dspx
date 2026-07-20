@@ -530,6 +530,23 @@ def test_artifact_verifier_rejects_receipt_only_intent_drift(tmp_path: Path) -> 
 def test_runner_rejects_unsafe_roots_before_effects(tmp_path: Path) -> None:
     venv = tmp_path / "venv"
     venv.mkdir()
+    missing_binding = subprocess.run(
+        [
+            "bash",
+            str(RUNNER_PATH),
+            str(venv),
+            str(tmp_path / "missing-binding"),
+            str(REPO_ROOT),
+            "",
+            "0" * 64,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing_binding.returncode == 2
+    assert "must both be non-empty" in missing_binding.stderr
+    assert not (tmp_path / "missing-binding").exists()
     existing = tmp_path / "existing"
     existing.mkdir()
     for unsafe in (existing,):

@@ -95,7 +95,7 @@ just verify-full                                          # explicit full gate b
 just ci-quality                                           # GitHub static/contract job parity (no AK dependency)
 just ci-test-shard shard=core-0                           # one exact GitHub test shard
 just ci-test-shards                                       # complete offline GitHub test set
-just ci-package                                           # clean Core-wheel product journey + separate Forge package smoke
+just ci-package                                           # exact Core-wheel journey/release-claim truth + Forge smoke
 ```
 
 Generic `repo-loop-validation-v1` aliases for orchestration prompts:
@@ -162,6 +162,8 @@ Validation contract:
   - combines branch coverage from all six disjoint shards and enforces the measured brownfield ratchet configured in `pyproject.toml`
   - builds both wheels and source distributions in a temporary directory and checks package metadata
   - installs the Core wheel alone into a clean Python 3.13 environment, runs outside the checkout with `PYTHONPATH` unset, and proves an explicit stub-provider/mock-embedding program loop through passing behavior, receipt checking, candidate-local Oracle indexing/reporting, cross-artifact hash/identity binding, and revalidation of workflow-declared non-authority fields
+  - binds the installed proof to the selected Core wheel's SHA-256 and local PEP 610 direct URL, then validates a `dspx-core-release-evidence-v1` envelope over the exact wheel/sdist, installed proof, Git commit, and clean/dirty tree state
+  - keeps provenance/SBOM/signing/release claims separate: the current envelope reports unattested provenance, no generated or verified SBOM, no verified signature, incomplete technical release evidence, no publication, and no release readiness or authority
   - installs Core plus Forge into a separate clean environment and smokes the Forge CLI, so Forge cannot mask Core-only packaging/import defects during the product journey
   - labels the installed Core journey as stub-backed plumbing proof only: it is not live-provider proof, production-semantic Oracle proof, network-isolation proof, exclusion of absolute-path/external API effects, release approval, promotion, or activation authority
   - has read-only repository permission and contains no publish or secret-bearing step

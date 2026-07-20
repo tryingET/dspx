@@ -6,14 +6,26 @@
 # ---
 set -euo pipefail
 
-if [ "$#" -ne 3 ]; then
-  printf 'usage: %s <core-venv> <journey-root> <repo-root>\n' "$0" >&2
+if [ "$#" -ne 3 ] && [ "$#" -ne 5 ]; then
+  printf 'usage: %s <core-venv> <journey-root> <repo-root> [<core-wheel> <wheel-sha256>]\n' "$0" >&2
   exit 2
 fi
 
 venv_root="$(cd -- "$1" && pwd -P)"
 journey_root="$2"
 repo_root="$(cd -- "$3" && pwd -P)"
+core_wheel="${4:-}"
+expected_wheel_sha256="${5:-}"
+if [ "$#" -eq 5 ] && { [ -z "$core_wheel" ] || [ -z "$expected_wheel_sha256" ]; }; then
+  printf 'error: Core wheel path and SHA-256 must both be non-empty\n' >&2
+  exit 2
+fi
+if [ -n "$core_wheel" ]; then
+  case "$core_wheel" in
+    /*) ;;
+    *) printf 'error: Core wheel path must be absolute\n' >&2; exit 2 ;;
+  esac
+fi
 
 case "$journey_root" in
   /*) ;;
@@ -125,10 +137,16 @@ if [ -e "$DSPX_INSTALL_PROOF_AK_MARKER" ] || [ -L "$DSPX_INSTALL_PROOF_AK_MARKER
 fi
 
 printf '[installed-core] independently verify installed origin and artifact truth\n'
+verifier_args=(
+  --journey-root "$journey_root"
+  --venv-root "$venv_root"
+  --repo-root "$repo_root"
+)
+if [ -n "$core_wheel" ]; then
+  verifier_args+=(--wheel "$core_wheel" --expected-wheel-sha256 "$expected_wheel_sha256")
+fi
 "$venv_root/bin/python" "$repo_root/scripts/ci/verify_installed_core_golden_path.py" \
-  --journey-root "$journey_root" \
-  --venv-root "$venv_root" \
-  --repo-root "$repo_root" \
+  "${verifier_args[@]}" \
   > "$journey_root/verification-output.json"
 chmod 0600 "$journey_root/verification-output.json"
 

@@ -491,15 +491,26 @@ def main() -> int:
     parser.add_argument("--journey-root", type=Path, required=True)
     parser.add_argument("--venv-root", type=Path, required=True)
     parser.add_argument("--repo-root", type=Path, required=True)
+    parser.add_argument("--wheel", type=Path)
+    parser.add_argument("--expected-wheel-sha256")
     args = parser.parse_args()
+    if (args.wheel is None) != (args.expected_wheel_sha256 is None):
+        parser.error("--wheel and --expected-wheel-sha256 must be supplied together")
 
     journey_root = args.journey_root.absolute()
     install = verify_install_origin(
-        venv_root=args.venv_root.absolute(), repo_root=args.repo_root.absolute()
+        venv_root=args.venv_root.absolute(),
+        repo_root=args.repo_root.absolute(),
+        wheel_path=args.wheel,
+        expected_wheel_sha256=args.expected_wheel_sha256,
     )
     root_descriptor = open_root(journey_root)
     try:
         proof = _verify_artifacts(root_descriptor, journey_root=journey_root)
+        artifact_under_test = install.pop("artifact_under_test", None)
+        if artifact_under_test is not None:
+            proof["schema_version"] = "dspx-installed-core-golden-path-proof-v2"
+            proof["artifact_under_test"] = artifact_under_test
         proof["install"] = install
         root_still_names_descriptor(journey_root, root_descriptor)
         assert_relative_absent(
