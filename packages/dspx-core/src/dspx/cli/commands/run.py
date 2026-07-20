@@ -76,6 +76,14 @@ def run_replay(
             output_path = report.get("output_path")
             if output_path:
                 typer.echo(f"output: {output_path}")
+            replay_claims = report.get("replay_claims")
+            if isinstance(replay_claims, dict):
+                dimensions = replay_claims.get("dimensions")
+                if isinstance(dimensions, dict):
+                    for name in sorted(dimensions):
+                        dimension = dimensions.get(name)
+                        if isinstance(dimension, dict):
+                            typer.echo(f"claim.{name}: {dimension.get('status')}")
             checks: dict[str, bool] = {}
             checks_raw = report.get("checks")
             if isinstance(checks_raw, dict):

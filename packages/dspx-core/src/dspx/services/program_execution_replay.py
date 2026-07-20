@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping, cast
 
 from dspx.provider_runtime import sanitize_text
+from dspx.services.replay_claims import build_replay_claim_matrix
 
 PROGRAM_RUNTIME_REPLAY_STRATEGY = "program-runtime-local-reexecution"
 PROGRAM_RUNTIME_REPLAY_EVIDENCE_SCHEMA = "program-execution-replay-evidence-v2"
@@ -268,6 +269,11 @@ def _build_replay_evidence(
         "schema_version": PROGRAM_RUNTIME_REPLAY_EVIDENCE_SCHEMA,
         "status": "execution_reproduced",
         "strategy": PROGRAM_RUNTIME_REPLAY_STRATEGY,
+        "replay_claims": build_replay_claim_matrix(
+            mode="runtime_execution_reproduction",
+            receipt_integrity_status="passed",
+            execution_status="passed",
+        ),
         "source_receipt_sha256": source_receipt_hash,
         "candidate_manifest_sha256": manifest_hash,
         "candidate_receipt_sha256": candidate_receipt_hash,

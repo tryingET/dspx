@@ -49,6 +49,76 @@ def _expect(value: object, expected: object, label: str) -> None:
         )
 
 
+def _validate_check_only_replay_claims(value: object) -> None:
+    claims = _mapping(value, "replay.replay_claims")
+    _expect(
+        set(claims),
+        {
+            "schema_version",
+            "mode",
+            "dimensions",
+            "release_claim_allowed",
+            "authority",
+        },
+        "replay claim fields",
+    )
+    _expect(
+        claims.get("schema_version"),
+        "dspx-replay-claim-matrix-v1",
+        "replay claim schema",
+    )
+    _expect(claims.get("mode"), "check_only", "replay claim mode")
+    _expect(claims.get("release_claim_allowed"), False, "replay release claim")
+    _expect(
+        claims.get("authority"),
+        {
+            "release_authority": False,
+            "promotion_authority": False,
+            "activation_authority": False,
+            "governance_authority": False,
+            "external_authority": False,
+        },
+        "replay claim authority",
+    )
+    expected_dimensions = {
+        "receipt_integrity_check": (
+            "passed",
+            "current_receipt_and_declared_artifact_bindings",
+        ),
+        "deterministic_regeneration": (
+            "not_run",
+            "fresh_producer_output_identity",
+        ),
+        "runtime_execution_reproduction": (
+            "not_run",
+            "fresh_receipt_bound_runtime_evidence_identity",
+        ),
+        "semantic_reproduction": (
+            "not_evaluated",
+            "independent_semantic_equivalence_evaluation",
+        ),
+        "quality_evaluation_reproduction": (
+            "not_evaluated",
+            "receipt_bound_quality_evaluation_identity_not_independent_approval",
+        ),
+    }
+    dimensions = _mapping(claims.get("dimensions"), "replay claim dimensions")
+    _expect(set(dimensions), set(expected_dimensions), "replay claim dimension names")
+    for name, (status, evidence_level) in expected_dimensions.items():
+        dimension = _mapping(dimensions.get(name), f"replay claim {name}")
+        _expect(
+            set(dimension),
+            {"status", "evidence_level"},
+            f"replay claim {name} fields",
+        )
+        _expect(dimension.get("status"), status, f"replay claim {name} status")
+        _expect(
+            dimension.get("evidence_level"),
+            evidence_level,
+            f"replay claim {name} evidence level",
+        )
+
+
 def _expect_path(value: object, expected: Path, label: str) -> None:
     _expect(value, str(expected), label)
 
@@ -272,6 +342,7 @@ def _verify_artifacts(
     if not replay_checks or any(value is not True for value in replay_checks.values()):
         raise InstalledCoreGoldenPathError("explicit replay checks must all pass")
     _expect(replay.get("errors"), [], "replay errors")
+    _validate_check_only_replay_claims(replay.get("replay_claims"))
 
     _expect(receipt.get("receipt_version"), "v2", "receipt version")
     _expect(receipt.get("run_kind"), "program-gen", "receipt run kind")
@@ -373,6 +444,7 @@ def _verify_artifacts(
         "oracle_semantic_claim": "plumbing_only_not_production_semantics",
         "behavior_status": "passed",
         "receipt_check_status": "ok",
+        "replay_claim_matrix_schema": "dspx-replay-claim-matrix-v1",
         "candidate_identity": dict(identity),
         "evidence_hashes": {
             "manifest_sha256": manifest_hash,

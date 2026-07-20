@@ -28,6 +28,7 @@ from dspx.services.program_evidence_closure import (
     validate_candidate_artifact_closure,
 )
 from dspx.services.program_runtime_traces import validate_program_runtime_traces
+from dspx.services.replay_claims import build_replay_claim_matrix
 
 
 _REQUIRED_FIELDS: tuple[str, ...] = (
@@ -2116,6 +2117,10 @@ def check_run_receipt(meta_path: Path) -> dict[str, Any]:
         "warnings": [],
         "error_codes": [],
         "error_details": [],
+        "replay_claims": build_replay_claim_matrix(
+            mode="check_only",
+            receipt_integrity_status="not_established",
+        ),
     }
 
     if not meta_path.exists() or not meta_path.is_file():
@@ -2310,6 +2315,10 @@ def check_run_receipt(meta_path: Path) -> dict[str, Any]:
 
     if report["errors"]:
         report["status"] = "failed"
+    report["replay_claims"] = build_replay_claim_matrix(
+        mode="check_only",
+        receipt_integrity_status=("passed" if report["status"] == "ok" else "failed"),
+    )
     return report
 
 
@@ -2414,6 +2423,13 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
 
         return execute_program_runtime_receipt(meta_path, replay_output, report)
     report["replay_mode"] = "execute"
+    report["replay_claims"] = build_replay_claim_matrix(
+        mode="deterministic_regeneration",
+        receipt_integrity_status=(
+            "passed" if report.get("status") == "ok" else "not_established"
+        ),
+        execution_status="not_established",
+    )
     report["execution"] = {
         "attempted": False,
         "strategy": _EXECUTION_REPLAY_STRATEGY,
@@ -2783,6 +2799,12 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
         stderr_hash = hashlib.sha256(completed.stderr.encode("utf-8")).hexdigest()
 
     report["status"] = "executed"
+    replay_claims = build_replay_claim_matrix(
+        mode="deterministic_regeneration",
+        receipt_integrity_status="passed",
+        execution_status="passed",
+    )
+    report["replay_claims"] = replay_claims
     report["execution"] = {
         "attempted": True,
         "strategy": _EXECUTION_REPLAY_STRATEGY,
@@ -2798,6 +2820,7 @@ def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
         "effects": dict(_EXECUTION_REPLAY_EFFECTS),
         "evidence": {
             "schema_version": "execution-replay-evidence-v1",
+            "replay_claims": replay_claims,
             "input_identity_hash": policy.get("input_hash"),
             "provider_identity_hash": provider_identity.get("hash"),
             "runtime_identity_hash": runtime_identity.get("hash"),

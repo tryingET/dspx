@@ -256,6 +256,15 @@ def _assert_replay(
     assert evidence["schema_version"] == "program-execution-replay-evidence-v2"
     assert evidence["status"] == "execution_reproduced"
     assert evidence["behavior_quality_approved"] is False
+    claims = report["replay_claims"]
+    assert claims == evidence["replay_claims"]
+    assert claims["mode"] == "runtime_execution_reproduction"
+    assert claims["dimensions"]["receipt_integrity_check"]["status"] == "passed"
+    assert claims["dimensions"]["deterministic_regeneration"]["status"] == "not_run"
+    assert claims["dimensions"]["runtime_execution_reproduction"]["status"] == "passed"
+    assert claims["dimensions"]["semantic_reproduction"]["status"] == "not_evaluated"
+    assert claims["dimensions"]["quality_evaluation_reproduction"]["status"] == "passed"
+    assert claims["release_claim_allowed"] is False
     assert all(evidence["checks"].values())
     output = runtime / output_name
     assert json.loads(output.read_text(encoding="utf-8")) == evidence
@@ -370,6 +379,12 @@ def test_program_runtime_replay_rejects_stale_evidence_before_subprocess(
 
     assert report["status"] in {"failed", "invalid"}
     assert report["execution"]["attempted"] is False
+    claims = report["replay_claims"]
+    assert claims["mode"] == "runtime_execution_reproduction"
+    assert claims["dimensions"]["runtime_execution_reproduction"]["status"] == (
+        "not_established"
+    )
+    assert claims["dimensions"]["semantic_reproduction"]["status"] == ("not_evaluated")
     assert not (runtime / "replay-evidence.json").exists()
 
 

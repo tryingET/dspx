@@ -87,6 +87,13 @@ def test_run_replay_prefers_receipt_relative_paths_over_ambient_cwd(
     assert report["output_path"] == str(actual_output)
     assert report["cache_file"] == str(cache_file)
     assert report["error_codes"] == []
+    claims = report["replay_claims"]
+    assert claims["mode"] == "check_only"
+    assert claims["dimensions"]["receipt_integrity_check"]["status"] == "passed"
+    assert claims["dimensions"]["deterministic_regeneration"]["status"] == "not_run"
+    assert claims["dimensions"]["runtime_execution_reproduction"]["status"] == "not_run"
+    assert claims["dimensions"]["semantic_reproduction"]["status"] == "not_evaluated"
+    assert claims["release_claim_allowed"] is False
 
 
 def test_run_replay_rejects_external_absolute_cache_file(tmp_path: Path) -> None:
@@ -608,6 +615,21 @@ def test_run_replay_check_only_is_stable_without_parent_lineage_metadata(
     assert payload["status"] == "ok"
     assert payload["checks"]["output_hash_match"] is True
     assert payload["error_codes"] == []
+
+    human = runner.invoke(
+        app,
+        [
+            "run",
+            "replay",
+            "--from",
+            str(meta_path),
+            "--check-only",
+        ],
+    )
+    assert human.exit_code == 0, human.stdout
+    assert "claim.receipt_integrity_check: passed" in human.stdout
+    assert "claim.deterministic_regeneration: not_run" in human.stdout
+    assert "claim.semantic_reproduction: not_evaluated" in human.stdout
     assert all("lineage" not in str(w) for w in payload["warnings"])
 
 
@@ -917,6 +939,17 @@ def test_run_execution_replay_materializes_verified_signature_with_evidence(
     assert payload["checks"]["execution_replay_source_output_preserved"] is True
     evidence = payload["execution"]["evidence"]
     assert evidence["schema_version"] == "execution-replay-evidence-v1"
+    claims = payload["replay_claims"]
+    assert claims == evidence["replay_claims"]
+    assert claims["mode"] == "deterministic_regeneration"
+    assert claims["dimensions"]["receipt_integrity_check"]["status"] == "passed"
+    assert claims["dimensions"]["deterministic_regeneration"]["status"] == "passed"
+    assert claims["dimensions"]["runtime_execution_reproduction"]["status"] == "not_run"
+    assert claims["dimensions"]["semantic_reproduction"]["status"] == "not_evaluated"
+    assert (
+        claims["dimensions"]["quality_evaluation_reproduction"]["status"]
+        == "not_evaluated"
+    )
     assert evidence["subprocess_returncode"] == 0
     assert evidence["temporary_artifacts_cleaned"] is True
     assert replay_out.read_bytes() == (tmp_path / "execution-source.py").read_bytes()
@@ -951,6 +984,16 @@ def test_run_execution_replay_fails_closed_on_drift_without_writing(
     assert payload["execution"]["attempted"] is False
     assert payload["execution"]["blocked_reason"] == "receipt_or_artifact_drift"
     assert "output_hash_mismatch" in payload["error_codes"]
+    claims = payload["replay_claims"]
+    assert claims["mode"] == "deterministic_regeneration"
+    assert (
+        claims["dimensions"]["receipt_integrity_check"]["status"] == "not_established"
+    )
+    assert (
+        claims["dimensions"]["deterministic_regeneration"]["status"]
+        == "not_established"
+    )
+    assert claims["dimensions"]["semantic_reproduction"]["status"] == "not_evaluated"
     assert not replay_out.exists()
 
 

@@ -46,6 +46,7 @@ from dspx.services.program_runtime_episode import (
     load_validated_program_runtime_episode_bundle,
 )
 from dspx.services.run_replay_service import check_run_receipt
+from dspx.services.replay_claims import build_replay_claim_matrix
 
 
 def execute_program_runtime_receipt_impl(
@@ -54,6 +55,13 @@ def execute_program_runtime_receipt_impl(
     """Reproduce one supported stub-backed runtime episode and publish evidence."""
 
     report["replay_mode"] = "execute"
+    report["replay_claims"] = build_replay_claim_matrix(
+        mode="runtime_execution_reproduction",
+        receipt_integrity_status=(
+            "passed" if report.get("status") == "ok" else "not_established"
+        ),
+        execution_status="not_established",
+    )
     report["execution"] = {
         "attempted": False,
         "strategy": PROGRAM_RUNTIME_REPLAY_STRATEGY,
@@ -535,6 +543,7 @@ def execute_program_runtime_receipt_impl(
             return _add_error(report, code=_replay_failure_code(exc), message=str(exc))
 
     report["status"] = "executed"
+    report["replay_claims"] = evidence["replay_claims"]
     report["execution"] = {
         "attempted": True,
         "strategy": PROGRAM_RUNTIME_REPLAY_STRATEGY,

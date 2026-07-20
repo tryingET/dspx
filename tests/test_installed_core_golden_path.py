@@ -79,6 +79,45 @@ def _write_json(path: Path, payload: dict[str, Any]) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _check_only_replay_claims() -> dict[str, Any]:
+    return {
+        "schema_version": "dspx-replay-claim-matrix-v1",
+        "mode": "check_only",
+        "dimensions": {
+            "receipt_integrity_check": {
+                "status": "passed",
+                "evidence_level": "current_receipt_and_declared_artifact_bindings",
+            },
+            "deterministic_regeneration": {
+                "status": "not_run",
+                "evidence_level": "fresh_producer_output_identity",
+            },
+            "runtime_execution_reproduction": {
+                "status": "not_run",
+                "evidence_level": "fresh_receipt_bound_runtime_evidence_identity",
+            },
+            "semantic_reproduction": {
+                "status": "not_evaluated",
+                "evidence_level": "independent_semantic_equivalence_evaluation",
+            },
+            "quality_evaluation_reproduction": {
+                "status": "not_evaluated",
+                "evidence_level": (
+                    "receipt_bound_quality_evaluation_identity_not_independent_approval"
+                ),
+            },
+        },
+        "release_claim_allowed": False,
+        "authority": {
+            "release_authority": False,
+            "promotion_authority": False,
+            "activation_authority": False,
+            "governance_authority": False,
+            "external_authority": False,
+        },
+    }
+
+
 def _valid_artifacts(root: Path) -> None:
     program = root / "program"
     _write_json(root / "intent.json", GOLDEN_INTENT)
@@ -259,6 +298,7 @@ def _valid_artifacts(root: Path) -> None:
             "actual_output_hash": manifest_hash,
             "checks": {"output_hash_match": True},
             "errors": [],
+            "replay_claims": _check_only_replay_claims(),
         },
     )
     _write_json(
@@ -343,9 +383,49 @@ def test_artifact_verifier_accepts_only_truthful_offline_core_proof(
     assert proof["provider"] == "stub"
     assert proof["oracle_embedding_backend"] == "mock"
     assert proof["oracle_semantic_claim"] == "plumbing_only_not_production_semantics"
+    assert proof["replay_claim_matrix_schema"] == "dspx-replay-claim-matrix-v1"
     assert proof["non_authority"]["release_readiness"] is False
     assert proof["non_authority"]["network_isolation_proven"] is False
     assert proof["workflow_declared_effects"]["ak_called"] is False
+
+
+def test_artifact_verifier_rejects_check_only_reproduction_overclaim(
+    tmp_path: Path,
+) -> None:
+    verifier = _load_verifier()
+    _valid_artifacts(tmp_path)
+    replay_path = tmp_path / "replay-check.json"
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    replay["replay_claims"]["dimensions"]["semantic_reproduction"]["status"] = "passed"
+    replay_path.write_text(json.dumps(replay), encoding="utf-8")
+
+    with pytest.raises(
+        verifier.InstalledCoreGoldenPathError,
+        match="semantic_reproduction status drift",
+    ):
+        verifier.verify_artifacts(tmp_path)
+
+
+@pytest.mark.parametrize("location", ["matrix", "dimension"])
+def test_artifact_verifier_rejects_unknown_success_shaped_replay_claim_fields(
+    tmp_path: Path, location: str
+) -> None:
+    verifier = _load_verifier()
+    _valid_artifacts(tmp_path)
+    replay_path = tmp_path / "replay-check.json"
+    replay = json.loads(replay_path.read_text(encoding="utf-8"))
+    if location == "matrix":
+        replay["replay_claims"]["release_readiness"] = True
+        expected = "replay claim fields drift"
+    else:
+        replay["replay_claims"]["dimensions"]["receipt_integrity_check"][
+            "independently_verified"
+        ] = True
+        expected = "receipt_integrity_check fields drift"
+    replay_path.write_text(json.dumps(replay), encoding="utf-8")
+
+    with pytest.raises(verifier.InstalledCoreGoldenPathError, match=expected):
+        verifier.verify_artifacts(tmp_path)
 
 
 def test_artifact_verifier_rejects_success_shaped_authority_widening(
