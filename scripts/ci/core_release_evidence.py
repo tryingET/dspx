@@ -26,6 +26,7 @@ from core_release_evidence_io import (
     wheel_metadata as _wheel_metadata,
     write_json as _write_json,
 )
+from core_release_proof_contract import validate_installed_proof
 
 
 SCHEMA_VERSION = "dspx-core-release-evidence-v1"
@@ -71,8 +72,29 @@ def _exact_fields(value: Mapping[str, Any], expected: set[str], label: str) -> N
         )
 
 
+def _typed_equal(value: object, expected: object) -> bool:
+    if isinstance(expected, Mapping):
+        if not isinstance(value, Mapping) or set(value) != set(expected):
+            return False
+        actual_mapping = cast(Mapping[Any, Any], value)
+        expected_mapping = cast(Mapping[Any, Any], expected)
+        return all(
+            _typed_equal(actual_mapping.get(key), wanted)
+            for key, wanted in expected_mapping.items()
+        )
+    if isinstance(expected, list):
+        return (
+            isinstance(value, list)
+            and len(value) == len(expected)
+            and all(
+                _typed_equal(actual, wanted) for actual, wanted in zip(value, expected)
+            )
+        )
+    return type(value) is type(expected) and value == expected
+
+
 def _expect(value: object, expected: object, label: str) -> None:
-    if value != expected:
+    if not _typed_equal(value, expected):
         raise CoreReleaseEvidenceError(
             f"{label} drift: expected {expected!r}, observed {value!r}"
         )
@@ -127,35 +149,13 @@ def build_evidence(
         expected_version=expected_version,
     )
 
-    _expect(
-        proof.get("schema_version"), INSTALLED_PROOF_SCHEMA, "installed proof schema"
-    )
-    _expect(proof.get("status"), "passed", "installed proof status")
-    artifact = _mapping(proof.get("artifact_under_test"), "installed proof artifact")
-    _exact_fields(
-        artifact,
-        {
-            "filename",
-            "sha256",
-            "distribution_name",
-            "distribution_version",
-            "direct_url_bound",
-        },
-        "installed proof artifact",
-    )
     wheel_hash = _sha256(wheel_raw)
-    _expect(artifact.get("filename"), wheel_path.name, "installed wheel filename")
-    _expect(artifact.get("sha256"), wheel_hash, "installed wheel hash")
-    _expect(
-        artifact.get("distribution_name"), expected_name, "installed distribution name"
-    )
-    _expect(
-        artifact.get("distribution_version"),
-        expected_version,
-        "installed distribution version",
-    )
-    _expect(
-        artifact.get("direct_url_bound"), True, "installed wheel direct URL binding"
+    validate_installed_proof(
+        proof,
+        expected_name=expected_name,
+        expected_version=expected_version,
+        expected_wheel_filename=wheel_path.name,
+        expected_wheel_sha256=wheel_hash,
     )
 
     commit = _git(repo, "rev-parse", "HEAD")
@@ -308,7 +308,11 @@ def validate_evidence(value: object) -> dict[str, Any]:
         digest = subject.get("sha256")
         if not _is_sha256(digest):
             raise CoreReleaseEvidenceError(f"release subject {index} hash is invalid")
-        if not isinstance(subject.get("size"), int) or subject["size"] <= 0:
+        if (
+            not isinstance(subject.get("size"), int)
+            or isinstance(subject.get("size"), bool)
+            or subject["size"] <= 0
+        ):
             raise CoreReleaseEvidenceError(f"release subject {index} size is invalid")
         hashes[role] = digest
 

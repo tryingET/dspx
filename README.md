@@ -900,7 +900,7 @@ just ci-test-shards              # all credential-free shards
 just ci-package                  # Exact Core-wheel journey/release-claim truth + separate Forge smoke
 ```
 
-`just ci-package` emits and validates an ephemeral `dspx-core-release-evidence-v1` envelope over the built Core wheel/sdist and the exact-wheel installed proof. It proves artifact hashes and installed-wheel byte identity while reporting source clean/dirty state; it explicitly reports unattested provenance, no verified SBOM, no verified signature, incomplete technical release evidence, no publication, and no release readiness or authority.
+`just ci-package` emits and validates an ephemeral `dspx-core-release-evidence-v1` envelope over the built Core wheel/sdist and the exact-wheel installed proof. It proves artifact hashes and installed-wheel byte identity by checking every original wheel `RECORD` payload against the installed tree, rejecting undeclared importable package files, validating the complete installed-proof v2 contract, and checking sdist `PKG-INFO` plus required package content. It reports source clean/dirty state while explicitly reporting unattested provenance, no verified SBOM, no verified signature, incomplete technical release evidence, no publication, and no release readiness or authority.
 
 CI excludes explicitly live/network/model/GPU/Postgres tests, combines branch coverage from its disjoint offline shards, and enforces the measured brownfield coverage ratchet in `pyproject.toml`.
 

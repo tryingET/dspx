@@ -7,15 +7,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 import importlib.util
 from importlib.metadata import PackageNotFoundError, distribution, version
-import hashlib
 import json
 import os
 from pathlib import Path
-import stat
 from typing import Any, cast
 from urllib.parse import unquote, urlparse
 
 from installed_core_proof_io import InstalledCoreGoldenPathError
+from installed_core_payload_contract import verify_installed_payload
 
 GOLDEN_INTENT = {
     "name": "InstalledWheelTicketProgram",
@@ -60,39 +59,6 @@ def _is_within(path: Path, root: Path) -> bool:
     except ValueError:
         return False
     return True
-
-
-def _stable_wheel_hash(path: Path) -> str:
-    lexical = path.absolute()
-    before = lexical.lstat()
-    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
-        raise InstalledCoreGoldenPathError(
-            "installed Core wheel must be a non-symlink regular file"
-        )
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(lexical, flags)
-    try:
-        opened = os.fstat(descriptor)
-        if (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
-            raise InstalledCoreGoldenPathError(
-                "installed Core wheel changed before verification"
-            )
-        digest = hashlib.sha256()
-        while chunk := os.read(descriptor, 1024 * 1024):
-            digest.update(chunk)
-        after = os.fstat(descriptor)
-        if (
-            opened.st_dev,
-            opened.st_ino,
-            opened.st_size,
-            opened.st_mtime_ns,
-        ) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
-            raise InstalledCoreGoldenPathError(
-                "installed Core wheel changed while verifying"
-            )
-        return digest.hexdigest()
-    finally:
-        os.close(descriptor)
 
 
 def verify_install_origin(
@@ -150,12 +116,17 @@ def verify_install_origin(
         ):
             raise InstalledCoreGoldenPathError("expected wheel SHA-256 is invalid")
         wheel = wheel_path.absolute()
-        actual_wheel_sha256 = _stable_wheel_hash(wheel)
+        installed_distribution = distribution("dspx-core")
+        payload_verification = verify_installed_payload(
+            wheel_path=wheel,
+            site_packages_root=Path(str(installed_distribution.locate_file(""))),
+        )
+        actual_wheel_sha256 = str(payload_verification["wheel_sha256"])
         if actual_wheel_sha256 != expected_wheel_sha256:
             raise InstalledCoreGoldenPathError(
                 "installed Core wheel hash does not match the selected build artifact"
             )
-        direct_url_raw = distribution("dspx-core").read_text("direct_url.json")
+        direct_url_raw = installed_distribution.read_text("direct_url.json")
         if direct_url_raw is None:
             raise InstalledCoreGoldenPathError(
                 "installed Core distribution lacks direct_url.json"
@@ -197,6 +168,10 @@ def verify_install_origin(
             "distribution_name": "dspx-core",
             "distribution_version": distribution_version,
             "direct_url_bound": True,
+            "installed_payload_record_verified": True,
+            "installed_payload_file_count": payload_verification[
+                "record_verified_file_count"
+            ],
         }
     return result
 

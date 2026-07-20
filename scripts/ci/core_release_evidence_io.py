@@ -13,7 +13,7 @@ import hashlib
 from io import BytesIO
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import stat
 import subprocess
 import tarfile
@@ -123,24 +123,70 @@ def wheel_metadata(raw: bytes) -> tuple[str, str]:
 
 
 def validate_sdist(raw: bytes, *, expected_name: str, expected_version: str) -> None:
-    try:
-        with tarfile.open(fileobj=BytesIO(raw), mode="r:gz") as archive:
-            roots = {
-                member.name.split("/", 1)[0]
-                for member in archive.getmembers()
-                if member.name and member.name not in {".", "./"}
-            }
-    except tarfile.TarError as exc:
-        raise CoreReleaseEvidenceError("Core sdist archive is invalid") from exc
     normalized = expected_name.replace("-", "_")
     allowed_roots = {
         f"{expected_name}-{expected_version}",
         f"{normalized}-{expected_version}",
     }
-    if len(roots) != 1 or next(iter(roots)) not in allowed_roots:
-        raise CoreReleaseEvidenceError(
-            f"Core sdist root does not match {expected_name} {expected_version}"
-        )
+    try:
+        with tarfile.open(fileobj=BytesIO(raw), mode="r:gz") as archive:
+            members = archive.getmembers()
+            roots: set[str] = set()
+            by_name: dict[str, tarfile.TarInfo] = {}
+            for member in members:
+                raw_name = (
+                    member.name[:-1]
+                    if member.isdir() and member.name.endswith("/")
+                    else member.name
+                )
+                if not raw_name or "\\" in raw_name or raw_name.startswith("/"):
+                    raise CoreReleaseEvidenceError("Core sdist contains an unsafe path")
+                raw_parts = raw_name.split("/")
+                if any(part in {"", ".", ".."} for part in raw_parts):
+                    raise CoreReleaseEvidenceError("Core sdist contains an unsafe path")
+                path = PurePosixPath(*raw_parts)
+                if not (member.isfile() or member.isdir()):
+                    raise CoreReleaseEvidenceError(
+                        "Core sdist contains an unsafe member type"
+                    )
+                canonical_name = path.as_posix()
+                roots.add(path.parts[0])
+                if canonical_name in by_name:
+                    raise CoreReleaseEvidenceError("Core sdist member is duplicated")
+                by_name[canonical_name] = member
+            if len(roots) != 1 or next(iter(roots)) not in allowed_roots:
+                raise CoreReleaseEvidenceError(
+                    f"Core sdist root does not match {expected_name} {expected_version}"
+                )
+            root = next(iter(roots))
+            required_files = {
+                f"{root}/PKG-INFO",
+                f"{root}/pyproject.toml",
+                f"{root}/src/dspx/__init__.py",
+            }
+            if any(
+                name not in by_name or not by_name[name].isfile()
+                for name in required_files
+            ):
+                raise CoreReleaseEvidenceError(
+                    "Core sdist lacks required package content"
+                )
+            pkg_info_member = by_name[f"{root}/PKG-INFO"]
+            if pkg_info_member.size > MAX_JSON_BYTES:
+                raise CoreReleaseEvidenceError("Core sdist PKG-INFO is oversized")
+            pkg_info_file = archive.extractfile(pkg_info_member)
+            if pkg_info_file is None:
+                raise CoreReleaseEvidenceError("Core sdist PKG-INFO is unavailable")
+            pkg_info_raw = pkg_info_file.read(MAX_JSON_BYTES + 1)
+    except tarfile.TarError as exc:
+        raise CoreReleaseEvidenceError("Core sdist archive is invalid") from exc
+    if len(pkg_info_raw) > MAX_JSON_BYTES:
+        raise CoreReleaseEvidenceError("Core sdist PKG-INFO is oversized")
+    metadata = BytesParser(policy=email_policy).parsebytes(pkg_info_raw)
+    if str(metadata.get("Name") or "") != expected_name:
+        raise CoreReleaseEvidenceError("Core sdist package name drift")
+    if str(metadata.get("Version") or "") != expected_version:
+        raise CoreReleaseEvidenceError("Core sdist package version drift")
 
 
 def write_json(path: Path, payload: Mapping[str, Any]) -> None:

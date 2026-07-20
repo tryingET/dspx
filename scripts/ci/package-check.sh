@@ -15,6 +15,7 @@ dist_dir="$work_dir/dist"
 core_venv_dir="$work_dir/core-venv"
 forge_venv_dir="$work_dir/forge-venv"
 core_journey_dir="$work_dir/core-journey"
+export PYTHONDONTWRITEBYTECODE=1
 
 uv build --all-packages --out-dir "$dist_dir"
 uvx --from 'twine>=6,<7' twine check "$dist_dir"/*

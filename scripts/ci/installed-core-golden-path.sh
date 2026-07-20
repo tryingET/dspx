@@ -96,6 +96,7 @@ chmod 0600 "$journey_root/intent.json"
 
 export PATH="$journey_root/canary-bin:$venv_root/bin:/usr/bin:/bin"
 unset PYTHONPATH PYTHONHOME VIRTUAL_ENV
+export PYTHONDONTWRITEBYTECODE=1
 export HOME="$journey_root/home"
 export XDG_CONFIG_HOME="$journey_root/xdg-config"
 export XDG_CACHE_HOME="$journey_root/xdg-cache"

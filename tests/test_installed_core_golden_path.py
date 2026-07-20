@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import base64
+import csv
 import hashlib
 import importlib.util
+from io import StringIO
 import json
+import py_compile
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
 from typing import Any
+import zipfile
 
 import pytest
 
@@ -18,6 +23,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VERIFIER_PATH = REPO_ROOT / "scripts/ci/verify_installed_core_golden_path.py"
 RUNNER_PATH = REPO_ROOT / "scripts/ci/installed-core-golden-path.sh"
+PAYLOAD_CONTRACT_PATH = REPO_ROOT / "scripts/ci/installed_core_payload_contract.py"
 GOLDEN_INTENT = {
     "name": "InstalledWheelTicketProgram",
     "objective": "Classify support ticket urgency from the supplied ticket text.",
@@ -70,6 +76,50 @@ def _load_verifier() -> ModuleType:
         return module
     finally:
         sys.path.remove(script_dir)
+
+
+def _load_payload_contract() -> ModuleType:
+    script_dir = str(PAYLOAD_CONTRACT_PATH.parent)
+    sys.path.insert(0, script_dir)
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "installed_core_payload_contract", PAYLOAD_CONTRACT_PATH
+        )
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.path.remove(script_dir)
+
+
+def _payload_wheel_and_install(tmp_path: Path) -> tuple[Path, Path]:
+    wheel = tmp_path / "dspx_core-0.1.0-py3-none-any.whl"
+    site_root = tmp_path / "site-packages"
+    files = {
+        "dspx/__init__.py": b"VALUE = 'original'\n",
+        "dspx/runtime.py": b"RUNTIME = True\n",
+        "dspx_core-0.1.0.dist-info/METADATA": (
+            b"Metadata-Version: 2.4\nName: dspx-core\nVersion: 0.1.0\n\n"
+        ),
+    }
+    record_stream = StringIO()
+    writer = csv.writer(record_stream, lineterminator="\n")
+    for name, raw in files.items():
+        digest = (
+            base64.urlsafe_b64encode(hashlib.sha256(raw).digest()).decode().rstrip("=")
+        )
+        writer.writerow((name, f"sha256={digest}", len(raw)))
+        installed = site_root / name
+        installed.parent.mkdir(parents=True, exist_ok=True)
+        installed.write_bytes(raw)
+    record_name = "dspx_core-0.1.0.dist-info/RECORD"
+    writer.writerow((record_name, "", ""))
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for name, raw in files.items():
+            archive.writestr(name, raw)
+        archive.writestr(record_name, record_stream.getvalue())
+    return wheel, site_root
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> str:
@@ -525,6 +575,116 @@ def test_artifact_verifier_rejects_receipt_only_intent_drift(tmp_path: Path) -> 
         match="complete normalized receipt intent drift",
     ):
         verifier.verify_artifacts(tmp_path)
+
+
+def test_installed_payload_verifier_rejects_tampering_and_inventory_injection(
+    tmp_path: Path,
+) -> None:
+    contract = _load_payload_contract()
+    wheel, site_root = _payload_wheel_and_install(tmp_path)
+
+    verified = contract.verify_installed_payload(
+        wheel_path=wheel, site_packages_root=site_root
+    )
+    assert verified["record_verified_file_count"] == 3
+    assert verified["package_inventory_verified"] is True
+
+    init_path = site_root / "dspx/__init__.py"
+    init_path.write_text("VALUE = 'tampered'\n", encoding="utf-8")
+    with pytest.raises(
+        contract.InstalledCoreGoldenPathError,
+        match="installed wheel payload (size|hash) drift",
+    ):
+        contract.verify_installed_payload(
+            wheel_path=wheel, site_packages_root=site_root
+        )
+
+    init_path.write_bytes(b"VALUE = 'original'\n")
+    (site_root / "dspx/injected.py").write_text("INJECTED = True\n", encoding="utf-8")
+    with pytest.raises(
+        contract.InstalledCoreGoldenPathError,
+        match="installed dspx package inventory drift",
+    ):
+        contract.verify_installed_payload(
+            wheel_path=wheel, site_packages_root=site_root
+        )
+
+    (site_root / "dspx/injected.py").unlink()
+    (site_root / "dspx/injected.pyc").write_bytes(b"importable-bytecode")
+    with pytest.raises(
+        contract.InstalledCoreGoldenPathError,
+        match="contains bytecode outside a source cache",
+    ):
+        contract.verify_installed_payload(
+            wheel_path=wheel, site_packages_root=site_root
+        )
+
+    (site_root / "dspx/injected.pyc").unlink()
+    cache = site_root / "dspx/__pycache__/injected.cpython-313.pyc"
+    cache.parent.mkdir()
+    cache.write_bytes(b"undeclared-cache-bytecode")
+    with pytest.raises(
+        contract.InstalledCoreGoldenPathError,
+        match="contains undeclared cache content",
+    ):
+        contract.verify_installed_payload(
+            wheel_path=wheel, site_packages_root=site_root
+        )
+
+    cache.unlink()
+    cache_tag = sys.implementation.cache_tag
+    assert cache_tag is not None
+    source = site_root / "dspx/runtime.py"
+    cache = site_root / f"dspx/__pycache__/runtime.{cache_tag}.pyc"
+    py_compile.compile(str(source), cfile=str(cache), dfile=str(source), doraise=True)
+    contract.verify_installed_payload(wheel_path=wheel, site_packages_root=site_root)
+    tampered = bytearray(cache.read_bytes())
+    tampered[-1] ^= 1
+    cache.write_bytes(tampered)
+    with pytest.raises(
+        contract.InstalledCoreGoldenPathError,
+        match="installed dspx source cache drift",
+    ):
+        contract.verify_installed_payload(
+            wheel_path=wheel, site_packages_root=site_root
+        )
+
+
+def test_installed_payload_verifier_requires_record_archive_closure(
+    tmp_path: Path,
+) -> None:
+    contract = _load_payload_contract()
+    wheel, site_root = _payload_wheel_and_install(tmp_path)
+    with zipfile.ZipFile(wheel) as archive:
+        contents = {name: archive.read(name) for name in archive.namelist()}
+    contents["dspx/unrecorded.py"] = b"UNRECORDED = True\n"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for name, raw in contents.items():
+            archive.writestr(name, raw)
+    with pytest.raises(
+        contract.InstalledCoreGoldenPathError,
+        match="RECORD does not close the archive",
+    ):
+        contract.verify_installed_payload(
+            wheel_path=wheel, site_packages_root=site_root
+        )
+
+    wheel, site_root = _payload_wheel_and_install(tmp_path / "missing-self")
+    with zipfile.ZipFile(wheel) as archive:
+        contents = {name: archive.read(name) for name in archive.namelist()}
+    record_name = "dspx_core-0.1.0.dist-info/RECORD"
+    record_lines = contents[record_name].decode().splitlines()
+    contents[record_name] = ("\n".join(record_lines[:-1]) + "\n").encode()
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for name, raw in contents.items():
+            archive.writestr(name, raw)
+    with pytest.raises(
+        contract.InstalledCoreGoldenPathError,
+        match="RECORD self-row is missing",
+    ):
+        contract.verify_installed_payload(
+            wheel_path=wheel, site_packages_root=site_root
+        )
 
 
 def test_runner_rejects_unsafe_roots_before_effects(tmp_path: Path) -> None:

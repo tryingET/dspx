@@ -50,12 +50,25 @@ def _wheel(path: Path, *, marker: str = "original") -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _sdist(path: Path) -> None:
-    raw = b"[project]\nname='dspx-core'\nversion='0.1.0'\n"
-    info = tarfile.TarInfo("dspx_core-0.1.0/pyproject.toml")
-    info.size = len(raw)
+def _sdist(
+    path: Path, *, package_name: str = "dspx-core", add_pkg_info_alias: bool = False
+) -> None:
+    files = {
+        "dspx_core-0.1.0/PKG-INFO": (
+            f"Metadata-Version: 2.4\nName: {package_name}\nVersion: 0.1.0\n\n".encode()
+        ),
+        "dspx_core-0.1.0/pyproject.toml": (
+            b"[project]\nname='dspx-core'\nversion='0.1.0'\n"
+        ),
+        "dspx_core-0.1.0/src/dspx/__init__.py": b"__version__ = '0.1.0'\n",
+    }
+    if add_pkg_info_alias:
+        files["dspx_core-0.1.0/./PKG-INFO"] = files["dspx_core-0.1.0/PKG-INFO"]
     with tarfile.open(path, "w:gz") as archive:
-        archive.addfile(info, BytesIO(raw))
+        for name, raw in files.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(raw)
+            archive.addfile(info, BytesIO(raw))
 
 
 def _proof(path: Path, *, wheel_path: Path, wheel_sha256: str) -> None:
@@ -64,12 +77,60 @@ def _proof(path: Path, *, wheel_path: Path, wheel_sha256: str) -> None:
             {
                 "schema_version": "dspx-installed-core-golden-path-proof-v2",
                 "status": "passed",
+                "provider": "stub",
+                "oracle_embedding_backend": "mock",
+                "oracle_semantic_claim": "plumbing_only_not_production_semantics",
+                "behavior_status": "passed",
+                "receipt_check_status": "ok",
+                "replay_claim_matrix_schema": "dspx-replay-claim-matrix-v1",
+                "candidate_identity": {
+                    "assembly_id": "assembly-1",
+                    "candidate_id": "candidate-1",
+                    "episode_id": "episode-1",
+                    "receipt_bundle_id": "bundle-1",
+                    "request_id": "request-1",
+                },
+                "evidence_hashes": {
+                    "manifest_sha256": "1" * 64,
+                    "intent_sha256": "2" * 64,
+                    "behavior_episode_sha256": "3" * 64,
+                    "behavior_results_sha256": "4" * 64,
+                    "oracle_evidence_sha256": "5" * 64,
+                    "oracle_report_sha256": "6" * 64,
+                },
+                "oracle_record_count": 1,
+                "workflow_declared_effects": {
+                    "shared_oracle_mutated": False,
+                    "ak_called": False,
+                    "governance_mutated": False,
+                    "external_authority_mutated": False,
+                    "promotion_applied": False,
+                    "winner_selected": False,
+                },
+                "non_authority": {
+                    "release_readiness": False,
+                    "live_provider_proof": False,
+                    "semantic_quality_approval": False,
+                    "network_isolation_proven": False,
+                    "absolute_path_external_effects_excluded": False,
+                    "promotion_authority": False,
+                    "activation_authority": False,
+                },
                 "artifact_under_test": {
                     "filename": wheel_path.name,
                     "sha256": wheel_sha256,
                     "distribution_name": "dspx-core",
                     "distribution_version": "0.1.0",
                     "direct_url_bound": True,
+                    "installed_payload_record_verified": True,
+                    "installed_payload_file_count": 2,
+                },
+                "install": {
+                    "module_path": "/venv/site-packages/dspx/__init__.py",
+                    "distribution_version": "0.1.0",
+                },
+                "independent_effect_observations": {
+                    "path_resolved_ak_canary_invoked": False
                 },
             }
         ),
@@ -148,7 +209,93 @@ def test_build_evidence_rejects_same_version_substituted_wheel(
     monkeypatch.setattr(module, "_git", lambda *_args: "")
 
     with pytest.raises(
-        module.CoreReleaseEvidenceError, match="installed wheel hash drift"
+        module.CoreReleaseEvidenceError, match="installed proof artifact sha256 drift"
+    ):
+        module.build_evidence(
+            repo_root=REPO_ROOT,
+            wheel_path=wheel,
+            sdist_path=sdist,
+            installed_proof_path=proof,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda proof: proof.pop("provider"), "installed Core proof fields drift"),
+        (
+            lambda proof: proof["workflow_declared_effects"].update(
+                {"external_authority_mutated": True}
+            ),
+            "installed proof effects drift",
+        ),
+        (
+            lambda proof: proof["artifact_under_test"].update(
+                {"installed_payload_record_verified": False}
+            ),
+            "installed proof artifact installed_payload_record_verified drift",
+        ),
+        (
+            lambda proof: proof["artifact_under_test"].update({"direct_url_bound": 1}),
+            "installed proof artifact direct_url_bound drift",
+        ),
+        (
+            lambda proof: proof.update({"oracle_record_count": True}),
+            "installed proof oracle_record_count drift",
+        ),
+    ],
+)
+def test_build_evidence_rejects_truncated_or_widened_installed_proof(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: Any,
+    message: str,
+) -> None:
+    module = _load_module()
+    wheel, sdist, proof_path = _inputs(tmp_path)
+    proof = json.loads(proof_path.read_text(encoding="utf-8"))
+    mutation(proof)
+    proof_path.write_text(json.dumps(proof), encoding="utf-8")
+    monkeypatch.setattr(module, "_git", lambda *_args: "")
+
+    with pytest.raises(module.CoreReleaseEvidenceError, match=message):
+        module.build_evidence(
+            repo_root=REPO_ROOT,
+            wheel_path=wheel,
+            sdist_path=sdist,
+            installed_proof_path=proof_path,
+        )
+
+
+def test_build_evidence_rejects_sdist_metadata_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_module()
+    wheel, sdist, proof = _inputs(tmp_path)
+    _sdist(sdist, package_name="substituted-core")
+    monkeypatch.setattr(module, "_git", lambda *_args: "")
+
+    with pytest.raises(
+        module.CoreReleaseEvidenceError, match="sdist package name drift"
+    ):
+        module.build_evidence(
+            repo_root=REPO_ROOT,
+            wheel_path=wheel,
+            sdist_path=sdist,
+            installed_proof_path=proof,
+        )
+
+
+def test_build_evidence_rejects_sdist_canonical_path_alias(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_module()
+    wheel, sdist, proof = _inputs(tmp_path)
+    _sdist(sdist, add_pkg_info_alias=True)
+    monkeypatch.setattr(module, "_git", lambda *_args: "")
+
+    with pytest.raises(
+        module.CoreReleaseEvidenceError, match="sdist contains an unsafe path"
     ):
         module.build_evidence(
             repo_root=REPO_ROOT,
@@ -170,8 +317,16 @@ def test_build_evidence_rejects_same_version_substituted_wheel(
             "release evidence claim matrix drift",
         ),
         (
+            lambda value: value["claims"].update({"release_readiness": 0}),
+            "release evidence claim matrix drift",
+        ),
+        (
             lambda value: value["subjects"][0].update({"sha256": "x" * 64}),
             "release subject 0 hash is invalid",
+        ),
+        (
+            lambda value: value["subjects"][0].update({"size": True}),
+            "release subject 0 size is invalid",
         ),
         (
             lambda value: value["installed_wheel_proof"].update({"sha256": None}),
