@@ -170,7 +170,7 @@ ci-quality:
   uv run --frozen --no-sync ruff check packages/dspx-core/src apps/forge/src tests
   uv run --frozen --no-sync ty check packages/dspx-core/src apps/forge/src tests
 
-# Build both distributions, validate metadata, install wheels, and smoke all CLIs.
+# Build distributions; prove the Core wheel's stub-backed product journey; smoke Forge separately.
 ci-package:
   bash scripts/ci/package-check.sh
 

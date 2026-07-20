@@ -12,7 +12,9 @@ cd "$repo_root"
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/dspx-package-check.XXXXXX")"
 trap 'rm -rf "$work_dir"' EXIT INT TERM
 dist_dir="$work_dir/dist"
-venv_dir="$work_dir/venv"
+core_venv_dir="$work_dir/core-venv"
+forge_venv_dir="$work_dir/forge-venv"
+core_journey_dir="$work_dir/core-journey"
 
 uv build --all-packages --out-dir "$dist_dir"
 uvx --from 'twine>=6,<7' twine check "$dist_dir"/*
@@ -22,19 +24,34 @@ for package in dspx_core dspx_forge; do
   test "$(find "$dist_dir" -maxdepth 1 -name "${package}-*.tar.gz" | wc -l)" -eq 1
 done
 
-uv venv --python 3.13 "$venv_dir"
-uv pip install --python "$venv_dir/bin/python" "$dist_dir"/*.whl
-"$venv_dir/bin/dspx" --help >/dev/null
-"$venv_dir/bin/dspx-forge" --help >/dev/null
-"$venv_dir/bin/python" - <<'PY'
+core_wheel="$(find "$dist_dir" -maxdepth 1 -name 'dspx_core-*.whl' -print -quit)"
+forge_wheel="$(find "$dist_dir" -maxdepth 1 -name 'dspx_forge-*.whl' -print -quit)"
+
+printf '[package-check] install Core wheel alone\n'
+uv venv --python 3.13 "$core_venv_dir"
+uv pip install --python "$core_venv_dir/bin/python" "$core_wheel"
+"$core_venv_dir/bin/python" - <<'PY'
 from importlib.metadata import entry_points
 
 scripts = {entry.name: entry.value for entry in entry_points(group="console_scripts")}
 assert scripts["dspx"] == "dspx.cli.dspx:main"
 assert scripts["dspx-server"] == "dspx.server.app:main"
-assert scripts["dspx-forge"] == "dspx_forge.cli:main"
+assert "dspx-forge" not in scripts
 from dspx.server.app import app  # noqa: E402
 assert app is not None
 PY
+bash scripts/ci/installed-core-golden-path.sh \
+  "$core_venv_dir" "$core_journey_dir" "$repo_root"
 
-printf 'ok: built, metadata-checked, installed, and smoke-tested all package artifacts\n'
+printf '[package-check] install and smoke Forge separately\n'
+uv venv --python 3.13 "$forge_venv_dir"
+uv pip install --python "$forge_venv_dir/bin/python" "$core_wheel" "$forge_wheel"
+"$forge_venv_dir/bin/dspx-forge" --help >/dev/null
+"$forge_venv_dir/bin/python" - <<'PY'
+from importlib.metadata import entry_points
+
+scripts = {entry.name: entry.value for entry in entry_points(group="console_scripts")}
+assert scripts["dspx-forge"] == "dspx_forge.cli:main"
+PY
+
+printf 'ok: built and metadata-checked all artifacts; Core wheel passed the stub-backed product journey; Forge passed separate install/CLI smoke\n'

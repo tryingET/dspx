@@ -895,7 +895,7 @@ GitHub CI parity (Python 3.13, frozen uv lock, no publish or secrets):
 just ci-quality
 just ci-test-shard shard=core-0  # one bounded shard
 just ci-test-shards              # all credential-free shards
-just ci-package                  # build + metadata + clean-wheel CLI smoke
+just ci-package                  # Core-only installed product journey + separate Forge wheel smoke
 ```
 
 CI excludes explicitly live/network/model/GPU/Postgres tests, combines branch coverage from its disjoint offline shards, and enforces the measured brownfield coverage ratchet in `pyproject.toml`.

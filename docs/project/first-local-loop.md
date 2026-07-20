@@ -46,6 +46,12 @@ just smoke-base generated/playground/smoke-base
 
 Use a generated directory only when you explicitly want the artifacts under the repo; those artifacts are playground output, not source truth.
 
+### Source-workspace smoke vs installed-wheel proof
+
+`just smoke-base` is the fast source-workspace product smoke. It intentionally uses the repo's uv workspace and is useful while developing generation/evaluation behavior.
+
+`just ci-package` is the stronger packaging membrane. It installs the Core wheel alone into a clean Python 3.13 environment, runs a bounded stub-provider program loop from outside the checkout with `PYTHONPATH` unset, checks its receipt, indexes and reports candidate-local Oracle evidence with an explicitly selected mock embedder, and then smokes Forge in a separate environment. That proof catches missing wheel contents, undeclared dependencies, source-import leakage, and Core/Forge masking. It remains explicitly stub-backed plumbing proof—not live-provider evidence, production-semantic Oracle proof, network-isolation proof, exclusion of absolute-path/external API effects, release approval, promotion, or activation authority.
+
 ## What the command does
 
 `just smoke-base` runs `scripts/smoke_base_loop.sh`, which:

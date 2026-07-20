@@ -95,7 +95,7 @@ just verify-full                                          # explicit full gate b
 just ci-quality                                           # GitHub static/contract job parity (no AK dependency)
 just ci-test-shard shard=core-0                           # one exact GitHub test shard
 just ci-test-shards                                       # complete offline GitHub test set
-just ci-package                                           # isolated build/metadata/install/CLI smoke
+just ci-package                                           # clean Core-wheel product journey + separate Forge package smoke
 ```
 
 Generic `repo-loop-validation-v1` aliases for orchestration prompts:
@@ -160,7 +160,10 @@ Validation contract:
   - runs on Python 3.13 with a frozen uv lock and uv's dependency cache
   - keeps tests bounded as four deterministic core file shards, one Forge marker shard, and one offline slow shard; live/network/model/GPU/Postgres tests are intentionally opt-in and are not represented as credential-free CI passes
   - combines branch coverage from all six disjoint shards and enforces the measured brownfield ratchet configured in `pyproject.toml`
-  - builds both wheels and source distributions in a temporary directory, checks package metadata, installs the wheels into a clean Python 3.13 environment, and smokes every packaged CLI
+  - builds both wheels and source distributions in a temporary directory and checks package metadata
+  - installs the Core wheel alone into a clean Python 3.13 environment, runs outside the checkout with `PYTHONPATH` unset, and proves an explicit stub-provider/mock-embedding program loop through passing behavior, receipt checking, candidate-local Oracle indexing/reporting, cross-artifact hash/identity binding, and revalidation of workflow-declared non-authority fields
+  - installs Core plus Forge into a separate clean environment and smokes the Forge CLI, so Forge cannot mask Core-only packaging/import defects during the product journey
+  - labels the installed Core journey as stub-backed plumbing proof only: it is not live-provider proof, production-semantic Oracle proof, network-isolation proof, exclusion of absolute-path/external API effects, release approval, promotion, or activation authority
   - has read-only repository permission and contains no publish or secret-bearing step
 - `just ci-quality`, `just ci-test-shard`, and `just ci-package`
   - are the local command surfaces used directly by GitHub CI; `just ci-test-shards` runs the complete credential-free test set locally
