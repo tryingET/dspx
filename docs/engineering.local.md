@@ -7,16 +7,16 @@ read_when:
 
 # Engineering guidance (DSPx local)
 
-Canonical lane docs live in `engineering-core` (do not vendor/copy here):
+Canonical lane docs come from `engineering-core` v0.8.0 at immutable commit `8f59f4178f0c40f73d64c417e7a591de42a0f0d2` (do not vendor/copy them here):
 
-- list lanes: `uv tool run engineering-core list`
-- print python lane: `uv tool run engineering-core show py`
-- show path: `uv tool run engineering-core path py --prefer-repo`
-- catalog: `uv tool -n run --from ~/ai-society/core/engineering-core engineering-core catalog --pretty`
-- list disciplines: `uv tool -n run --from ~/ai-society/core/engineering-core engineering-core list-disciplines`
-- list templates: `uv tool -n run --from ~/ai-society/core/engineering-core engineering-core list-templates`
+- list lanes: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core list`
+- print Python lane: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core show py`
+- show path: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core path py --prefer-repo`
+- catalog: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core catalog --pretty`
+- list disciplines: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core list-disciplines`
+- list templates: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core list-templates`
 
-Machine-readable recognition lives in `policy/engineering-lane.json`.
+Machine-readable recognition and the portable release pin live in `policy/engineering-lane.json`.
 
 Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
