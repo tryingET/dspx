@@ -239,6 +239,38 @@ def test_program_oracle_report_rejects_contradictory_backend_claim() -> None:
     )
 
 
+def test_program_oracle_report_normalizes_untrusted_cardinality_fields() -> None:
+    backend = _backend_identity(
+        "mock",
+        "sha256-deterministic-test-double-v1",
+        "plumbing_only_not_production_semantics",
+    )
+    malformed = _summary_embedding("malformed", backend)
+    malformed.metadata["behavior"] = {
+        "summary": {"status": "passed"},
+        "evidence_summary": {"source_count": "not-a-number", "total": True},
+    }
+    negative = _summary_embedding("negative", backend)
+    negative.metadata["behavior"] = {
+        "summary": {"status": "passed"},
+        "evidence_summary": {"source_count": -1, "total": []},
+    }
+    valid = _summary_embedding("valid", backend)
+    valid.metadata["behavior"] = {
+        "summary": {"status": "passed"},
+        "evidence_summary": {"source_count": 2, "total": 3},
+    }
+
+    report = summarize_program_oracle_evidence([malformed, negative, valid])
+
+    assert report["evidence_source_count"] == 2
+    assert report["total_evaluation_count"] == 3
+    assert [
+        (record["evidence_source_count"], record["total_evaluation_count"])
+        for record in report["records"]
+    ] == [(0, 0), (0, 0), (2, 3)]
+
+
 def test_program_oracle_report_service_summarizes_indexed_evidence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

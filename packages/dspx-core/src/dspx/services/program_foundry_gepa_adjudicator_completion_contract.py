@@ -9,7 +9,7 @@ import binascii
 from collections import Counter
 from datetime import datetime
 import hashlib
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, cast
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -86,12 +86,16 @@ def _registered_subjects(selected: Mapping[str, Any]) -> list[tuple[str, str]]:
         or not isinstance(kinds, list)
         or len(subjects) != len(kinds)
         or not all(isinstance(item, str) and item for item in subjects)
-        or not all(item in {"human", "agent"} for item in kinds)
+        or not all(
+            isinstance(item, str) and item in {"human", "agent"} for item in kinds
+        )
     ):
         raise ProgramFoundryGepaAdjudicatorCompletionError(
             "selected adjudicator subject declarations are invalid"
         )
-    return list(zip(subjects, kinds, strict=True))
+    validated_subjects = cast(list[str], subjects)
+    validated_kinds = cast(list[str], kinds)
+    return list(zip(validated_subjects, validated_kinds, strict=True))
 
 
 def _validated_claims(

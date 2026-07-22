@@ -364,6 +364,14 @@ class MockEmbedder:
     """
 
     def __init__(self, dimension: int = 384):
+        if (
+            isinstance(dimension, bool)
+            or not isinstance(dimension, int)
+            or dimension <= 0
+        ):
+            raise EmbeddingValidationError(
+                "mock embedding dimension must be a positive integer"
+            )
         self._dimension = dimension
 
     def encode(self, texts: list[str]) -> list[list[float]]:

@@ -224,7 +224,7 @@ def _behavior_source_kinds(behavior: Mapping[str, Any]) -> list[str]:
 def _safe_int(value: object) -> int:
     if isinstance(value, bool):
         return 0
-    if isinstance(value, int):
+    if isinstance(value, int) and value >= 0:
         return value
     return 0
 
@@ -285,11 +285,15 @@ def _record_from_embedding(embedding: ExecutionEmbedding) -> dict[str, Any]:
         "source_artifact_kinds": _source_artifact_kinds(metadata),
         "behavior_source_kinds": source_kinds,
         "runtime_traces": _runtime_trace_record(metadata),
-        "evidence_source_count": _safe_mapping(behavior.get("evidence_summary")).get(
-            "source_count", facets.get("evidence_source_count")
+        "evidence_source_count": _safe_int(
+            _safe_mapping(behavior.get("evidence_summary")).get(
+                "source_count", facets.get("evidence_source_count")
+            )
         ),
-        "total_evaluation_count": _safe_mapping(behavior.get("evidence_summary")).get(
-            "total", facets.get("total_evaluation_count")
+        "total_evaluation_count": _safe_int(
+            _safe_mapping(behavior.get("evidence_summary")).get(
+                "total", facets.get("total_evaluation_count")
+            )
         ),
     }
 
@@ -340,8 +344,8 @@ def summarize_program_oracle_evidence(
         runtime_trace_source_record_coverage_status_counts[
             str(runtime_traces.get("source_record_coverage_status") or "unknown")
         ] += 1
-        total_evaluation_count += int(record.get("total_evaluation_count") or 0)
-        evidence_source_count += int(record.get("evidence_source_count") or 0)
+        total_evaluation_count += _safe_int(record.get("total_evaluation_count"))
+        evidence_source_count += _safe_int(record.get("evidence_source_count"))
         runtime_trace_module_call_count += _safe_int(
             runtime_traces.get("module_call_count")
         )

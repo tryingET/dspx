@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Iterator, cast
 
 import pytest
 
@@ -95,6 +97,11 @@ class TestMockEmbedder:
             # All elements should be in reasonable range after normalization
             for v in vec:
                 assert -2.0 < v < 2.0, f"Value {v} out of expected range"
+
+    @pytest.mark.parametrize("dimension", [0, -1, True, 1.5, "3", None])
+    def test_mock_embedder_rejects_invalid_dimension(self, dimension: object) -> None:
+        with pytest.raises(EmbeddingValidationError, match="positive integer"):
+            EmbeddingEngine(backend="mock", mock_dimension=cast(int, dimension))
 
 
 class TestExecutionEmbedding:
@@ -618,6 +625,191 @@ class TestCoordinateIndex:
         retrieved = index.get("test-1")
         assert retrieved is not None
         assert retrieved.input_text == "updated"
+
+    def test_list_all_applies_filters_and_bounded_sql_pagination(
+        self,
+        index: CoordinateIndex,
+        temp_db: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def embedding(
+            run_id: str, created_at: str, *, provider: str = "p"
+        ) -> ExecutionEmbedding:
+            return ExecutionEmbedding(
+                run_id=run_id,
+                vector=[1.0, 0.0],
+                input_text="",
+                output_text="",
+                config_text="",
+                run_kind="wanted",
+                provider=provider,
+                template_version=None,
+                created_at=created_at,
+                dimension=2,
+                embedding_version=1,
+            )
+
+        for record in [
+            embedding("newest", "2026-01-01T01:00:00Z"),
+            embedding("a-tied", "2026-01-01T00:00:00Z"),
+            embedding("b-tied", "2026-01-01T00:00:00Z"),
+            embedding("oldest", "2025-12-31T23:00:00Z"),
+            embedding("filtered", "2026-01-02T00:00:00Z", provider="other"),
+        ]:
+            assert index.upsert(record)
+
+        with sqlite3.connect(temp_db) as conn:
+            conn.execute(
+                "UPDATE coordinates SET created_at = ? WHERE run_id = ?",
+                ("2026-01-01T01:00:00+01:00", "b-tied"),
+            )
+
+        statements: list[str] = []
+        original_read_conn = index._read_conn
+
+        @contextmanager
+        def traced_read_conn() -> Iterator[sqlite3.Connection]:
+            with original_read_conn() as conn:
+                conn.set_trace_callback(statements.append)
+                yield conn
+
+        decoded: list[str] = []
+        original_decoder = index._row_to_embedding
+
+        def observe_decode(row: sqlite3.Row) -> ExecutionEmbedding:
+            decoded.append(str(row["run_id"]))
+            return original_decoder(row)
+
+        monkeypatch.setattr(index, "_read_conn", traced_read_conn)
+        monkeypatch.setattr(index, "_row_to_embedding", observe_decode)
+
+        records = index.list_all(
+            run_kind="wanted",
+            provider="p",
+            embedding_version=1,
+            since=datetime(2025, 12, 31, 23, 0, tzinfo=timezone.utc),
+            until=datetime(2026, 1, 1, 1, 0, tzinfo=timezone.utc),
+            limit=2,
+            offset=1,
+        )
+
+        assert [record.run_id for record in records] == ["a-tied", "b-tied"]
+        assert decoded == ["newest", "a-tied", "b-tied"]
+        selects = [
+            statement
+            for statement in statements
+            if statement.lstrip().startswith("SELECT * FROM coordinates")
+        ]
+        assert len(selects) == 2
+        assert all("LIMIT 2 OFFSET" in statement for statement in selects)
+        assert "OFFSET 0" in selects[0]
+        assert "OFFSET 2" in selects[1]
+
+    def test_list_all_preserves_microsecond_order_and_legacy_iso_forms(
+        self, index: CoordinateIndex, temp_db: Path
+    ) -> None:
+        for run_id, created_at in [
+            ("early", "2026-01-01T00:00:00.000500Z"),
+            ("late", "2026-01-01T00:00:00.000900Z"),
+        ]:
+            assert index.upsert(
+                ExecutionEmbedding(
+                    run_id=run_id,
+                    vector=[1.0, 0.0],
+                    input_text="",
+                    output_text="",
+                    config_text="",
+                    run_kind="wanted",
+                    provider="p",
+                    template_version=None,
+                    created_at=created_at,
+                    dimension=2,
+                )
+            )
+
+        with sqlite3.connect(temp_db) as conn:
+            conn.execute(
+                "UPDATE coordinates SET created_at = ? WHERE run_id = ?",
+                ("20260101T000000.000900+0000", "late"),
+            )
+
+        boundary = datetime(2026, 1, 1, 0, 0, 0, 700, tzinfo=timezone.utc)
+        assert [record.run_id for record in index.list_all(limit=2)] == [
+            "late",
+            "early",
+        ]
+        assert [
+            record.run_id for record in index.list_all(since=boundary, limit=2)
+        ] == ["late"]
+
+    @pytest.mark.parametrize(
+        ("column", "payload"),
+        [
+            ("vector_json", "{"),
+            ("vector_json", "null"),
+            ("vector_json", "1"),
+            ("vector_json", '["not-a-number", 0]'),
+            ("vector_json", f"[{10**400}]"),
+            ("metadata_json", "[]"),
+        ],
+    )
+    def test_list_all_refills_page_after_malformed_row(
+        self,
+        index: CoordinateIndex,
+        temp_db: Path,
+        column: str,
+        payload: str,
+    ) -> None:
+        for run_id, created_at in [
+            ("malformed", "2026-01-01T02:00:00Z"),
+            ("first", "2026-01-01T01:00:00Z"),
+            ("second", "2026-01-01T00:00:00Z"),
+        ]:
+            assert index.upsert(
+                ExecutionEmbedding(
+                    run_id=run_id,
+                    vector=[1.0, 0.0],
+                    input_text="",
+                    output_text="",
+                    config_text="",
+                    run_kind="wanted",
+                    provider="p",
+                    template_version=None,
+                    created_at=created_at,
+                    dimension=2,
+                )
+            )
+
+        with sqlite3.connect(temp_db) as conn:
+            if column == "vector_json":
+                conn.execute(
+                    "UPDATE coordinates SET vector_json = ? WHERE run_id = ?",
+                    (payload, "malformed"),
+                )
+            else:
+                conn.execute(
+                    "UPDATE coordinates SET metadata_json = ? WHERE run_id = ?",
+                    (payload, "malformed"),
+                )
+
+        assert [record.run_id for record in index.list_all(limit=2)] == [
+            "first",
+            "second",
+        ]
+
+    def test_list_all_non_positive_limit_returns_empty(
+        self, index: CoordinateIndex, engine: EmbeddingEngine
+    ) -> None:
+        assert index.upsert(
+            engine.embed_execution(
+                run_id="test-1",
+                input_text="input",
+                output_text="output",
+            )
+        )
+
+        assert index.list_all(limit=0) == []
+        assert index.list_all(limit=-1) == []
 
     def test_delete(self, index: CoordinateIndex, engine: EmbeddingEngine) -> None:
         """Can delete embedding."""

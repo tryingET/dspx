@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import sqlite3
 from contextlib import contextmanager
@@ -42,6 +43,23 @@ def _normalize_filter_instant(value: datetime) -> datetime:
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def _instant_epoch_microseconds(value: datetime) -> int:
+    delta = _normalize_filter_instant(value) - _EPOCH
+    return delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds
+
+
+def _stored_created_at_epoch_microseconds(value: object) -> int | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return _instant_epoch_microseconds(_parse_created_at_instant(value))
+    except ValueError:
+        return None
 
 
 def _created_at_matches(
@@ -434,6 +452,12 @@ class CoordinateIndex:
         """
         conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
+        conn.create_function(
+            "dspx_created_at_epoch_us",
+            1,
+            _stored_created_at_epoch_microseconds,
+            deterministic=True,
+        )
         try:
             yield conn
         finally:
@@ -753,32 +777,54 @@ class CoordinateIndex:
         if embedding_version is not None:
             sql += " AND embedding_version = ?"
             params.append(embedding_version)
+        sql += " AND dspx_created_at_epoch_us(created_at) IS NOT NULL"
+        if since is not None:
+            sql += " AND dspx_created_at_epoch_us(created_at) >= ?"
+            params.append(_instant_epoch_microseconds(since))
+        if until is not None:
+            sql += " AND dspx_created_at_epoch_us(created_at) <= ?"
+            params.append(_instant_epoch_microseconds(until))
+        if limit <= 0:
+            return []
 
-        sql += " ORDER BY created_at DESC"
-
-        embeddings = []
+        sql += (
+            " ORDER BY dspx_created_at_epoch_us(created_at) DESC, run_id ASC"
+            " LIMIT ? OFFSET ?"
+        )
+        batch_size = limit
+        raw_offset = 0
+        valid_offset = max(offset, 0)
+        valid_seen = 0
+        embeddings: list[ExecutionEmbedding] = []
         try:
             with self._read_conn() as conn:
-                rows = conn.execute(sql, params).fetchall()
-                for row in rows:
-                    try:
-                        emb = self._row_to_embedding(row)
-                        if _created_at_matches(
-                            emb.created_at, since=since, until=until
-                        ):
-                            embeddings.append(emb)
-                    except (json.JSONDecodeError, ValueError) as e:
-                        logger.warning(
-                            f"Failed to parse embedding {row['run_id']}: {e}"
-                        )
+                while len(embeddings) < limit:
+                    rows = conn.execute(
+                        sql, [*params, batch_size, raw_offset]
+                    ).fetchall()
+                    if not rows:
+                        break
+                    raw_offset += len(rows)
+                    for row in rows:
+                        try:
+                            embedding = self._row_to_embedding(row)
+                        except (json.JSONDecodeError, ValueError) as e:
+                            logger.warning(
+                                f"Failed to parse embedding {row['run_id']}: {e}"
+                            )
+                            continue
+                        if valid_seen < valid_offset:
+                            valid_seen += 1
+                            continue
+                        embeddings.append(embedding)
+                        if len(embeddings) == limit:
+                            break
+                    if len(rows) < batch_size:
+                        break
         except sqlite3.OperationalError:
             pass
 
-        if since is not None or until is not None:
-            embeddings.sort(
-                key=lambda emb: _parse_created_at_instant(emb.created_at), reverse=True
-            )
-        return embeddings[offset : offset + limit]
+        return embeddings
 
     def count(
         self,
@@ -914,12 +960,24 @@ class CoordinateIndex:
             vector = json.loads(row["vector_json"])
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid vector JSON for run {run_id}: {e}")
+        try:
+            invalid_vector = not isinstance(vector, list) or any(
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                for value in vector
+            )
+        except OverflowError:
+            invalid_vector = True
+        if invalid_vector:
+            raise ValueError(f"Invalid vector payload for run {run_id}")
 
         try:
             metadata = json.loads(row["metadata_json"]) if row["metadata_json"] else {}
         except json.JSONDecodeError as e:
-            logger.warning(f"Invalid metadata JSON for run {run_id}, using empty: {e}")
-            metadata = {}
+            raise ValueError(f"Invalid metadata JSON for run {run_id}: {e}")
+        if not isinstance(metadata, dict):
+            raise ValueError(f"Invalid metadata payload for run {run_id}")
 
         return ExecutionEmbedding(
             run_id=run_id,
