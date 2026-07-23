@@ -6,6 +6,15 @@
 # ---
 set -euo pipefail
 
+retain_core_bundle=""
+if [[ $# -gt 0 ]]; then
+  if [[ $# -ne 2 || "$1" != "--retain-core-evidence" || -z "$2" ]]; then
+    printf 'usage: %s [--retain-core-evidence <output.zip>]\n' "$0" >&2
+    exit 2
+  fi
+  retain_core_bundle="$2"
+fi
+
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
@@ -74,5 +83,21 @@ from importlib.metadata import entry_points
 scripts = {entry.name: entry.value for entry in entry_points(group="console_scripts")}
 assert scripts["dspx-forge"] == "dspx_forge.cli:main"
 PY
+
+if [[ -n "$retain_core_bundle" ]]; then
+  printf '[package-check] retain unsigned Core release evidence bundle\n'
+  "$core_venv_dir/bin/python" scripts/ci/core_release_bundle.py build \
+    --repo-root "$repo_root" \
+    --wheel "$core_wheel" \
+    --sdist "$core_sdist" \
+    --installed-proof "$core_journey_dir/installed-core-golden-path-proof.json" \
+    --release-evidence "$work_dir/dspx-core-release-evidence.json" \
+    --out "$retain_core_bundle" \
+    > "$work_dir/release-bundle-output.json"
+  "$core_venv_dir/bin/python" scripts/ci/core_release_bundle.py validate \
+    --bundle "$retain_core_bundle" \
+    > "$work_dir/release-bundle-validation.json"
+  printf '[package-check] retained bundle: %s\n' "$retain_core_bundle"
+fi
 
 printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; SBOM, signing, publication, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'

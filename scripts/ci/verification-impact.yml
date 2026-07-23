@@ -909,6 +909,31 @@ rules:
       - pytest_task_scope
       - verify_fast
 
+  - match: "scripts/ci/core_release_*.py"
+    category: core_release_evidence
+    impact_group: package_release
+    risk: expanded
+    commands:
+      - ruff_touched
+      - pytest_release_bundle
+      - package_check_retain_smoke
+
+  - match: "scripts/ci/package-check.sh"
+    category: core_release_evidence
+    impact_group: package_release
+    risk: expanded
+    commands:
+      - pytest_release_bundle
+      - package_check_retain_smoke
+
+  - match: "tests/test_release_*.py"
+    category: core_release_evidence_test
+    impact_group: package_release
+    risk: bounded
+    commands:
+      - ruff_touched
+      - pytest_release_bundle
+
   - match: "scripts/ci/**"
     category: ci
     impact_group: ci

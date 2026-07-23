@@ -352,6 +352,30 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "program model-jury evidence seam changed",
     ),
+    "pytest_release_bundle": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_release_evidence.py",
+            "tests/test_release_bundle.py",
+        ],
+        "Core release evidence or retained bundle changed",
+    ),
+    "package_check_retain_smoke": CommandSpec(
+        [
+            "bash",
+            "-c",
+            "set -euo pipefail; "
+            "td=$(mktemp -d); trap 'rm -rf \"$td\"' EXIT; "
+            'bash scripts/ci/package-check.sh --retain-core-evidence "$td/core.zip"; '
+            'python scripts/ci/core_release_bundle.py validate --bundle "$td/core.zip"',
+        ],
+        "Core retained release bundle package integration changed",
+    ),
     "pytest_verify_changed": CommandSpec(
         [
             "uv",
@@ -1121,6 +1145,8 @@ def build_plan(
         "impact_plan_smoke",
         "pytest_touched",
         "pytest_verify_changed",
+        "pytest_release_bundle",
+        "package_check_retain_smoke",
         "pytest_test_defaults",
         "pytest_task_scope",
         "pytest_boundary_hardening",

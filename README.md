@@ -902,6 +902,18 @@ just ci-package                  # Exact Core-wheel journey/release-claim truth 
 
 `just ci-package` emits and validates an ephemeral `dspx-core-release-evidence-v1` envelope over the built Core wheel/sdist and the exact-wheel installed proof. It proves artifact hashes and installed-wheel byte identity by checking every original wheel `RECORD` payload against the installed tree, rejecting undeclared importable package files, validating the complete installed-proof v2 contract, and checking sdist `PKG-INFO` plus required package content. It reports source clean/dirty state while explicitly reporting unattested provenance, no verified SBOM, no verified signature, incomplete technical release evidence, no publication, and no release readiness or authority.
 
+To retain that otherwise-ephemeral evidence locally, supply an explicit new ZIP output:
+
+```bash
+mkdir -p /path/to/private-evidence
+bash scripts/ci/package-check.sh \
+  --retain-core-evidence /path/to/private-evidence/dspx-core-release-bundle.zip
+python scripts/ci/core_release_bundle.py validate \
+  --bundle /path/to/private-evidence/dspx-core-release-bundle.zip
+```
+
+The deterministic stored ZIP uses `dspx-core-release-bundle-v1` to retain the exact wheel, sdist, installed proof, v1 release envelope, a subject/source-bound `dspx-core-local-build-provenance-v1` statement, and a hash/size/role closure manifest. Publication is mode-0600, no-replace, and local-only. The provenance remains unauthenticated and unattested; no SBOM or signer policy is supplied, no signature is verified, and retention does not imply registry publication, technical completeness, release readiness, or release authority.
+
 CI excludes explicitly live/network/model/GPU/Postgres tests, combines branch coverage from its disjoint offline shards, and enforces the measured brownfield coverage ratchet in `pyproject.toml`.
 
 Core-only slice:

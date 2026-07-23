@@ -483,6 +483,30 @@ def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
     assert classification["reasons"] == ["matched scripts/ci/**"]
 
 
+def test_core_release_bundle_changes_select_release_contract_proof() -> None:
+    plan = _plan(
+        "scripts/ci/core_release_bundle.py",
+        "scripts/ci/package-check.sh",
+        "tests/test_release_bundle.py",
+    )
+
+    assert plan["risk"] == "expanded"
+    assert plan["full_verification_required"] is False
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert _command_ids(plan) == [
+        "workflow_contract_check",
+        "ruff_touched",
+        "impact_plan_smoke",
+        "pytest_touched",
+        "pytest_verify_changed",
+        "pytest_release_bundle",
+        "package_check_retain_smoke",
+    ]
+    assert {
+        classification["category"] for classification in plan["classifications"]
+    } == {"ci+core_release_evidence", "core_release_evidence_test+test"}
+
+
 def test_ci_planner_change_runs_planner_checks_without_full_verification() -> None:
     plan = _plan("scripts/ci/verify_changed.py")
 
