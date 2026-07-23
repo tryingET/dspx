@@ -483,10 +483,12 @@ def test_scripts_ci_recursive_rule_matches_nested_paths() -> None:
     assert classification["reasons"] == ["matched scripts/ci/**"]
 
 
-def test_core_release_bundle_changes_select_release_contract_proof() -> None:
+def test_core_release_sbom_and_bundle_changes_select_release_contract_proof() -> None:
     plan = _plan(
+        "scripts/ci/core_release_sbom.py",
         "scripts/ci/core_release_bundle.py",
         "scripts/ci/package-check.sh",
+        "tests/test_release_sbom.py",
         "tests/test_release_bundle.py",
     )
 

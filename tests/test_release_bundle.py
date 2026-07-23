@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import base64
+import csv
 import importlib.util
-from io import BytesIO
+from io import BytesIO, StringIO
 import json
 import os
 from pathlib import Path
@@ -42,11 +44,24 @@ def _wheel(path: Path, *, marker: str = "original") -> str:
         "Metadata-Version: 2.4\n"
         "Name: dspx-core\n"
         "Version: 0.1.0\n"
-        "Requires-Python: >=3.13\n\n"
+        "Requires-Python: >=3.13\n"
+        "Requires-Dist: httpx>=0.28.1\n\n"
     ).encode()
+    files = {
+        "dspx_core-0.1.0.dist-info/METADATA": metadata,
+        "dspx/__init__.py": f"MARKER = {marker!r}\n".encode(),
+    }
+    record_path = "dspx_core-0.1.0.dist-info/RECORD"
+    output = StringIO()
+    writer = csv.writer(output, lineterminator="\n")
+    for name, raw in sorted(files.items()):
+        digest = base64.urlsafe_b64encode(hashlib.sha256(raw).digest()).rstrip(b"=")
+        writer.writerow([name, "sha256=" + digest.decode(), len(raw)])
+    writer.writerow([record_path, "", ""])
+    files[record_path] = output.getvalue().encode()
     with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr("dspx_core-0.1.0.dist-info/METADATA", metadata)
-        archive.writestr("dspx/__init__.py", f"MARKER = {marker!r}\n")
+        for name, raw in sorted(files.items()):
+            archive.writestr(name, raw)
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -167,6 +182,37 @@ def _inputs(
     return bundle_module, wheel, sdist, proof, release_path
 
 
+def _inputs_v2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[ModuleType, Path, Path, Path, Path, Path]:
+    module, wheel, sdist, proof, release = _inputs(tmp_path, monkeypatch)
+    sbom_module = _load("core_release_sbom")
+    sbom_path = tmp_path / "dspx-core-wheel-sbom.cdx.json"
+    sbom = sbom_module.build_sbom(
+        wheel_raw=wheel.read_bytes(), wheel_filename=wheel.name
+    )
+    sbom_path.write_text(json.dumps(sbom), encoding="utf-8")
+    release_module = _load("core_release_evidence")
+
+    def fake_git(_repo: Path, *args: str) -> str:
+        if args == ("rev-parse", "HEAD"):
+            return "a" * 40
+        if args == ("status", "--porcelain=v1", "--untracked-files=all"):
+            return " M local-change"
+        raise AssertionError(args)
+
+    monkeypatch.setattr(release_module, "_git", fake_git)
+    evidence = release_module.build_evidence(
+        repo_root=REPO_ROOT,
+        wheel_path=wheel,
+        sdist_path=sdist,
+        installed_proof_path=proof,
+        sbom_path=sbom_path,
+    )
+    release.write_text(json.dumps(evidence), encoding="utf-8")
+    return module, wheel, sdist, proof, release, sbom_path
+
+
 def _build(
     module: ModuleType,
     *,
@@ -175,6 +221,7 @@ def _build(
     proof: Path,
     release: Path,
     out: Path,
+    sbom: Path | None = None,
 ) -> dict[str, Any]:
     return module.build_bundle(
         repo_root=REPO_ROOT,
@@ -182,6 +229,7 @@ def _build(
         sdist_path=sdist,
         installed_proof_path=proof,
         release_evidence_path=release,
+        sbom_path=sbom,
         out_path=out,
     )
 
@@ -230,10 +278,10 @@ def test_bundle_retains_complete_unsigned_closure_deterministically(
     assert first.read_bytes() == second.read_bytes()
     assert stat_mode(first) == 0o600
     assert module.validate_bundle(first) == manifest
-    assert module.BUNDLE_SCHEMA == "dspx-core-release-bundle-v1"
+    assert module.BUNDLE_SCHEMA_V1 == "dspx-core-release-bundle-v1"
     assert module.PROVENANCE_SCHEMA == "dspx-core-local-build-provenance-v1"
-    assert {row["role"] for row in manifest["files"]} == module._FILE_ROLES
-    assert manifest["claims"] == module._BUNDLE_CLAIMS
+    assert {row["role"] for row in manifest["files"]} == module._FILE_ROLES_V1
+    assert manifest["claims"] == module._BUNDLE_CLAIMS_V1
     assert manifest["claims"]["local_provenance_retained"] is True
     assert manifest["claims"]["build_provenance_attested"] is False
     assert manifest["claims"]["sbom_generated"] is False
@@ -241,6 +289,86 @@ def test_bundle_retains_complete_unsigned_closure_deterministically(
     assert manifest["claims"]["release_readiness"] is False
     assert manifest["claims"]["release_authority"] is False
     assert manifest["claims"]["publication_performed"] is False
+
+
+def test_bundle_v2_retains_exact_verified_sbom_without_authority_widening(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module, wheel, sdist, proof, release, sbom = _inputs_v2(tmp_path, monkeypatch)
+    out = tmp_path / "bundle-v2.zip"
+
+    manifest = _build(
+        module,
+        wheel=wheel,
+        sdist=sdist,
+        proof=proof,
+        release=release,
+        sbom=sbom,
+        out=out,
+    )
+
+    assert manifest["schema_version"] == "dspx-core-release-bundle-v2"
+    assert {row["role"] for row in manifest["files"]} == module._FILE_ROLES_V2
+    assert manifest["claims"] == module._BUNDLE_CLAIMS_V2
+    assert manifest["claims"]["sbom_retained"] is True
+    assert manifest["claims"]["sbom_verified"] is True
+    assert manifest["claims"]["build_provenance_attested"] is False
+    assert manifest["claims"]["artifact_signature_verified"] is False
+    assert manifest["claims"]["technical_release_evidence_complete"] is False
+    assert manifest["claims"]["release_readiness"] is False
+    assert manifest["claims"]["release_authority"] is False
+    assert manifest["claims"]["publication_performed"] is False
+    assert module.validate_bundle(out) == manifest
+    with zipfile.ZipFile(out) as archive:
+        assert archive.read(module._SBOM_NAME) == sbom.read_bytes()
+
+
+def test_bundle_rejects_sbom_evidence_mode_mismatch_and_tamper(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module, wheel, sdist, proof, release, sbom = _inputs_v2(tmp_path, monkeypatch)
+    with pytest.raises(
+        module.CoreReleaseEvidenceError, match="requires a retained SBOM"
+    ):
+        _build(
+            module,
+            wheel=wheel,
+            sdist=sdist,
+            proof=proof,
+            release=release,
+            out=tmp_path / "missing-sbom.zip",
+        )
+
+    legacy_module, legacy_wheel, legacy_sdist, legacy_proof, legacy_release = _inputs(
+        tmp_path / "legacy", monkeypatch
+    )
+    with pytest.raises(
+        legacy_module.CoreReleaseEvidenceError,
+        match="retained SBOM requires v2 release evidence",
+    ):
+        _build(
+            legacy_module,
+            wheel=legacy_wheel,
+            sdist=legacy_sdist,
+            proof=legacy_proof,
+            release=legacy_release,
+            sbom=sbom,
+            out=tmp_path / "legacy-with-sbom.zip",
+        )
+
+    payload = json.loads(sbom.read_text(encoding="utf-8"))
+    payload["version"] = 2
+    sbom.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(module.CoreReleaseEvidenceError, match="binding drift"):
+        _build(
+            module,
+            wheel=wheel,
+            sdist=sdist,
+            proof=proof,
+            release=release,
+            sbom=sbom,
+            out=tmp_path / "tampered-sbom.zip",
+        )
 
 
 def stat_mode(path: Path) -> int:
@@ -377,6 +505,56 @@ def test_bundle_validator_rejects_member_hash_and_unknown_member(
     )
     with pytest.raises(module.CoreReleaseEvidenceError, match="closure drift"):
         module.validate_bundle(unknown)
+
+
+def test_bundle_validator_rejects_excessive_member_count_before_payload_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module, wheel, sdist, proof, release = _inputs(tmp_path, monkeypatch)
+    valid = tmp_path / "valid.zip"
+    _build(
+        module,
+        wheel=wheel,
+        sdist=sdist,
+        proof=proof,
+        release=release,
+        out=valid,
+    )
+    excessive = tmp_path / "excessive.zip"
+
+    def add_members(members: dict[str, bytes]) -> None:
+        for index in range(100):
+            members[f"empty-{index}.json"] = b""
+
+    _rewrite_bundle(valid, excessive, add_members)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="member count"):
+        module.validate_bundle(excessive)
+
+
+def test_bundle_validator_normalizes_member_crc_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module, wheel, sdist, proof, release = _inputs(tmp_path, monkeypatch)
+    valid = tmp_path / "valid.zip"
+    corrupt = tmp_path / "corrupt.zip"
+    _build(
+        module,
+        wheel=wheel,
+        sdist=sdist,
+        proof=proof,
+        release=release,
+        out=valid,
+    )
+    raw = valid.read_bytes()
+    marker = b'"schema_version": "dspx-core-release-bundle-v1"'
+    position = raw.find(marker)
+    assert position >= 0
+    corrupt.write_bytes(raw[:position] + b"X" + raw[position + 1 :])
+
+    with pytest.raises(
+        module.CoreReleaseEvidenceError, match="member cannot be read safely"
+    ):
+        module.validate_bundle(corrupt)
 
 
 def test_bundle_validator_rejects_provenance_claim_widening(

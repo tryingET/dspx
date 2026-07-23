@@ -27,9 +27,17 @@ from core_release_evidence_io import (
     write_json as _write_json,
 )
 from core_release_proof_contract import validate_installed_proof
+from core_release_sbom import (
+    SBOM_COMPLETENESS,
+    SBOM_FORMAT,
+    load_sbom_bytes,
+    validate_sbom,
+)
 
 
-SCHEMA_VERSION = "dspx-core-release-evidence-v1"
+SCHEMA_VERSION_V1 = "dspx-core-release-evidence-v1"
+SCHEMA_VERSION_V2 = "dspx-core-release-evidence-v2"
+SCHEMA_VERSION = SCHEMA_VERSION_V1
 INSTALLED_PROOF_SCHEMA = "dspx-installed-core-golden-path-proof-v2"
 _TOP_LEVEL_FIELDS = {
     "schema_version",
@@ -115,6 +123,7 @@ def build_evidence(
     wheel_path: Path,
     sdist_path: Path,
     installed_proof_path: Path,
+    sbom_path: Path | None = None,
 ) -> dict[str, Any]:
     repo = repo_root.resolve()
     wheel_raw = _stable_regular_bytes(
@@ -158,6 +167,17 @@ def build_evidence(
         expected_wheel_sha256=wheel_hash,
     )
 
+    sbom_raw: bytes | None = None
+    if sbom_path is not None:
+        sbom_raw = _stable_regular_bytes(
+            sbom_path, label="Core wheel SBOM", limit=MAX_JSON_BYTES
+        )
+        validate_sbom(
+            load_sbom_bytes(sbom_raw),
+            wheel_raw=wheel_raw,
+            wheel_filename=wheel_path.name,
+        )
+
     commit = _git(repo, "rev-parse", "HEAD")
     dirty_lines = _git(repo, "status", "--porcelain=v1", "--untracked-files=all")
     tree_clean = not dirty_lines
@@ -169,7 +189,9 @@ def build_evidence(
         _subject(role="core-sdist", path=sdist_path, raw=sdist_raw),
     ]
     evidence: dict[str, Any] = {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": SCHEMA_VERSION_V2
+        if sbom_raw is not None
+        else SCHEMA_VERSION_V1,
         "status": "passed",
         "package": {
             "name": expected_name,
@@ -195,13 +217,23 @@ def build_evidence(
             "wheel_sha256": wheel_hash,
             "direct_url_bound": True,
         },
-        "sbom": {
-            "status": "not_generated",
-            "format": None,
-            "sha256": None,
-            "wheel_sha256": None,
-            "completeness": "not_evaluated",
-        },
+        "sbom": (
+            {
+                "status": "generated_verified",
+                "format": SBOM_FORMAT,
+                "sha256": _sha256(sbom_raw),
+                "wheel_sha256": wheel_hash,
+                "completeness": SBOM_COMPLETENESS,
+            }
+            if sbom_raw is not None
+            else {
+                "status": "not_generated",
+                "format": None,
+                "sha256": None,
+                "wheel_sha256": None,
+                "completeness": "not_evaluated",
+            }
+        ),
         "signature_verification": {
             "status": "not_present_not_verified",
             "scheme": None,
@@ -214,7 +246,7 @@ def build_evidence(
             "installed_wheel_bytes_bound": True,
             "source_commit_clean": tree_clean,
             "build_provenance_attested": False,
-            "sbom_verified": False,
+            "sbom_verified": sbom_raw is not None,
             "artifact_signature_verified": False,
             "technical_release_evidence_complete": False,
             "release_readiness": False,
@@ -229,7 +261,9 @@ def build_evidence(
 def validate_evidence(value: object) -> dict[str, Any]:
     evidence = _mapping(value, "Core release evidence")
     _exact_fields(evidence, _TOP_LEVEL_FIELDS, "Core release evidence")
-    _expect(evidence.get("schema_version"), SCHEMA_VERSION, "release evidence schema")
+    schema_version = evidence.get("schema_version")
+    if schema_version not in {SCHEMA_VERSION_V1, SCHEMA_VERSION_V2}:
+        raise CoreReleaseEvidenceError("release evidence schema drift")
     _expect(evidence.get("status"), "passed", "release evidence status")
 
     package = _mapping(evidence.get("package"), "release evidence package")
@@ -347,11 +381,20 @@ def validate_evidence(value: object) -> dict[str, Any]:
         {"status", "format", "sha256", "wheel_sha256", "completeness"},
         "release evidence SBOM",
     )
-    _expect(sbom.get("status"), "not_generated", "SBOM status")
-    _expect(sbom.get("format"), None, "SBOM format")
-    _expect(sbom.get("sha256"), None, "SBOM hash")
-    _expect(sbom.get("wheel_sha256"), None, "SBOM wheel binding")
-    _expect(sbom.get("completeness"), "not_evaluated", "SBOM completeness")
+    sbom_verified = schema_version == SCHEMA_VERSION_V2
+    if sbom_verified:
+        _expect(sbom.get("status"), "generated_verified", "SBOM status")
+        _expect(sbom.get("format"), SBOM_FORMAT, "SBOM format")
+        if not _is_sha256(sbom.get("sha256")):
+            raise CoreReleaseEvidenceError("SBOM hash is invalid")
+        _expect(sbom.get("wheel_sha256"), hashes["core-wheel"], "SBOM wheel binding")
+        _expect(sbom.get("completeness"), SBOM_COMPLETENESS, "SBOM completeness")
+    else:
+        _expect(sbom.get("status"), "not_generated", "SBOM status")
+        _expect(sbom.get("format"), None, "SBOM format")
+        _expect(sbom.get("sha256"), None, "SBOM hash")
+        _expect(sbom.get("wheel_sha256"), None, "SBOM wheel binding")
+        _expect(sbom.get("completeness"), "not_evaluated", "SBOM completeness")
 
     signature = _mapping(
         evidence.get("signature_verification"), "signature verification"
@@ -382,7 +425,7 @@ def validate_evidence(value: object) -> dict[str, Any]:
         "installed_wheel_bytes_bound": True,
         "source_commit_clean": tree_state == "clean",
         "build_provenance_attested": False,
-        "sbom_verified": False,
+        "sbom_verified": sbom_verified,
         "artifact_signature_verified": False,
         "technical_release_evidence_complete": False,
         "release_readiness": False,
@@ -399,6 +442,7 @@ def main() -> int:
     parser.add_argument("--wheel", type=Path, required=True)
     parser.add_argument("--sdist", type=Path, required=True)
     parser.add_argument("--installed-proof", type=Path, required=True)
+    parser.add_argument("--sbom", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     evidence = build_evidence(
@@ -406,6 +450,7 @@ def main() -> int:
         wheel_path=args.wheel,
         sdist_path=args.sdist,
         installed_proof_path=args.installed_proof,
+        sbom_path=args.sbom,
     )
     _write_json(args.out, evidence)
     print(json.dumps(evidence, sort_keys=True))

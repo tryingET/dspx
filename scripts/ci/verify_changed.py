@@ -361,9 +361,10 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "pytest",
             "-q",
             "tests/test_release_evidence.py",
+            "tests/test_release_sbom.py",
             "tests/test_release_bundle.py",
         ],
-        "Core release evidence or retained bundle changed",
+        "Core release SBOM, evidence, or retained bundle changed",
     ),
     "package_check_retain_smoke": CommandSpec(
         [
@@ -372,7 +373,7 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "set -euo pipefail; "
             "td=$(mktemp -d); trap 'rm -rf \"$td\"' EXIT; "
             'bash scripts/ci/package-check.sh --retain-core-evidence "$td/core.zip"; '
-            'python scripts/ci/core_release_bundle.py validate --bundle "$td/core.zip"',
+            'uv run --no-sync python scripts/ci/core_release_bundle.py validate --bundle "$td/core.zip"',
         ],
         "Core retained release bundle package integration changed",
     ),
@@ -922,9 +923,19 @@ def load_impact_map(path: Path = DEFAULT_MAP) -> dict[str, Any]:
             raise ValueError(f"rule {index} must be an object")
         if not rule.get("match") or not rule.get("category") or not rule.get("risk"):
             raise ValueError(f"rule {index} must include match, category, and risk")
-        if rule["risk"] not in RISK_ORDER:
-            raise ValueError(f"rule {index} has unsupported risk: {rule['risk']}")
-        for command_id in rule.get("commands") or []:
+        risk = rule.get("risk")
+        if not isinstance(risk, str) or risk not in RISK_ORDER:
+            raise ValueError(f"rule {index} has unsupported risk: {risk}")
+        raw_commands = rule.get("commands")
+        if raw_commands is None:
+            commands: list[object] = []
+        elif isinstance(raw_commands, list):
+            commands = raw_commands
+        else:
+            raise ValueError(f"rule {index} commands must be a list")
+        for command_id in commands:
+            if not isinstance(command_id, str):
+                raise ValueError(f"rule {index} command id must be a string")
             if command_id not in COMMAND_REGISTRY and command_id not in {
                 "ruff_touched",
                 "pytest_touched",

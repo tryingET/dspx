@@ -18,15 +18,22 @@ from typing import Any
 
 from core_release_bundle_contract import (
     BUNDLE_SCHEMA as _CONTRACT_BUNDLE_SCHEMA,
+    BUNDLE_SCHEMA_V1 as _CONTRACT_BUNDLE_SCHEMA_V1,
+    BUNDLE_SCHEMA_V2 as _CONTRACT_BUNDLE_SCHEMA_V2,
     PROVENANCE_SCHEMA as _CONTRACT_PROVENANCE_SCHEMA,
     _BUNDLE_CLAIMS as _CONTRACT_BUNDLE_CLAIMS,
+    _BUNDLE_CLAIMS_V1 as _CONTRACT_BUNDLE_CLAIMS_V1,
+    _BUNDLE_CLAIMS_V2 as _CONTRACT_BUNDLE_CLAIMS_V2,
     _FILE_ROLES as _CONTRACT_FILE_ROLES,
+    _FILE_ROLES_V1 as _CONTRACT_FILE_ROLES_V1,
+    _FILE_ROLES_V2 as _CONTRACT_FILE_ROLES_V2,
     _FIXED_NAMES,
     _INSTALLED_PROOF_NAME,
     _MANIFEST_NAME,
     _MAX_BUNDLE_BYTES,
     _PROVENANCE_NAME,
     _RELEASE_EVIDENCE_NAME,
+    _SBOM_NAME,
     _archive_bytes,
     _json_bytes,
     _json_object,
@@ -50,12 +57,19 @@ from core_release_evidence_io import (
     wheel_metadata as _wheel_metadata,
 )
 from core_release_proof_contract import validate_installed_proof
+from core_release_sbom import load_sbom_bytes, validate_sbom
 
 # Re-exported for focused contract tests and downstream diagnostics.
 BUNDLE_SCHEMA = _CONTRACT_BUNDLE_SCHEMA
+BUNDLE_SCHEMA_V1 = _CONTRACT_BUNDLE_SCHEMA_V1
+BUNDLE_SCHEMA_V2 = _CONTRACT_BUNDLE_SCHEMA_V2
 PROVENANCE_SCHEMA = _CONTRACT_PROVENANCE_SCHEMA
 _BUNDLE_CLAIMS = _CONTRACT_BUNDLE_CLAIMS
+_BUNDLE_CLAIMS_V1 = _CONTRACT_BUNDLE_CLAIMS_V1
+_BUNDLE_CLAIMS_V2 = _CONTRACT_BUNDLE_CLAIMS_V2
 _FILE_ROLES = _CONTRACT_FILE_ROLES
+_FILE_ROLES_V1 = _CONTRACT_FILE_ROLES_V1
+_FILE_ROLES_V2 = _CONTRACT_FILE_ROLES_V2
 
 
 def _open_directory_path_no_follow(path: Path) -> int:
@@ -203,6 +217,7 @@ def _cross_validate_inputs(
     sdist_raw: bytes,
     proof_raw: bytes,
     release_raw: bytes,
+    sbom_raw: bytes | None,
 ) -> Mapping[str, Any]:
     release = _json_object(release_raw, "Core release evidence")
     validate_evidence(release)
@@ -217,6 +232,25 @@ def _cross_validate_inputs(
         expected_name=package_name,
         expected_version=package_version,
     )
+    release_schema = release.get("schema_version")
+    if sbom_raw is None:
+        if release_schema != "dspx-core-release-evidence-v1":
+            raise CoreReleaseEvidenceError(
+                "v2 release evidence requires a retained SBOM"
+            )
+    else:
+        if release_schema != "dspx-core-release-evidence-v2":
+            raise CoreReleaseEvidenceError("retained SBOM requires v2 release evidence")
+        validate_sbom(
+            load_sbom_bytes(sbom_raw),
+            wheel_raw=wheel_raw,
+            wheel_filename=wheel_name,
+        )
+        sbom_summary = _mapping(release.get("sbom"), "release evidence SBOM")
+        if sbom_summary.get("sha256") != _sha256(sbom_raw) or sbom_summary.get(
+            "wheel_sha256"
+        ) != _sha256(wheel_raw):
+            raise CoreReleaseEvidenceError("release evidence SBOM binding drift")
 
     subjects = _release_subjects(release)
     for role, filename, raw in (
@@ -262,6 +296,7 @@ def build_bundle(
     sdist_path: Path,
     installed_proof_path: Path,
     release_evidence_path: Path,
+    sbom_path: Path | None = None,
     out_path: Path,
 ) -> dict[str, Any]:
     wheel_raw = _stable_regular_bytes(
@@ -275,6 +310,11 @@ def build_bundle(
     )
     release_raw = _stable_regular_bytes(
         release_evidence_path, label="Core release evidence", limit=MAX_JSON_BYTES
+    )
+    sbom_raw = (
+        _stable_regular_bytes(sbom_path, label="Core wheel SBOM", limit=MAX_JSON_BYTES)
+        if sbom_path is not None
+        else None
     )
     wheel_name = _safe_member_name(wheel_path.name, "Core wheel")
     sdist_name = _safe_member_name(sdist_path.name, "Core sdist")
@@ -291,6 +331,8 @@ def build_bundle(
             release_evidence_path,
         )
     }
+    if sbom_path is not None:
+        source_paths.add(sbom_path.absolute())
     if output in source_paths:
         raise CoreReleaseEvidenceError("Core release bundle output overlaps an input")
     parent = output.parent
@@ -318,6 +360,7 @@ def build_bundle(
             sdist_raw=sdist_raw,
             proof_raw=proof_raw,
             release_raw=release_raw,
+            sbom_raw=sbom_raw,
         )
         source_after = _source_observation(repo_root)
         if source_after != source_before:
@@ -333,6 +376,8 @@ def build_bundle(
             _RELEASE_EVIDENCE_NAME: ("release-evidence", release_raw),
             _PROVENANCE_NAME: ("local-build-provenance", provenance_raw),
         }
+        if sbom_raw is not None:
+            member_roles[_SBOM_NAME] = ("core-sbom", sbom_raw)
         manifest_raw = _json_bytes(_manifest(release, member_roles))
         archive_members = {
             filename: raw for filename, (_role, raw) in member_roles.items()
@@ -430,6 +475,7 @@ def main() -> int:
     build.add_argument("--sdist", type=Path, required=True)
     build.add_argument("--installed-proof", type=Path, required=True)
     build.add_argument("--release-evidence", type=Path, required=True)
+    build.add_argument("--sbom", type=Path)
     build.add_argument("--out", type=Path, required=True)
     validate = subparsers.add_parser("validate")
     validate.add_argument("--bundle", type=Path, required=True)
@@ -441,6 +487,7 @@ def main() -> int:
             sdist_path=args.sdist,
             installed_proof_path=args.installed_proof,
             release_evidence_path=args.release_evidence,
+            sbom_path=args.sbom,
             out_path=args.out,
         )
         print(json.dumps(payload, sort_keys=True))

@@ -64,12 +64,23 @@ bash scripts/ci/installed-core-golden-path.sh \
   "$core_venv_dir" "$core_journey_dir" "$repo_root" \
   "$core_wheel" "$core_wheel_sha256"
 
+printf '[package-check] generate and verify exact Core wheel SBOM\n'
+"$core_venv_dir/bin/python" scripts/ci/core_release_sbom.py generate \
+  --wheel "$core_wheel" \
+  --out "$work_dir/dspx-core-wheel-sbom.cdx.json" \
+  > "$work_dir/sbom-generation-output.json"
+"$core_venv_dir/bin/python" scripts/ci/core_release_sbom.py validate \
+  --wheel "$core_wheel" \
+  --sbom "$work_dir/dspx-core-wheel-sbom.cdx.json" \
+  > "$work_dir/sbom-validation-output.json"
+
 printf '[package-check] build fail-closed Core release-evidence claim matrix\n'
 "$core_venv_dir/bin/python" scripts/ci/core_release_evidence.py \
   --repo-root "$repo_root" \
   --wheel "$core_wheel" \
   --sdist "$core_sdist" \
   --installed-proof "$core_journey_dir/installed-core-golden-path-proof.json" \
+  --sbom "$work_dir/dspx-core-wheel-sbom.cdx.json" \
   --out "$work_dir/dspx-core-release-evidence.json" \
   > "$work_dir/release-evidence-output.json"
 
@@ -85,13 +96,14 @@ assert scripts["dspx-forge"] == "dspx_forge.cli:main"
 PY
 
 if [[ -n "$retain_core_bundle" ]]; then
-  printf '[package-check] retain unsigned Core release evidence bundle\n'
+  printf '[package-check] retain SBOM-bound unsigned Core release evidence bundle\n'
   "$core_venv_dir/bin/python" scripts/ci/core_release_bundle.py build \
     --repo-root "$repo_root" \
     --wheel "$core_wheel" \
     --sdist "$core_sdist" \
     --installed-proof "$core_journey_dir/installed-core-golden-path-proof.json" \
     --release-evidence "$work_dir/dspx-core-release-evidence.json" \
+    --sbom "$work_dir/dspx-core-wheel-sbom.cdx.json" \
     --out "$retain_core_bundle" \
     > "$work_dir/release-bundle-output.json"
   "$core_venv_dir/bin/python" scripts/ci/core_release_bundle.py validate \
@@ -100,4 +112,4 @@ if [[ -n "$retain_core_bundle" ]]; then
   printf '[package-check] retained bundle: %s\n' "$retain_core_bundle"
 fi
 
-printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; SBOM, signing, publication, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'
+printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; CycloneDX wheel-payload/direct-dependency SBOM generation and verification passed; signing, CI custody, publication, technical completeness, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'

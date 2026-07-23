@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import copy
+import base64
+import csv
 import hashlib
 import importlib.util
-from io import BytesIO
+from io import BytesIO, StringIO
 import json
 from pathlib import Path
 import sys
@@ -36,17 +38,46 @@ def _load_module() -> ModuleType:
         sys.path.remove(script_dir)
 
 
+def _load_sbom_module() -> ModuleType:
+    path = SCRIPT_PATH.parent / "core_release_sbom.py"
+    spec = importlib.util.spec_from_file_location("test_core_release_sbom", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    script_dir = str(SCRIPT_PATH.parent)
+    sys.path.insert(0, script_dir)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.modules.pop(spec.name, None)
+        sys.path.remove(script_dir)
+
+
 def _wheel(path: Path, *, marker: str = "original") -> str:
     metadata = (
         "Metadata-Version: 2.4\n"
         "Name: dspx-core\n"
         "Version: 0.1.0\n"
         "Requires-Python: >=3.13\n"
+        "Requires-Dist: httpx>=0.28.1\n"
         "\n"
     ).encode()
+    files = {
+        "dspx_core-0.1.0.dist-info/METADATA": metadata,
+        "dspx/__init__.py": f"MARKER = {marker!r}\n".encode(),
+    }
+    record_path = "dspx_core-0.1.0.dist-info/RECORD"
+    output = StringIO()
+    writer = csv.writer(output, lineterminator="\n")
+    for name, raw in sorted(files.items()):
+        digest = base64.urlsafe_b64encode(hashlib.sha256(raw).digest()).rstrip(b"=")
+        writer.writerow([name, "sha256=" + digest.decode(), len(raw)])
+    writer.writerow([record_path, "", ""])
+    files[record_path] = output.getvalue().encode()
     with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr("dspx_core-0.1.0.dist-info/METADATA", metadata)
-        archive.writestr("dspx/__init__.py", f"MARKER = {marker!r}\n")
+        for name, raw in sorted(files.items()):
+            archive.writestr(name, raw)
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
@@ -198,6 +229,60 @@ def test_build_evidence_binds_exact_wheel_and_denies_release_claims(
         "release_authority": False,
         "publication_performed": False,
     }
+
+
+def test_build_evidence_v2_binds_verified_sbom_without_release_widening(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_module()
+    sbom_module = _load_sbom_module()
+    wheel, sdist, proof = _inputs(tmp_path)
+    sbom_path = tmp_path / "dspx-core-wheel-sbom.cdx.json"
+    sbom = sbom_module.build_sbom(
+        wheel_raw=wheel.read_bytes(), wheel_filename=wheel.name
+    )
+    sbom_path.write_text(json.dumps(sbom), encoding="utf-8")
+
+    def fake_git(_repo: Path, *args: str) -> str:
+        if args == ("rev-parse", "HEAD"):
+            return "a" * 40
+        if args == ("status", "--porcelain=v1", "--untracked-files=all"):
+            return " M local-change"
+        raise AssertionError(args)
+
+    monkeypatch.setattr(module, "_git", fake_git)
+    evidence = module.build_evidence(
+        repo_root=REPO_ROOT,
+        wheel_path=wheel,
+        sdist_path=sdist,
+        installed_proof_path=proof,
+        sbom_path=sbom_path,
+    )
+
+    assert evidence["schema_version"] == "dspx-core-release-evidence-v2"
+    assert evidence["sbom"] == {
+        "status": "generated_verified",
+        "format": "CycloneDX 1.6 JSON",
+        "sha256": hashlib.sha256(sbom_path.read_bytes()).hexdigest(),
+        "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
+        "completeness": "wheel_payload_and_declared_direct_dependencies",
+    }
+    assert evidence["claims"]["sbom_verified"] is True
+    assert evidence["claims"]["technical_release_evidence_complete"] is False
+    assert evidence["claims"]["artifact_signature_verified"] is False
+    assert evidence["claims"]["release_readiness"] is False
+    assert evidence["claims"]["release_authority"] is False
+    module.validate_evidence(evidence)
+
+    sbom_path.write_text(json.dumps({**sbom, "version": 2}), encoding="utf-8")
+    with pytest.raises(module.CoreReleaseEvidenceError, match="binding drift"):
+        module.build_evidence(
+            repo_root=REPO_ROOT,
+            wheel_path=wheel,
+            sdist_path=sdist,
+            installed_proof_path=proof,
+            sbom_path=sbom_path,
+        )
 
 
 def test_build_evidence_rejects_same_version_substituted_wheel(

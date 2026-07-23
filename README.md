@@ -900,7 +900,7 @@ just ci-test-shards              # all credential-free shards
 just ci-package                  # Exact Core-wheel journey/release-claim truth + separate Forge smoke
 ```
 
-`just ci-package` emits and validates an ephemeral `dspx-core-release-evidence-v1` envelope over the built Core wheel/sdist and the exact-wheel installed proof. It proves artifact hashes and installed-wheel byte identity by checking every original wheel `RECORD` payload against the installed tree, rejecting undeclared importable package files, validating the complete installed-proof v2 contract, and checking sdist `PKG-INFO` plus required package content. It reports source clean/dirty state while explicitly reporting unattested provenance, no verified SBOM, no verified signature, incomplete technical release evidence, no publication, and no release readiness or authority.
+`just ci-package` emits and validates an ephemeral `dspx-core-release-evidence-v2` envelope over the built Core wheel/sdist, exact-wheel installed proof, and an exact-wheel CycloneDX 1.6 JSON SBOM. It proves artifact hashes and installed-wheel byte identity by checking every original wheel `RECORD` payload against the installed tree, rejecting undeclared importable package files, validating the complete installed-proof v2 contract, checking sdist `PKG-INFO` plus required package content, and independently regenerating the SBOM from RECORD-verified wheel bytes. The SBOM is validated offline against pinned official CycloneDX 1.6 schemas and covers the complete wheel payload plus declared direct `Requires-Dist` dependencies; it does not claim resolved/transitive environment inventory. Legacy v1 no-SBOM envelopes remain valid. The envelope reports source clean/dirty state while explicitly keeping provenance unattested, signatures unverified, technical release evidence incomplete, publication false, and release readiness/authority false.
 
 To retain that otherwise-ephemeral evidence locally, supply an explicit new ZIP output:
 
@@ -908,11 +908,11 @@ To retain that otherwise-ephemeral evidence locally, supply an explicit new ZIP 
 mkdir -p /path/to/private-evidence
 bash scripts/ci/package-check.sh \
   --retain-core-evidence /path/to/private-evidence/dspx-core-release-bundle.zip
-python scripts/ci/core_release_bundle.py validate \
+uv run --no-sync python scripts/ci/core_release_bundle.py validate \
   --bundle /path/to/private-evidence/dspx-core-release-bundle.zip
 ```
 
-The deterministic stored ZIP uses `dspx-core-release-bundle-v1` to retain the exact wheel, sdist, installed proof, v1 release envelope, a subject/source-bound `dspx-core-local-build-provenance-v1` statement, and a hash/size/role closure manifest. Publication is mode-0600, no-replace, and local-only. The provenance remains unauthenticated and unattested; no SBOM or signer policy is supplied, no signature is verified, and retention does not imply registry publication, technical completeness, release readiness, or release authority.
+The deterministic stored ZIP uses `dspx-core-release-bundle-v2` to retain the exact wheel, sdist, installed proof, v2 release envelope, verified CycloneDX SBOM, a subject/source-bound `dspx-core-local-build-provenance-v1` statement, and a hash/size/role closure manifest; the validator still accepts legacy v1 no-SBOM bundles. Publication is mode-0600, no-replace, and local-only. The provenance remains unauthenticated and unattested; no signer policy is supplied, no signature is verified, and retention does not imply CI custody, registry publication, technical completeness, release readiness, or release authority.
 
 CI excludes explicitly live/network/model/GPU/Postgres tests, combines branch coverage from its disjoint offline shards, and enforces the measured brownfield coverage ratchet in `pyproject.toml`.
 
