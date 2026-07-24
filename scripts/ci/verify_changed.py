@@ -362,6 +362,7 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
             "-q",
             "tests/test_release_evidence.py",
             "tests/test_release_sbom.py",
+            "tests/test_release_environment_sbom.py",
             "tests/test_release_bundle.py",
         ],
         "Core release SBOM, evidence, or retained bundle changed",

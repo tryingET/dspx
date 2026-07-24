@@ -74,6 +74,18 @@ printf '[package-check] generate and verify exact Core wheel SBOM\n'
   --sbom "$work_dir/dspx-core-wheel-sbom.cdx.json" \
   > "$work_dir/sbom-validation-output.json"
 
+printf '[package-check] generate and verify resolved Core environment SBOM\n'
+"$core_venv_dir/bin/python" scripts/ci/core_release_environment_sbom.py generate \
+  --wheel "$core_wheel" \
+  --installed-proof "$core_journey_dir/installed-core-golden-path-proof.json" \
+  --out "$work_dir/dspx-core-installed-environment-sbom.cdx.json" \
+  > "$work_dir/environment-sbom-generation-output.json"
+"$core_venv_dir/bin/python" scripts/ci/core_release_environment_sbom.py validate \
+  --wheel "$core_wheel" \
+  --installed-proof "$core_journey_dir/installed-core-golden-path-proof.json" \
+  --sbom "$work_dir/dspx-core-installed-environment-sbom.cdx.json" \
+  > "$work_dir/environment-sbom-validation-output.json"
+
 printf '[package-check] build fail-closed Core release-evidence claim matrix\n'
 "$core_venv_dir/bin/python" scripts/ci/core_release_evidence.py \
   --repo-root "$repo_root" \
@@ -82,6 +94,7 @@ printf '[package-check] build fail-closed Core release-evidence claim matrix\n'
   --installed-proof "$core_journey_dir/installed-core-golden-path-proof.json" \
   --sbom "$work_dir/dspx-core-wheel-sbom.cdx.json" \
   --out "$work_dir/dspx-core-release-evidence.json" \
+  --resolved-environment-sbom "$work_dir/dspx-core-installed-environment-sbom.cdx.json" \
   > "$work_dir/release-evidence-output.json"
 
 printf '[package-check] install and smoke Forge separately\n'
@@ -104,6 +117,7 @@ if [[ -n "$retain_core_bundle" ]]; then
     --installed-proof "$core_journey_dir/installed-core-golden-path-proof.json" \
     --release-evidence "$work_dir/dspx-core-release-evidence.json" \
     --sbom "$work_dir/dspx-core-wheel-sbom.cdx.json" \
+    --resolved-environment-sbom "$work_dir/dspx-core-installed-environment-sbom.cdx.json" \
     --out "$retain_core_bundle" \
     > "$work_dir/release-bundle-output.json"
   "$core_venv_dir/bin/python" scripts/ci/core_release_bundle.py validate \
@@ -112,4 +126,4 @@ if [[ -n "$retain_core_bundle" ]]; then
   printf '[package-check] retained bundle: %s\n' "$retain_core_bundle"
 fi
 
-printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; CycloneDX wheel-payload/direct-dependency SBOM generation and verification passed; signing, CI custody, publication, technical completeness, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'
+printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; CycloneDX wheel-payload/direct-dependency and point-in-time resolved-environment SBOM generation and verification passed; signing, CI custody, publication, technical completeness, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'

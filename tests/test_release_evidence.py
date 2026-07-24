@@ -54,6 +54,24 @@ def _load_sbom_module() -> ModuleType:
         sys.path.remove(script_dir)
 
 
+def _load_environment_sbom_module() -> ModuleType:
+    path = SCRIPT_PATH.parent / "core_release_environment_sbom.py"
+    spec = importlib.util.spec_from_file_location(
+        "test_core_release_environment_sbom", path
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    script_dir = str(SCRIPT_PATH.parent)
+    sys.path.insert(0, script_dir)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        sys.modules.pop(spec.name, None)
+        sys.path.remove(script_dir)
+
+
 def _wheel(path: Path, *, marker: str = "original") -> str:
     metadata = (
         "Metadata-Version: 2.4\n"
@@ -283,6 +301,69 @@ def test_build_evidence_v2_binds_verified_sbom_without_release_widening(
             installed_proof_path=proof,
             sbom_path=sbom_path,
         )
+
+
+def test_build_evidence_v3_binds_resolved_environment_without_authority_widening(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_module()
+    sbom_module = _load_sbom_module()
+    environment_module = _load_environment_sbom_module()
+    wheel, sdist, proof = _inputs(tmp_path)
+    sbom_path = tmp_path / "dspx-core-wheel-sbom.cdx.json"
+    sbom_path.write_text(
+        json.dumps(
+            sbom_module.build_sbom(
+                wheel_raw=wheel.read_bytes(), wheel_filename=wheel.name
+            )
+        ),
+        encoding="utf-8",
+    )
+    environment_path = tmp_path / "dspx-core-installed-environment-sbom.cdx.json"
+    environment_path.write_text(
+        json.dumps(
+            environment_module.build_environment_sbom(
+                wheel_raw=wheel.read_bytes(),
+                wheel_filename=wheel.name,
+                installed_proof_raw=proof.read_bytes(),
+                records=[
+                    {
+                        "name": "dspx-core",
+                        "version": "0.1.0",
+                        "requirements": ["httpx>=0.28.1"],
+                    },
+                    {"name": "httpx", "version": "0.28.1", "requirements": []},
+                ],
+                environment=environment_module._environment_identity(),
+            )
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(module, "_git", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        module, "validate_environment_sbom", lambda value, **_kwargs: value
+    )
+
+    evidence = module.build_evidence(
+        repo_root=REPO_ROOT,
+        wheel_path=wheel,
+        sdist_path=sdist,
+        installed_proof_path=proof,
+        sbom_path=sbom_path,
+        resolved_environment_sbom_path=environment_path,
+    )
+
+    assert evidence["schema_version"] == "dspx-core-release-evidence-v3"
+    assert (
+        evidence["resolved_environment_sbom"]["sha256"]
+        == hashlib.sha256(environment_path.read_bytes()).hexdigest()
+    )
+    assert evidence["claims"]["resolved_environment_sbom_verified"] is True
+    assert evidence["claims"]["artifact_signature_verified"] is False
+    assert evidence["claims"]["technical_release_evidence_complete"] is False
+    assert evidence["claims"]["release_readiness"] is False
+    assert evidence["claims"]["release_authority"] is False
+    module.validate_evidence(evidence)
 
 
 def test_build_evidence_rejects_same_version_substituted_wheel(

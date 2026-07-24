@@ -213,6 +213,48 @@ def _inputs_v2(
     return module, wheel, sdist, proof, release, sbom_path
 
 
+def _inputs_v3(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[ModuleType, Path, Path, Path, Path, Path, Path]:
+    module, wheel, sdist, proof, release, sbom = _inputs_v2(tmp_path, monkeypatch)
+    environment_module = _load("core_release_environment_sbom")
+    environment_path = tmp_path / "dspx-core-installed-environment-sbom.cdx.json"
+    environment_path.write_text(
+        json.dumps(
+            environment_module.build_environment_sbom(
+                wheel_raw=wheel.read_bytes(),
+                wheel_filename=wheel.name,
+                installed_proof_raw=proof.read_bytes(),
+                records=[
+                    {
+                        "name": "dspx-core",
+                        "version": "0.1.0",
+                        "requirements": ["httpx>=0.28.1"],
+                    },
+                    {"name": "httpx", "version": "0.28.1", "requirements": []},
+                ],
+                environment=environment_module._environment_identity(),
+            )
+        ),
+        encoding="utf-8",
+    )
+    release_module = _load("core_release_evidence")
+    monkeypatch.setattr(release_module, "_git", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        release_module, "validate_environment_sbom", lambda value, **_kwargs: value
+    )
+    evidence = release_module.build_evidence(
+        repo_root=REPO_ROOT,
+        wheel_path=wheel,
+        sdist_path=sdist,
+        installed_proof_path=proof,
+        sbom_path=sbom,
+        resolved_environment_sbom_path=environment_path,
+    )
+    release.write_text(json.dumps(evidence), encoding="utf-8")
+    return module, wheel, sdist, proof, release, sbom, environment_path
+
+
 def _build(
     module: ModuleType,
     *,
@@ -222,6 +264,7 @@ def _build(
     release: Path,
     out: Path,
     sbom: Path | None = None,
+    environment_sbom: Path | None = None,
 ) -> dict[str, Any]:
     return module.build_bundle(
         repo_root=REPO_ROOT,
@@ -230,6 +273,7 @@ def _build(
         installed_proof_path=proof,
         release_evidence_path=release,
         sbom_path=sbom,
+        resolved_environment_sbom_path=environment_sbom,
         out_path=out,
     )
 
@@ -321,6 +365,39 @@ def test_bundle_v2_retains_exact_verified_sbom_without_authority_widening(
     assert module.validate_bundle(out) == manifest
     with zipfile.ZipFile(out) as archive:
         assert archive.read(module._SBOM_NAME) == sbom.read_bytes()
+
+
+def test_bundle_v3_retains_resolved_environment_without_authority_widening(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module, wheel, sdist, proof, release, sbom, environment = _inputs_v3(
+        tmp_path, monkeypatch
+    )
+    out = tmp_path / "bundle-v3.zip"
+
+    manifest = _build(
+        module,
+        wheel=wheel,
+        sdist=sdist,
+        proof=proof,
+        release=release,
+        sbom=sbom,
+        environment_sbom=environment,
+        out=out,
+    )
+
+    assert manifest["schema_version"] == "dspx-core-release-bundle-v3"
+    assert {row["role"] for row in manifest["files"]} == module._FILE_ROLES_V3
+    assert manifest["claims"] == module._BUNDLE_CLAIMS_V3
+    assert manifest["claims"]["resolved_environment_sbom_retained"] is True
+    assert manifest["claims"]["resolved_environment_sbom_verified"] is True
+    assert manifest["claims"]["artifact_signature_verified"] is False
+    assert manifest["claims"]["technical_release_evidence_complete"] is False
+    assert manifest["claims"]["release_readiness"] is False
+    assert manifest["claims"]["release_authority"] is False
+    assert module.validate_bundle(out) == manifest
+    with zipfile.ZipFile(out) as archive:
+        assert archive.read(module._ENVIRONMENT_SBOM_NAME) == environment.read_bytes()
 
 
 def test_bundle_rejects_sbom_evidence_mode_mismatch_and_tamper(

@@ -27,6 +27,11 @@ from core_release_evidence_io import (
     write_json as _write_json,
 )
 from core_release_proof_contract import validate_installed_proof
+from core_release_environment_sbom import (
+    ENVIRONMENT_SBOM_COMPLETENESS,
+    load_environment_sbom_bytes,
+    validate_environment_sbom,
+)
 from core_release_sbom import (
     SBOM_COMPLETENESS,
     SBOM_FORMAT,
@@ -37,9 +42,10 @@ from core_release_sbom import (
 
 SCHEMA_VERSION_V1 = "dspx-core-release-evidence-v1"
 SCHEMA_VERSION_V2 = "dspx-core-release-evidence-v2"
+SCHEMA_VERSION_V3 = "dspx-core-release-evidence-v3"
 SCHEMA_VERSION = SCHEMA_VERSION_V1
 INSTALLED_PROOF_SCHEMA = "dspx-installed-core-golden-path-proof-v2"
-_TOP_LEVEL_FIELDS = {
+_TOP_LEVEL_FIELDS_V1_V2 = {
     "schema_version",
     "status",
     "package",
@@ -51,8 +57,9 @@ _TOP_LEVEL_FIELDS = {
     "signature_verification",
     "claims",
 }
+_TOP_LEVEL_FIELDS_V3 = _TOP_LEVEL_FIELDS_V1_V2 | {"resolved_environment_sbom"}
 _SUBJECT_FIELDS = {"role", "filename", "size", "sha256"}
-_CLAIM_FIELDS = {
+_CLAIM_FIELDS_V1_V2 = {
     "artifact_hashes_verified",
     "installed_wheel_bytes_bound",
     "source_commit_clean",
@@ -64,6 +71,7 @@ _CLAIM_FIELDS = {
     "release_authority",
     "publication_performed",
 }
+_CLAIM_FIELDS_V3 = _CLAIM_FIELDS_V1_V2 | {"resolved_environment_sbom_verified"}
 
 
 def _mapping(value: object, label: str) -> Mapping[str, Any]:
@@ -124,6 +132,7 @@ def build_evidence(
     sdist_path: Path,
     installed_proof_path: Path,
     sbom_path: Path | None = None,
+    resolved_environment_sbom_path: Path | None = None,
 ) -> dict[str, Any]:
     repo = repo_root.resolve()
     wheel_raw = _stable_regular_bytes(
@@ -178,6 +187,24 @@ def build_evidence(
             wheel_filename=wheel_path.name,
         )
 
+    environment_sbom_raw: bytes | None = None
+    if resolved_environment_sbom_path is not None:
+        if sbom_raw is None:
+            raise CoreReleaseEvidenceError(
+                "resolved environment SBOM requires exact-wheel SBOM evidence"
+            )
+        environment_sbom_raw = _stable_regular_bytes(
+            resolved_environment_sbom_path,
+            label="resolved environment SBOM",
+            limit=MAX_JSON_BYTES,
+        )
+        validate_environment_sbom(
+            load_environment_sbom_bytes(environment_sbom_raw),
+            wheel_raw=wheel_raw,
+            wheel_filename=wheel_path.name,
+            installed_proof_raw=proof_raw,
+        )
+
     commit = _git(repo, "rev-parse", "HEAD")
     dirty_lines = _git(repo, "status", "--porcelain=v1", "--untracked-files=all")
     tree_clean = not dirty_lines
@@ -189,9 +216,13 @@ def build_evidence(
         _subject(role="core-sdist", path=sdist_path, raw=sdist_raw),
     ]
     evidence: dict[str, Any] = {
-        "schema_version": SCHEMA_VERSION_V2
-        if sbom_raw is not None
-        else SCHEMA_VERSION_V1,
+        "schema_version": (
+            SCHEMA_VERSION_V3
+            if environment_sbom_raw is not None
+            else SCHEMA_VERSION_V2
+            if sbom_raw is not None
+            else SCHEMA_VERSION_V1
+        ),
         "status": "passed",
         "package": {
             "name": expected_name,
@@ -234,6 +265,21 @@ def build_evidence(
                 "completeness": "not_evaluated",
             }
         ),
+        **(
+            {
+                "resolved_environment_sbom": {
+                    "status": "generated_verified",
+                    "format": SBOM_FORMAT,
+                    "sha256": _sha256(environment_sbom_raw),
+                    "wheel_sha256": wheel_hash,
+                    "installed_proof_sha256": _sha256(proof_raw),
+                    "completeness": ENVIRONMENT_SBOM_COMPLETENESS,
+                    "observation": "point_in_time_resolver_dependent_not_lockfile_proof",
+                }
+            }
+            if environment_sbom_raw is not None
+            else {}
+        ),
         "signature_verification": {
             "status": "not_present_not_verified",
             "scheme": None,
@@ -247,6 +293,11 @@ def build_evidence(
             "source_commit_clean": tree_clean,
             "build_provenance_attested": False,
             "sbom_verified": sbom_raw is not None,
+            **(
+                {"resolved_environment_sbom_verified": True}
+                if environment_sbom_raw is not None
+                else {}
+            ),
             "artifact_signature_verified": False,
             "technical_release_evidence_complete": False,
             "release_readiness": False,
@@ -260,10 +311,16 @@ def build_evidence(
 
 def validate_evidence(value: object) -> dict[str, Any]:
     evidence = _mapping(value, "Core release evidence")
-    _exact_fields(evidence, _TOP_LEVEL_FIELDS, "Core release evidence")
     schema_version = evidence.get("schema_version")
-    if schema_version not in {SCHEMA_VERSION_V1, SCHEMA_VERSION_V2}:
+    if schema_version not in {SCHEMA_VERSION_V1, SCHEMA_VERSION_V2, SCHEMA_VERSION_V3}:
         raise CoreReleaseEvidenceError("release evidence schema drift")
+    _exact_fields(
+        evidence,
+        _TOP_LEVEL_FIELDS_V3
+        if schema_version == SCHEMA_VERSION_V3
+        else _TOP_LEVEL_FIELDS_V1_V2,
+        "Core release evidence",
+    )
     _expect(evidence.get("status"), "passed", "release evidence status")
 
     package = _mapping(evidence.get("package"), "release evidence package")
@@ -381,7 +438,7 @@ def validate_evidence(value: object) -> dict[str, Any]:
         {"status", "format", "sha256", "wheel_sha256", "completeness"},
         "release evidence SBOM",
     )
-    sbom_verified = schema_version == SCHEMA_VERSION_V2
+    sbom_verified = schema_version in {SCHEMA_VERSION_V2, SCHEMA_VERSION_V3}
     if sbom_verified:
         _expect(sbom.get("status"), "generated_verified", "SBOM status")
         _expect(sbom.get("format"), SBOM_FORMAT, "SBOM format")
@@ -395,6 +452,58 @@ def validate_evidence(value: object) -> dict[str, Any]:
         _expect(sbom.get("sha256"), None, "SBOM hash")
         _expect(sbom.get("wheel_sha256"), None, "SBOM wheel binding")
         _expect(sbom.get("completeness"), "not_evaluated", "SBOM completeness")
+
+    environment_sbom_verified = schema_version == SCHEMA_VERSION_V3
+    if environment_sbom_verified:
+        environment_sbom = _mapping(
+            evidence.get("resolved_environment_sbom"),
+            "resolved environment SBOM",
+        )
+        _exact_fields(
+            environment_sbom,
+            {
+                "status",
+                "format",
+                "sha256",
+                "wheel_sha256",
+                "installed_proof_sha256",
+                "completeness",
+                "observation",
+            },
+            "resolved environment SBOM",
+        )
+        _expect(
+            environment_sbom.get("status"),
+            "generated_verified",
+            "resolved environment SBOM status",
+        )
+        _expect(
+            environment_sbom.get("format"),
+            SBOM_FORMAT,
+            "resolved environment SBOM format",
+        )
+        if not _is_sha256(environment_sbom.get("sha256")):
+            raise CoreReleaseEvidenceError("resolved environment SBOM hash is invalid")
+        _expect(
+            environment_sbom.get("wheel_sha256"),
+            hashes["core-wheel"],
+            "resolved environment SBOM wheel binding",
+        )
+        _expect(
+            environment_sbom.get("installed_proof_sha256"),
+            installed["sha256"],
+            "resolved environment SBOM proof binding",
+        )
+        _expect(
+            environment_sbom.get("completeness"),
+            ENVIRONMENT_SBOM_COMPLETENESS,
+            "resolved environment SBOM completeness",
+        )
+        _expect(
+            environment_sbom.get("observation"),
+            "point_in_time_resolver_dependent_not_lockfile_proof",
+            "resolved environment SBOM observation",
+        )
 
     signature = _mapping(
         evidence.get("signature_verification"), "signature verification"
@@ -419,13 +528,22 @@ def validate_evidence(value: object) -> dict[str, Any]:
     _expect(signature.get("signer_identity_verified"), False, "signer identity")
 
     claims = _mapping(evidence.get("claims"), "release evidence claims")
-    _exact_fields(claims, _CLAIM_FIELDS, "release evidence claims")
+    _exact_fields(
+        claims,
+        _CLAIM_FIELDS_V3 if environment_sbom_verified else _CLAIM_FIELDS_V1_V2,
+        "release evidence claims",
+    )
     expected_claims = {
         "artifact_hashes_verified": True,
         "installed_wheel_bytes_bound": True,
         "source_commit_clean": tree_state == "clean",
         "build_provenance_attested": False,
         "sbom_verified": sbom_verified,
+        **(
+            {"resolved_environment_sbom_verified": True}
+            if environment_sbom_verified
+            else {}
+        ),
         "artifact_signature_verified": False,
         "technical_release_evidence_complete": False,
         "release_readiness": False,
@@ -443,6 +561,7 @@ def main() -> int:
     parser.add_argument("--sdist", type=Path, required=True)
     parser.add_argument("--installed-proof", type=Path, required=True)
     parser.add_argument("--sbom", type=Path)
+    parser.add_argument("--resolved-environment-sbom", type=Path)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     evidence = build_evidence(
@@ -451,6 +570,7 @@ def main() -> int:
         sdist_path=args.sdist,
         installed_proof_path=args.installed_proof,
         sbom_path=args.sbom,
+        resolved_environment_sbom_path=args.resolved_environment_sbom,
     )
     _write_json(args.out, evidence)
     print(json.dumps(evidence, sort_keys=True))

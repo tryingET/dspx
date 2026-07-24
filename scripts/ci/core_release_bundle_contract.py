@@ -25,22 +25,29 @@ from core_release_evidence_io import (
     wheel_metadata as _wheel_metadata,
 )
 from core_release_proof_contract import validate_installed_proof
+from core_release_environment_sbom import (
+    load_environment_sbom_bytes,
+    validate_retained_environment_sbom,
+)
 from core_release_sbom import load_sbom_bytes, validate_sbom
 
 BUNDLE_SCHEMA_V1 = "dspx-core-release-bundle-v1"
 BUNDLE_SCHEMA_V2 = "dspx-core-release-bundle-v2"
-BUNDLE_SCHEMA = BUNDLE_SCHEMA_V2
+BUNDLE_SCHEMA_V3 = "dspx-core-release-bundle-v3"
+BUNDLE_SCHEMA = BUNDLE_SCHEMA_V3
 PROVENANCE_SCHEMA = "dspx-core-local-build-provenance-v1"
 _RELEASE_EVIDENCE_NAME = "dspx-core-release-evidence.json"
 _INSTALLED_PROOF_NAME = "installed-core-golden-path-proof.json"
 _PROVENANCE_NAME = "local-build-provenance.json"
 _SBOM_NAME = "dspx-core-wheel-sbom.cdx.json"
+_ENVIRONMENT_SBOM_NAME = "dspx-core-installed-environment-sbom.cdx.json"
 _MANIFEST_NAME = "bundle-manifest.json"
 _FIXED_NAMES = {
     _RELEASE_EVIDENCE_NAME,
     _INSTALLED_PROOF_NAME,
     _PROVENANCE_NAME,
     _SBOM_NAME,
+    _ENVIRONMENT_SBOM_NAME,
     _MANIFEST_NAME,
 }
 _FILE_ROLES_V1 = {
@@ -51,7 +58,8 @@ _FILE_ROLES_V1 = {
     "local-build-provenance",
 }
 _FILE_ROLES_V2 = _FILE_ROLES_V1 | {"core-sbom"}
-_FILE_ROLES = _FILE_ROLES_V2
+_FILE_ROLES_V3 = _FILE_ROLES_V2 | {"core-installed-environment-sbom"}
+_FILE_ROLES = _FILE_ROLES_V3
 _BUNDLE_CLAIMS_V1 = {
     "artifact_bytes_retained": True,
     "installed_proof_retained": True,
@@ -73,7 +81,12 @@ _BUNDLE_CLAIMS_V2 = {
     "sbom_generated": True,
     "sbom_verified": True,
 }
-_BUNDLE_CLAIMS = _BUNDLE_CLAIMS_V2
+_BUNDLE_CLAIMS_V3 = {
+    **_BUNDLE_CLAIMS_V2,
+    "resolved_environment_sbom_retained": True,
+    "resolved_environment_sbom_verified": True,
+}
+_BUNDLE_CLAIMS = _BUNDLE_CLAIMS_V3
 _PROVENANCE_CLAIMS = {
     "artifact_subjects_bound": True,
     "source_commit_recorded": True,
@@ -82,7 +95,7 @@ _PROVENANCE_CLAIMS = {
     "release_readiness": False,
     "release_authority": False,
 }
-_MAX_BUNDLE_BYTES = (2 * MAX_ARTIFACT_BYTES) + (5 * MAX_JSON_BYTES)
+_MAX_BUNDLE_BYTES = (2 * MAX_ARTIFACT_BYTES) + (6 * MAX_JSON_BYTES)
 
 
 def _mapping(value: object, label: str) -> Mapping[str, Any]:
@@ -177,8 +190,17 @@ def _manifest(
     ]
     files.sort(key=lambda item: str(item["role"]))
     with_sbom = any(role == "core-sbom" for role, _raw in members.values())
+    with_environment_sbom = any(
+        role == "core-installed-environment-sbom" for role, _raw in members.values()
+    )
     return {
-        "schema_version": BUNDLE_SCHEMA_V2 if with_sbom else BUNDLE_SCHEMA_V1,
+        "schema_version": (
+            BUNDLE_SCHEMA_V3
+            if with_environment_sbom
+            else BUNDLE_SCHEMA_V2
+            if with_sbom
+            else BUNDLE_SCHEMA_V1
+        ),
         "status": "passed",
         "package": dict(_mapping(release.get("package"), "release package")),
         "source": dict(_mapping(release.get("source"), "release source")),
@@ -188,7 +210,13 @@ def _manifest(
             "manifest_self_hash": False,
         },
         "files": files,
-        "claims": dict(_BUNDLE_CLAIMS_V2 if with_sbom else _BUNDLE_CLAIMS_V1),
+        "claims": dict(
+            _BUNDLE_CLAIMS_V3
+            if with_environment_sbom
+            else _BUNDLE_CLAIMS_V2
+            if with_sbom
+            else _BUNDLE_CLAIMS_V1
+        ),
     }
 
 
@@ -272,7 +300,11 @@ def _validate_bundle_raw(raw: bytes) -> dict[str, Any]:
         ) from exc
     with archive:
         infos = archive.infolist()
-        if len(infos) not in {len(_FILE_ROLES_V1) + 1, len(_FILE_ROLES_V2) + 1}:
+        if len(infos) not in {
+            len(_FILE_ROLES_V1) + 1,
+            len(_FILE_ROLES_V2) + 1,
+            len(_FILE_ROLES_V3) + 1,
+        }:
             raise CoreReleaseEvidenceError(
                 "Core release bundle member count is invalid"
             )
@@ -318,15 +350,23 @@ def _validate_bundle_raw(raw: bytes) -> dict[str, Any]:
     )
     bundle_schema = manifest.get("schema_version")
     if (
-        bundle_schema not in {BUNDLE_SCHEMA_V1, BUNDLE_SCHEMA_V2}
+        bundle_schema not in {BUNDLE_SCHEMA_V1, BUNDLE_SCHEMA_V2, BUNDLE_SCHEMA_V3}
         or manifest.get("status") != "passed"
     ):
         raise CoreReleaseEvidenceError("Core release bundle status drift")
     expected_roles = (
-        _FILE_ROLES_V2 if bundle_schema == BUNDLE_SCHEMA_V2 else _FILE_ROLES_V1
+        _FILE_ROLES_V3
+        if bundle_schema == BUNDLE_SCHEMA_V3
+        else _FILE_ROLES_V2
+        if bundle_schema == BUNDLE_SCHEMA_V2
+        else _FILE_ROLES_V1
     )
     expected_claims = (
-        _BUNDLE_CLAIMS_V2 if bundle_schema == BUNDLE_SCHEMA_V2 else _BUNDLE_CLAIMS_V1
+        _BUNDLE_CLAIMS_V3
+        if bundle_schema == BUNDLE_SCHEMA_V3
+        else _BUNDLE_CLAIMS_V2
+        if bundle_schema == BUNDLE_SCHEMA_V2
+        else _BUNDLE_CLAIMS_V1
     )
     if manifest.get("archive") != {
         "format": "zip",
@@ -374,10 +414,18 @@ def _validate_bundle_raw(raw: bytes) -> dict[str, Any]:
     if by_role["local-build-provenance"]["filename"] != _PROVENANCE_NAME:
         raise CoreReleaseEvidenceError("Core release bundle provenance name drift")
     if (
-        bundle_schema == BUNDLE_SCHEMA_V2
+        bundle_schema in {BUNDLE_SCHEMA_V2, BUNDLE_SCHEMA_V3}
         and by_role["core-sbom"]["filename"] != _SBOM_NAME
     ):
         raise CoreReleaseEvidenceError("Core release bundle SBOM name drift")
+    if (
+        bundle_schema == BUNDLE_SCHEMA_V3
+        and by_role["core-installed-environment-sbom"]["filename"]
+        != _ENVIRONMENT_SBOM_NAME
+    ):
+        raise CoreReleaseEvidenceError(
+            "Core release bundle resolved environment SBOM name drift"
+        )
 
     release = _json_object(payloads[_RELEASE_EVIDENCE_NAME], "Core release evidence")
     validate_evidence(release)
@@ -406,8 +454,14 @@ def _validate_bundle_raw(raw: bytes) -> dict[str, Any]:
         expected_version=cast(str, package["version"]),
     )
     release_schema = release.get("schema_version")
-    if bundle_schema == BUNDLE_SCHEMA_V2:
-        if release_schema != "dspx-core-release-evidence-v2":
+    proof_raw = payloads[_INSTALLED_PROOF_NAME]
+    if bundle_schema in {BUNDLE_SCHEMA_V2, BUNDLE_SCHEMA_V3}:
+        expected_release_schema = (
+            "dspx-core-release-evidence-v3"
+            if bundle_schema == BUNDLE_SCHEMA_V3
+            else "dspx-core-release-evidence-v2"
+        )
+        if release_schema != expected_release_schema:
             raise CoreReleaseEvidenceError("Core release bundle SBOM evidence drift")
         sbom_entry = by_role["core-sbom"]
         sbom_raw = payloads[cast(str, sbom_entry["filename"])]
@@ -421,9 +475,30 @@ def _validate_bundle_raw(raw: bytes) -> dict[str, Any]:
             wheel_raw=wheel_raw,
             wheel_filename=cast(str, wheel_entry["filename"]),
         )
+        if bundle_schema == BUNDLE_SCHEMA_V3:
+            environment_entry = by_role["core-installed-environment-sbom"]
+            environment_raw = payloads[cast(str, environment_entry["filename"])]
+            environment_summary = _mapping(
+                release.get("resolved_environment_sbom"),
+                "resolved environment SBOM summary",
+            )
+            if (
+                environment_summary.get("sha256") != _sha256(environment_raw)
+                or environment_summary.get("wheel_sha256") != _sha256(wheel_raw)
+                or environment_summary.get("installed_proof_sha256")
+                != _sha256(proof_raw)
+            ):
+                raise CoreReleaseEvidenceError(
+                    "Core release bundle resolved environment SBOM binding drift"
+                )
+            validate_retained_environment_sbom(
+                load_environment_sbom_bytes(environment_raw),
+                wheel_raw=wheel_raw,
+                wheel_filename=cast(str, wheel_entry["filename"]),
+                installed_proof_raw=proof_raw,
+            )
     elif release_schema != "dspx-core-release-evidence-v1":
         raise CoreReleaseEvidenceError("Core release bundle legacy evidence drift")
-    proof_raw = payloads[_INSTALLED_PROOF_NAME]
     installed = _mapping(
         release.get("installed_wheel_proof"), "installed proof summary"
     )
