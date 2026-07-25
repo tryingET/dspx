@@ -37,7 +37,7 @@ The latest bounded proof establishes:
 - a stub-provider journey through candidate materialization, passing local behavior, receipt checking, candidate-local Oracle indexing/reporting, and candidate-state generation;
 - exact installed-wheel payload verification against wheel `RECORD` plus rejection of undeclared importable package files;
 - a hash-bound release-evidence v3 envelope over the wheel, sdist, installed proof, exact-wheel CycloneDX SBOM, and point-in-time resolved-environment CycloneDX SBOM;
-- exact-wheel metadata reconciliation for resolved-environment evidence: generation now requires the installed Core root name, version, and complete canonical requirement inventory to match the wheel, while retained validation re-derives active direct root edges and version constraints under the recorded marker environment;
+- exact-wheel metadata reconciliation for resolved-environment evidence: generation requires the installed Core root name, version, and complete canonical requirement inventory to match the wheel, rejects duplicate Core requirement identities instead of normalizing them away, and accepts ambient marker identity only when the caller omits that input entirely; retained validation re-derives active direct root edges and version constraints under the recorded marker environment;
 - fail-closed rejection of ambiguous wheel identity headers, duplicate canonical environment components, rewired root edges, and direct-URL dependencies whose artifact provenance is not represented by the environment SBOM;
 - an optional mode-0600, no-replace local release bundle retaining those subjects, SBOMs, proof, envelope, manifest, and an unauthenticated local provenance statement;
 - machine-readable replay claims that distinguish receipt integrity, deterministic regeneration, runtime reproduction, semantic reproduction, and quality-evaluation reproduction;
@@ -52,11 +52,11 @@ The repo-declared local confidence gates are green:
 
 - `just typecheck` passes after module-quality rank-key normalization removed the unsafe `int(object)` boundary.
 - `just typecheck-tests` passes after test fixtures gained typed mutable boundaries, frozen-capability mutation was checked through Pydantic's `ValidationError`, and marker-environment values were narrowed without casts or filtering.
-- `just verify-full` passes on the current exact-wheel environment-binding working tree. The credential-free offline suite passed 2608 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
+- `just verify-full` passes at the commit-bound exact-wheel environment-binding baseline. The credential-free offline suite passed 2608 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
 
 This establishes the current repo-local full-gate baseline. It does not establish live-provider quality, production-semantic Oracle quality, signer verification, CI custody, publication, release approval, or activation.
 
-For the exact-wheel environment-binding slice, `just loop-impact-wide` passed the repo-selected wide plan: 45 touched release tests, 91 impact-planner tests, 64 release-bundle tests, strict docs, workflow and Ruff checks, a fresh Core/Forge package and retained-bundle journey, and the full gate above. This is current working-tree proof, not commit-bound or release-authoritative evidence.
+For the lossless-normalization fixup, `just loop-impact-run` passed the repo-selected expanded plan: 14 focused environment-SBOM tests, 91 impact-planner tests, 69 release-bundle tests, workflow and Ruff checks, and a fresh Core/Forge package and retained-bundle journey. The proof covers duplicate Core requirements, bounded iterable consumption, and explicit empty, incomplete, widened, or invalid marker environments. This is current working-tree proof, not commit-bound or release-authoritative evidence.
 
 ### Deferred and contingent next moves
 

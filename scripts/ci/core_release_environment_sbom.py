@@ -11,6 +11,7 @@ import argparse
 from collections import deque
 from collections.abc import Iterable, Mapping
 from importlib import metadata
+from itertools import islice
 import json
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
@@ -100,16 +101,24 @@ def _record(name: str, version: str, requirements: Iterable[str]) -> dict[str, A
         raise CoreReleaseEvidenceError(
             f"installed distribution {canonical_name} version is invalid"
         ) from exc
-    raw_requirements = list(requirements)
+    raw_requirements = list(
+        islice(iter(requirements), _MAX_REQUIREMENTS_PER_DISTRIBUTION + 1)
+    )
     if len(raw_requirements) > _MAX_REQUIREMENTS_PER_DISTRIBUTION:
         raise CoreReleaseEvidenceError(
             f"installed distribution {canonical_name} requirement inventory is oversized"
         )
     parsed = [_requirement(value, canonical_name) for value in raw_requirements]
-    identities = [_requirement_identity(item) for item in parsed]
-    unique_requirements = {
-        identity: str(item) for identity, item in zip(identities, parsed)
-    }
+    unique_requirements: dict[str, str] = {}
+    for item in parsed:
+        identity = _requirement_identity(item)
+        if identity in unique_requirements:
+            if canonical_name == _ROOT_NAME:
+                raise CoreReleaseEvidenceError(
+                    "installed Core requirement inventory contains a duplicate"
+                )
+            continue
+        unique_requirements[identity] = str(item)
     return {
         "name": canonical_name,
         "version": normalized_version,
@@ -190,10 +199,7 @@ def _validate_root_against_wheel(
         _requirement(raw, _ROOT_NAME) for raw in cast(list[str], root["requirements"])
     ]
     wheel_dependencies = cast(list[dict[str, str]], inventory["dependencies"])
-    wheel = [
-        _requirement(cast(str, row["requirement"]), _ROOT_NAME)
-        for row in wheel_dependencies
-    ]
+    wheel = [_requirement(row["requirement"], _ROOT_NAME) for row in wheel_dependencies]
     if any(requirement.url is not None for requirement in [*installed, *wheel]):
         raise CoreReleaseEvidenceError(
             "resolved environment cannot prove exact-wheel direct URL dependencies"
@@ -201,7 +207,7 @@ def _validate_root_against_wheel(
     installed_requirements = {
         _requirement_identity(requirement) for requirement in installed
     }
-    wheel_requirements = {cast(str, row["identity"]) for row in wheel_dependencies}
+    wheel_requirements = {row["identity"] for row in wheel_dependencies}
     if installed_requirements != wheel_requirements:
         raise CoreReleaseEvidenceError(
             "resolved environment root dependency inventory does not match exact Core wheel"
@@ -318,18 +324,18 @@ def build_environment_sbom(
     _validate_root_against_wheel(
         root, wheel_raw=wheel_raw, wheel_filename=wheel_filename
     )
-    marker_environment = dict(default_environment())
-    observed_environment = dict(environment or _environment_identity())
+    observed_environment = dict(
+        _environment_identity() if environment is None else environment
+    )
     if set(observed_environment) != _MARKER_ENVIRONMENT_KEYS:
         raise CoreReleaseEvidenceError(
-            "resolved environment marker identity is incomplete"
+            "resolved environment marker identity fields do not match contract"
         )
     observed_environment = {
         key: _safe_text(value, f"marker environment {key}")
         for key, value in sorted(observed_environment.items())
     }
-    marker_environment.update(observed_environment)
-    closure, edges = _resolved_closure(normalized, marker_environment)
+    closure, edges = _resolved_closure(normalized, observed_environment)
     wheel_hash = _sha256(wheel_raw)
     proof_hash = _sha256(installed_proof_raw)
     root_ref = _ref(_ROOT_NAME, cast(str, root["version"]))

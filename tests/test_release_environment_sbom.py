@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import csv
+from collections.abc import Iterator
 import hashlib
 import importlib.util
 from io import BytesIO, StringIO
@@ -174,6 +175,48 @@ def test_environment_sbom_propagates_extras_and_retains_complete_marker_identity
         assert f"dspx:environment:{key.replace('_', '-')}" in property_names
 
 
+@pytest.mark.parametrize(
+    "environment",
+    [
+        {},
+        {"python_version": "3.13"},
+        {**_environment(), "unexpected": "value"},
+    ],
+)
+def test_environment_sbom_rejects_explicit_incomplete_or_widened_environment(
+    environment: dict[str, str],
+) -> None:
+    module = _load()
+    with pytest.raises(
+        module.CoreReleaseEvidenceError,
+        match="marker identity fields do not match contract",
+    ):
+        module.build_environment_sbom(
+            wheel_raw=_wheel_bytes(),
+            wheel_filename="dspx_core-0.1.0-py3-none-any.whl",
+            installed_proof_raw=b'{"proof":"exact"}',
+            records=_records(),
+            environment=environment,
+        )
+
+
+def test_environment_sbom_rejects_invalid_complete_environment_value() -> None:
+    module = _load()
+    environment = _environment()
+    environment["python_version"] = ""
+    with pytest.raises(
+        module.CoreReleaseEvidenceError,
+        match="marker environment python_version is invalid",
+    ):
+        module.build_environment_sbom(
+            wheel_raw=_wheel_bytes(),
+            wheel_filename="dspx_core-0.1.0-py3-none-any.whl",
+            installed_proof_raw=b'{"proof":"exact"}',
+            records=_records(),
+            environment=environment,
+        )
+
+
 def test_environment_sbom_rejects_missing_mismatched_and_unreachable_dependencies() -> (
     None
 ):
@@ -210,6 +253,41 @@ def test_environment_sbom_rejects_duplicate_names_and_invalid_metadata() -> None
     invalid[1]["requirements"] = ["not valid !!!"]
     with pytest.raises(module.CoreReleaseEvidenceError, match="requirement is invalid"):
         _build(module, invalid)
+
+    duplicate_root_requirement = _records()
+    duplicate_root_requirement[0]["requirements"].append("alpha >= 2")
+    with pytest.raises(
+        module.CoreReleaseEvidenceError,
+        match="Core requirement inventory contains a duplicate",
+    ):
+        _build(module, duplicate_root_requirement)
+
+    duplicate_transitive_requirement = _records()
+    duplicate_transitive_requirement[1]["requirements"].append("Gamma ~= 1.2")
+    assert _build(module, duplicate_transitive_requirement)["bomFormat"] == "CycloneDX"
+
+
+def test_environment_sbom_bounds_requirement_iterable_consumption(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load()
+    consumed: list[int] = []
+
+    def requirements() -> Iterator[str]:
+        index = 0
+        while True:
+            consumed.append(index)
+            yield f"dependency-{index}"
+            index += 1
+
+    records = _records()
+    records[0]["requirements"] = requirements()
+    monkeypatch.setattr(module, "_MAX_REQUIREMENTS_PER_DISTRIBUTION", 2)
+    with pytest.raises(
+        module.CoreReleaseEvidenceError, match="requirement inventory is oversized"
+    ):
+        _build(module, records)
+    assert consumed == [0, 1, 2]
 
 
 def test_environment_sbom_rejects_exact_wheel_root_metadata_drift() -> None:
