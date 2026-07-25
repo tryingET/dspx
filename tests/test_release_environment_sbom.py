@@ -53,7 +53,11 @@ def _records() -> list[dict[str, Any]]:
 
 
 def _environment() -> dict[str, str]:
-    return dict(default_environment())
+    environment: dict[str, str] = {}
+    for key, value in default_environment().items():
+        assert isinstance(value, str)
+        environment[key] = value
+    return environment
 
 
 def _build(

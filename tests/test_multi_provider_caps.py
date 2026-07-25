@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from dspx.multi_provider_lm import _combine_caps
 from dspx.capabilities import ProviderCapabilities
@@ -157,7 +158,5 @@ class TestCombineCaps:
         result = _combine_caps([provider])
 
         assert result is not None
-        with pytest.raises(
-            Exception
-        ):  # Pydantic raises ValidationError on frozen model
-            result.json_mode = False
+        with pytest.raises(ValidationError):
+            setattr(result, "json_mode", False)

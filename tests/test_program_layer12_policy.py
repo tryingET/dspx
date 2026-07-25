@@ -5,9 +5,11 @@
 from __future__ import annotations
 
 import base64
+from collections.abc import Callable
 import copy
 import json
 from pathlib import Path
+from typing import TypedDict
 
 import jsonschema
 import pytest
@@ -53,6 +55,40 @@ SIGNED_EVAL_REFS = {
 }
 
 
+class _AggregateInputs(TypedDict):
+    policy: dict[str, object]
+    compatibility: dict[str, object]
+    cohort: dict[str, object]
+    metric_receipts: list[dict[str, object]]
+    comparison_receipt: dict[str, object]
+    expected_identity: dict[str, str]
+    expected_policy_digest: str
+    expected_compatibility_digest: str
+    expected_cohort_digest: str
+    expected_metric_receipt_digests: list[str]
+    expected_comparison_receipt_digest: str
+    now: str
+
+
+class _SignedPayload(TypedDict):
+    evaluations: list[dict[str, object]]
+    result: dict[str, object]
+    preregistration: dict[str, object]
+    policy_selected: bool
+
+
+class _SignedEnvelope(TypedDict):
+    payload: _SignedPayload
+    payload_digest: str
+    signature_b64: str
+
+
+class _SignedShadowFixture(TypedDict):
+    envelope: _SignedEnvelope
+    verification_now: str
+    expected_status: str
+
+
 def _identity() -> dict[str, str]:
     return {
         "protocol_version": "layer12-v1",
@@ -64,9 +100,9 @@ def _identity() -> dict[str, str]:
     }
 
 
-def _aggregate_inputs() -> dict[str, object]:
+def _aggregate_inputs() -> _AggregateInputs:
     identity = _identity()
-    compatibility = {
+    compatibility: dict[str, object] = {
         "schema_version": "layer12-execution-compatibility-v1",
         "identity": identity,
         "runtime_digest": "sha256:runtime",
@@ -76,14 +112,14 @@ def _aggregate_inputs() -> dict[str, object]:
         "expires_at": "2026-07-11T13:00:00Z",
         "live_evaluation_replayable": False,
     }
-    cohort = {
+    cohort: dict[str, object] = {
         "schema_version": "layer12-comparison-cohort-v1",
         "identity": copy.deepcopy(identity),
         "cohort_id": "cohort:001",
         "candidate_ids": ["candidate:001", "candidate:002"],
         "compatibility_digest": digest(compatibility),
     }
-    receipts = [
+    receipts: list[dict[str, object]] = [
         {
             "schema_version": "layer12-dspx-metric-receipt-v1",
             "identity": copy.deepcopy(identity),
@@ -99,7 +135,7 @@ def _aggregate_inputs() -> dict[str, object]:
         }
         for metric, score in (("quality", 0.80), ("safety", 1.0))
     ]
-    comparison = {
+    comparison: dict[str, object] = {
         "schema_version": "layer12-comparison-receipt-v1",
         "identity": copy.deepcopy(identity),
         "cohort_id": "cohort:001",
@@ -239,9 +275,11 @@ def test_fixed_cross_language_fixture_matches_schema_and_checker() -> None:
         ),
     ],
 )
-def test_aggregate_fails_closed(mutation: object, message: str) -> None:
+def test_aggregate_fails_closed(
+    mutation: Callable[[_AggregateInputs], object], message: str
+) -> None:
     payload = _aggregate_inputs()
-    mutation(payload)  # type: ignore[operator]
+    mutation(payload)
     with pytest.raises(Layer12PolicyError, match=message):
         check_advisory_aggregate(**payload)
 
@@ -296,7 +334,9 @@ def test_shadow_evidence_can_pass_without_selecting_policy() -> None:
 
 
 def _check_signed_shadow_fixture(
-    fixture: dict[str, object], *, expected_payload_digest: str = SIGNED_PAYLOAD_DIGEST
+    fixture: _SignedShadowFixture,
+    *,
+    expected_payload_digest: str = SIGNED_PAYLOAD_DIGEST,
 ) -> dict[str, object]:
     return check_signed_dspx_shadow_receipt(
         envelope=fixture["envelope"],
@@ -313,9 +353,8 @@ def _check_signed_shadow_fixture(
     )
 
 
-def _resign_shadow_fixture(fixture: dict[str, object]) -> str:
+def _resign_shadow_fixture(fixture: _SignedShadowFixture) -> str:
     envelope = fixture["envelope"]
-    assert isinstance(envelope, dict)
     payload = envelope["payload"]
     payload_digest = digest(payload)
     envelope["payload_digest"] = payload_digest
@@ -335,7 +374,9 @@ def _resign_shadow_fixture(fixture: dict[str, object]) -> str:
 
 
 def test_signed_iw14a_shadow_fixture_is_content_addressed_and_unselected() -> None:
-    fixture = json.loads(SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8"))
+    fixture: _SignedShadowFixture = json.loads(
+        SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8")
+    )
     checked = _check_signed_shadow_fixture(fixture)
     assert checked["status"] == fixture["expected_status"] == "passing_unselected"
     assert checked["signature_verified"] is True
@@ -366,10 +407,12 @@ def test_signed_iw14a_shadow_fixture_is_content_addressed_and_unselected() -> No
     ],
 )
 def test_signed_iw14a_shadow_fixture_fails_closed(
-    mutation: object, message: str
+    mutation: Callable[[_SignedShadowFixture], object], message: str
 ) -> None:
-    fixture = json.loads(SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8"))
-    mutation(fixture)  # type: ignore[operator]
+    fixture: _SignedShadowFixture = json.loads(
+        SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8")
+    )
+    mutation(fixture)
     with pytest.raises(Layer12PolicyError, match=message):
         _check_signed_shadow_fixture(fixture)
 
@@ -403,11 +446,13 @@ def test_signed_iw14a_shadow_fixture_fails_closed(
     ],
 )
 def test_resigned_semantic_laundering_fails_closed(
-    mutation: object, message: str
+    mutation: Callable[[_SignedPayload], object], message: str
 ) -> None:
-    fixture = json.loads(SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8"))
+    fixture: _SignedShadowFixture = json.loads(
+        SIGNED_SHADOW_FIXTURE_PATH.read_text(encoding="utf-8")
+    )
     payload = fixture["envelope"]["payload"]
-    mutation(payload)  # type: ignore[operator]
+    mutation(payload)
     resigned_digest = _resign_shadow_fixture(fixture)
     with pytest.raises(Layer12PolicyError, match=message):
         _check_signed_shadow_fixture(fixture, expected_payload_digest=resigned_digest)
@@ -470,18 +515,18 @@ def test_shadow_result_rejects_false_predicate_claim_and_selection_laundering() 
 
 def test_contracts_are_closed_against_unknown_fields() -> None:
     payload = _aggregate_inputs()
-    payload["policy"]["selected"] = True  # type: ignore[index]
+    payload["policy"]["selected"] = True
     with pytest.raises(Layer12PolicyError, match="fields mismatch"):
         check_advisory_aggregate(**payload)
 
 
 def test_external_bindings_reject_policy_and_identity_substitution() -> None:
     payload = _aggregate_inputs()
-    payload["policy"]["metric_weights"] = {"quality": 1, "safety": 99}  # type: ignore[index]
+    payload["policy"]["metric_weights"] = {"quality": 1, "safety": 99}
     with pytest.raises(Layer12PolicyError, match="policy digest"):
         check_advisory_aggregate(**payload)
     payload = _aggregate_inputs()
-    payload["expected_identity"]["transition_token"] = "ak.task.complete"  # type: ignore[index]
+    payload["expected_identity"]["transition_token"] = "ak.task.complete"
     with pytest.raises(Layer12PolicyError, match="external binding"):
         check_advisory_aggregate(**payload)
 
@@ -493,10 +538,9 @@ def test_metric_receipt_time_is_bounded_by_compatibility_and_now() -> None:
         "2099-01-01T00:00:00Z",
     ):
         payload = _aggregate_inputs()
-        payload["metric_receipts"][0]["measured_at"] = measured_at  # type: ignore[index]
-        payload["comparison_receipt"]["metric_receipt_digests"] = sorted(  # type: ignore[index]
-            digest(item)
-            for item in payload["metric_receipts"]  # type: ignore[union-attr]
+        payload["metric_receipts"][0]["measured_at"] = measured_at
+        payload["comparison_receipt"]["metric_receipt_digests"] = sorted(
+            digest(item) for item in payload["metric_receipts"]
         )
         with pytest.raises(Layer12PolicyError, match="future, stale, or outside"):
             check_advisory_aggregate(**payload)
@@ -563,16 +607,15 @@ def test_fixed_negative_fixture_inventory_is_executed() -> None:
 )
 def test_strict_rfc3339_rejects_malformed_authenticated_times(malformed: str) -> None:
     payload = _aggregate_inputs()
-    payload["compatibility"]["observed_at"] = malformed  # type: ignore[index]
+    payload["compatibility"]["observed_at"] = malformed
     payload["expected_compatibility_digest"] = digest(payload["compatibility"])
     with pytest.raises(Layer12PolicyError, match="RFC3339"):
         check_advisory_aggregate(**payload)
 
     payload = _aggregate_inputs()
-    payload["metric_receipts"][0]["measured_at"] = malformed  # type: ignore[index]
-    payload["expected_metric_receipt_digests"] = sorted(  # type: ignore[assignment]
-        digest(item)
-        for item in payload["metric_receipts"]  # type: ignore[union-attr]
+    payload["metric_receipts"][0]["measured_at"] = malformed
+    payload["expected_metric_receipt_digests"] = sorted(
+        digest(item) for item in payload["metric_receipts"]
     )
     with pytest.raises(Layer12PolicyError, match="RFC3339"):
         check_advisory_aggregate(**payload)

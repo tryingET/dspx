@@ -44,13 +44,13 @@ The latest bounded proof establishes:
 
 These observations are implemented and exercised by the package and focused test lanes. They are not release approval.
 
-### Known red repository gates
+### Validation gate status
 
-Production-code type confidence is green, but repo-wide type confidence is not:
+Both type lanes are now green, but the full gate still has one observed failure:
 
-- `just typecheck` now passes after module-quality rank-key normalization removed the unsafe `int(object)` boundary; focused proof also covers numeric ordering and malformed-key tolerance.
-- `just typecheck-tests` still fails with 77 diagnostics. AK-4115 tracks the earlier 76-diagnostic baseline in two test files, while the current run also reports a diagnostic in `test_release_environment_sbom.py`; reconcile the AK scope/count before treating that task as closure authority.
-- Because the canonical full gate includes the test type-check lane, `just verify-full` still cannot establish release confidence. Focused, package, and docs passes do not supersede this red gate.
+- `just typecheck` passes after module-quality rank-key normalization removed the unsafe `int(object)` boundary.
+- `just typecheck-tests` passes after test fixtures gained typed mutable boundaries, frozen-capability mutation was checked through Pydantic's `ValidationError`, and marker-environment values were narrowed without casts or filtering.
+- `just verify-full` now reaches the complete offline suite but fails one deterministic refined-review contract test: `test_meta_adjudication_plan_revalidates_refined_review_contract` receives `contract_invalid` for its nominal fixture. AK-4148 owns that separate contract-drift/full-gate blocker. Until it passes, focused and typecheck evidence do not establish full release confidence.
 
 ### Deferred and contingent next moves
 
