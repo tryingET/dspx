@@ -37,6 +37,8 @@ The latest bounded proof establishes:
 - a stub-provider journey through candidate materialization, passing local behavior, receipt checking, candidate-local Oracle indexing/reporting, and candidate-state generation;
 - exact installed-wheel payload verification against wheel `RECORD` plus rejection of undeclared importable package files;
 - a hash-bound release-evidence v3 envelope over the wheel, sdist, installed proof, exact-wheel CycloneDX SBOM, and point-in-time resolved-environment CycloneDX SBOM;
+- exact-wheel metadata reconciliation for resolved-environment evidence: generation now requires the installed Core root name, version, and complete canonical requirement inventory to match the wheel, while retained validation re-derives active direct root edges and version constraints under the recorded marker environment;
+- fail-closed rejection of ambiguous wheel identity headers, duplicate canonical environment components, rewired root edges, and direct-URL dependencies whose artifact provenance is not represented by the environment SBOM;
 - an optional mode-0600, no-replace local release bundle retaining those subjects, SBOMs, proof, envelope, manifest, and an unauthenticated local provenance statement;
 - machine-readable replay claims that distinguish receipt integrity, deterministic regeneration, runtime reproduction, semantic reproduction, and quality-evaluation reproduction;
 - explicit Oracle embedding-backend identity, with mock vectors labeled plumbing-only and unavailable production backends failing closed;
@@ -50,9 +52,11 @@ The repo-declared local confidence gates are green:
 
 - `just typecheck` passes after module-quality rank-key normalization removed the unsafe `int(object)` boundary.
 - `just typecheck-tests` passes after test fixtures gained typed mutable boundaries, frozen-capability mutation was checked through Pydantic's `ValidationError`, and marker-environment values were narrowed without casts or filtering.
-- `just verify-full` passes after the nominal refined-review meta-adjudication fixture was rebuilt through current production report, proposal, and review builders. The credential-free offline suite passed 2605 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
+- `just verify-full` passes on the current exact-wheel environment-binding working tree. The credential-free offline suite passed 2608 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
 
 This establishes the current repo-local full-gate baseline. It does not establish live-provider quality, production-semantic Oracle quality, signer verification, CI custody, publication, release approval, or activation.
+
+For the exact-wheel environment-binding slice, `just loop-impact-wide` passed the repo-selected wide plan: 45 touched release tests, 91 impact-planner tests, 64 release-bundle tests, strict docs, workflow and Ruff checks, a fresh Core/Forge package and retained-bundle journey, and the full gate above. This is current working-tree proof, not commit-bound or release-authoritative evidence.
 
 ### Deferred and contingent next moves
 
@@ -72,6 +76,7 @@ Current evidence does **not** prove:
 - production-semantic Oracle embeddings or comparison quality;
 - OS-level network isolation or exclusion of absolute-path/external API effects;
 - hash-locked dependency resolution, retained dependency artifacts, reproducible builds, or future resolver stability;
+- artifact-source provenance for direct-URL dependencies, which the resolved-environment SBOM now rejects rather than representing incompletely;
 - vulnerability, license, VEX, or supply-chain policy acceptance;
 - attested provenance, trusted signer identity, signature verification, or CI custody;
 - exact-sdist PEP 517 build/install behavior or source-to-wheel equivalence;
@@ -85,7 +90,7 @@ Current evidence does **not** prove:
 | Execution and replay | Generated examples/datasets can run through bounded behavior harnesses and explicit runtime episodes. Replay claims are machine-readable and receipt-bound. | No general semantic-reproduction claim, broad provider/runtime coverage, or receipt-bound multi-episode product contract. |
 | Oracle behavioral evidence | Candidate-local evidence can be indexed and reported with explicit backend identity; Oracle exposes search, drift, territory, frontier, attractor, and program-evidence concepts. | Production-semantic embedding quality and shared-backend readiness remain separate empirical/operational gates. Oracle remains interpretation, not authority. |
 | Refinement and review | Local proposals, GEPA attempts, second candidates, comparisons, jury/model-jury evidence, adjudication records, plans, status, and activation-preflight packets exist as inspectable sidecars and guided workflows. | Further autonomous orchestration is paused. External apply, activation, and owner acceptance remain unavailable without their own authority contracts. |
-| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel payload identity, two SBOM scopes, release claim separation, and local evidence retention are proven in the bounded package lane. | Owner-authorized signer verification and CI custody are the immediate gates; publication/readiness remain false. |
+| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel payload identity, exact wheel-to-installed-root metadata and direct-edge reconciliation, two SBOM scopes, release claim separation, and local evidence retention are proven in the bounded package lane. | Direct-URL dependency provenance remains unsupported and fails closed. Owner-authorized signer verification and CI custody are the immediate gates; publication/readiness remain false. |
 | Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop. | The product still needs owner-gated release operations and later live empirical proof before a production-ready claim. |
 
 ## Durable boundaries

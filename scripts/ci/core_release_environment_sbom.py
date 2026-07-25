@@ -31,7 +31,6 @@ from core_release_evidence_io import (
     CoreReleaseEvidenceError,
     sha256 as _sha256,
     stable_regular_bytes as _stable_regular_bytes,
-    wheel_metadata as _wheel_metadata,
     write_json as _write_json,
 )
 from core_release_sbom import (
@@ -39,6 +38,7 @@ from core_release_sbom import (
     SPEC_VERSION,
     _purl_name,
     _validate_official_schema,
+    _wheel_inventory,
 )
 
 ENVIRONMENT_SBOM_COMPLETENESS = "observed_resolved_installed_distribution_closure"
@@ -72,6 +72,22 @@ def _requirement(value: str, owner: str) -> Requirement:
         ) from exc
 
 
+def _requirement_identity(requirement: Requirement) -> str:
+    return json.dumps(
+        {
+            "name": canonicalize_name(requirement.name),
+            "extras": sorted(canonicalize_name(extra) for extra in requirement.extras),
+            "specifier": str(requirement.specifier),
+            "url": requirement.url,
+            "marker": (
+                str(requirement.marker) if requirement.marker is not None else None
+            ),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
 def _record(name: str, version: str, requirements: Iterable[str]) -> dict[str, Any]:
     canonical_name = canonicalize_name(_safe_text(name, "installed distribution name"))
     try:
@@ -90,20 +106,7 @@ def _record(name: str, version: str, requirements: Iterable[str]) -> dict[str, A
             f"installed distribution {canonical_name} requirement inventory is oversized"
         )
     parsed = [_requirement(value, canonical_name) for value in raw_requirements]
-    identities = [
-        json.dumps(
-            {
-                "name": canonicalize_name(item.name),
-                "extras": sorted(canonicalize_name(extra) for extra in item.extras),
-                "specifier": str(item.specifier),
-                "url": item.url,
-                "marker": str(item.marker) if item.marker is not None else None,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        for item in parsed
-    ]
+    identities = [_requirement_identity(item) for item in parsed]
     unique_requirements = {
         identity: str(item) for identity, item in zip(identities, parsed)
     }
@@ -156,6 +159,53 @@ def _normalize_records(
                 "installed distribution inventory is oversized"
             )
     return normalized
+
+
+def _validate_root_against_wheel(
+    root: Mapping[str, Any], *, wheel_raw: bytes, wheel_filename: str
+) -> None:
+    inventory = _wheel_inventory(wheel_raw, wheel_filename=wheel_filename)
+    wheel_name = canonicalize_name(
+        _safe_text(inventory.get("package_name"), "Core wheel package name")
+    )
+    try:
+        wheel_version = str(
+            Version(
+                _safe_text(
+                    inventory.get("package_version"), "Core wheel package version"
+                )
+            )
+        )
+    except InvalidVersion as exc:
+        raise CoreReleaseEvidenceError("Core wheel package version is invalid") from exc
+    if (
+        wheel_name != _ROOT_NAME
+        or root.get("name") != wheel_name
+        or root.get("version") != wheel_version
+    ):
+        raise CoreReleaseEvidenceError(
+            "resolved environment root identity does not match exact Core wheel"
+        )
+    installed = [
+        _requirement(raw, _ROOT_NAME) for raw in cast(list[str], root["requirements"])
+    ]
+    wheel_dependencies = cast(list[dict[str, str]], inventory["dependencies"])
+    wheel = [
+        _requirement(cast(str, row["requirement"]), _ROOT_NAME)
+        for row in wheel_dependencies
+    ]
+    if any(requirement.url is not None for requirement in [*installed, *wheel]):
+        raise CoreReleaseEvidenceError(
+            "resolved environment cannot prove exact-wheel direct URL dependencies"
+        )
+    installed_requirements = {
+        _requirement_identity(requirement) for requirement in installed
+    }
+    wheel_requirements = {cast(str, row["identity"]) for row in wheel_dependencies}
+    if installed_requirements != wheel_requirements:
+        raise CoreReleaseEvidenceError(
+            "resolved environment root dependency inventory does not match exact Core wheel"
+        )
 
 
 def _active_dependency_names(
@@ -262,6 +312,12 @@ def build_environment_sbom(
     normalized = _normalize_records(
         records if records is not None else collect_installed_records()
     )
+    if _ROOT_NAME not in normalized:
+        raise CoreReleaseEvidenceError("resolved environment lacks dspx-core")
+    root = normalized[_ROOT_NAME]
+    _validate_root_against_wheel(
+        root, wheel_raw=wheel_raw, wheel_filename=wheel_filename
+    )
     marker_environment = dict(default_environment())
     observed_environment = dict(environment or _environment_identity())
     if set(observed_environment) != _MARKER_ENVIRONMENT_KEYS:
@@ -274,7 +330,6 @@ def build_environment_sbom(
     }
     marker_environment.update(observed_environment)
     closure, edges = _resolved_closure(normalized, marker_environment)
-    root = normalized[_ROOT_NAME]
     wheel_hash = _sha256(wheel_raw)
     proof_hash = _sha256(installed_proof_raw)
     root_ref = _ref(_ROOT_NAME, cast(str, root["version"]))
@@ -410,7 +465,7 @@ def validate_retained_environment_sbom(
         wheel_raw=wheel_raw,
         wheel_filename=wheel_filename,
         installed_proof_raw=installed_proof_raw,
-        wheel_metadata=_wheel_metadata,
+        wheel_inventory=_wheel_inventory,
     )
 
 

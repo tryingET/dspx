@@ -15,23 +15,24 @@ from typing import Any, cast
 import uuid
 
 from packaging.markers import default_environment
-
+from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from core_release_evidence_io import (
     CoreReleaseEvidenceError,
     sha256 as _sha256,
-    wheel_metadata as _wheel_metadata,
 )
 from core_release_sbom import (
     BOM_FORMAT,
     SPEC_VERSION,
     _purl_name,
     _validate_official_schema,
+    _wheel_inventory,
 )
 
 _SCOPE = "exact-observed-resolved-installed-python-distribution-closure"
+_ROOT_NAME = "dspx-core"
 _MAX_DISTRIBUTIONS = 4_000
 _MARKER_ENVIRONMENT_KEYS = frozenset(default_environment())
 
@@ -46,6 +47,58 @@ def _safe_text(value: object, label: str, *, limit: int = 1_024) -> str:
 
 def _ref(name: str, version: str) -> str:
     return f"pkg:pypi/{_purl_name(name)}@{quote(version, safe='.-_')}"
+
+
+def _wheel_direct_dependencies(
+    inventory: Mapping[str, Any],
+    *,
+    environment: Mapping[str, str],
+    components_by_name: Mapping[str, Mapping[str, Any]],
+) -> list[str]:
+    raw_dependencies = inventory.get("dependencies")
+    if not isinstance(raw_dependencies, list):
+        raise CoreReleaseEvidenceError("Core wheel dependency inventory drift")
+    active: set[str] = set()
+    for row in raw_dependencies:
+        if not isinstance(row, Mapping) or not isinstance(row.get("requirement"), str):
+            raise CoreReleaseEvidenceError("Core wheel dependency inventory drift")
+        try:
+            requirement = Requirement(cast(str, row["requirement"]))
+        except InvalidRequirement as exc:
+            raise CoreReleaseEvidenceError(
+                "Core wheel dependency inventory drift"
+            ) from exc
+        if requirement.url is not None:
+            raise CoreReleaseEvidenceError(
+                "resolved environment cannot prove exact-wheel direct URL dependencies"
+            )
+        if requirement.marker is not None:
+            try:
+                enabled = requirement.marker.evaluate({**environment, "extra": ""})
+            except Exception as exc:
+                raise CoreReleaseEvidenceError(
+                    "Core wheel dependency marker cannot be evaluated"
+                ) from exc
+            if not enabled:
+                continue
+        name = canonicalize_name(requirement.name)
+        component = components_by_name.get(name)
+        if component is None:
+            raise CoreReleaseEvidenceError(
+                f"resolved environment lacks exact-wheel dependency: {name}"
+            )
+        try:
+            version = Version(cast(str, component["version"]))
+        except (InvalidVersion, KeyError) as exc:
+            raise CoreReleaseEvidenceError(
+                f"resolved environment exact-wheel dependency version is invalid: {name}"
+            ) from exc
+        if requirement.specifier and version not in requirement.specifier:
+            raise CoreReleaseEvidenceError(
+                f"resolved environment exact-wheel dependency version mismatch: {name}"
+            )
+        active.add(name)
+    return sorted(active)
 
 
 def _component_row(value: object, *, root: bool) -> dict[str, Any]:
@@ -158,7 +211,7 @@ def validate_retained_environment_sbom(
     wheel_raw: bytes,
     wheel_filename: str,
     installed_proof_raw: bytes,
-    wheel_metadata: Callable[[bytes], tuple[str, str]] = _wheel_metadata,
+    wheel_inventory: Callable[..., dict[str, Any]] = _wheel_inventory,
 ) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise CoreReleaseEvidenceError("resolved environment SBOM must be an object")
@@ -189,7 +242,22 @@ def validate_retained_environment_sbom(
     component = _component_row(metadata_value.get("component"), root=True)
     wheel_hash = _sha256(wheel_raw)
     proof_hash = _sha256(installed_proof_raw)
-    wheel_name, wheel_version = wheel_metadata(wheel_raw)
+    inventory = wheel_inventory(wheel_raw, wheel_filename=wheel_filename)
+    wheel_name = canonicalize_name(
+        _safe_text(inventory.get("package_name"), "Core wheel package name")
+    )
+    try:
+        wheel_version = str(
+            Version(
+                _safe_text(
+                    inventory.get("package_version"), "Core wheel package version"
+                )
+            )
+        )
+    except InvalidVersion as exc:
+        raise CoreReleaseEvidenceError("Core wheel package version is invalid") from exc
+    if wheel_name != _ROOT_NAME:
+        raise CoreReleaseEvidenceError("Core wheel package identity drift")
     if component["name"] != wheel_name or component["version"] != wheel_version:
         raise CoreReleaseEvidenceError("resolved environment SBOM root identity drift")
     root_ref = _ref(wheel_name, wheel_version)
@@ -213,7 +281,12 @@ def validate_retained_environment_sbom(
     all_components = [component, *components]
     by_ref = {cast(str, row["bom-ref"]): row for row in all_components}
     name_by_ref = {ref: cast(str, row["name"]) for ref, row in by_ref.items()}
-    if len(by_ref) != len(all_components) or len(all_components) > _MAX_DISTRIBUTIONS:
+    canonical_names = [cast(str, row["name"]) for row in all_components]
+    if (
+        len(by_ref) != len(all_components)
+        or len(set(canonical_names)) != len(canonical_names)
+        or len(all_components) > _MAX_DISTRIBUTIONS
+    ):
         raise CoreReleaseEvidenceError(
             "resolved environment SBOM component identity drift"
         )
@@ -271,6 +344,19 @@ def validate_retained_environment_sbom(
         )
 
     environment = _validate_top_properties(payload.get("properties"), len(by_ref))
+    components_by_name = {cast(str, row["name"]): row for row in all_components}
+    expected_root_dependencies = _wheel_direct_dependencies(
+        inventory,
+        environment=environment,
+        components_by_name=components_by_name,
+    )
+    observed_root_dependencies = sorted(
+        name_by_ref[target] for target in edges_by_ref[root_ref]
+    )
+    if observed_root_dependencies != expected_root_dependencies:
+        raise CoreReleaseEvidenceError(
+            "resolved environment SBOM root dependencies drift from exact Core wheel"
+        )
     graph_identity = {
         name_by_ref[ref]: sorted(name_by_ref[target] for target in targets)
         for ref, targets in edges_by_ref.items()

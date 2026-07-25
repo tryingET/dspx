@@ -320,29 +320,37 @@ def test_build_evidence_v3_binds_resolved_environment_without_authority_widening
         encoding="utf-8",
     )
     environment_path = tmp_path / "dspx-core-installed-environment-sbom.cdx.json"
+    installed_records = [
+        {
+            "name": "dspx-core",
+            "version": "0.1.0",
+            "requirements": ["httpx>=0.28.1"],
+        },
+        {"name": "httpx", "version": "0.28.1", "requirements": []},
+    ]
     environment_path.write_text(
         json.dumps(
             environment_module.build_environment_sbom(
                 wheel_raw=wheel.read_bytes(),
                 wheel_filename=wheel.name,
                 installed_proof_raw=proof.read_bytes(),
-                records=[
-                    {
-                        "name": "dspx-core",
-                        "version": "0.1.0",
-                        "requirements": ["httpx>=0.28.1"],
-                    },
-                    {"name": "httpx", "version": "0.28.1", "requirements": []},
-                ],
+                records=installed_records,
                 environment=environment_module._environment_identity(),
             )
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(module, "_git", lambda *_args: "a" * 40)
-    monkeypatch.setattr(
-        module, "validate_environment_sbom", lambda value, **_kwargs: value
-    )
+
+    def validate_with_records(value: object, **kwargs: Any) -> dict[str, Any]:
+        return environment_module.validate_environment_sbom(
+            value,
+            records=installed_records,
+            environment=environment_module._environment_identity(),
+            **kwargs,
+        )
+
+    monkeypatch.setattr(module, "validate_environment_sbom", validate_with_records)
 
     evidence = module.build_evidence(
         repo_root=REPO_ROOT,
@@ -364,6 +372,32 @@ def test_build_evidence_v3_binds_resolved_environment_without_authority_widening
     assert evidence["claims"]["release_readiness"] is False
     assert evidence["claims"]["release_authority"] is False
     module.validate_evidence(evidence)
+
+    mismatched_records = [dict(row) for row in installed_records]
+    mismatched_records[0] = {**mismatched_records[0], "version": "9.0.0"}
+
+    def validate_with_mismatched_root(value: object, **kwargs: Any) -> dict[str, Any]:
+        return environment_module.validate_environment_sbom(
+            value,
+            records=mismatched_records,
+            environment=environment_module._environment_identity(),
+            **kwargs,
+        )
+
+    monkeypatch.setattr(
+        module, "validate_environment_sbom", validate_with_mismatched_root
+    )
+    with pytest.raises(
+        module.CoreReleaseEvidenceError, match="root identity.*exact Core wheel"
+    ):
+        module.build_evidence(
+            repo_root=REPO_ROOT,
+            wheel_path=wheel,
+            sdist_path=sdist,
+            installed_proof_path=proof,
+            sbom_path=sbom_path,
+            resolved_environment_sbom_path=environment_path,
+        )
 
 
 def test_build_evidence_rejects_same_version_substituted_wheel(

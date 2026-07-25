@@ -300,6 +300,7 @@ def test_sbom_rejects_duplicate_requirements_and_noncanonical_record_hash(
 def test_sbom_rejects_split_dist_info_and_filename_identity_drift(
     tmp_path: Path,
 ) -> None:
+    # Exact identity checks below assume unambiguous parsed metadata.
     module = _load()
     valid = _named_wheel(tmp_path / "valid")
     split = _named_wheel(tmp_path / "split")
@@ -323,6 +324,39 @@ def test_sbom_rejects_split_dist_info_and_filename_identity_drift(
             wheel_raw=valid.read_bytes(),
             wheel_filename="other_core-0.1.0-py3-none-any.whl",
         )
+
+
+def test_sbom_rejects_ambiguous_or_malformed_metadata_identity(
+    tmp_path: Path,
+) -> None:
+    module = _load()
+    valid = _named_wheel(tmp_path / "valid-metadata")
+    _wheel(valid)
+    metadata_path = "dspx_core-0.1.0.dist-info/METADATA"
+
+    mutations = {
+        "duplicate-name": lambda raw: raw.replace(
+            b"Name: dspx-core\n", b"Name: dspx-core\nName: other\n"
+        ),
+        "duplicate-version": lambda raw: raw.replace(
+            b"Version: 0.1.0\n", b"Version: 0.1.0\nVersion: 9\n"
+        ),
+        "parser-defect": lambda raw: b"not-a-header\n" + raw,
+    }
+    for label, mutation in mutations.items():
+        malformed = _named_wheel(tmp_path / label)
+
+        def mutate(members: dict[str, bytes], mutation: Any = mutation) -> None:
+            members[metadata_path] = mutation(members[metadata_path])
+
+        _rewrite_wheel(valid, malformed, mutate)
+        with pytest.raises(
+            module.CoreReleaseEvidenceError,
+            match="metadata identity headers are ambiguous or malformed",
+        ):
+            module.build_sbom(
+                wheel_raw=malformed.read_bytes(), wheel_filename=malformed.name
+            )
 
 
 def test_sbom_validation_enforces_official_cyclonedx_1_6_schema(

@@ -308,8 +308,14 @@ def _wheel_inventory(raw: bytes, *, wheel_filename: str) -> dict[str, Any]:
             raise CoreReleaseEvidenceError("Core wheel METADATA is oversized")
         metadata_raw = _read_member(archive, metadata_path, label="Core wheel METADATA")
         metadata = BytesParser(policy=email_policy).parsebytes(metadata_raw)
-        package_name = str(metadata.get("Name") or "")
-        package_version = str(metadata.get("Version") or "")
+        package_names = metadata.get_all("Name", [])
+        package_versions = metadata.get_all("Version", [])
+        if metadata.defects or len(package_names) != 1 or len(package_versions) != 1:
+            raise CoreReleaseEvidenceError(
+                "Core wheel metadata identity headers are ambiguous or malformed"
+            )
+        package_name = str(package_names[0])
+        package_version = str(package_versions[0])
         if not package_name or not package_version:
             raise CoreReleaseEvidenceError("Core wheel metadata lacks name or version")
         try:
