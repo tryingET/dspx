@@ -46,11 +46,11 @@ These observations are implemented and exercised by the package and focused test
 
 ### Known red repository gates
 
-Current repo-wide type confidence is not green:
+Production-code type confidence is green, but repo-wide type confidence is not:
 
-- `just typecheck` currently fails with one `ty` diagnostic in `module_synthesis_quality.py`; AK-4123 tracks that deferred baseline.
-- `just typecheck-tests` currently fails with 77 diagnostics. AK-4115 tracks the earlier 76-diagnostic baseline in two test files, while the current run also reports a diagnostic in `test_release_environment_sbom.py`; reconcile the AK scope/count before treating that task as closure authority.
-- Because the canonical full gate includes both type-check lanes, `just verify-full` cannot currently establish release confidence. Focused, package, and docs passes do not supersede this red gate.
+- `just typecheck` now passes after module-quality rank-key normalization removed the unsafe `int(object)` boundary; focused proof also covers numeric ordering and malformed-key tolerance.
+- `just typecheck-tests` still fails with 77 diagnostics. AK-4115 tracks the earlier 76-diagnostic baseline in two test files, while the current run also reports a diagnostic in `test_release_environment_sbom.py`; reconcile the AK scope/count before treating that task as closure authority.
+- Because the canonical full gate includes the test type-check lane, `just verify-full` still cannot establish release confidence. Focused, package, and docs passes do not supersede this red gate.
 
 ### Deferred and contingent next moves
 

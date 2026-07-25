@@ -119,6 +119,16 @@ def _to_bool(value: Any, *, default: bool = False) -> bool:
     return bool(value)
 
 
+def _rank_distribution_sort_key(item: tuple[object, object]) -> tuple[int, int, str]:
+    raw_key = item[0]
+    if isinstance(raw_key, str):
+        try:
+            return (0, int(raw_key), raw_key)
+        except ValueError:
+            pass
+    return (1, 0, str(raw_key))
+
+
 def _ranked_candidates(synthesis: dict[str, Any]) -> list[dict[str, Any]]:
     decision = synthesis.get("promotion_decision")
     if not isinstance(decision, dict):
@@ -571,7 +581,7 @@ def format_module_quality_summary(
         rank_text = ", ".join(
             f"{key}:{_to_int(value)}"
             for key, value in sorted(
-                selected_rank_dist.items(), key=lambda item: int(item[0])
+                selected_rank_dist.items(), key=_rank_distribution_sort_key
             )
         )
     else:

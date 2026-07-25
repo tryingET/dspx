@@ -14,6 +14,7 @@ from dspx.services.module_synthesis_corpus import (
 )
 from dspx.services.module_synthesis_quality import (
     evaluate_module_quality_gates,
+    format_module_quality_summary,
     read_module_quality_events,
     summarize_module_quality_events,
 )
@@ -64,3 +65,17 @@ def test_module_synthesis_quality_log_roundtrip(tmp_path: Path) -> None:
         "router_multi_io_promoted",
     }
     assert all(row.get("receipt_invariant_issues") == [] for row in loaded)
+
+
+def test_module_quality_summary_orders_ranks_and_tolerates_bad_keys() -> None:
+    text = format_module_quality_summary(
+        {
+            "selected_rank_distribution": {
+                "10": 1,
+                "2": 3,
+                "not-a-rank": 4,
+            }
+        }
+    )
+
+    assert "selected_rank_distribution=2:3, 10:1, not-a-rank:4" in text
