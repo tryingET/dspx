@@ -27,7 +27,7 @@ intent
 
 DSPx already ships local signature/module generation, provider-aware execution, one-intent program assembly, receipts/replay, candidate-local Oracle evidence, and bounded refinement/review surfaces.
 
-The active frontier is **Core production readiness**, not further autonomous-foundry expansion. The installed Core wheel has a bounded stub-backed product-journey proof and exact-wheel release evidence, but signer policy, signature verification, CI evidence custody, live-provider quality, publication, and release approval remain separate gates. Both typecheck lanes are green; `just verify-full` currently reaches the complete offline suite but remains red on the refined-review contract failure tracked by AK-4148, so focused/package proof is not a green release gate.
+The active frontier is **Core production readiness**, not further autonomous-foundry expansion. The installed Core wheel has a bounded stub-backed product-journey proof and exact-wheel release evidence, and the repo-declared `just verify-full` gate is green. Signer policy, signature verification, CI evidence custody, live-provider quality, publication, and release approval remain separate gates; a green local suite is not release authority.
 
 Read [the active product posture](docs/project/product-posture.md) before selecting implementation work. AK direction/task/decision runtime remains authoritative for current execution state.
 

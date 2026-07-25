@@ -39,6 +39,11 @@ from dspx.services.program_meta_adjudication import (
     write_program_meta_adjudication_plan,
     write_program_meta_jury_selection,
 )
+from dspx.services.program_oracle_report import build_program_oracle_evidence_report
+from dspx.services.program_promotion_refinement import (
+    build_program_promotion_refinement,
+)
+from dspx.services.program_refinement import build_program_refinement_proposal
 from program_activation_packet_shared import _write_oracle_publication_receipt
 from program_meta_adjudication_helpers import (
     _materialize_obsidian_like_candidate,
@@ -517,71 +522,24 @@ def _write_adjudicator_chain(candidate_root: Path, tmp_path: Path) -> dict[str, 
 def _write_refined_review(path: Path, *, candidate_root: Path, tmp_path: Path) -> None:
     oracle_report_path = tmp_path / "oracle" / "program_oracle_report.json"
     proposal_path = tmp_path / "refinement" / "refinement_proposal.json"
-    oracle_report_path.parent.mkdir(parents=True, exist_ok=True)
-    proposal_path.parent.mkdir(parents=True, exist_ok=True)
-    oracle_report_path.write_text(
-        json.dumps(
-            {"schema_version": "program-oracle-evidence-report-v1", "records": []},
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+
+    report = build_program_oracle_evidence_report(
+        index_path=tmp_path / "oracle" / "coordinates.db"
     )
-    proposal_path.write_text(
-        json.dumps(
-            {"schema_version": "program-refinement-proposal-v1", "status": "proposed"},
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    _write_json(oracle_report_path, report)
+
+    proposal = build_program_refinement_proposal(
+        manifest_path=candidate_root / "manifest.json",
+        oracle_report_path=oracle_report_path,
     )
-    created_from_paths = {
-        "manifest": candidate_root / "manifest.json",
-        "oracle_report": oracle_report_path,
-        "refinement_proposal": proposal_path,
-        "original_promotion_review": candidate_root / "promotion_review.json",
-        "original_promotion_adjudication_request": candidate_root
-        / "promotion_adjudication_request.json",
-        "original_promotion_decision_template": candidate_root
-        / "promotion_decision_template.json",
-        "behavior_results": candidate_root / "behavior_results.json",
-        "behavior_episode": candidate_root / "behavior_episode.json",
-    }
-    created_from: dict[str, str] = {}
-    for key, source_path in created_from_paths.items():
-        created_from[f"{key}_path"] = str(source_path.resolve())
-        created_from[f"{key}_sha256"] = _sha256_file(source_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {
-                "schema_version": "program-promotion-review-refined-v1",
-                "status": "needs_more_evidence",
-                "promotion_state": "not_promoted",
-                "identity": _candidate_identity(candidate_root),
-                "created_from": created_from,
-                "evidence_summary": {"model_jury_results": {"present": False}},
-                "non_authority": {
-                    "local_review_packet_only": True,
-                    "automatic_promotion": False,
-                    "oracle_ranking": False,
-                    "oracle_pruning": False,
-                    "oracle_promotion": False,
-                    "program_mutation": False,
-                    "new_candidate_generation": False,
-                    "promotion_authority": False,
-                    "governance_authority": False,
-                    "external_mutation": False,
-                },
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+    _write_json(proposal_path, proposal)
+
+    review = build_program_promotion_refinement(
+        manifest_path=candidate_root / "manifest.json",
+        oracle_report_path=oracle_report_path,
+        refinement_proposal_path=proposal_path,
     )
+    _write_json(path, review)
 
 
 def test_meta_adjudication_plan_revalidates_adjudicator_chain_sidecars(

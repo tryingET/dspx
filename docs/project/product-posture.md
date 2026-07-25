@@ -46,11 +46,13 @@ These observations are implemented and exercised by the package and focused test
 
 ### Validation gate status
 
-Both type lanes are now green, but the full gate still has one observed failure:
+The repo-declared local confidence gates are green:
 
 - `just typecheck` passes after module-quality rank-key normalization removed the unsafe `int(object)` boundary.
 - `just typecheck-tests` passes after test fixtures gained typed mutable boundaries, frozen-capability mutation was checked through Pydantic's `ValidationError`, and marker-environment values were narrowed without casts or filtering.
-- `just verify-full` now reaches the complete offline suite but fails one deterministic refined-review contract test: `test_meta_adjudication_plan_revalidates_refined_review_contract` receives `contract_invalid` for its nominal fixture. AK-4148 owns that separate contract-drift/full-gate blocker. Until it passes, focused and typecheck evidence do not establish full release confidence.
+- `just verify-full` passes after the nominal refined-review meta-adjudication fixture was rebuilt through current production report, proposal, and review builders. The credential-free offline suite passed 2605 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
+
+This establishes the current repo-local full-gate baseline. It does not establish live-provider quality, production-semantic Oracle quality, signer verification, CI custody, publication, release approval, or activation.
 
 ### Deferred and contingent next moves
 
