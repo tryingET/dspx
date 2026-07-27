@@ -1,22 +1,28 @@
 ---
 summary: "DSPx repo-specific engineering notes (overrides on top of engineering-core lane docs)."
 read_when:
-  - "You want the preferred stack + the local deviations for this repo."
+  - "Before engineering planning, implementation, review, advice, or validation in DSPx."
   - "You’re changing tooling (typecheck/lint/test/CI) or adding infra-ish dependencies."
+type: "reference"
 ---
 
 # Engineering guidance (DSPx local)
 
-Canonical lane docs come from `engineering-core` v0.8.0 at immutable commit `8f59f4178f0c40f73d64c417e7a591de42a0f0d2` (do not vendor/copy them here):
+Canonical lane docs come from the immutable release declared in `policy/engineering-lane.json`; do not use the current engineering-core checkout as a substitute for that consumer pin and do not vendor/copy upstream guidance here.
 
-- list lanes: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core list`
-- print Python lane: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core show py`
-- show path: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core path py --prefer-repo`
-- catalog: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core catalog --pretty`
-- list disciplines: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core list-disciplines`
-- list templates: `uv tool -n run --from git+https://github.com/tryingET/core_engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2 engineering-core list-templates`
+Inspect only the compact policy projection defined by the workspace AGENTS rule. For upstream Markdown, discover headings first and then retrieve one relevant range:
 
-Machine-readable recognition and the portable release pin live in `policy/engineering-lane.json`.
+```bash
+pin_source="$(jq -r '.engineering_core.release_pin.source' policy/engineering-lane.json)"
+lane="$(jq -r '.engineering_core.lane' policy/engineering-lane.json)"
+uv tool -n run --from "$pin_source" engineering-core show "$lane" \
+  | rg -n '^#{1,4} '
+uv tool -n run --from "$pin_source" engineering-core show-discipline <discipline> \
+  | rg -n '^#{1,4} '
+# Then rerun one command through: sed -n '<start>,<end>p'
+```
+
+Choose `<discipline>` from the compact projection. Full-document `show`, catalog, lane-list, discipline-list, and template-list output are explicit escape hatches rather than default context.
 
 Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.

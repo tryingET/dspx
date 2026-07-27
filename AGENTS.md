@@ -98,7 +98,7 @@ Useful shared tooling:
 
 ```bash
 node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --task "<task>" --top 8
-uv tool run --from ~/ai-society/core/engineering-core engineering-core show py --prefer-repo
+# Engineering guidance: use the immutable, heading-first, range-limited recipe in docs/engineering.local.md
 ```
 
 Oracle quick reference:
