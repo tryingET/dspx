@@ -70,6 +70,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "uv run --no-sync\n",
     )
     _write(tmp_path, "scripts/ci/verify-full.sh", "#!/bin/sh\nexit 0\n")
+    _write(tmp_path, "scripts/engineering_guidance.py", "# bounded helper\n")
     _write(
         tmp_path,
         "AGENTS.md",
@@ -118,8 +119,12 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "just doctor\n"
         "just run ...\n"
         "No `just dev` target\n"
-        "fails closed\n"
-        "parallel\n",
+        "fails closed and invalid inputs fail closed\n"
+        "parallel\n"
+        "python3 scripts/engineering_guidance.py lane headings\n"
+        "python3 scripts/engineering_guidance.py lane range 72 88\n"
+        "python3 scripts/engineering_guidance.py discipline testing headings\n"
+        "python3 scripts/engineering_guidance.py discipline testing range 20 36\n",
     )
     _write(
         tmp_path,
@@ -232,11 +237,102 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "policy/engineering-lane.json",
-        '{"engineering_core":{"loop_validation":{"version":"repo-loop-validation-v1","contract_doc":"docs/engineering.local.md#repo-loop-validation","commands":{"loop-doctor":"just loop-doctor","loop-verify-fast":"just loop-verify-fast","loop-impact-plan":"just loop-impact-plan","loop-impact-run":"just loop-impact-run","loop-impact-wide":"just loop-impact-wide","loop-landing-check":"just loop-landing-check"}}}}\n',
+        '{"engineering_core":{"lane":"py","disciplines":["testing"],"release_pin":{"source":"git+https://example.invalid/engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2","resolved_commit":"8f59f4178f0c40f73d64c417e7a591de42a0f0d2"},"loop_validation":{"version":"repo-loop-validation-v1","contract_doc":"docs/engineering.local.md#repo-loop-validation","commands":{"loop-doctor":"just loop-doctor","loop-verify-fast":"just loop-verify-fast","loop-impact-plan":"just loop-impact-plan","loop-impact-run":"just loop-impact-run","loop-impact-wide":"just loop-impact-wide","loop-landing-check":"just loop-landing-check"}}}}\n',
     )
 
     issues = MODULE.collect_issues(tmp_path)
     assert issues == []
+
+
+def test_collect_issues_rejects_floating_engineering_guidance_contract(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path,
+        "policy/engineering-lane.json",
+        '{"engineering_core":{"lane":"py","disciplines":["testing"],"release_pin":{"source":"/home/user/engineering-core --prefer-repo","resolved_commit":"abc123"}}}\n',
+    )
+    _write(
+        tmp_path,
+        "docs/engineering.local.md",
+        "uv tool run --from ~/engineering-core engineering-core show py --prefer-repo\n",
+    )
+
+    messages = {
+        f"{issue.path}: {issue.message}" for issue in MODULE.collect_issues(tmp_path)
+    }
+
+    assert (
+        "policy/engineering-lane.json: release_pin.source must be an immutable git source ending in resolved_commit"
+        in messages
+    )
+    assert (
+        "policy/engineering-lane.json: release_pin.source must not use --prefer-repo"
+        in messages
+    )
+    assert (
+        "policy/engineering-lane.json: release_pin.resolved_commit must be a full 40- or 64-character hexadecimal commit"
+        in messages
+    )
+    assert (
+        "docs/engineering.local.md: contains forbidden stale text: 'uv tool'"
+        in messages
+    )
+    assert (
+        "docs/engineering.local.md: contains forbidden stale text: '--prefer-repo'"
+        in messages
+    )
+
+
+def test_collect_issues_rejects_symbolic_pin_and_normalized_duplicates(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path,
+        "policy/engineering-lane.json",
+        '{"engineering_core":{"lane":"--help","disciplines":["testing"," testing "],"release_pin":{"source":"git+https://example.invalid/engineering-core.git@main","resolved_commit":"main"}}}\n',
+    )
+
+    messages = {
+        f"{issue.path}: {issue.message}" for issue in MODULE.collect_issues(tmp_path)
+    }
+
+    assert (
+        "policy/engineering-lane.json: release_pin.resolved_commit must be a full 40- or 64-character hexadecimal commit"
+        in messages
+    )
+    assert (
+        "policy/engineering-lane.json: engineering_core.disciplines contains duplicates"
+        in messages
+    )
+    assert (
+        "policy/engineering-lane.json: engineering_core.lane must be a non-option identifier"
+        in messages
+    )
+
+
+def test_collect_issues_rejects_unselected_documented_discipline(
+    tmp_path: Path,
+) -> None:
+    _write(
+        tmp_path,
+        "policy/engineering-lane.json",
+        '{"engineering_core":{"lane":"py","disciplines":["validation"],"release_pin":{"source":"git+https://example.invalid/engineering-core.git@8f59f4178f0c40f73d64c417e7a591de42a0f0d2","resolved_commit":"8f59f4178f0c40f73d64c417e7a591de42a0f0d2"}}}\n',
+    )
+    _write(
+        tmp_path,
+        "docs/engineering.local.md",
+        "python3 scripts/engineering_guidance.py discipline testing headings\n",
+    )
+
+    messages = {
+        f"{issue.path}: {issue.message}" for issue in MODULE.collect_issues(tmp_path)
+    }
+
+    assert (
+        "docs/engineering.local.md: discipline example 'testing' is not selected by policy"
+        in messages
+    )
 
 
 def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:

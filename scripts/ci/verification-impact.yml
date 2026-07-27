@@ -869,6 +869,15 @@ rules:
       - ruff_touched
       - pytest_touched
 
+  - match: "scripts/engineering_guidance.py"
+    category: engineering_guidance
+    impact_group: workflow
+    risk: bounded
+    commands:
+      - ruff_touched
+      - workflow_contract_check
+      - verify_full
+
   - match: "scripts/check_workflow_contracts.py"
     category: workflow_contract
     impact_group: workflow

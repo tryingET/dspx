@@ -10,19 +10,19 @@ type: "reference"
 
 Canonical lane docs come from the immutable release declared in `policy/engineering-lane.json`; do not use the current engineering-core checkout as a substitute for that consumer pin and do not vendor/copy upstream guidance here.
 
-Inspect only the compact policy projection defined by the workspace AGENTS rule. For upstream Markdown, discover headings first and then retrieve one relevant range:
+Inspect only the compact policy projection defined by the workspace AGENTS rule. Use the repo-owned helper for upstream Markdown; it derives the immutable source, lane, and selected disciplines from that policy and exposes no full-document mode:
 
 ```bash
-pin_source="$(jq -r '.engineering_core.release_pin.source' policy/engineering-lane.json)"
-lane="$(jq -r '.engineering_core.lane' policy/engineering-lane.json)"
-uv tool -n run --from "$pin_source" engineering-core show "$lane" \
-  | rg -n '^#{1,4} '
-uv tool -n run --from "$pin_source" engineering-core show-discipline <discipline> \
-  | rg -n '^#{1,4} '
-# Then rerun one command through: sed -n '<start>,<end>p'
+# Discover headings before selecting a small inclusive range.
+python3 scripts/engineering_guidance.py lane headings
+python3 scripts/engineering_guidance.py lane range 72 88
+
+# Choose the discipline name from the compact policy projection.
+python3 scripts/engineering_guidance.py discipline testing headings
+python3 scripts/engineering_guidance.py discipline testing range 20 36
 ```
 
-Choose `<discipline>` from the compact projection. Full-document `show`, catalog, lane-list, discipline-list, and template-list output are explicit escape hatches rather than default context.
+Unknown disciplines, symbolic or malformed pins, failed upstream retrieval, and invalid ranges fail closed. A range is capped at 40 lines; headings are capped at 100 lines; every successful response is capped at 16 KiB. Catalog, lane-list, discipline-list, template-list, current-checkout, and full-document output remain unsupported paths rather than default context.
 
 Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
