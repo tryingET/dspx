@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .common import (
@@ -43,6 +44,52 @@ def collect_issues(root: Path) -> list[Issue]:
             STALE_PROMPT_SOURCE_SUBSTRINGS,
             issues,
         )
+
+    core_reference_relpath = "docs/_core/README.md"
+    core_reference = root / core_reference_relpath
+    if core_reference.exists():
+        core_reference_lines = {
+            line.strip()
+            for line in core_reference.read_text(encoding="utf-8").splitlines()
+        }
+        headings_command = "python3 scripts/engineering_guidance.py lane headings"
+        if headings_command not in core_reference_lines:
+            issues.append(
+                Issue(
+                    Path(core_reference_relpath),
+                    f"missing required command: {headings_command!r}",
+                )
+            )
+        range_pattern = re.compile(
+            r"python3 scripts/engineering_guidance\.py lane range (\d+) (\d+)"
+        )
+        valid_range = False
+        for line in core_reference_lines:
+            match = range_pattern.fullmatch(line)
+            if match is None:
+                continue
+            start, end = (int(value) for value in match.groups())
+            if 1 <= start <= end and end - start + 1 <= 40:
+                valid_range = True
+                break
+        if not valid_range:
+            issues.append(
+                Issue(
+                    Path(core_reference_relpath),
+                    "missing required bounded lane range command with at most 40 lines",
+                )
+            )
+        stale_command = (
+            "uv tool run --from ~/ai-society/core/engineering-core "
+            "engineering-core show py --prefer-repo"
+        )
+        if stale_command in core_reference_lines:
+            issues.append(
+                Issue(
+                    Path(core_reference_relpath),
+                    f"contains forbidden stale command: {stale_command!r}",
+                )
+            )
 
     gitignore = _require_file(root, ".gitignore", issues)
     if gitignore is not None:

@@ -34,8 +34,9 @@ DSPx has:
 # Docs discovery
 node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --task "<task>" --top 8
 
-# Engineering guidance
-uv tool run --from ~/ai-society/core/engineering-core engineering-core show py --prefer-repo
+# Engineering guidance (immutable, heading-first, and bounded)
+python3 scripts/engineering_guidance.py lane headings
+python3 scripts/engineering_guidance.py lane range 72 88
 ```
 
 ## Cognitive Prompts

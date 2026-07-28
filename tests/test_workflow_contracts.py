@@ -342,7 +342,8 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
     _write(
         tmp_path,
         "docs/_core/README.md",
-        'Invoke: "Read `~/steve/prompts/triggers/nexus.md`, apply to context"\n',
+        'Invoke: "Read `~/steve/prompts/triggers/nexus.md`, apply to context"\n'
+        "uv tool run --from ~/ai-society/core/engineering-core engineering-core show py --prefer-repo\n",
     )
     _write(
         tmp_path,
@@ -382,6 +383,18 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         in messages
     )
     assert (
+        "docs/_core/README.md: contains forbidden stale command: 'uv tool run --from ~/ai-society/core/engineering-core engineering-core show py --prefer-repo'"
+        in messages
+    )
+    assert (
+        "docs/_core/README.md: missing required command: 'python3 scripts/engineering_guidance.py lane headings'"
+        in messages
+    )
+    assert (
+        "docs/_core/README.md: missing required bounded lane range command with at most 40 lines"
+        in messages
+    )
+    assert (
         "README.md: contains forbidden stale text: 'changed manifest path, or next_session checkpoint'"
         in messages
     )
@@ -393,6 +406,56 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         "Justfile: contains forbidden stale text: 'next_session_prompt checkpoint before failing closed'"
         in messages
     )
+
+
+def test_core_reference_guidance_requires_executable_bounded_commands(
+    tmp_path: Path,
+) -> None:
+    core_reference = "docs/_core/README.md"
+    _write(
+        tmp_path,
+        core_reference,
+        "Do not use `uv tool` or `--prefer-repo` for engineering guidance.\n"
+        "python3 scripts/engineering_guidance.py lane headings\n"
+        "python3 scripts/engineering_guidance.py lane range\n",
+    )
+
+    messages = [
+        issue.message
+        for issue in MODULE.collect_issues(tmp_path)
+        if issue.path == Path(core_reference)
+    ]
+    assert messages == [
+        "missing required bounded lane range command with at most 40 lines"
+    ]
+
+    _write(
+        tmp_path,
+        core_reference,
+        "Do not use `uv tool` or `--prefer-repo` for engineering guidance.\n"
+        "python3 scripts/engineering_guidance.py lane headings\n"
+        "python3 scripts/engineering_guidance.py lane range 1 40\n",
+    )
+    assert [
+        issue
+        for issue in MODULE.collect_issues(tmp_path)
+        if issue.path == Path(core_reference)
+    ] == []
+
+    _write(
+        tmp_path,
+        core_reference,
+        "python3 scripts/engineering_guidance.py lane headings\n"
+        "python3 scripts/engineering_guidance.py lane range 1 41\n",
+    )
+    messages = [
+        issue.message
+        for issue in MODULE.collect_issues(tmp_path)
+        if issue.path == Path(core_reference)
+    ]
+    assert messages == [
+        "missing required bounded lane range command with at most 40 lines"
+    ]
 
 
 def test_collect_issues_rejects_loop_policy_commands_without_recipes(
