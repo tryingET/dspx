@@ -652,3 +652,34 @@ def test_collect_issues_passes_for_current_repo() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 
     assert MODULE.collect_issues(repo_root) == []
+
+
+def test_checker_entrypoint_reexports_contract_from_bounded_modules() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    entrypoint = repo_root / "scripts/check_workflow_contracts.py"
+    module_dir = repo_root / "scripts/workflow_contracts"
+
+    assert MODULE.Issue.__module__ == "scripts.workflow_contracts.common"
+    assert MODULE.collect_issues.__module__ == "scripts.workflow_contracts.repository"
+    assert len(entrypoint.read_text(encoding="utf-8").splitlines()) <= 100
+    for module_path in module_dir.glob("*.py"):
+        assert len(module_path.read_text(encoding="utf-8").splitlines()) <= 500
+
+
+def test_checker_cli_supports_direct_and_module_invocation() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    commands = (
+        [sys.executable, "scripts/check_workflow_contracts.py", "--root", "."],
+        [sys.executable, "-m", "scripts.check_workflow_contracts", "--root", "."],
+    )
+
+    for command in commands:
+        result = subprocess.run(
+            command,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == "ok: workflow contract checks passed\n"
