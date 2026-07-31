@@ -58,15 +58,15 @@ This establishes the current repo-local full-gate baseline. It does not establis
 
 For the lossless-normalization fixup, `just loop-impact-run` passed the repo-selected expanded plan: 14 focused environment-SBOM tests, 91 impact-planner tests, 69 release-bundle tests, workflow and Ruff checks, and a fresh Core/Forge package and retained-bundle journey. The proof covers duplicate Core requirements, bounded iterable consumption, and explicit empty, incomplete, widened, or invalid marker environments. This is current working-tree proof, not commit-bound or release-authoritative evidence.
 
-### Deferred and contingent next moves
+### Accepted signing/custody decision and contingent next moves
 
-The following Core moves are blocked on owner decisions or explicit trigger events. This repo must not invent owner policy or treat every contingent move as a current release requirement:
+Decision 88 and `docs/adr/20260731-core-release-signing-custody.md` accept the owner policy for exact keyless Core wheel-evidence signing, a separate fail-closed 2-of-3 owner threshold, and bounded public non-secret GitHub Actions evidence custody. This is architecture truth, not implementation evidence or package release authority.
 
-1. **Signer policy and verification** — AK-4125 is deferred pending an owner decision covering the signature scheme, trusted signer identity, key custody, signed subject set, revocation, and threshold policy.
-2. **CI evidence custody** — AK-4126 is deferred pending an owner decision covering CI provider, visibility, retention/deletion, access controls, and secret/publication posture.
-3. **Exact-sdist install proof** — AK-4137 is contingent on an owner declaring sdist support/signer-subject inclusion or on an observed sdist defect.
+1. **Signer implementation** — AK-4125 is the post-ADR task for exact Fulcio identity matching, wheel-only statements, current-policy selection, revocation, roster/approval contracts, and adversarial verification. Signing remains disabled until its scoped policy artifacts and tests exist.
+2. **CI evidence custody implementation** — AK-4126 is the post-ADR task for the dedicated protected workflow, public 14/90-day evidence artifacts, signed custody receipts, provider-effect handling, and current-availability checks. Upload remains disabled until protection, environment, retention, content, and roster preflights pass.
+3. **Exact-sdist install proof** — AK-4137 remains contingent on a later owner declaring sdist support/signer-subject inclusion or on an observed sdist defect. Decision 88 keeps the sdist in the explicit non-subject auxiliary role `unsigned_unsupported_distribution_evidence`, so it does not trigger AK-4137.
 
-Until those triggers occur, use `ak task ready` to find lawful work. Inspect these records with `ak task show 4125`, `ak task show 4126`, and `ak task show 4137`; this AK CLI accepts numeric task IDs. Do not substitute richer foundry features, prose-only signer policy, local evidence retention, or static sdist inspection for blocked owner decisions.
+Use `ak task ready` for lawful implementation admission and inspect these records with `ak task show 4125`, `ak task show 4126`, and `ak task show 4137`. Do not treat the accepted policy, public source repository, local evidence retention, or static sdist inspection as proof that signing, custody, release, or sdist support has shipped.
 
 ### Explicit nonclaims
 
@@ -90,7 +90,7 @@ Current evidence does **not** prove:
 | Execution and replay | Generated examples/datasets can run through bounded behavior harnesses and explicit runtime episodes. Replay claims are machine-readable and receipt-bound. | No general semantic-reproduction claim, broad provider/runtime coverage, or receipt-bound multi-episode product contract. |
 | Oracle behavioral evidence | Candidate-local evidence can be indexed and reported with explicit backend identity; Oracle exposes search, drift, territory, frontier, attractor, and program-evidence concepts. | Production-semantic embedding quality and shared-backend readiness remain separate empirical/operational gates. Oracle remains interpretation, not authority. |
 | Refinement and review | Local proposals, GEPA attempts, second candidates, comparisons, jury/model-jury evidence, adjudication records, plans, status, and activation-preflight packets exist as inspectable sidecars and guided workflows. | Further autonomous orchestration is paused. External apply, activation, and owner acceptance remain unavailable without their own authority contracts. |
-| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel payload identity, exact wheel-to-installed-root metadata and direct-edge reconciliation, two SBOM scopes, release claim separation, and local evidence retention are proven in the bounded package lane. | Direct-URL dependency provenance remains unsupported and fails closed. Owner-authorized signer verification and CI custody are the immediate gates; publication/readiness remain false. |
+| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel payload identity, exact wheel-to-installed-root metadata and direct-edge reconciliation, two SBOM scopes, release claim separation, local evidence retention, and accepted signing/custody architecture are established. | Decision 88 implementation is the immediate gate: signer verification, public CI custody, roster bindings, receipt/currentness checks, and dogfood remain unproved; publication/readiness remain false. |
 | Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop. | The product still needs owner-gated release operations and later live empirical proof before a production-ready claim. |
 
 ## Durable boundaries
@@ -106,9 +106,9 @@ Current evidence does **not** prove:
 
 The Core frontier advances only when current evidence shows all applicable conditions, without widening claims:
 
-- an accepted owner decision defines signer policy and custody;
+- accepted Decision 88 remains the current signer/custody policy and any supersession follows its live-AK selector rules;
 - the exact required release subjects are verified against that policy and the result is machine-checkable;
-- an accepted owner decision defines CI artifact custody and the workflow implements it without leaking secrets or implying publication;
+- the dedicated workflow implements public non-secret evidence custody without implying package publication or release authority;
 - retained evidence is bound to the exact built subjects, source state, SBOM scopes, installed proof, and verification result;
 - failure, revocation, stale evidence, wrong signer, missing subject, permission, partial-write, and retention/deletion cases fail closed or report effect-indeterminate truthfully;
 - `just typecheck`, `just typecheck-tests`, `just verify-full`, package, focused adversarial, docs, workflow, direction, and scoped landing checks pass;
