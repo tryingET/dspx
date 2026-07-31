@@ -126,4 +126,11 @@ if [[ -n "$retain_core_bundle" ]]; then
   printf '[package-check] retained bundle: %s\n' "$retain_core_bundle"
 fi
 
-printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; CycloneDX wheel-payload/direct-dependency and point-in-time resolved-environment SBOM generation and verification passed; signing, CI custody, publication, technical completeness, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'
+printf '[package-check] validate selected Core signer policy and fail-closed unbound roster\n'
+"$core_venv_dir/bin/python" scripts/ci/core_release_signing.py preflight-policy \
+  --policy governance/release-signing/trust-policy-v001.json \
+  --selector governance/release-signing/policy-selector-v001.json \
+  --roster governance/release-signing/release-owner-roster-v001.json \
+  > "$work_dir/release-signing-policy-preflight.json"
+
+printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; CycloneDX wheel-payload/direct-dependency and point-in-time resolved-environment SBOM generation and verification passed; selected signer-policy schemas and the intentionally unbound owner roster passed offline preflight; signature authenticity, live CI custody, release authorization, package publication, technical completeness, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'

@@ -97,6 +97,10 @@ jobs:
           if test "${{ inputs.retention_class }}" = release_candidate_90d; then
             requested_days=90
           fi
+          if test "$requested_days" -eq 90; then
+            jq -e 'any(.protection_rules[]?; .type == "required_reviewers")' \
+              "$RUNNER_TEMP/environment.json" >/dev/null
+          fi
           provider_cap="$(jq -er '.maximum_allowed_days' "$RUNNER_TEMP/retention.json")"
           test "$provider_cap" -ge "$requested_days"
           uv run --frozen --no-sync python scripts/ci/core_release_signing.py preflight-policy \
