@@ -13,8 +13,8 @@ on:
           - release_candidate_90d
 
 # This workflow authenticates and discloses evidence. It cannot publish a package
-# or authorize a release. The repository variable is intentionally absent until
-# protected-main, environment, policy-selector, and roster preflights all pass.
+# or authorize a release. Evidence activation validates the exact disabled roster
+# shape but does not fabricate or require release-owner bindings.
 permissions:
   contents: read
   actions: read
@@ -103,11 +103,12 @@ jobs:
           fi
           provider_cap="$(jq -er '.maximum_allowed_days' "$RUNNER_TEMP/retention.json")"
           test "$provider_cap" -ge "$requested_days"
+          # Evidence authenticity is separate from unavailable release authority.
+          # Validate the exact disabled roster without inventing owner bindings.
           uv run --frozen --no-sync python scripts/ci/core_release_signing.py preflight-policy \
             --policy "$POLICY_PATH" \
             --selector "$SELECTOR_PATH" \
-            --roster "$ROSTER_PATH" \
-            --require-bindings
+            --roster "$ROSTER_PATH"
           printf 'requested_days=%s\nprovider_cap=%s\n' "$requested_days" "$provider_cap" \
             >> "$GITHUB_ENV"
 

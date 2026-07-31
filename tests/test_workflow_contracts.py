@@ -746,3 +746,17 @@ def test_checker_cli_supports_direct_and_module_invocation() -> None:
         )
         assert result.returncode == 0, result.stderr
         assert result.stdout == "ok: workflow contract checks passed\n"
+
+
+def test_core_release_evidence_workflow_separates_custody_from_owner_quorum() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow = (repo_root / ".github/workflows/core-release-evidence.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "DSPX_CORE_RELEASE_SIGNING_ENABLED == 'true'" in workflow
+    assert '--roster "$ROSTER_PATH"' in workflow
+    assert "--require-bindings" not in workflow
+    assert "package release authority remains false" in workflow.lower()
+    assert "packages: write" not in workflow
+    assert "id-token: write" in workflow
