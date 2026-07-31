@@ -11,8 +11,10 @@ import copy
 from datetime import datetime, timedelta, timezone
 import importlib
 import json
+import os
 from pathlib import Path
 import subprocess
+import stat
 import sys
 from types import ModuleType, SimpleNamespace
 from typing import Any
@@ -312,13 +314,24 @@ def test_selector_verifies_exact_git_blob_and_chain(
 
 
 def test_checkpoint_is_atomic_integrity_checked_and_rejects_rollback(
-    modules: tuple[ModuleType, ModuleType, ModuleType, ModuleType], tmp_path: Path
+    modules: tuple[ModuleType, ModuleType, ModuleType, ModuleType],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     policy, live, _identity, _signing = modules
     checkpoint = tmp_path / "state" / "policy.json"
+    real_fsync = live.os.fsync
+    fsynced_types: list[int] = []
+
+    def record_fsync(descriptor: int) -> None:
+        fsynced_types.append(stat.S_IFMT(os.fstat(descriptor).st_mode))
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(live.os, "fsync", record_fsync)
     result = live.advance_checkpoint(checkpoint, version=2, reference="selector-v2")
     assert result["highest_policy_version"] == 2
     assert checkpoint.stat().st_mode & 0o777 == 0o600
+    assert fsynced_types == [stat.S_IFREG, stat.S_IFDIR]
 
     with pytest.raises(policy.CoreReleaseEvidenceError, match="below the highest"):
         live.advance_checkpoint(checkpoint, version=1, reference="selector-v1")

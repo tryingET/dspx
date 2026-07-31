@@ -243,6 +243,76 @@ def test_observe_upload_cli_never_reports_confirmed_absence_as_success(
     assert '"status": "confirmed_absent"' in result.stdout
 
 
+def test_verify_availability_cli_requires_exact_current_pair(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    receipt = tmp_path / "custody-receipt.json"
+    observation = tmp_path / "observation.json"
+    receipt.write_text(json.dumps(module.build_receipt(_metadata())), encoding="utf-8")
+
+    command = [
+        sys.executable,
+        str(SCRIPT),
+        "verify-availability",
+        "--receipt",
+        str(receipt),
+        "--receipt-artifact-id",
+        "999",
+        "--receipt-provider-digest",
+        f"sha256:{'b' * 64}",
+        "--observation",
+        str(observation),
+        "--now",
+        "2026-08-01T00:00:00Z",
+    ]
+    observation.write_text(
+        json.dumps(_observation(artifacts=[_artifact(), _receipt_artifact()])),
+        encoding="utf-8",
+    )
+    current = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PYTHONPATH": str(SCRIPTS)},
+    )
+    assert current.returncode == 0
+    assert '"release_use_custody": true' in current.stdout
+    assert '"status": "current"' in current.stdout
+
+    observation.write_text(
+        json.dumps(_observation(artifacts=[_receipt_artifact()])), encoding="utf-8"
+    )
+    absent = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PYTHONPATH": str(SCRIPTS)},
+    )
+    assert absent.returncode == 5
+    assert '"release_use_custody": false' in absent.stdout
+    assert '"status": "confirmed_absent"' in absent.stdout
+
+    observation.write_text(
+        json.dumps(_observation(artifacts=[_artifact(), _receipt_artifact()])),
+        encoding="utf-8",
+    )
+    drifted = subprocess.run(
+        [
+            *command[:8],
+            f"sha256:{'0' * 64}",
+            *command[9:],
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PYTHONPATH": str(SCRIPTS)},
+    )
+    assert drifted.returncode == 5
+    assert '"status": "digest_or_expiry_drift"' in drifted.stdout
+
+
 def test_current_availability_fails_closed_on_absence_expiry_and_drift(
     module: ModuleType,
 ) -> None:

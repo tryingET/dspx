@@ -277,6 +277,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           UPLOAD_OUTCOME: ${{ steps.receipt_upload.outcome }}
           ARTIFACT_NAME: dspx-core-custody-receipt-${{ steps.evidence_observation.outputs.artifact_id }}
+          RECEIPT_ARTIFACT_ID: ${{ steps.receipt_upload.outputs.artifact-id }}
+          RECEIPT_PROVIDER_DIGEST: ${{ steps.receipt_upload.outputs.artifact-digest }}
         run: |
           set -euo pipefail
           api="$RUNNER_TEMP/core-release/receipt-api.json"
@@ -301,12 +303,12 @@ jobs:
             --name "$ARTIFACT_NAME" \
             --run-id "$GITHUB_RUN_ID" \
             > "$effect"
-          receipt_artifact_id="$(jq -er '.artifact.id' "$effect")"
-          receipt_provider_digest="$(jq -er '.artifact.digest' "$effect")"
+          test -n "$RECEIPT_ARTIFACT_ID"
+          test -n "$RECEIPT_PROVIDER_DIGEST"
           uv run --frozen --no-sync python scripts/ci/core_release_custody.py verify-availability \
             --receipt "$RUNNER_TEMP/core-release/custody-receipt.json" \
-            --receipt-artifact-id "$receipt_artifact_id" \
-            --receipt-provider-digest "$receipt_provider_digest" \
+            --receipt-artifact-id "$RECEIPT_ARTIFACT_ID" \
+            --receipt-provider-digest "$RECEIPT_PROVIDER_DIGEST" \
             --observation "$observation" \
             --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           printf '%s\n' 'Evidence and receipt custody are current. Package release authority remains false.'
