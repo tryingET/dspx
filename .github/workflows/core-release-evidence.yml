@@ -294,9 +294,19 @@ jobs:
           fi
           outcome=failure
           if test "$UPLOAD_OUTCOME" = success; then outcome=success; fi
+          effect="$RUNNER_TEMP/core-release/receipt-effect.json"
           uv run --frozen --no-sync python scripts/ci/core_release_custody.py observe-upload \
             --observation "$observation" \
             --operation-outcome "$outcome" \
             --name "$ARTIFACT_NAME" \
-            --run-id "$GITHUB_RUN_ID"
-          printf '%s\n' 'Evidence and receipt custody observed. Package release authority remains false.'
+            --run-id "$GITHUB_RUN_ID" \
+            > "$effect"
+          receipt_artifact_id="$(jq -er '.artifact.id' "$effect")"
+          receipt_provider_digest="$(jq -er '.artifact.digest' "$effect")"
+          uv run --frozen --no-sync python scripts/ci/core_release_custody.py verify-availability \
+            --receipt "$RUNNER_TEMP/core-release/custody-receipt.json" \
+            --receipt-artifact-id "$receipt_artifact_id" \
+            --receipt-provider-digest "$receipt_provider_digest" \
+            --observation "$observation" \
+            --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf '%s\n' 'Evidence and receipt custody are current. Package release authority remains false.'

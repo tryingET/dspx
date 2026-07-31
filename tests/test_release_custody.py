@@ -296,8 +296,12 @@ def _wheel_bytes(*, secret: bool = False) -> bytes:
     return buffer.getvalue()
 
 
-def _sdist_bytes() -> bytes:
+def _sdist_bytes(*, secret: bool = False) -> bytes:
     payload = b"public sdist payload\n"
+    if secret:
+        payload = (
+            b"access_token=github_pat_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGH\n"
+        )
     info = tarfile.TarInfo("dspx_core-1.0.0/src/dspx/__init__.py")
     info.size = len(payload)
     buffer = BytesIO()
@@ -324,7 +328,7 @@ def _public_zip(*, secret_member: str | None = None) -> tuple[bytes, dict[str, o
             if name.endswith(".whl"):
                 payload = _wheel_bytes(secret=name == secret_member)
             elif name.endswith(".tar.gz"):
-                payload = _sdist_bytes()
+                payload = _sdist_bytes(secret=name == secret_member)
             else:
                 payload = b"public evidence\n"
                 if name == secret_member:
@@ -360,6 +364,14 @@ def test_public_bundle_preflight_enforces_allowlist_and_secret_scan(
     )
     bundle.write_bytes(nested_raw)
     monkeypatch.setattr(module, "validate_bundle", lambda _path: nested_manifest)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="secret-shaped"):
+        module.validate_public_bundle(bundle)
+
+    nested_sdist_raw, nested_sdist_manifest = _public_zip(
+        secret_member="dspx_core-1.0.0.tar.gz"
+    )
+    bundle.write_bytes(nested_sdist_raw)
+    monkeypatch.setattr(module, "validate_bundle", lambda _path: nested_sdist_manifest)
     with pytest.raises(module.CoreReleaseEvidenceError, match="secret-shaped"):
         module.validate_public_bundle(bundle)
 

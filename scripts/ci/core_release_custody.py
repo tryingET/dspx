@@ -432,6 +432,12 @@ def main() -> int:
     )
     observe.add_argument("--name", required=True)
     observe.add_argument("--run-id", type=int, required=True)
+    availability = commands.add_parser("verify-availability")
+    availability.add_argument("--receipt", type=Path, required=True)
+    availability.add_argument("--receipt-artifact-id", type=int, required=True)
+    availability.add_argument("--receipt-provider-digest", required=True)
+    availability.add_argument("--observation", type=Path, required=True)
+    availability.add_argument("--now", required=True)
     args = parser.parse_args()
     if args.command == "preflight-bundle":
         payload = validate_public_bundle(args.bundle)
@@ -442,6 +448,17 @@ def main() -> int:
         write_json(args.out, payload)
     elif args.command == "validate-receipt":
         payload = validate_receipt(_load_json(args.receipt, "custody receipt"))
+    elif args.command == "verify-availability":
+        payload = verify_current_availability(
+            receipt=_load_json(args.receipt, "custody receipt"),
+            receipt_artifact_id=args.receipt_artifact_id,
+            receipt_provider_digest=args.receipt_provider_digest,
+            observation=_load_json(args.observation, "provider observation"),
+            now=_timestamp(args.now, "current observation time"),
+        )
+        if payload["status"] != "current":
+            print(json.dumps(payload, sort_keys=True))
+            return 5
     else:
         payload = classify_upload_observation(
             operation_outcome=args.operation_outcome,

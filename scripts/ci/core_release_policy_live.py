@@ -200,6 +200,13 @@ def _advance_checkpoint_unlocked(
         os.close(descriptor)
     os.replace(temporary, path)
     os.chmod(path, 0o600, follow_symlinks=False)
+    parent_descriptor = os.open(
+        path.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    )
+    try:
+        os.fsync(parent_descriptor)
+    finally:
+        os.close(parent_descriptor)
     if not stat.S_ISREG(path.stat(follow_symlinks=False).st_mode):
         raise CoreReleaseEvidenceError("policy checkpoint is not regular")
     observed = stable_regular_bytes(path, label="policy checkpoint", limit=64 * 1024)
