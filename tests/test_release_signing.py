@@ -28,6 +28,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO_ROOT / "scripts/ci"
 POLICY_PATH = REPO_ROOT / "governance/release-signing/trust-policy-v001.json"
+POLICY_V2_PATH = REPO_ROOT / "governance/release-signing/trust-policy-v002.json"
 ROSTER_PATH = REPO_ROOT / "governance/release-signing/release-owner-roster-v001.json"
 
 
@@ -53,6 +54,10 @@ def modules() -> tuple[ModuleType, ModuleType, ModuleType, ModuleType]:
 
 def _policy() -> dict[str, Any]:
     return json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+
+
+def _policy_v2() -> dict[str, Any]:
+    return json.loads(POLICY_V2_PATH.read_text(encoding="utf-8"))
 
 
 def _roster() -> dict[str, Any]:
@@ -137,6 +142,30 @@ def test_policy_and_unbound_roster_are_exact_and_fail_closed(
     future["effective_at"] = "2999-01-01T00:00:00Z"
     with pytest.raises(policy.CoreReleaseEvidenceError, match="future"):
         policy.validate_policy(future)
+
+
+def test_policy_v2_requires_exact_numeric_fulcio_subject(
+    modules: tuple[ModuleType, ModuleType, ModuleType, ModuleType],
+) -> None:
+    policy, _live, _identity, _signing = modules
+    valid = policy.validate_policy(_policy_v2())
+    expected = (
+        "repo:tryingET@260287438/dspx@1318473695:environment:core-release-evidence"
+    )
+    assert valid["policy_version"] == 2
+    assert valid["workload"]["token_subject"] == expected
+    assert (
+        valid["workload"]["certificate_extensions"]["1.3.6.1.4.1.57264.1.24"]
+        == expected
+    )
+    assert valid["claims"]["release_authority"] is False
+
+    old_subject = _policy_v2()
+    old_subject["workload"]["certificate_extensions"]["1.3.6.1.4.1.57264.1.24"] = (
+        "repo:tryingET/dspx:environment:core-release-evidence"
+    )
+    with pytest.raises(policy.CoreReleaseEvidenceError, match="dynamic"):
+        policy.validate_policy(old_subject)
 
 
 def test_statement_has_one_wheel_subject_and_typed_sdist_auxiliary(

@@ -24,8 +24,20 @@ APPROVAL_SCHEMA = "dspx-core-release-owner-approval-v1"
 REPOSITORY = "tryingET/dspx"
 REPOSITORY_ID = 1_318_473_695
 REPO_SCOPE = "/home/tryinget/ai-society/softwareco/owned/dspx"
-POLICY_PATH = "governance/release-signing/trust-policy-v001.json"
-SELECTOR_PATH = "governance/release-signing/policy-selector-v001.json"
+POLICY_PATH = "governance/release-signing/trust-policy-v002.json"
+SELECTOR_PATH = "governance/release-signing/policy-selector-v002.json"
+_POLICY_PATHS = {
+    1: "governance/release-signing/trust-policy-v001.json",
+    2: POLICY_PATH,
+}
+_SELECTOR_PATHS = {
+    1: "governance/release-signing/policy-selector-v001.json",
+    2: SELECTOR_PATH,
+}
+_TOKEN_SUBJECTS = {
+    1: "repo:tryingET/dspx:environment:core-release-evidence",
+    2: "repo:tryingET@260287438/dspx@1318473695:environment:core-release-evidence",
+}
 ROSTER_VERSION = "dspx-core-release-owners-v1"
 ROLES = (
     "role:dspx-release-governance-owner",
@@ -116,9 +128,12 @@ def load_json(path: Path, label: str) -> Mapping[str, Any]:
 def validate_policy(value: object) -> dict[str, Any]:
     policy = mapping(value, "trust policy")
     exact(policy, _POLICY_FIELDS, "trust policy")
+    version = policy.get("policy_version")
     if (
         policy.get("schema_version") != POLICY_SCHEMA
-        or policy.get("policy_version") != 1
+        or not isinstance(version, int)
+        or isinstance(version, bool)
+        or version not in _POLICY_PATHS
     ):
         raise CoreReleaseEvidenceError("trust policy version drift")
     effective_at = timestamp(policy.get("effective_at"), "policy effective_at")
@@ -140,7 +155,7 @@ def validate_policy(value: object) -> dict[str, Any]:
         "environment": "core-release-evidence",
         "event": "workflow_dispatch",
         "runner_environment": "github-hosted",
-        "token_subject": "repo:tryingET/dspx:environment:core-release-evidence",
+        "token_subject": _TOKEN_SUBJECTS[version],
     }
     for key, expected in expected_workload.items():
         if workload.get(key) != expected:
@@ -157,6 +172,7 @@ def validate_policy(value: object) -> dict[str, Any]:
         extensions["1.3.6.1.4.1.57264.1.10"] != "$workflow_commit_sha"
         or extensions["1.3.6.1.4.1.57264.1.13"] != "$source_commit_sha"
         or extensions["1.3.6.1.4.1.57264.1.21"] != "$run_invocation_uri"
+        or extensions["1.3.6.1.4.1.57264.1.24"] != _TOKEN_SUBJECTS[version]
     ):
         raise CoreReleaseEvidenceError("trust policy dynamic certificate matcher drift")
     sigstore = mapping(policy.get("sigstore"), "policy sigstore")
@@ -181,7 +197,7 @@ def validate_policy(value: object) -> dict[str, Any]:
         raise CoreReleaseEvidenceError("trust policy statement contract drift")
     if (
         policy.get("roster_version") != ROSTER_VERSION
-        or policy.get("selector_path") != SELECTOR_PATH
+        or policy.get("selector_path") != _SELECTOR_PATHS[version]
     ):
         raise CoreReleaseEvidenceError("trust policy authority locator drift")
     deny = mapping(policy.get("deny"), "policy denylist")
@@ -357,8 +373,15 @@ def validate_selector(value: object, *, repo_root: Path) -> dict[str, Any]:
         {"version", "path", "commit", "blob_oid", "file_sha256"},
         "selected policy",
     )
-    if policy.get("version") != 1 or policy.get("path") != POLICY_PATH:
+    version = policy.get("version")
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or version not in _POLICY_PATHS
+        or policy.get("path") != _POLICY_PATHS[version]
+    ):
         raise CoreReleaseEvidenceError("selected policy locator drift")
+    policy_path = _POLICY_PATHS[version]
     commit = policy.get("commit")
     blob_oid = policy.get("blob_oid")
     file_sha = policy.get("file_sha256")
@@ -370,21 +393,25 @@ def validate_selector(value: object, *, repo_root: Path) -> dict[str, Any]:
         or not is_sha256(file_sha)
     ):
         raise CoreReleaseEvidenceError("selected policy Git identity is invalid")
-    if git(repo_root, "rev-parse", f"{commit}:{POLICY_PATH}") != blob_oid:
+    if git(repo_root, "rev-parse", f"{commit}:{policy_path}") != blob_oid:
         raise CoreReleaseEvidenceError("selected policy blob OID drift")
     raw = subprocess.run(
-        ["git", "-C", str(repo_root), "show", f"{commit}:{POLICY_PATH}"],
+        ["git", "-C", str(repo_root), "show", f"{commit}:{policy_path}"],
         capture_output=True,
         check=False,
     )
     if raw.returncode != 0 or sha256(raw.stdout) != file_sha:
         raise CoreReleaseEvidenceError("selected policy file digest drift")
-    validate_policy(loads_json(raw.stdout, "selected trust policy"))
-    if selector.get("supersession") != {
-        "supersedes_decision_id": None,
-        "supersedes_policy_version": None,
-    }:
-        raise CoreReleaseEvidenceError("policy selector v1 supersession drift")
+    selected_policy = validate_policy(loads_json(raw.stdout, "selected trust policy"))
+    if selected_policy["policy_version"] != version:
+        raise CoreReleaseEvidenceError("selected policy version drift")
+    expected_supersession = (
+        {"supersedes_decision_id": None, "supersedes_policy_version": None}
+        if version == 1
+        else {"supersedes_decision_id": 90, "supersedes_policy_version": 1}
+    )
+    if selector.get("supersession") != expected_supersession:
+        raise CoreReleaseEvidenceError("policy selector supersession drift")
     return dict(selector)
 
 

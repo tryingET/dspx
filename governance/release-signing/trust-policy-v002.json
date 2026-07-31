@@ -1,0 +1,79 @@
+{
+  "schema_version": "dspx-core-trust-policy-v1",
+  "policy_version": 2,
+  "effective_at": "2026-07-31T19:25:00Z",
+  "repository": {
+    "name": "tryingET/dspx",
+    "id": 1318473695,
+    "owner": "tryingET",
+    "owner_id": 260287438,
+    "visibility": "public"
+  },
+  "workload": {
+    "issuer": "https://token.actions.githubusercontent.com",
+    "workflow_path": ".github/workflows/core-release-evidence.yml",
+    "workflow_ref": "refs/heads/main",
+    "environment": "core-release-evidence",
+    "event": "workflow_dispatch",
+    "runner_environment": "github-hosted",
+    "token_subject": "repo:tryingET@260287438/dspx@1318473695:environment:core-release-evidence",
+    "certificate_extensions": {
+      "2.5.29.17": "https://github.com/tryingET/dspx/.github/workflows/core-release-evidence.yml@refs/heads/main",
+      "1.3.6.1.4.1.57264.1.8": "https://token.actions.githubusercontent.com",
+      "1.3.6.1.4.1.57264.1.9": "https://github.com/tryingET/dspx/.github/workflows/core-release-evidence.yml@refs/heads/main",
+      "1.3.6.1.4.1.57264.1.10": "$workflow_commit_sha",
+      "1.3.6.1.4.1.57264.1.11": "github-hosted",
+      "1.3.6.1.4.1.57264.1.12": "https://github.com/tryingET/dspx",
+      "1.3.6.1.4.1.57264.1.13": "$source_commit_sha",
+      "1.3.6.1.4.1.57264.1.14": "refs/heads/main",
+      "1.3.6.1.4.1.57264.1.15": "1318473695",
+      "1.3.6.1.4.1.57264.1.16": "https://github.com/tryingET",
+      "1.3.6.1.4.1.57264.1.17": "260287438",
+      "1.3.6.1.4.1.57264.1.18": "https://github.com/tryingET/dspx/.github/workflows/core-release-evidence.yml@refs/heads/main",
+      "1.3.6.1.4.1.57264.1.19": "$workflow_commit_sha",
+      "1.3.6.1.4.1.57264.1.20": "workflow_dispatch",
+      "1.3.6.1.4.1.57264.1.21": "$run_invocation_uri",
+      "1.3.6.1.4.1.57264.1.22": "public",
+      "1.3.6.1.4.1.57264.1.23": "core-release-evidence",
+      "1.3.6.1.4.1.57264.1.24": "repo:tryingET@260287438/dspx@1318473695:environment:core-release-evidence"
+    }
+  },
+  "sigstore": {
+    "cosign_version": "v2.6.4",
+    "bundle_media_type": "application/vnd.dev.sigstore.bundle.v0.3+json",
+    "trusted_root_source": "https://raw.githubusercontent.com/sigstore/root-signing/5a1d1a50849a7805f290c90c3bf5ee3ada8da3af/targets/trusted_root.json",
+    "trusted_root_sha256": "6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66",
+    "require_certificate_transparency": true,
+    "require_rekor_inclusion": true,
+    "offline_verification": true
+  },
+  "statement": {
+    "type": "https://in-toto.io/Statement/v1",
+    "predicate_type": "https://dspx.ai/attestations/core-release-evidence/v1",
+    "subject_count": 1,
+    "subject_role": "core-wheel",
+    "auxiliary_roles": [
+      "installed_wheel_proof",
+      "release_evidence_v3",
+      "exact_wheel_sbom",
+      "resolved_environment_sbom",
+      "source_state",
+      "bundle_manifest",
+      "unsigned_unsupported_distribution_evidence"
+    ]
+  },
+  "roster_version": "dspx-core-release-owners-v1",
+  "selector_path": "governance/release-signing/policy-selector-v002.json",
+  "deny": {
+    "workflow_run_ids": [],
+    "source_commit_shas": [],
+    "signed_statement_sha256": [],
+    "bundle_manifest_sha256": []
+  },
+  "claims": {
+    "evidence_authenticity_possible": true,
+    "release_authority": false,
+    "package_publication": false,
+    "sdist_supported": false
+  }
+}
