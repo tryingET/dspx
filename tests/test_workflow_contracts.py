@@ -765,3 +765,4 @@ def test_core_release_evidence_workflow_separates_custody_from_owner_quorum() ->
     assert 'test "$REVIEW_90D_CONFIGURED" = true' in workflow
     assert "actions/permissions/artifact-and-log-retention" not in workflow
     assert "environments/core-release-evidence" not in workflow
+    assert "fetch-depth: 0" in workflow
