@@ -14,15 +14,16 @@ This procedure activates evidence authenticity and public bounded custody only. 
 ## Preflight
 
 1. Confirm exact repository/owner IDs and authenticated GitHub target.
-2. Confirm protected `main`, `core-release-evidence`, and provider maximum retention of at least 90 days.
-3. Confirm policy/selector/roster validation passes with the roster unbound and authorization disabled.
-4. Confirm focused tests, workflow contract, full readiness gate, and clean scoped Git status.
-5. Push the exact reviewed main commit and confirm remote equality.
-6. Configure the environment reviewer as a same-principal deliberate-action control; do not describe it as independent review.
+2. Confirm protected `main`, `core-release-evidence`, and provider maximum retention of at least 90 days through an authenticated repository-admin API call.
+3. Write `DSPX_CORE_RELEASE_RETENTION_CAP_DAYS=90` and `DSPX_CORE_RELEASE_90D_REVIEW_CONFIGURED=true` only after observing those exact provider facts. These non-secret assertions bridge facts that the restricted Actions token cannot read; they do not create release authority.
+4. Confirm policy/selector/roster validation passes with the roster unbound and authorization disabled.
+5. Confirm focused tests, workflow contract, full readiness gate, and clean scoped Git status.
+6. Push the exact reviewed main commit and confirm remote equality.
+7. Configure the environment reviewer as a same-principal deliberate-action control; do not describe it as independent review.
 
 ## Rollout
 
-1. Set `DSPX_CORE_RELEASE_SIGNING_ENABLED=true` only after preflight.
+1. Re-observe the provider settings, confirm the two assertion variables still match, then set `DSPX_CORE_RELEASE_SIGNING_ENABLED=true` only after preflight.
 2. Dispatch one `trusted_run_14d` workflow.
 3. Observe provider state to terminal completion; do not retry failed or indeterminate upload effects.
 4. Download and verify evidence and receipt artifacts.

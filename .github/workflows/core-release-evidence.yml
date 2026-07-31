@@ -72,11 +72,12 @@ jobs:
 
       - name: Fail closed on workload or provider prerequisite drift
         env:
-          GH_TOKEN: ${{ github.token }}
           EXPECTED_REPOSITORY: tryingET/dspx
           EXPECTED_REPOSITORY_ID: "1318473695"
           EXPECTED_OWNER_ID: "260287438"
           EXPECTED_WORKFLOW_REF: tryingET/dspx/.github/workflows/core-release-evidence.yml@refs/heads/main
+          PROVIDER_RETENTION_CAP_DAYS: ${{ vars.DSPX_CORE_RELEASE_RETENTION_CAP_DAYS }}
+          REVIEW_90D_CONFIGURED: ${{ vars.DSPX_CORE_RELEASE_90D_REVIEW_CONFIGURED }}
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = "$EXPECTED_REPOSITORY"
@@ -88,20 +89,16 @@ jobs:
           test "$RUNNER_ENVIRONMENT" = github-hosted
           test "${{ github.repository_visibility }}" = public
           test "${{ github.ref_protected }}" = true
-          gh api "repos/$GITHUB_REPOSITORY/environments/core-release-evidence" > "$RUNNER_TEMP/environment.json"
-          jq -e '((.protection_rules // []) | length) > 0 or (.deployment_branch_policy.protected_branches == true)' \
-            "$RUNNER_TEMP/environment.json" >/dev/null
-          gh api "repos/$GITHUB_REPOSITORY/actions/permissions/artifact-and-log-retention" \
-            > "$RUNNER_TEMP/retention.json"
+          # The Actions token cannot read repository-administration endpoints.
+          # These non-secret assertions are written only after an authenticated
+          # controller observes the exact environment and provider retention cap.
+          [[ "$PROVIDER_RETENTION_CAP_DAYS" =~ ^[0-9]+$ ]]
           requested_days=14
           if test "${{ inputs.retention_class }}" = release_candidate_90d; then
             requested_days=90
+            test "$REVIEW_90D_CONFIGURED" = true
           fi
-          if test "$requested_days" -eq 90; then
-            jq -e 'any(.protection_rules[]?; .type == "required_reviewers")' \
-              "$RUNNER_TEMP/environment.json" >/dev/null
-          fi
-          provider_cap="$(jq -er '.maximum_allowed_days' "$RUNNER_TEMP/retention.json")"
+          provider_cap="$PROVIDER_RETENTION_CAP_DAYS"
           test "$provider_cap" -ge "$requested_days"
           # Evidence authenticity is separate from unavailable release authority.
           # Validate the exact disabled roster without inventing owner bindings.

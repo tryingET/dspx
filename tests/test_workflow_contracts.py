@@ -760,3 +760,8 @@ def test_core_release_evidence_workflow_separates_custody_from_owner_quorum() ->
     assert "package release authority remains false" in workflow.lower()
     assert "packages: write" not in workflow
     assert "id-token: write" in workflow
+    assert "DSPX_CORE_RELEASE_RETENTION_CAP_DAYS" in workflow
+    assert "DSPX_CORE_RELEASE_90D_REVIEW_CONFIGURED" in workflow
+    assert 'test "$REVIEW_90D_CONFIGURED" = true' in workflow
+    assert "actions/permissions/artifact-and-log-retention" not in workflow
+    assert "environments/core-release-evidence" not in workflow
