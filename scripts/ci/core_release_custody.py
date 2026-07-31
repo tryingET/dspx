@@ -39,7 +39,9 @@ OWNER_ID = 260_287_438
 WORKFLOW_PATH = ".github/workflows/core-release-evidence.yml"
 ENVIRONMENT = "core-release-evidence"
 RETENTION_DAYS = {"trusted_run_14d": 14, "release_candidate_90d": 90}
-PROVIDER_TIMESTAMP_TOLERANCE = timedelta(seconds=60)
+# GitHub computes expiry from upload initiation but exposes a later created_at.
+# Bound the observed provider skew without weakening the requested retention class.
+PROVIDER_TIMESTAMP_TOLERANCE = timedelta(minutes=5)
 _ALLOWED_FIXED_MEMBERS = {
     "bundle-manifest.json",
     "dspx-core-installed-environment-sbom.cdx.json",
