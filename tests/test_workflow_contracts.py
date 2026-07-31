@@ -769,3 +769,7 @@ def test_core_release_evidence_workflow_separates_custody_from_owner_quorum() ->
     assert "trust-policy-v002.json" in workflow
     assert "policy-selector-v002.json" in workflow
     assert "--argjson policy_version 2" in workflow
+    assert (
+        "RECEIPT_PROVIDER_DIGEST: "
+        "sha256:${{ steps.receipt_upload.outputs.artifact-digest }}" in workflow
+    )

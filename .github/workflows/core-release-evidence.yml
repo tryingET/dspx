@@ -278,7 +278,8 @@ jobs:
           UPLOAD_OUTCOME: ${{ steps.receipt_upload.outcome }}
           ARTIFACT_NAME: dspx-core-custody-receipt-${{ steps.evidence_observation.outputs.artifact_id }}
           RECEIPT_ARTIFACT_ID: ${{ steps.receipt_upload.outputs.artifact-id }}
-          RECEIPT_PROVIDER_DIGEST: ${{ steps.receipt_upload.outputs.artifact-digest }}
+          # upload-artifact emits bare hexadecimal SHA-256; provider API uses sha256:<hex>.
+          RECEIPT_PROVIDER_DIGEST: sha256:${{ steps.receipt_upload.outputs.artifact-digest }}
         run: |
           set -euo pipefail
           api="$RUNNER_TEMP/core-release/receipt-api.json"
