@@ -39,6 +39,7 @@ OWNER_ID = 260_287_438
 WORKFLOW_PATH = ".github/workflows/core-release-evidence.yml"
 ENVIRONMENT = "core-release-evidence"
 RETENTION_DAYS = {"trusted_run_14d": 14, "release_candidate_90d": 90}
+PROVIDER_TIMESTAMP_TOLERANCE = timedelta(seconds=60)
 _ALLOWED_FIXED_MEMBERS = {
     "bundle-manifest.json",
     "dspx-core-installed-environment-sbom.cdx.json",
@@ -211,7 +212,9 @@ def build_receipt(metadata: Mapping[str, Any]) -> dict[str, Any]:
         )
     observed_at = _timestamp(metadata.get("observed_at"), "observed_at")
     expires_at = _timestamp(metadata.get("expires_at"), "expires_at")
-    if expires_at < observed_at + timedelta(days=requested_days):
+    if expires_at + PROVIDER_TIMESTAMP_TOLERANCE < observed_at + timedelta(
+        days=requested_days
+    ):
         raise CoreReleaseEvidenceError(
             "provider expiry is earlier than requested retention"
         )
@@ -371,7 +374,9 @@ def validate_receipt(value: object) -> dict[str, Any]:
         raise CoreReleaseEvidenceError("custody receipt provider cap is insufficient")
     observed = _timestamp(receipt.get("observed_at"), "observed_at")
     expires = _timestamp(receipt.get("expires_at"), "expires_at")
-    if expires < observed + timedelta(days=cast(int, retention["requested_days"])):
+    if expires + PROVIDER_TIMESTAMP_TOLERANCE < observed + timedelta(
+        days=cast(int, retention["requested_days"])
+    ):
         raise CoreReleaseEvidenceError("custody receipt expiry is too early")
     claims = _mapping(receipt.get("claims"), "receipt claims")
     if claims != {

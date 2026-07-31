@@ -141,6 +141,19 @@ def test_receipt_accepts_90_day_class_and_rejects_short_cap_or_expiry(
         module.build_receipt(early)
 
 
+def test_receipt_allows_bounded_provider_timestamp_rounding(
+    module: ModuleType,
+) -> None:
+    rounded = _metadata()
+    rounded["expires_at"] = "2026-08-13T23:59:59Z"
+    receipt = module.build_receipt(rounded)
+    assert module.validate_receipt(receipt) == receipt
+
+    too_short = dict(rounded, expires_at="2026-08-13T23:58:59Z")
+    with pytest.raises(module.CoreReleaseEvidenceError, match="expiry"):
+        module.build_receipt(too_short)
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [
