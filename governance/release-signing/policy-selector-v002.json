@@ -1,0 +1,20 @@
+{
+  "schema_version": "dspx-core-policy-selector-v1",
+  "repository": {
+    "name": "tryingET/dspx",
+    "id": 1318473695,
+    "repo_scope": "/home/tryinget/ai-society/softwareco/owned/dspx"
+  },
+  "policy": {
+    "version": 2,
+    "path": "governance/release-signing/trust-policy-v002.json",
+    "commit": "6efe11d02b15a11f7ae9580593b11045da846576",
+    "blob_oid": "6a9b8b4d365d458f017e394f91610658e92ad19f",
+    "file_sha256": "0ac73d59b1adeb3dde0f41a6bb2af71dbc1d220307111bca5763335547ef4572"
+  },
+  "accepting_decision_id": 92,
+  "supersession": {
+    "supersedes_decision_id": 90,
+    "supersedes_policy_version": 1
+  }
+}

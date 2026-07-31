@@ -28,8 +28,8 @@ env:
   UV_FROZEN: "1"
   UV_NO_PROGRESS: "1"
   COSIGN_VERSION: v2.6.4
-  POLICY_PATH: governance/release-signing/trust-policy-v001.json
-  SELECTOR_PATH: governance/release-signing/policy-selector-v001.json
+  POLICY_PATH: governance/release-signing/trust-policy-v002.json
+  SELECTOR_PATH: governance/release-signing/policy-selector-v002.json
   ROSTER_PATH: governance/release-signing/release-owner-roster-v001.json
 
 jobs:
@@ -232,7 +232,7 @@ jobs:
             --arg signed_statement_sha256 "$statement_sha256" --arg sigstore_bundle_sha256 "$sigstore_sha256" \
             --arg workflow_file_sha256 "$workflow_file_sha256" --arg source_commit_sha "$GITHUB_SHA" \
             --argjson run_id "$GITHUB_RUN_ID" --argjson run_attempt "$GITHUB_RUN_ATTEMPT" \
-            --argjson policy_version 1 --arg policy_selector "$policy_selector" \
+            --argjson policy_version 2 --arg policy_selector "$policy_selector" \
             --arg retention_class "${{ inputs.retention_class }}" --argjson provider_retention_cap_days "$provider_cap" \
             --arg observed_at "$observed_at" --arg expires_at "$expires_at" \
             '$ARGS.named' > "$RUNNER_TEMP/core-release/receipt-metadata.json"

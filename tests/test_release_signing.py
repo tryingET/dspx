@@ -29,6 +29,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO_ROOT / "scripts/ci"
 POLICY_PATH = REPO_ROOT / "governance/release-signing/trust-policy-v001.json"
 POLICY_V2_PATH = REPO_ROOT / "governance/release-signing/trust-policy-v002.json"
+SELECTOR_V1_PATH = REPO_ROOT / "governance/release-signing/policy-selector-v001.json"
+SELECTOR_V2_PATH = REPO_ROOT / "governance/release-signing/policy-selector-v002.json"
 ROSTER_PATH = REPO_ROOT / "governance/release-signing/release-owner-roster-v001.json"
 
 
@@ -340,6 +342,21 @@ def test_selector_verifies_exact_git_blob_and_chain(
         live.resolve_selector_chain(
             [(90, selector, "first"), (91, copy.deepcopy(selector), "second")]
         )
+
+
+def test_selector_v2_forms_gapless_exact_supersession_chain(
+    modules: tuple[ModuleType, ModuleType, ModuleType, ModuleType],
+) -> None:
+    policy, live, _identity, _signing = modules
+    selector_v1 = json.loads(SELECTOR_V1_PATH.read_text(encoding="utf-8"))
+    selector_v2 = json.loads(SELECTOR_V2_PATH.read_text(encoding="utf-8"))
+
+    assert policy.validate_selector(selector_v1, repo_root=REPO_ROOT) == selector_v1
+    assert policy.validate_selector(selector_v2, repo_root=REPO_ROOT) == selector_v2
+    selected = live.resolve_selector_chain(
+        [(90, selector_v1, "selector-v1"), (92, selector_v2, "selector-v2")]
+    )
+    assert selected == (92, selector_v2, "selector-v2")
 
 
 def test_checkpoint_is_atomic_integrity_checked_and_rejects_rollback(

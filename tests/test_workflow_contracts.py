@@ -766,3 +766,6 @@ def test_core_release_evidence_workflow_separates_custody_from_owner_quorum() ->
     assert "actions/permissions/artifact-and-log-retention" not in workflow
     assert "environments/core-release-evidence" not in workflow
     assert "fetch-depth: 0" in workflow
+    assert "trust-policy-v002.json" in workflow
+    assert "policy-selector-v002.json" in workflow
+    assert "--argjson policy_version 2" in workflow
