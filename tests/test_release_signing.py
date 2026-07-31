@@ -277,7 +277,7 @@ def _selector_repo(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
             "blob_oid": blob,
             "file_sha256": __import__("hashlib").sha256(raw).hexdigest(),
         },
-        "accepting_decision_id": 88,
+        "accepting_decision_id": 90,
         "supersession": {
             "supersedes_decision_id": None,
             "supersedes_policy_version": None,
@@ -292,8 +292,8 @@ def test_selector_verifies_exact_git_blob_and_chain(
     policy, live, _identity, _signing = modules
     repo, selector = _selector_repo(tmp_path)
     assert policy.validate_selector(selector, repo_root=repo) == selector
-    selected = live.resolve_selector_chain([(88, selector, "selector-ref")])
-    assert selected[0] == 88
+    selected = live.resolve_selector_chain([(90, selector, "selector-ref")])
+    assert selected[0] == 90
 
     drifted = copy.deepcopy(selector)
     drifted["policy"]["file_sha256"] = "0" * 64
@@ -302,7 +302,7 @@ def test_selector_verifies_exact_git_blob_and_chain(
 
     with pytest.raises(policy.CoreReleaseEvidenceError, match="version fork"):
         live.resolve_selector_chain(
-            [(88, selector, "first"), (89, copy.deepcopy(selector), "second")]
+            [(90, selector, "first"), (91, copy.deepcopy(selector), "second")]
         )
 
 

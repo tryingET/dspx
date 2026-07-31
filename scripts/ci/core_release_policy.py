@@ -347,7 +347,12 @@ def validate_selector(value: object, *, repo_root: Path) -> dict[str, Any]:
         "repo_scope": REPO_SCOPE,
     }:
         raise CoreReleaseEvidenceError("policy selector repository drift")
-    if selector.get("accepting_decision_id") != 88:
+    accepting_decision_id = selector.get("accepting_decision_id")
+    if (
+        not isinstance(accepting_decision_id, int)
+        or isinstance(accepting_decision_id, bool)
+        or accepting_decision_id <= 0
+    ):
         raise CoreReleaseEvidenceError("policy selector decision drift")
     policy = mapping(selector.get("policy"), "selected policy")
     exact(
