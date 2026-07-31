@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-07-23T20:20:27.256198649+00:00",
+  "task_id": 4126,
+  "entity_version": 5,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      ".github/workflows/**",
+      "docs/project/developer_workflow.md",
+      "docs/project/product-posture.md",
+      "governance/task-scopes/AK-4126.snapshot.json",
+      "scripts/ci/core_release_custody.py",
+      "scripts/ci/core_release_custody_provider.py",
+      "scripts/ci/package-check.sh",
+      "tests/test_release_custody.py"
+    ],
+    "required_paths": [
+      ".github/workflows/core-release-evidence.yml",
+      "governance/task-scopes/AK-4126.snapshot.json",
+      "scripts/ci/core_release_custody.py",
+      "scripts/ci/core_release_custody_provider.py",
+      "tests/test_release_custody.py"
+    ],
+    "forbidden_paths": [
+      "docs/_core/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
