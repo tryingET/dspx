@@ -131,6 +131,11 @@ def test_policy_and_unbound_roster_are_exact_and_fail_closed(
     with pytest.raises(policy.CoreReleaseEvidenceError, match="OID coverage"):
         policy.validate_policy(drifted)
 
+    future = _policy()
+    future["effective_at"] = "2999-01-01T00:00:00Z"
+    with pytest.raises(policy.CoreReleaseEvidenceError, match="future"):
+        policy.validate_policy(future)
+
 
 def test_statement_has_one_wheel_subject_and_typed_sdist_auxiliary(
     modules: tuple[ModuleType, ModuleType, ModuleType, ModuleType],
@@ -389,8 +394,21 @@ def test_two_of_three_approval_is_separate_and_fail_closed(
         expected=expected,
         now=datetime(2026, 8, 1, tzinfo=timezone.utc),
     )
-    assert two["release_authority"] is True
+    assert two["structural_threshold_satisfied"] is True
+    assert two["approval_authentication_status"] == "owner_authorized_adapter_required"
+    assert two["evidence_authenticity_required"] is True
+    assert two["current_custody_required"] is True
+    assert two["release_authority"] is False
     assert two["package_publication"] is False
+
+    widened = {**expected, "release_authority": True}
+    with pytest.raises(policy.CoreReleaseEvidenceError, match="payload fields"):
+        policy.validate_approvals(
+            [first, second],
+            roster=roster,
+            expected=widened,
+            now=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        )
 
     duplicate = copy.deepcopy(second)
     duplicate["principal"] = first["principal"]
@@ -502,7 +520,8 @@ def test_sigstore_verification_requires_pinned_root_and_cosign_success(
     subject_path = tmp_path / "subject.whl"
     root_path = tmp_path / "trusted_root.json"
     policy_path = tmp_path / "policy.json"
-    statement_path.write_text(json.dumps(statement), encoding="utf-8")
+    authenticated_statement_raw = json.dumps(statement, sort_keys=True).encode()
+    statement_path.write_bytes(authenticated_statement_raw)
     bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
     subject_path.write_bytes(b"wheel")
     root_path.write_bytes(b"pinned root fixture")
@@ -533,6 +552,17 @@ def test_sigstore_verification_requires_pinned_root_and_cosign_success(
     )
     assert result["status"] == "verified"
     assert result["release_authority"] is False
+
+    statement_path.write_text(json.dumps(statement, indent=2), encoding="utf-8")
+    with pytest.raises(policy.CoreReleaseEvidenceError, match="byte drift"):
+        identity.verify_sigstore_bundle(
+            statement_path=statement_path,
+            bundle_path=bundle_path,
+            subject_path=subject_path,
+            policy_path=policy_path,
+            trusted_root_path=root_path,
+        )
+    statement_path.write_bytes(authenticated_statement_raw)
 
     monkeypatch.setattr(identity, "sha256", real_sha256)
     with pytest.raises(policy.CoreReleaseEvidenceError, match="trusted root digest"):

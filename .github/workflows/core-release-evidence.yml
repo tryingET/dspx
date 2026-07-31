@@ -87,7 +87,7 @@ jobs:
           test "$GITHUB_WORKFLOW_REF" = "$EXPECTED_WORKFLOW_REF"
           test "$RUNNER_ENVIRONMENT" = github-hosted
           test "${{ github.repository_visibility }}" = public
-          gh api "repos/$GITHUB_REPOSITORY/branches/main/protection" > "$RUNNER_TEMP/main-protection.json"
+          test "${{ github.ref_protected }}" = true
           gh api "repos/$GITHUB_REPOSITORY/environments/core-release-evidence" > "$RUNNER_TEMP/environment.json"
           jq -e '((.protection_rules // []) | length) > 0 or (.deployment_branch_policy.protected_branches == true)' \
             "$RUNNER_TEMP/environment.json" >/dev/null

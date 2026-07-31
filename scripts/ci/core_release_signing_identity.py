@@ -181,7 +181,10 @@ def verify_sigstore_bundle(
     cosign_command: str = "cosign",
 ) -> dict[str, Any]:
     policy = validate_policy(load_json(policy_path, "trust policy"))
-    statement = load_json(statement_path, "signed statement")
+    statement_raw = stable_regular_bytes(
+        statement_path, label="signed statement", limit=MAX_JSON_BYTES
+    )
+    statement = loads_json(statement_raw, "signed statement")
     bundle = load_json(bundle_path, "Sigstore bundle")
     root_raw = stable_regular_bytes(
         trusted_root_path, label="Sigstore trusted root", limit=MAX_JSON_BYTES
@@ -196,13 +199,16 @@ def verify_sigstore_bundle(
     if not isinstance(payload, str):
         raise CoreReleaseEvidenceError("Sigstore DSSE payload is missing")
     try:
+        authenticated_statement_raw = base64.b64decode(payload, validate=True)
         bundled_statement = loads_json(
-            base64.b64decode(payload, validate=True), "Sigstore bundled statement"
+            authenticated_statement_raw, "Sigstore bundled statement"
         )
     except ValueError as exc:
         raise CoreReleaseEvidenceError("Sigstore DSSE payload is malformed") from exc
-    if dict(bundled_statement) != dict(statement):
-        raise CoreReleaseEvidenceError("Sigstore bundled statement drift")
+    if authenticated_statement_raw != statement_raw or dict(bundled_statement) != dict(
+        statement
+    ):
+        raise CoreReleaseEvidenceError("Sigstore bundled statement byte drift")
     workload = mapping(policy["workload"], "policy workload")
     predicate_type = statement.get("predicateType")
     allowed_types = {

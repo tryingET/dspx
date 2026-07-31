@@ -11,7 +11,9 @@ from io import BytesIO
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import sys
+import tarfile
 from types import ModuleType
 import zipfile
 
@@ -85,6 +87,15 @@ def _artifact() -> dict[str, object]:
         "name": "dspx-core-evidence-456-1",
         "expired": False,
         "digest": f"sha256:{'a' * 64}",
+    }
+
+
+def _receipt_artifact() -> dict[str, object]:
+    return {
+        "id": 999,
+        "name": "dspx-core-custody-receipt-123",
+        "expired": False,
+        "digest": f"sha256:{'b' * 64}",
     }
 
 
@@ -181,7 +192,10 @@ def test_upload_observation_requires_complete_provider_truth(
 
     for observation in (
         _observation(artifacts=[], complete=False),
-        {"schema_version": module.OBSERVATION_SCHEMA, "query_status": "error"},
+        {
+            "schema_version": "dspx-github-artifact-observation-v1",
+            "query_status": "error",
+        },
         _observation(artifacts=[_artifact(), _artifact()]),
     ):
         result = module.classify_upload_observation(
@@ -201,20 +215,52 @@ def test_upload_observation_requires_complete_provider_truth(
     assert success_but_absent["status"] == "effect_indeterminate"
 
 
+def test_observe_upload_cli_never_reports_confirmed_absence_as_success(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    observation = tmp_path / "observation.json"
+    observation.write_text(json.dumps(_observation(artifacts=[])), encoding="utf-8")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "observe-upload",
+            "--observation",
+            str(observation),
+            "--operation-outcome",
+            "failure",
+            "--name",
+            "dspx-core-evidence-456-1",
+            "--run-id",
+            "456",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={"PYTHONPATH": str(SCRIPTS)},
+    )
+    assert result.returncode == 4
+    assert '"status": "confirmed_absent"' in result.stdout
+
+
 def test_current_availability_fails_closed_on_absence_expiry_and_drift(
     module: ModuleType,
 ) -> None:
     receipt = module.build_receipt(_metadata())
     current = module.verify_current_availability(
         receipt=receipt,
-        observation=_observation(artifacts=[_artifact()]),
+        receipt_artifact_id=999,
+        receipt_provider_digest=f"sha256:{'b' * 64}",
+        observation=_observation(artifacts=[_artifact(), _receipt_artifact()]),
         now=datetime(2026, 8, 1, tzinfo=timezone.utc),
     )
     assert current == {"status": "current", "release_use_custody": True}
 
     absent = module.verify_current_availability(
         receipt=receipt,
-        observation=_observation(artifacts=[]),
+        receipt_artifact_id=999,
+        receipt_provider_digest=f"sha256:{'b' * 64}",
+        observation=_observation(artifacts=[_artifact()]),
         now=datetime(2026, 8, 1, tzinfo=timezone.utc),
     )
     assert absent == {"status": "confirmed_absent", "release_use_custody": False}
@@ -223,17 +269,41 @@ def test_current_availability_fails_closed_on_absence_expiry_and_drift(
     drifted["digest"] = f"sha256:{'0' * 64}"
     drift = module.verify_current_availability(
         receipt=receipt,
-        observation=_observation(artifacts=[drifted]),
+        receipt_artifact_id=999,
+        receipt_provider_digest=f"sha256:{'b' * 64}",
+        observation=_observation(artifacts=[drifted, _receipt_artifact()]),
         now=datetime(2026, 8, 1, tzinfo=timezone.utc),
     )
     assert drift == {"status": "digest_or_expiry_drift", "release_use_custody": False}
 
     expired = module.verify_current_availability(
         receipt=receipt,
-        observation=_observation(artifacts=[_artifact()]),
+        receipt_artifact_id=999,
+        receipt_provider_digest=f"sha256:{'b' * 64}",
+        observation=_observation(artifacts=[_artifact(), _receipt_artifact()]),
         now=datetime(2026, 8, 15, tzinfo=timezone.utc),
     )
     assert expired == {"status": "expired", "release_use_custody": False}
+
+
+def _wheel_bytes(*, secret: bool = False) -> bytes:
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        payload = b"public wheel payload\n"
+        if secret:
+            payload = b"access_token=github_pat_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGH\n"
+        archive.writestr("dspx/__init__.py", payload)
+    return buffer.getvalue()
+
+
+def _sdist_bytes() -> bytes:
+    payload = b"public sdist payload\n"
+    info = tarfile.TarInfo("dspx_core-1.0.0/src/dspx/__init__.py")
+    info.size = len(payload)
+    buffer = BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        archive.addfile(info, BytesIO(payload))
+    return buffer.getvalue()
 
 
 def _public_zip(*, secret_member: str | None = None) -> tuple[bytes, dict[str, object]]:
@@ -251,9 +321,14 @@ def _public_zip(*, secret_member: str | None = None) -> tuple[bytes, dict[str, o
     buffer = BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
         for name in names:
-            payload = b"public evidence\n"
-            if name == secret_member:
-                payload = b"api_key=ghp_abcdefghijklmnopqrstuvwxyz1234567890\n"
+            if name.endswith(".whl"):
+                payload = _wheel_bytes(secret=name == secret_member)
+            elif name.endswith(".tar.gz"):
+                payload = _sdist_bytes()
+            else:
+                payload = b"public evidence\n"
+                if name == secret_member:
+                    payload = b"api_key=ghp_abcdefghijklmnopqrstuvwxyz1234567890\n"
             archive.writestr(name, payload)
         archive.writestr("bundle-manifest.json", json.dumps(manifest).encode())
     return buffer.getvalue(), manifest
@@ -277,6 +352,14 @@ def test_public_bundle_preflight_enforces_allowlist_and_secret_scan(
     )
     bundle.write_bytes(secret_raw)
     monkeypatch.setattr(module, "validate_bundle", lambda _path: secret_manifest)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="secret-shaped"):
+        module.validate_public_bundle(bundle)
+
+    nested_raw, nested_manifest = _public_zip(
+        secret_member="dspx_core-1.0.0-py3-none-any.whl"
+    )
+    bundle.write_bytes(nested_raw)
+    monkeypatch.setattr(module, "validate_bundle", lambda _path: nested_manifest)
     with pytest.raises(module.CoreReleaseEvidenceError, match="secret-shaped"):
         module.validate_public_bundle(bundle)
 

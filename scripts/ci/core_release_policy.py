@@ -1,9 +1,4 @@
-#!/usr/bin/env python3
-# ---
 # summary: "Validates immutable Core trust policy, selector, roster, and owner approvals."
-# read_when:
-#   - "Changing Core signer policy selection, release-owner bindings, or approvals."
-# ---
 
 from __future__ import annotations
 
@@ -126,7 +121,9 @@ def validate_policy(value: object) -> dict[str, Any]:
         or policy.get("policy_version") != 1
     ):
         raise CoreReleaseEvidenceError("trust policy version drift")
-    timestamp(policy.get("effective_at"), "policy effective_at")
+    effective_at = timestamp(policy.get("effective_at"), "policy effective_at")
+    if effective_at > datetime.now(timezone.utc):
+        raise CoreReleaseEvidenceError("trust policy cannot be effective in the future")
     if policy.get("repository") != {
         "name": REPOSITORY,
         "id": REPOSITORY_ID,
@@ -410,6 +407,37 @@ def validate_approvals(
     expected: Mapping[str, Any],
     now: datetime,
 ) -> dict[str, Any]:
+    exact(
+        expected,
+        {
+            "policy_version",
+            "wheel_sha256",
+            "bundle_manifest_sha256",
+            "signed_statement_sha256",
+            "source_commit_sha",
+            "package_version",
+            "roster_version",
+            "authority_ref",
+        },
+        "approval payload",
+    )
+    if (
+        not isinstance(expected.get("policy_version"), int)
+        or isinstance(expected.get("policy_version"), bool)
+        or expected.get("policy_version") <= 0
+        or expected.get("roster_version") != ROSTER_VERSION
+        or not is_sha256(expected.get("wheel_sha256"))
+        or not is_sha256(expected.get("bundle_manifest_sha256"))
+        or not is_sha256(expected.get("signed_statement_sha256"))
+        or not isinstance(expected.get("source_commit_sha"), str)
+        or re.fullmatch(r"[0-9a-f]{40}", cast(str, expected["source_commit_sha"]))
+        is None
+        or not isinstance(expected.get("package_version"), str)
+        or not expected.get("package_version")
+        or not isinstance(expected.get("authority_ref"), str)
+        or not expected.get("authority_ref")
+    ):
+        raise CoreReleaseEvidenceError("approval payload identity drift")
     valid_roster = validate_roster(roster, require_bindings=True)
     bindings = {entry["role"]: entry["principal"] for entry in valid_roster["bindings"]}
     accepted_roles: set[str] = set()
@@ -462,6 +490,10 @@ def validate_approvals(
     return {
         "schema_version": "dspx-core-release-authorization-evaluation-v1",
         "valid_approval_count": len(accepted_roles),
-        "release_authority": len(accepted_roles) >= 2,
+        "structural_threshold_satisfied": len(accepted_roles) >= 2,
+        "approval_authentication_status": "owner_authorized_adapter_required",
+        "evidence_authenticity_required": True,
+        "current_custody_required": True,
+        "release_authority": False,
         "package_publication": False,
     }

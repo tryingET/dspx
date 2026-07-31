@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -145,6 +146,25 @@ def _validate_checkpoint(value: object) -> dict[str, Any]:
 
 
 def advance_checkpoint(path: Path, *, version: int, reference: str) -> dict[str, Any]:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = path.parent / f".{path.name}.lock"
+    lock_descriptor = os.open(
+        lock_path,
+        os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0),
+        0o600,
+    )
+    try:
+        os.fchmod(lock_descriptor, 0o600)
+        fcntl.flock(lock_descriptor, fcntl.LOCK_EX)
+        return _advance_checkpoint_unlocked(path, version=version, reference=reference)
+    finally:
+        fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
+        os.close(lock_descriptor)
+
+
+def _advance_checkpoint_unlocked(
+    path: Path, *, version: int, reference: str
+) -> dict[str, Any]:
     if path.is_symlink():
         raise CoreReleaseEvidenceError("policy checkpoint must not be a symlink")
     if path.exists():
@@ -222,7 +242,7 @@ def resolve_live_current_policy(
             or decision.get("scope") != "repo"
             or decision.get("repo_scope") != REPO_SCOPE
             or decision.get("outcome") != "accepted"
-            or decision.get("state") not in {"adr_accepted", "unblocked"}
+            or decision.get("state") != "unblocked"
         ):
             raise CoreReleaseEvidenceError("accepted selector decision state drift")
         detail = _run_machine(

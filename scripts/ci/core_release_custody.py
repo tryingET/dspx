@@ -20,8 +20,8 @@ import zipfile
 
 from core_release_bundle_contract import validate_bundle
 from core_release_custody_provider import (
-    OBSERVATION_SCHEMA,
     classify_upload_observation,
+    verify_artifact_pair_availability,
 )
 from core_release_evidence_io import (
     MAX_ARTIFACT_BYTES,
@@ -30,6 +30,7 @@ from core_release_evidence_io import (
     stable_regular_bytes,
     write_json,
 )
+from core_release_public_scan import secret_matches, scan_nested_release_archive
 
 RECEIPT_SCHEMA = "dspx-core-ci-custody-receipt-v1"
 REPOSITORY = "tryingET/dspx"
@@ -46,16 +47,6 @@ _ALLOWED_FIXED_MEMBERS = {
     "installed-core-golden-path-proof.json",
     "local-build-provenance.json",
 }
-_SECRET_PATTERNS = (
-    re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-    re.compile(rb"\bAKIA[0-9A-Z]{16}\b"),
-    re.compile(rb"\bgh[oprsu]_[A-Za-z0-9_]{32,}\b"),
-    re.compile(rb"\bgithub_pat_[A-Za-z0-9_]{40,}\b"),
-    re.compile(
-        rb"(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|bearer)\b"
-        rb"\s*[:=]\s*['\"]?[A-Za-z0-9+/_.=-]{12,}"
-    ),
-)
 _RECEIPT_FIELDS = {
     "schema_version",
     "evidence_artifact",
@@ -130,14 +121,6 @@ def _load_json(path: Path, label: str) -> Mapping[str, Any]:
         raise CoreReleaseEvidenceError(f"{label} is not valid JSON") from exc
 
 
-def _secret_matches(raw: bytes) -> list[str]:
-    return [
-        pattern.pattern.decode("ascii", errors="replace")
-        for pattern in _SECRET_PATTERNS
-        if pattern.search(raw)
-    ]
-
-
 def validate_public_bundle(path: Path) -> dict[str, Any]:
     manifest = validate_bundle(path)
     raw = stable_regular_bytes(
@@ -160,9 +143,12 @@ def validate_public_bundle(path: Path) -> dict[str, Any]:
             payloads = {name: archive.read(name) for name in names}
             findings: dict[str, list[str]] = {}
             for name, member_raw in payloads.items():
-                matches = _secret_matches(member_raw)
-                if matches:
-                    findings[name] = matches
+                matches = secret_matches(member_raw)
+                nested = scan_nested_release_archive(name, member_raw)
+                if matches or nested:
+                    findings[name] = matches + [
+                        f"nested-member:{member}" for member in nested
+                    ]
             if findings:
                 raise CoreReleaseEvidenceError(
                     f"public bundle contains secret-shaped content: {sorted(findings)!r}"
@@ -195,7 +181,7 @@ def validate_public_upload_files(paths: list[Path]) -> dict[str, Any]:
     for name, path in by_name.items():
         limit = 2 * MAX_ARTIFACT_BYTES if name == "evidence.zip" else MAX_JSON_BYTES
         raw = stable_regular_bytes(path, label=f"public upload {name}", limit=limit)
-        if _secret_matches(raw):
+        if secret_matches(raw):
             raise CoreReleaseEvidenceError(
                 f"public upload {name} contains secret-shaped content"
             )
@@ -407,37 +393,24 @@ def validate_receipt(value: object) -> dict[str, Any]:
 
 
 def verify_current_availability(
-    *, receipt: object, observation: object, now: datetime
+    *,
+    receipt: object,
+    receipt_artifact_id: int,
+    receipt_provider_digest: str,
+    observation: object,
+    now: datetime,
 ) -> dict[str, Any]:
     valid = validate_receipt(receipt)
-    observed = _mapping(observation, "provider observation")
-    if (
-        observed.get("schema_version") != OBSERVATION_SCHEMA
-        or observed.get("query_status") != "success"
-        or observed.get("complete") is not True
-    ):
-        return {"status": "effect_indeterminate", "release_use_custody": False}
     if now >= _timestamp(valid["expires_at"], "expires_at"):
         return {"status": "expired", "release_use_custody": False}
-    artifact = _mapping(valid["evidence_artifact"], "receipt evidence artifact")
-    artifacts = observed.get("artifacts")
-    if not isinstance(artifacts, list):
-        return {"status": "effect_indeterminate", "release_use_custody": False}
-    matches = [
-        item
-        for item in artifacts
-        if isinstance(item, Mapping) and item.get("id") == artifact.get("id")
-    ]
-    if not matches:
-        return {"status": "confirmed_absent", "release_use_custody": False}
-    if len(matches) != 1:
-        return {"status": "effect_indeterminate", "release_use_custody": False}
-    current = _mapping(matches[0], "current artifact")
-    if current.get("expired") is not False or current.get("digest") != artifact.get(
-        "provider_digest"
-    ):
-        return {"status": "digest_or_expiry_drift", "release_use_custody": False}
-    return {"status": "current", "release_use_custody": True}
+    return verify_artifact_pair_availability(
+        evidence_artifact=_mapping(
+            valid["evidence_artifact"], "receipt evidence artifact"
+        ),
+        receipt_artifact_id=receipt_artifact_id,
+        receipt_provider_digest=receipt_provider_digest,
+        observation=observation,
+    )
 
 
 def main() -> int:
@@ -476,9 +449,9 @@ def main() -> int:
             expected_name=args.name,
             run_id=args.run_id,
         )
-        if payload["status"] == "effect_indeterminate":
+        if payload["status"] != "observed_success":
             print(json.dumps(payload, sort_keys=True))
-            return 3
+            return 3 if payload["status"] == "effect_indeterminate" else 4
     print(json.dumps(payload, sort_keys=True))
     return 0
 
