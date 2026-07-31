@@ -1,0 +1,19 @@
+{
+  "schema_version": "dspx-core-release-owner-roster-v1",
+  "roster_version": "dspx-core-release-owners-v1",
+  "roles": [
+    "role:dspx-release-governance-owner",
+    "role:softwareco-security-owner",
+    "role:softwareco-delivery-owner"
+  ],
+  "bindings": [],
+  "threshold": {
+    "required": 2,
+    "total": 3,
+    "distinct_roles": true,
+    "distinct_principals": true,
+    "approval_max_age_hours": 72
+  },
+  "authorization_enabled": false,
+  "disabled_reason": "No owner-authorized principal bindings exist. Evidence signatures cannot authorize release."
+}

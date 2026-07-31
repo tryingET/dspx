@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-07-23T20:20:07.700874700+00:00",
+  "task_id": 4125,
+  "entity_version": 5,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      ".github/workflows/core-release-evidence.yml",
+      "docs/project/product-posture.md",
+      "governance/release-signing/policy-selector-v001.json",
+      "governance/release-signing/release-owner-roster-v001.json",
+      "governance/release-signing/trust-policy-v001.json",
+      "governance/task-scopes/AK-4125.snapshot.json",
+      "scripts/ci/core_release_*.py",
+      "scripts/ci/package-check.sh",
+      "tests/test_release_*.py"
+    ],
+    "required_paths": [
+      ".github/workflows/core-release-evidence.yml",
+      "governance/release-signing/policy-selector-v001.json",
+      "governance/release-signing/release-owner-roster-v001.json",
+      "governance/release-signing/trust-policy-v001.json",
+      "governance/task-scopes/AK-4125.snapshot.json",
+      "scripts/ci/core_release_signing.py",
+      "tests/test_release_signing.py"
+    ],
+    "forbidden_paths": [
+      "docs/_core/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

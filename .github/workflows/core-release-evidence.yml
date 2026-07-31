@@ -57,6 +57,19 @@ jobs:
         with:
           cosign-release: ${{ env.COSIGN_VERSION }}
 
+      - name: Fetch and pin the accepted Sigstore trust root
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/core-release"
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/sigstore/root-signing/5a1d1a50849a7805f290c90c3bf5ee3ada8da3af/targets/trusted_root.json \
+            --output "$RUNNER_TEMP/core-release/trusted_root.json"
+          echo '6494e21ea73fa7ee769f85f57d5a3e6a08725eae1e38c755fc3517c9e6bc0b66  '"$RUNNER_TEMP/core-release/trusted_root.json" \
+            | sha256sum --check --strict
+
+      - name: Install frozen verification environment
+        run: uv sync --frozen --all-packages --dev
+
       - name: Fail closed on workload or provider prerequisite drift
         env:
           GH_TOKEN: ${{ github.token }}
@@ -86,7 +99,7 @@ jobs:
           fi
           provider_cap="$(jq -er '.maximum_allowed_days' "$RUNNER_TEMP/retention.json")"
           test "$provider_cap" -ge "$requested_days"
-          python scripts/ci/core_release_signing.py preflight-policy \
+          uv run --frozen --no-sync python scripts/ci/core_release_signing.py preflight-policy \
             --policy "$POLICY_PATH" \
             --selector "$SELECTOR_PATH" \
             --roster "$ROSTER_PATH" \
@@ -100,21 +113,21 @@ jobs:
           mkdir -p "$RUNNER_TEMP/core-release"
           bash scripts/ci/package-check.sh \
             --retain-core-evidence "$RUNNER_TEMP/core-release/evidence.zip"
-          python scripts/ci/core_release_custody.py preflight-bundle \
+          uv run --frozen --no-sync python scripts/ci/core_release_custody.py preflight-bundle \
             --bundle "$RUNNER_TEMP/core-release/evidence.zip" \
             > "$RUNNER_TEMP/core-release/public-preflight.json"
 
       - name: Build canonical wheel-only statement
         run: |
           set -euo pipefail
-          python scripts/ci/core_release_signing.py build-statement \
+          uv run --frozen --no-sync python scripts/ci/core_release_signing.py build-statement \
             --bundle "$RUNNER_TEMP/core-release/evidence.zip" \
             --policy "$POLICY_PATH" \
             --run-id "$GITHUB_RUN_ID" \
             --run-attempt "$GITHUB_RUN_ATTEMPT" \
-            --workflow-sha "$GITHUB_WORKFLOW_SHA" \
-            --out "$RUNNER_TEMP/core-release/statement.json"
-          python scripts/ci/core_release_signing.py extract-wheel \
+            --workflow-commit "$GITHUB_WORKFLOW_SHA" \
+            --out "$RUNNER_TEMP/core-release/signed-statement.json"
+          uv run --frozen --no-sync python scripts/ci/core_release_signing.py extract-wheel \
             --bundle "$RUNNER_TEMP/core-release/evidence.zip" \
             --out "$RUNNER_TEMP/core-release/subject.whl"
 
@@ -122,18 +135,21 @@ jobs:
         run: |
           set -euo pipefail
           cosign attest-blob --yes \
-            --statement "$RUNNER_TEMP/core-release/statement.json" \
+            --new-bundle-format \
+            --trusted-root "$RUNNER_TEMP/core-release/trusted_root.json" \
+            --statement "$RUNNER_TEMP/core-release/signed-statement.json" \
             --bundle "$RUNNER_TEMP/core-release/statement.sigstore.json" \
-            --output-attestation "$RUNNER_TEMP/core-release/signed-statement.json" \
             "$RUNNER_TEMP/core-release/subject.whl"
-          python scripts/ci/core_release_signing.py verify-bundle \
+          uv run --frozen --no-sync python scripts/ci/core_release_signing.py verify-bundle \
             --statement "$RUNNER_TEMP/core-release/signed-statement.json" \
             --sigstore-bundle "$RUNNER_TEMP/core-release/statement.sigstore.json" \
             --subject "$RUNNER_TEMP/core-release/subject.whl" \
+            --evidence-bundle "$RUNNER_TEMP/core-release/evidence.zip" \
             --policy "$POLICY_PATH" \
             --selector "$SELECTOR_PATH" \
+            --trusted-root "$RUNNER_TEMP/core-release/trusted_root.json" \
             --creation-policy-only
-          python scripts/ci/core_release_custody.py preflight-upload \
+          uv run --frozen --no-sync python scripts/ci/core_release_custody.py preflight-upload \
             --file "$RUNNER_TEMP/core-release/evidence.zip" \
             --file "$RUNNER_TEMP/core-release/signed-statement.json" \
             --file "$RUNNER_TEMP/core-release/statement.sigstore.json" \
@@ -179,7 +195,7 @@ jobs:
           fi
           outcome=failure
           if test "$UPLOAD_OUTCOME" = success; then outcome=success; fi
-          python scripts/ci/core_release_custody.py observe-upload \
+          uv run --frozen --no-sync python scripts/ci/core_release_custody.py observe-upload \
             --observation "$observation" \
             --operation-outcome "$outcome" \
             --name "$ARTIFACT_NAME" \
@@ -204,7 +220,7 @@ jobs:
           manifest_sha256="$(jq -er '.manifest_sha256' "$RUNNER_TEMP/core-release/public-preflight.json")"
           statement_sha256="$(sha256sum "$RUNNER_TEMP/core-release/signed-statement.json" | cut -d' ' -f1)"
           sigstore_sha256="$(sha256sum "$RUNNER_TEMP/core-release/statement.sigstore.json" | cut -d' ' -f1)"
-          policy_selector="$(python scripts/ci/core_release_signing.py selector-ref --selector "$SELECTOR_PATH")"
+          policy_selector="$(uv run --frozen --no-sync python scripts/ci/core_release_signing.py selector-ref --selector "$SELECTOR_PATH")"
           jq -n \
             --argjson artifact_id "$ARTIFACT_ID" --arg artifact_url "$artifact_url" \
             --arg artifact_digest "$artifact_digest" --arg artifact_name "$ARTIFACT_NAME" \
@@ -216,16 +232,24 @@ jobs:
             --arg retention_class "${{ inputs.retention_class }}" --argjson provider_retention_cap_days "$provider_cap" \
             --arg observed_at "$observed_at" --arg expires_at "$expires_at" \
             '$ARGS.named' > "$RUNNER_TEMP/core-release/receipt-metadata.json"
-          python scripts/ci/core_release_custody.py build-receipt \
+          uv run --frozen --no-sync python scripts/ci/core_release_custody.py build-receipt \
             --metadata "$RUNNER_TEMP/core-release/receipt-metadata.json" \
             --out "$RUNNER_TEMP/core-release/custody-receipt.json"
-          python scripts/ci/core_release_signing.py build-receipt-statement \
+          uv run --frozen --no-sync python scripts/ci/core_release_signing.py build-receipt-statement \
             --receipt "$RUNNER_TEMP/core-release/custody-receipt.json" \
             --out "$RUNNER_TEMP/core-release/custody-receipt-statement.json"
           cosign attest-blob --yes \
+            --new-bundle-format \
+            --trusted-root "$RUNNER_TEMP/core-release/trusted_root.json" \
             --statement "$RUNNER_TEMP/core-release/custody-receipt-statement.json" \
             --bundle "$RUNNER_TEMP/core-release/custody-receipt.sigstore.json" \
             "$RUNNER_TEMP/core-release/custody-receipt.json"
+          uv run --frozen --no-sync python scripts/ci/core_release_signing_identity.py \
+            --statement "$RUNNER_TEMP/core-release/custody-receipt-statement.json" \
+            --sigstore-bundle "$RUNNER_TEMP/core-release/custody-receipt.sigstore.json" \
+            --subject "$RUNNER_TEMP/core-release/custody-receipt.json" \
+            --policy "$POLICY_PATH" \
+            --trusted-root "$RUNNER_TEMP/core-release/trusted_root.json"
 
       - name: Upload signed custody receipt
         id: receipt_upload
@@ -266,7 +290,7 @@ jobs:
           fi
           outcome=failure
           if test "$UPLOAD_OUTCOME" = success; then outcome=success; fi
-          python scripts/ci/core_release_custody.py observe-upload \
+          uv run --frozen --no-sync python scripts/ci/core_release_custody.py observe-upload \
             --observation "$observation" \
             --operation-outcome "$outcome" \
             --name "$ARTIFACT_NAME" \
