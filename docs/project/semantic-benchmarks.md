@@ -70,6 +70,32 @@ The lane fails closed on stale or substituted evidence, failed/degraded generate
 
 Offline mode uses the stub provider through the generated DSPy program runtime. Live mode uses only the explicitly selected provider, remains non-deterministic, and is never a default CI gate.
 
+## Pre-live installed corpus and Oracle evaluation contract
+
+Before another installed-wheel provider call, validate the checked-in no-live membrane:
+
+```bash
+just installed-live-oracle-evaluation-contract-check
+```
+
+The machine-readable contract is `benchmarks/semantic/installed-live-oracle-evaluation-v1.json`. It hash-binds the complete three-case v2 corpus in declared order and freezes:
+
+- one single-module authority-boundary stratum;
+- one bounded `Predict` → `ChainOfThought` evidence-calibration stratum;
+- one mixed-output review-only runtime-contract stratum;
+- score-`1.0` per-case and aggregate thresholds with zero failed/error cases;
+- one corpus-process attempt, no separate health probe, no DSPx-managed retry, and no selective quality rerun;
+- route identity requirements, privacy/retention posture, failure classes, and explicit falsifiers;
+- separate evaluation protocols for the semantic-analysis LM, embedding model, and coordinate store.
+
+This is **declared-strata coverage**, not a statistical or product-representative corpus. It contains only three cases with one example each. Its lexical concept criteria are provider-visible and therefore measure bounded instruction/contract adherence rather than independent general semantic correctness. One benchmark process may execute multiple topology/module/provider operations; the contract never reinterprets that process count as provider transport-call cardinality, and provider-internal retry behavior remains `not_proven`.
+
+The current embedding candidate is explicit `sentence-transformers` with `all-MiniLM-L6-v2`, evaluated first in candidate-local SQLite against three held-out labeled queries using Recall@1, MRR, and nDCG@3. Because each query has one relevant record and all thresholds require the correct record at rank 1, these metrics currently describe one three-query top-1 routing smoke rather than independent broad semantic-quality measures. The candidate remains `model_backed_semantics_not_production_validated`: the current identity does not yet hash-bind model revision/artifact, tokenizer, runtime, normalization, or distance configuration. The current source environment has no model-backed embedding dependency, so unavailable production semantics fail closed rather than falling back to mock.
+
+The semantic-analysis LM is a separate layer. Fixture replay is its deterministic offline path; any live evaluation requires the role-bound `dspy-lm-auth` route and distinct preferred, configured, and observed model evidence. Shared Postgres/pgvector is a third, durability/publication layer and cannot satisfy either semantic-quality gate.
+
+A passing contract check proves only that the exact hash-bound offline protocol is internally consistent with the checked-in corpus and source-declared backend identities. The validator imports only the Python standard library, reads bounded canonical repo files, and returns a declared zero-operation contract; focused tests reject byte drift and foreign corpus paths and verify that a fresh HOME/cache remains empty. This is not general syscall or OS-isolation proof, and it grants no representative-quality, production-semantic, release, publication, or activation claim.
+
 ## Exact installed-wheel live semantic journey
 
 The source-checkout live benchmark and the credential-free installed-wheel package proof intentionally remain separate. To test their composition without weakening either contract, use the explicit opt-in journey with a newly built exact Core wheel, its SHA-256, one currently available Codex subscription model, and a fresh managed scratch root outside the checkout:

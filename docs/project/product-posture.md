@@ -25,13 +25,13 @@ This file is a dated projection, not live authority, a task list, or a changelog
 
 ### Posture in one sentence
 
-DSPx has a substantial local-first, behavior-first Core plus verified non-authoritative signing/custody, owner authentication, and one qualified recovered installed-wheel real-provider case; the active product gap is representative live-behavior breadth and production-semantic Oracle quality, not more release-authority machinery or autonomous-foundry expansion.
+DSPx has a substantial local-first, behavior-first Core plus verified non-authoritative signing/custody, owner authentication, one qualified recovered installed-wheel real-provider case, and a validated no-live three-strata evaluation contract; the active product gap is one explicitly authorized full-corpus installed-wheel attempt followed by production-semantic Oracle evaluation with stronger backend identity, not more release-authority machinery or autonomous-foundry expansion.
 
 ### Active frontier: Core production readiness
 
 Current AK direction prioritizes making Core DSPx installable, operationally safe, and empirically proven before expanding autonomous foundry behavior.
 
-The latest bounded proof establishes:
+The latest bounded implementation and proof establish:
 
 - a Core-only wheel installation outside the source checkout with `PYTHONPATH` unset;
 - a stub-provider journey through candidate materialization, passing local behavior, receipt checking, candidate-local Oracle indexing/reporting, and candidate-state generation;
@@ -48,6 +48,8 @@ The latest bounded proof establishes:
 - one durable authority-false shadow receipt, replay rejection, and independent post-run acceptance with `release_authority=false`, `package_publication=false`, and `sdist_supported=false`.
 - one exact Core wheel (`b4d10c1…51e8`) installed outside the checkout with `PYTHONPATH` unset alongside the hash-bound released `dspy-lm-auth==0.1.3` wheel, then used for one benchmark invocation requesting `codex/gpt-5.6-sol` through the named provider route; its bounded authority case scored `1.0`, matched all four required concept groups, and hit no forbidden concepts;
 - current receipt-integrity replay plus one candidate-local mock-Oracle record/report, exact installed payload verification, and a final proof (`08ed5ef…dd04e`) accepted by independent review as **qualified recovered verification**: the original runner status remains failed at `independent_evidence_verification`, while corrected deterministic postprocessing passed without a second benchmark/provider invocation.
+- a role-bound Oracle semantic LM path: the default no longer depends on the unavailable `gpt-5.6-luna` declaration, and `dspy-lm-auth` construction now consumes the same frozen `codex/gpt-5.6-sol` role snapshot used for preferred/configured evidence; no new live call or executed-model claim was made;
+- a versioned no-live evaluation contract that hash-binds all three current program-semantic cases in declared order, freezes one corpus-process attempt with no DSPx retry or selective rerun, separates semantic-analysis LM, embedding-model, and coordinate-store gates, and retains every production/release/publication/activation claim as false.
 
 These observations are implemented and exercised by the package and focused test lanes. They are not release approval.
 
@@ -57,7 +59,9 @@ The repo-declared local confidence gates are green:
 
 - `just typecheck` passes across Core and Forge after semantic-corpus keys and validated GEPA improvement requests gained explicit string narrowing.
 - `just typecheck-tests` passes after release-evidence fixtures gained callable/deeply mutable boundaries and dynamic module imports gained explicit tuple cardinality.
-- `just verify-full` passes at the AK-4458 recovered-verification baseline. The credential-free offline suite passed 2742 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
+- `just verify-full` passes at the AK-4468 offline-contract baseline. The credential-free offline suite passed 2766 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
+- `just installed-live-oracle-evaluation-contract-check` validates the exact hash-bound three-case corpus/contract, route/attempt budget, held-out Oracle labels/metrics, layer separation, and declared zero-operation/nonclaim posture. The validator is standard-library-only, parses source declarations without importing DSPx, rejects any contract-byte or foreign-corpus drift, and is tested with an empty fresh HOME/cache; this remains a contract check rather than general syscall isolation proof.
+- The Oracle route-binding slice passed 93 focused and adjacent model-role, semantic-backend, runtime, foundry, config, and provider tests plus package and test typechecking.
 
 This establishes the cited repo-local full-gate baseline. Separate bounded evidence establishes signer verification, public CI evidence custody, authority-false owner authentication, and one installed-wheel live-provider case. That single case does not establish broad live-provider or production-semantic quality, an end-to-end runner status pass, package publication, release approval, or activation.
 
@@ -78,7 +82,7 @@ Inspect the completed implementation records with `ak task show 4125`, `ak task 
 
 Current evidence does **not** prove:
 
-- broad live-provider correctness, representative program quality, or production-semantic quality; current live evidence covers only one bounded authority case;
+- broad live-provider correctness, representative program quality, or production-semantic quality; current live evidence covers only one bounded authority case, while the three-case declared-strata contract has not been run live;
 - production-semantic Oracle embeddings or comparison quality;
 - OS-level network isolation or exclusion of absolute-path/external API effects;
 - hash-locked dependency resolution, retained dependency artifacts, reproducible builds, or future resolver stability;
@@ -94,16 +98,20 @@ Current evidence does **not** prove:
 |---|---|---|
 | One-intent candidate assembly | `program-gen` normalizes structured intent and materializes separate signatures, modules, topology, harnesses, manifests, execution evidence, and receipts. Bounded pipeline/router/retriever/review topologies are supported; unsupported valid capabilities remain declared-only. | No arbitrary graph/effect engine, custom-import execution, live external tool/retriever binding, or provider-backed arbitrary topology inference. |
 | Execution and replay | Generated examples/datasets can run through bounded behavior harnesses and explicit runtime episodes. Replay claims are machine-readable and receipt-bound. | No general semantic-reproduction claim, broad provider/runtime coverage, or receipt-bound multi-episode product contract. |
-| Oracle behavioral evidence | Candidate-local evidence can be indexed and reported with explicit backend identity; Oracle exposes search, drift, territory, frontier, attractor, and program-evidence concepts. | Production-semantic embedding quality and shared-backend readiness remain separate empirical/operational gates. Oracle remains interpretation, not authority. |
+| Oracle behavioral evidence | Candidate-local evidence can be indexed and reported with explicit backend identity; Oracle exposes search, drift, territory, frontier, attractor, and program-evidence concepts. The no-live protocol now selects `sentence-transformers/all-MiniLM-L6-v2` for held-out local evaluation and keeps semantic LM, embedding, and store evidence separate. | The embedding dependency is absent in the current source environment, and model revision/artifact, tokenizer, runtime, normalization, and distance configuration are not yet hash-bound. Production-semantic quality and shared-backend readiness remain separate empirical/operational gates. Oracle remains interpretation, not authority. |
 | Refinement and review | Local proposals, GEPA attempts, second candidates, comparisons, jury/model-jury evidence, adjudication records, plans, status, and activation-preflight packets exist as inspectable sidecars and guided workflows. | Further autonomous orchestration is paused. External apply, activation, and owner acceptance remain unavailable without their own authority contracts. |
-| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel identity, two SBOM scopes, signed public CI evidence/custody, immutable owner-policy currentness, one hardware-authenticated authority-false shadow consume, and one qualified installed-wheel live-provider proof are observed. | Representative multi-case/provider behavioral coverage, package publication, release authority, independently controlled quorum, and sdist support remain unavailable or unproved. |
-| Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop; one live invocation plus recovered verification composes exact wheel origin, one real-provider case, replay, and candidate-local Oracle reporting. | No representative installed-wheel live corpus or production-semantic Oracle lane is proven, and the corrected verifier has not yet completed inside a fresh runner invocation end to end. |
+| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel identity, two SBOM scopes, signed public CI evidence/custody, immutable owner-policy currentness, one hardware-authenticated authority-false shadow consume, one qualified installed-wheel live-provider proof, and a validated three-strata no-live attempt contract are observed. | The three-strata corpus is declared coverage rather than statistically representative and has not run through an installed wheel live. Package publication, release authority, independently controlled quorum, and sdist support remain unavailable or unproved. |
+| Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop; one live invocation plus recovered verification composes exact wheel origin, one real-provider case, replay, and candidate-local Oracle reporting; one deterministic command now validates the next attempt/evaluation contract. | The three-strata corpus has not run installed/live, production-semantic Oracle quality remains unproved, and the corrected one-case verifier has not yet completed inside a fresh runner invocation end to end. |
 
 ### Root cause and sequencing consequence
 
 The former product-proof gap was compositional rather than absence of components. Dogfood exposed the missing seams instead of hiding them: the wrapper argument order did not match its documented positional order; aggregate-schema lookup depended on scratch cwd; generated provider-facing signatures retained intent quality criteria only as evaluator metadata; replay freshness compared equivalent relative and absolute path spellings; and auth-wheel verification reused a Core-only package-root inventory assumption. AK-4450 preserved the first semantic failure. AK-4458 projected declared objective/constraints/output quality into provider-visible signatures, fixed the path and package assumptions, then produced one score-`1.0` live behavior result and a recovered deterministic proof without weakening the corpus, scorer, or authority boundary.
 
-The sequencing consequence now changes. Exact installed composition is observed for one bounded case, so repeating release ceremony or one-case canaries has lower product value. The next lawful product slice should broaden representative installed-wheel live behavior and then evaluate a production-semantic Oracle backend against those observed episodes, while keeping deterministic release evidence, credentials, shared Oracle, publication, and activation separate.
+First-principles review exposed a second compositional ambiguity: “Oracle backend” had been collapsing three independent layers. The semantic-analysis LM, embedding model, and coordinate store have different identities, failure modes, and evidence claims; successful Postgres/pgvector durability cannot prove semantic quality, and a live LM analysis cannot prove embedding retrieval quality. It also exposed a route-binding defect: the Oracle semantic layer reported a preferred role model while constructing generic `dspy-lm-auth` from unrelated LM-auth defaults. AK-4466 resolved the role once, passes that frozen model/reasoning snapshot into provider construction, and preserves preferred, configured, and observed identities separately. The unavailable Luna default no longer drives execution.
+
+The no-live contract converts the next experiment from an ambiguous “representative” run into declared-strata coverage: three cases, one example each, provider-visible lexical criteria, and no statistical sampling frame. It precommits thresholds, falsifiers, case order, privacy, one corpus-process attempt, and no selective rerun without pretending that one process bounds provider transport calls.
+
+The next lawful product slice is a new explicit live task that adapts the installed-wheel runner/verifier to the complete three-case contract and performs at most the one precommitted corpus-process attempt. If it passes, freeze and independently verify those episodes before Oracle evaluation. Production-semantic work must then strengthen embedding identity beyond model name/dimension and evaluate `sentence-transformers/all-MiniLM-L6-v2` against held-out labels in local SQLite; semantic-analysis LM quality and shared-store durability remain later separate gates. Deterministic release evidence, credentials, shared Oracle publication, and activation stay outside that slice.
 
 ## Durable boundaries
 
@@ -115,6 +123,15 @@ The sequencing consequence now changes. Exact installed composition is observed 
 - Domain-specific generated review programs consume owner-supplied contracts and evidence; DSPx does not redefine domain truth, remediation policy, or acceptance authority.
 
 ## Observed exit signals and next gap
+
+The offline contract slice now establishes these preparation facts without live effects:
+
+- the complete checked-in v2 corpus is hash-bound as three declared strata in fixed order with score-`1.0` per-case/aggregate thresholds and zero allowed failures;
+- one corpus-process attempt, zero health probes, zero DSPx-managed retries, no selective quality rerun, and effect-indeterminate stop behavior are precommitted;
+- provider transport-call cardinality and provider-internal retries remain explicitly unproved;
+- the semantic-analysis LM, embedding model, and coordinate store have separate acceptance/falsifier surfaces;
+- three held-out embedding queries and Recall@1/MRR/nDCG@3 thresholds are frozen as one three-query top-1 routing smoke, not independent broad semantic-quality measures; the current embedding identity gap blocks a production-semantic claim;
+- contract validation returns a declared zero-operation contract from a standard-library-only, canonical-file reader with no DSPx/provider/model/store imports and a fresh-HOME/cache no-write test; this is not general syscall or OS-isolation proof.
 
 One live invocation plus recovered deterministic verification established the following one-case conditions without widening claims:
 

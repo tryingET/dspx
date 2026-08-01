@@ -198,6 +198,10 @@ program-semantic-benchmark root="generated/ci/program-semantic-benchmark" out="g
 program-semantic-benchmark-live provider root="generated/ci/program-semantic-benchmark-live" out="generated/ci/program-semantic-benchmark-live-result.json":
   selected="{{provider}}"; selected="${selected#provider=}"; work="{{root}}"; work="${work#root=}"; target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_program_semantic_benchmarks.py --live --provider "$selected" --work-root "$work" --out "$target"
 
+# Deterministic no-live membrane for the installed corpus and Oracle evaluation protocol.
+installed-live-oracle-evaluation-contract-check:
+  uv run --no-sync python scripts/ci/validate_installed_live_oracle_evaluation.py
+
 # Explicit opt-in exact-wheel live semantic journey; one invocation, no DSPx compatibility retry, never publishes.
 installed-core-live-semantic wheel wheel_sha256 provider model root:
   artifact="{{wheel}}"; artifact="${artifact#wheel=}"; digest="{{wheel_sha256}}"; digest="${digest#wheel_sha256=}"; selected_model="{{model}}"; selected_model="${selected_model#model=}"; work="{{root}}"; work="${work#root=}"; selected_provider="{{provider}}"; selected_provider="${selected_provider#provider=}"; bash scripts/run_installed_core_live_semantic.sh --wheel "$artifact" --wheel-sha256 "$digest" --root "$work" --provider "$selected_provider" --model "$selected_model"

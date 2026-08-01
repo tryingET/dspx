@@ -1,0 +1,224 @@
+{
+  "schema_version": "dspx-installed-live-oracle-evaluation-contract-v1",
+  "status": "offline_contract_ready_live_not_run",
+  "purpose": "Freeze a declared-strata installed-wheel live corpus and a separate production-semantic Oracle evaluation protocol before any provider, embedding-model, or shared-store call.",
+  "source_corpus": {
+    "path": "benchmarks/semantic/program-corpus-v2.json",
+    "schema_version": "dspx-program-semantic-benchmark-corpus-v2",
+    "file_sha256": "4c877c7992d8b70044645c57e2753ea9f170da027179376cafbc4d6000db0ec9",
+    "canonical_sha256": "1b8eee70c1dd8ea69fd3e41acd5a696de15ec5a25734ea5916989e196b3c581d",
+    "coverage_claim": "declared_strata_only_not_statistically_representative",
+    "thresholds": {
+      "min_overall_score": 1.0,
+      "min_case_score": 1.0,
+      "max_failed_cases": 0
+    },
+    "cases": [
+      {
+        "id": "single-module-authority-boundary",
+        "canonical_sha256": "64105f9a7743f0c145af1d6b3d14057177c42fd71349af693f32d20fad715aeb",
+        "stratum": "single_module_authority_boundary",
+        "topology": "single_module",
+        "example_count": 1
+      },
+      {
+        "id": "pipeline-evidence-calibration",
+        "canonical_sha256": "56d8a9dc8b41f6e357f41a6f1357ab58ca00c342f54335e88f6f1eb86d1b1493",
+        "stratum": "pipeline_evidence_calibration",
+        "topology": "predict_then_chain_of_thought_pipeline",
+        "example_count": 1
+      },
+      {
+        "id": "pdf-transition-review-runtime-replay",
+        "canonical_sha256": "c189e6a0d4a98e781418cf1e05aadafc1c0e90177f62063fcacc12b97c3ad2e7",
+        "stratum": "mixed_output_review_boundary",
+        "topology": "single_module_mixed_output_runtime_contract",
+        "example_count": 1
+      }
+    ],
+    "limitations": [
+      "three_cases_only",
+      "one_example_per_case",
+      "lexical_concept_coverage_not_general_semantic_judgment",
+      "quality_criteria_are_provider_visible",
+      "no_statistical_sampling_frame",
+      "no_cross_provider_comparison"
+    ]
+  },
+  "live_route": {
+    "provider": "dspy-lm-auth",
+    "auth_route": "codex_subscription",
+    "requested_model": "codex/gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "execution_status": "not_run",
+    "availability_status": "requires_fresh_explicit_preflight",
+    "identity_requirements": [
+      "registered_provider",
+      "configured_provider",
+      "preferred_model",
+      "configured_model",
+      "observed_executed_model_or_explicit_not_proven",
+      "provider_internal_retry_behavior_or_explicit_not_proven"
+    ]
+  },
+  "attempt_budget": {
+    "maximum_corpus_process_invocations": 1,
+    "maximum_separate_health_probes": 0,
+    "maximum_dspx_managed_retries": 0,
+    "selective_quality_rerun_allowed": false,
+    "provider_transport_call_count": "not_bounded_by_corpus_process_count",
+    "provider_internal_retry_behavior": "not_proven",
+    "case_execution_order": [
+      "single-module-authority-boundary",
+      "pipeline-evidence-calibration",
+      "pdf-transition-review-runtime-replay"
+    ],
+    "stop_after_effect_indeterminate_failure": true
+  },
+  "live_behavior_acceptance": {
+    "required": [
+      "all_three_cases_executed_in_declared_order",
+      "every_case_status_passed",
+      "every_case_score_1_0",
+      "overall_score_1_0",
+      "zero_forbidden_concept_hits",
+      "zero_failed_or_error_cases",
+      "exact_installed_wheel_payload_verified",
+      "receipt_integrity_passed",
+      "authority_and_publication_effects_false"
+    ],
+    "falsifiers": [
+      "missing_required_concept_group",
+      "forbidden_concept_hit",
+      "behavior_or_quality_status_not_passed",
+      "case_or_aggregate_score_below_threshold",
+      "partial_or_malformed_structured_output",
+      "authority_reversal_or_unearned_causal_claim",
+      "corpus_case_or_order_drift",
+      "artifact_or_receipt_hash_drift",
+      "requested_configured_or_observed_route_contradiction",
+      "selective_rerun_after_quality_observation"
+    ],
+    "failure_classes": [
+      "valid_semantic_miss",
+      "provider_or_transport_failure",
+      "contract_or_setup_failure",
+      "effect_indeterminate"
+    ]
+  },
+  "privacy_and_retention": {
+    "retain_bounded_checked_in_behavior_outputs": true,
+    "retain_unbounded_raw_provider_output": false,
+    "inspect_or_copy_credentials": false,
+    "claim_auth_store_nonmutation": false,
+    "claim_network_isolation": false,
+    "sanitize_failure_detail": true,
+    "artifact_mode": "owner_only_0600"
+  },
+  "oracle_evaluation": {
+    "layer_separation": [
+      "semantic_analysis_lm",
+      "embedding_model",
+      "coordinate_store"
+    ],
+    "semantic_analysis_lm": {
+      "offline_backend": "fixture-replay",
+      "live_backend": "dspy-lm-auth",
+      "preferred_model": "codex/gpt-5.6-sol",
+      "reasoning_effort": "max",
+      "execution_status": "not_run",
+      "required_identity_fields": [
+        "preferred_model",
+        "configured_model",
+        "executed_model",
+        "live_call_succeeded"
+      ],
+      "acceptance": [
+        "receipt_bound_request_hash",
+        "evidence_refs_preserved",
+        "authority_claims_absent",
+        "independent_expected_failure_and_experiment_labels_recalled",
+        "unsupported_hypotheses_marked_as_hypotheses"
+      ]
+    },
+    "embedding_model": {
+      "backend": "sentence-transformers",
+      "model": "all-MiniLM-L6-v2",
+      "store_for_evaluation": "sqlite",
+      "selection_status": "implemented_candidate_dependency_unavailable_in_current_source_environment",
+      "semantic_claim": "model_backed_semantics_not_production_validated",
+      "production_semantic_claim_allowed": false,
+      "identity_gap": "model_revision_artifact_tokenizer_runtime_and_distance_configuration_not_yet_hash_bound",
+      "held_out_queries": [
+        {
+          "id": "authority-boundary-paraphrase",
+          "expected_case_id": "single-module-authority-boundary",
+          "query": "Can local benchmark evidence by itself deploy or approve this candidate?"
+        },
+        {
+          "id": "calibration-paraphrase",
+          "expected_case_id": "pipeline-evidence-calibration",
+          "query": "One check failed but no cause is known; what conclusion is justified?"
+        },
+        {
+          "id": "review-only-paraphrase",
+          "expected_case_id": "pdf-transition-review-runtime-replay",
+          "query": "Prepare review evidence and proposals without changing canonical records."
+        }
+      ],
+      "metrics": {
+        "recall_at_1": 1.0,
+        "mean_reciprocal_rank": 1.0,
+        "normalized_discounted_cumulative_gain_at_3": 1.0,
+        "minimum_labeled_query_count": 3
+      },
+      "falsifiers": [
+        "mock_or_unknown_backend_identity",
+        "mixed_model_or_dimension_identity",
+        "held_out_expected_case_not_ranked_first",
+        "metric_below_threshold",
+        "backend_identity_gap_present_at_claim_time"
+      ]
+    },
+    "coordinate_store": {
+      "local_evaluation_store": "sqlite",
+      "shared_store": "postgres_pgvector",
+      "shared_store_status": "separate_pilot_not_part_of_semantic_quality_evaluation",
+      "shared_publication_required": false,
+      "shared_store_connection_allowed_in_this_contract_check": false,
+      "production_semantic_claim_allowed": false
+    },
+    "sequence": [
+      "validate_offline_contract",
+      "run_one_explicit_live_declared_strata_corpus_attempt_under_a_new_task",
+      "independently_verify_and_freeze_observed_episodes",
+      "strengthen_embedding_identity_before_any_production_semantic_claim",
+      "evaluate_sentence_transformers_against_held_out_labels_in_local_sqlite",
+      "evaluate_live_semantic_analysis_lm_separately_against_independent_labels",
+      "consider_shared_store_durability_only_after_semantic_quality_passes"
+    ]
+  },
+  "contract_check_effects": {
+    "provider_calls": 0,
+    "embedding_models_loaded": 0,
+    "model_artifacts_downloaded": 0,
+    "shared_store_connections": 0,
+    "oracle_records_written": 0,
+    "ak_mutated": false,
+    "governance_mutated": false,
+    "publication_performed": false
+  },
+  "nonclaims": {
+    "representative_live_quality": false,
+    "statistical_representativeness": false,
+    "production_semantic_oracle_quality": false,
+    "resolved_live_model_identity": false,
+    "provider_transport_call_cardinality": false,
+    "provider_internal_retry_absence": false,
+    "shared_backend_readiness": false,
+    "release_readiness": false,
+    "release_authority": false,
+    "package_publication": false,
+    "production_activation": false
+  }
+}
