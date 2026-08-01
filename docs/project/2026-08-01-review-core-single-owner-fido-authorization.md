@@ -1,5 +1,7 @@
 ---
 summary: "Independent adversarial review requiring revision of the single-owner FIDO authorization proposal before Decision 96 may advance."
+read_when:
+  - "Reviewing the original Decision 96 blocker findings and the revision requirements later closed by the accepted design."
 type: evidence
 ---
 

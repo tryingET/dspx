@@ -1,5 +1,7 @@
 ---
 summary: "Fail-closed registration dogfood for the proposed single-owner Core FIDO authorization policy."
+read_when:
+  - "Checking the initial YubiKey registration proof, its fail-closed result, or why a fingerprint alone was insufficient."
 type: evidence
 ---
 
