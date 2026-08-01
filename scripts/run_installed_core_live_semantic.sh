@@ -222,6 +222,7 @@ write_attempt pending
 set +e
 ./venv/bin/python "$repo_root/scripts/run_program_semantic_benchmarks.py" \
   --corpus corpus.json --work-root benchmark --out benchmark-result.json \
+  --result-schema "$repo_root/benchmarks/semantic/program-result-schema-v2.json" \
   --live --provider "$provider" >/dev/null
 benchmark_rc=$?
 set -e

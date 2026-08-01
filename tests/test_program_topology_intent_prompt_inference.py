@@ -10,8 +10,135 @@ from pathlib import Path
 import pytest
 
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_topology import (
+    ProgramTopologyMaterializationError,
+    render_pipeline_module_surface,
+    render_pipeline_signature_surface,
+)
 from dspx.services.program_service import materialize_program_from_intent
 from dspx.services.run_replay_service import check_run_receipt
+
+
+def test_inferred_provider_signature_projects_declared_semantic_contract() -> None:
+    intent = ProgramIntent(
+        name="BenchmarkAuthorityProgram",
+        objective="Explain the authority consequence of a passing benchmark.",
+        inputs=["question"],
+        outputs=["answer"],
+        constraints=[
+            "Do not claim that benchmark evidence approves promotion or activation."
+        ],
+        quality_criteria=[
+            {
+                "id": "authority_boundary",
+                "output_field": "answer",
+                "evaluator": "concept_coverage",
+                "required_concept_groups": [
+                    ["evidence only", "local evidence"],
+                    ["does not approve", "not approve"],
+                    ["promotion", "promote"],
+                    ["activate", "activation"],
+                ],
+                "forbidden_concepts": ["automatically activates", "approval granted"],
+                "min_score": 1.0,
+            }
+        ],
+    )
+
+    signature_source, metadata = render_pipeline_signature_surface(intent)
+
+    assert metadata["topology_materialized"] is True
+    assert "Program objective: Explain the authority consequence" in signature_source
+    assert "Do not claim that benchmark evidence approves" in signature_source
+    assert "Declared quality criterion 'authority_boundary'" in signature_source
+    assert "('evidence only' or 'local evidence')" in signature_source
+    assert "minimum coverage score 1" in signature_source
+    assert "Forbidden phrases: 'automatically activates'" in signature_source
+
+
+def test_provider_signature_contract_is_output_specific_in_multi_module_topology() -> (
+    None
+):
+    intent = ProgramIntent(
+        name="RoutedAnswerProgram",
+        objective="Classify and then explain the answer.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "pipeline",
+            "modules": [
+                {
+                    "id": "classify_route",
+                    "primitive": "Predict",
+                    "signature": {
+                        "name": "ClassifyRoute",
+                        "inputs": ["question"],
+                        "outputs": ["route"],
+                    },
+                },
+                {
+                    "id": "produce_answer",
+                    "primitive": "ChainOfThought",
+                    "signature": {
+                        "name": "ProduceAnswer",
+                        "inputs": ["question", "route"],
+                        "outputs": ["answer"],
+                    },
+                },
+            ],
+            "edges": [
+                {"from": "input", "to": "classify_route"},
+                {"from": "classify_route", "to": "produce_answer"},
+                {"from": "produce_answer", "to": "output"},
+            ],
+        },
+        quality_criteria=[
+            {
+                "id": "answer_contract",
+                "output_field": "answer",
+                "evaluator": "concept_coverage",
+                "required_concept_groups": [["evidence", "proof"]],
+                "forbidden_concepts": [],
+                "min_score": 1.0,
+            }
+        ],
+    )
+
+    signature_source, _metadata = render_pipeline_signature_surface(intent)
+    classifier, answerer = signature_source.split("class ProduceAnswer", maxsplit=1)
+
+    assert "Declared quality criterion 'answer_contract'" not in classifier
+    assert "Declared quality criterion 'answer_contract'" in answerer
+
+
+def test_provider_facing_generated_docstrings_escape_source_delimiters() -> None:
+    intent = ProgramIntent(
+        name="EscapedPromptProgram",
+        objective='Explain the literal path C:\\temp and token """ safely.',
+        inputs=["question"],
+        outputs=["answer"],
+    )
+
+    signature_source, _metadata = render_pipeline_signature_surface(intent)
+    module_source, _metadata = render_pipeline_module_surface(intent)
+
+    compile(signature_source, "signature.py", "exec")
+    compile(module_source, "module.py", "exec")
+
+
+def test_provider_signature_contract_fails_closed_when_unbounded() -> None:
+    intent = ProgramIntent(
+        name="UnboundedPromptProgram",
+        objective="Explain " + ("x" * 16_000),
+        inputs=["question"],
+        outputs=["answer"],
+    )
+
+    with pytest.raises(
+        ProgramTopologyMaterializationError,
+        match="provider-facing signature description exceeds",
+    ):
+        render_pipeline_signature_surface(intent)
 
 
 @pytest.mark.slow

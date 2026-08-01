@@ -933,18 +933,75 @@ def _field_line(name: str, *, role: str) -> str:
     return f"    {name}: str = dspy.{field_factory}(desc={desc!r})"
 
 
+_MAX_PROVIDER_SIGNATURE_DESCRIPTION_CHARS = 16_000
+
+
+def _provider_signature_description(intent: Any, module: Mapping[str, Any]) -> str:
+    """Project the declared program contract into the provider-visible signature."""
+    role = str(module.get("role") or "").strip()
+    objective = str(getattr(intent, "objective", "") or "").strip()
+    parts = [f"Module role: {role}." if role else ""]
+    if objective and objective != role:
+        parts.append(f"Program objective: {objective}.")
+    constraints = [
+        str(item).strip()
+        for item in list(getattr(intent, "constraints", []) or [])
+        if str(item).strip()
+    ]
+    if constraints:
+        parts.append("Program constraints: " + "; ".join(constraints) + ".")
+
+    output_names = set(_signature_outputs(module))
+    for raw_criterion in list(getattr(intent, "quality_criteria", []) or []):
+        if not isinstance(raw_criterion, Mapping):
+            continue
+        criterion = dict(raw_criterion)
+        output_field = str(criterion.get("output_field") or "")
+        if output_field not in output_names:
+            continue
+        groups = [
+            "(" + " or ".join(repr(str(term)) for term in group) + ")"
+            for group in list(criterion.get("required_concept_groups") or [])
+        ]
+        criterion_id = str(criterion.get("id") or "declared_quality")
+        min_score = float(criterion.get("min_score", 1.0))
+        contract = (
+            f"Declared quality criterion {criterion_id!r} for output "
+            f"{output_field!r}: required concept groups "
+            + " and ".join(groups)
+            + f"; minimum coverage score {min_score:g}."
+        )
+        forbidden = [
+            str(term) for term in list(criterion.get("forbidden_concepts") or [])
+        ]
+        if forbidden:
+            contract += (
+                " Forbidden phrases: "
+                + ", ".join(repr(term) for term in forbidden)
+                + "."
+            )
+        parts.append(contract)
+
+    description = surface_description(" ".join(part for part in parts if part))
+    if len(description) > _MAX_PROVIDER_SIGNATURE_DESCRIPTION_CHARS:
+        raise ProgramTopologyMaterializationError(
+            "provider-facing signature description exceeds "
+            f"{_MAX_PROVIDER_SIGNATURE_DESCRIPTION_CHARS} characters"
+        )
+    return description
+
+
 def render_pipeline_signature_surface(intent: Any) -> tuple[str, dict[str, Any]]:
     topology = validate_materializable_pipeline_topology(intent)
     modules = [dict(item) for item in topology.get("modules", [])]
     lines = ["import dspy", ""]
     for index, module in enumerate(modules):
         signature_name = _signature_class_name(module)
-        role = str(module.get("role") or getattr(intent, "objective", ""))
-        doc = surface_description(role or getattr(intent, "objective", ""))
+        doc = _provider_signature_description(intent, module)
         lines.extend(
             [
                 f"class {signature_name}(dspy.Signature):",
-                f'    """{doc}"""',
+                f"    {doc!r}",
                 "",
             ]
         )
@@ -1016,7 +1073,7 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
             lines.extend(
                 [
                     f"class {class_name}(dspy.Module):",
-                    f'    """{doc}"""',
+                    f"    {doc!r}",
                     "",
                     f"    _DOCUMENTS = {retriever['documents']!r}",
                     f"    _K = {retriever['k']!r}",
@@ -1053,7 +1110,7 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
             lines.extend(
                 [
                     f"class {class_name}(dspy.Module):",
-                    f'    """{doc}"""',
+                    f"    {doc!r}",
                     "",
                     *status_lines,
                     "",
@@ -1071,7 +1128,7 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
             lines.extend(
                 [
                     f"class {class_name}(dspy.Module):",
-                    f'    """{doc}"""',
+                    f"    {doc!r}",
                     "",
                     f"    _MAX_ITERS = {max_iters!r}",
                     "",
@@ -1098,7 +1155,7 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
             lines.extend(
                 [
                     f"class {class_name}(dspy.Module):",
-                    f'    """{doc}"""',
+                    f"    {doc!r}",
                     "",
                     "    def __init__(self, use_cot: bool = False) -> None:",
                     "        super().__init__()",

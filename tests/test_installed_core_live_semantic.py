@@ -486,6 +486,11 @@ def test_runtime_requested_model_must_match(tmp_path: Path) -> None:
 def test_runner_is_valid_bash_and_rejects_non_auth_provider(tmp_path: Path) -> None:
     syntax = subprocess.run(["bash", "-n", str(RUNNER_PATH)], check=False)
     assert syntax.returncode == 0
+    runner_source = RUNNER_PATH.read_text(encoding="utf-8")
+    assert (
+        '--result-schema "$repo_root/benchmarks/semantic/program-result-schema-v2.json"'
+        in runner_source
+    )
     wheel = tmp_path / "dspx_core-0.1.0-py3-none-any.whl"
     wheel.write_bytes(b"fixture")
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
