@@ -1,8 +1,8 @@
 ---
-summary: "Fail-closed partial dogfood evidence for owner-policy v003: currentness succeeded, but confirmation and display-integrity gates stopped before signing."
+summary: "Completed owner-policy v003 authority-false shadow dogfood with exact mechanical display, YubiKey Bio UP+UV, durable nonce consumption, and replay rejection."
 read_when:
-  - "Checking task 4420 progress or why no v003 biometric signature/consume receipt exists yet."
-  - "Preparing a later fresh payload after the unconfirmed v003 ceremony stop."
+  - "Checking task 4420 completion evidence for the v003 biometric authority-false shadow ceremony."
+  - "Confirming that the successful shadow receipt granted no release authority or publication capability."
 type: "evidence"
 ---
 
@@ -10,15 +10,15 @@ type: "evidence"
 
 ## Outcome
 
-`stopped_before_signing`
+`shadow_verified_not_authorized`
 
-Decision 99 and owner-policy v003 currentness completed, but no attempt crossed both exact-byte display confirmation and signing gates. No signature was produced, no nonce ledger was created, no nonce was consumed, and no shadow receipt exists. Every prepared payload and nonce described below is abandoned and will not be reused, edited, signed, or mechanically retried.
+Decision 99 and owner-policy v003 completed one mechanically displayed, explicitly hash-confirmed, hardware-backed authority-false shadow ceremony. OpenSSH and the strict ED25519-SK parser proved user presence and user verification. The durable ledger committed one shadow receipt, and the single intentional replay was rejected.
 
-This is a fail-closed partial execution, not a successful shadow dogfood.
+The result explicitly reports `release_authority=false`, `package_publication=false`, and `sdist_supported=false`. This is successful shadow-path dogfood, not release authorization or package publication. The four earlier payloads remain abandoned and were never signed or consumed.
 
 ## Governance and immutable bytes
 
-- Task: AK-4420, still open/deferred pending a new explicit ceremony instruction.
+- Task: AK-4420, claimed for final evidence, independent review, and closeout after successful shadow consumption.
 - Activation decision: 99, accepted and unblocked for authority-false execution only.
 - Policy v003: commit `71c3b2ed4cf274cc39ec4d48dda9fe25759a4956`, blob `7a9214a6ed40c806a532e574a93fc064229bbfe5`, SHA-256 `f585d4125911a3f5a039739cb36b33d3318c833b710ae5aeea0bd0f9795b3e2c`.
 - Selector v003:
@@ -109,7 +109,47 @@ The controller detected that its displayed JSON altered `source_commit_sha`; tho
 
 A future attempt must transmit canonical payload bytes mechanically from the file and recompute the hash over the exact displayed byte sequence; manual field copying is not an acceptable ceremony transport.
 
-## Proved absence of effects
+## Successful mechanical-display ceremony
+
+After the operator explicitly replied `GO`, deferral 201 was released and AK-4420 was claimed. A dedicated Ghostty terminal generated one new payload, mechanically printed the canonical file with `cat`, computed its hash with `sha256sum`, and required the exact input `CONFIRM <computed-hash>`. The script recomputed the file hash after confirmation and refused to sign on any mismatch.
+
+Canonical approval evidence:
+
+- Payload SHA-256: `58b93f6689bf51ad714ced215349c449902ff1a62deae045c4f3d1774a54ef43`
+- Signature SHA-256: `7cc8790d58724c575cb24a3f19ffb1f49e093bc804b5985844f518e33f0ab023`
+- Issued: `2026-08-01T14:44:00Z`
+- Expired: `2026-08-01T14:54:00Z`
+- Nonce: `af6f1b860d7b32ac58e1d219559302438233d62b7455444c2f13d37cfabe8ca0`
+- Authority ref: `ak-decision:99`
+- Source commit: `c6170846054cf162462503d674da513ef74b160d`
+- Workflow run: `30659429735`, attempt 1
+- Evidence artifact: `8804579832`
+- Custody receipt artifact: `8804580826`
+- Wheel SHA-256: `efc1ca6b03da6f4d31df2ff0dd989d3b79950e06dd0aa23d00311ebde056cc5d`
+
+The operator entered the authenticator PIN only in the direct terminal and used an enrolled YubiKey Bio finger. No PIN, private key handle, or biometric material was captured. OpenSSH verification succeeded. The strict parser reported ED25519-SK flags `5`, `user_presence=true`, `user_verification=true`, and counter telemetry `8` for the pinned public fingerprint.
+
+## Durable authority-false consume
+
+The trusted consumer reserved the fresh nonce before external verification and durably committed this exact receipt at `2026-08-01T14:48:54Z`:
+
+- Schema: `dspx-core-release-authorization-shadow-receipt-v1`
+- Status: `shadow_verified_not_authorized`
+- Linearization point: `durable_nonce_receipt_commit`
+- Receipt SHA-256: `bfdad15d71a76693084520b582e17431d5be23feb06bf15af53b9e9c3833aa42`
+- `release_authority=false`
+- `package_publication=false`
+- `sdist_supported=false`
+
+The new ledger parent and database were owner-only modes `0700` and `0600`. A read-only post-commit query found exactly one `committed` row whose embedded receipt matched all authority-false fields. The single intentional replay exited nonzero with `authorization nonce is already reserved or consumed`; it was not retried.
+
+## Negative matrix and quality gates
+
+The isolated release test matrix passed `150` tests, including exact-payload drift, expiry, absent UP/UV, disabled/revoked policy, selector downgrade/fork/gap, evidence and custody drift, coherent staged input replacement, and ledger entry/parent/symlink/schema replacement. Scoped Ruff and repository workflow-contract checks also passed. These fixtures did not mutate the protected checkpoints or committed live ledger.
+
+## Proved absence of effects in the four stopped attempts
+
+For each of the four abandoned attempts described above:
 
 - Detached signature path does not exist.
 - Nonce-ledger database path does not exist.
@@ -119,8 +159,10 @@ A future attempt must transmit canonical payload bytes mechanically from the fil
 - No replay/consume result is claimed.
 - `release_authority=false`, `package_publication=false`, and `sdist_supported=false` remain the only shipped outputs.
 
-## Next legal move
+## Completion boundary and next legal move
 
-A new explicit operator instruction and a coordinated immediate confirmation window are required before preparing another payload. Any later attempt must use a new nonce and validity window, redisplay all canonical bytes and SHA-256, and obtain confirmation before signing. It may then continue Phases 4–6 exactly once.
+AK-4420 may close after independent post-run review confirms this evidence and the committed receipt. Do not reuse the successful payload, nonce, or signature.
 
-If continued activation is no longer desired, use the prepared forward-only rollback procedure: create a higher immutable disabled generation (expected v004 only after live-chain confirmation), never rewrite v003 or reset the checkpoint.
+This result does not authorize an authority-true consumer, package publication, registry credentials, or sdist support. Any authority-true proposal requires a separate decision/task, exact implementation review, validation and rollback artifacts, and a new payload, nonce, signature, and durable consumption ceremony.
+
+If v003 must later be disabled, use the prepared forward-only rollback procedure: create a higher immutable disabled generation only after checking the live chain, never rewrite v003 or reset the checkpoint/ledger.
