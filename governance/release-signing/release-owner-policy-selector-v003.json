@@ -1,0 +1,20 @@
+{
+  "schema_version": "dspx-core-release-owner-policy-selector-v1",
+  "repository": {
+    "name": "tryingET/dspx",
+    "id": 1318473695,
+    "repo_scope": "/home/tryinget/ai-society/softwareco/owned/dspx"
+  },
+  "policy": {
+    "version": 3,
+    "path": "governance/release-signing/release-owner-policy-v003.json",
+    "commit": "71c3b2ed4cf274cc39ec4d48dda9fe25759a4956",
+    "blob_oid": "7a9214a6ed40c806a532e574a93fc064229bbfe5",
+    "file_sha256": "f585d4125911a3f5a039739cb36b33d3318c833b710ae5aeea0bd0f9795b3e2c"
+  },
+  "accepting_decision_id": 99,
+  "supersession": {
+    "supersedes_decision_id": 96,
+    "supersedes_owner_policy_version": 2
+  }
+}
