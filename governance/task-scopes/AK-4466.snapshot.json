@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-01T18:48:45.520972530+00:00",
+  "task_id": 4466,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/model_roles.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "tests/test_model_roles.py",
+      "tests/test_program_oracle_semantic_backend.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/model_roles.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "tests/test_model_roles.py",
+      "tests/test_program_oracle_semantic_backend.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -8,11 +8,17 @@ import hashlib
 import json
 import os
 import stat
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from dspx.dtos import LMRequest
-from dspx.model_roles import ORACLE_SEMANTIC_ROLE, resolve_model_role
+from dspx.model_roles import (
+    ORACLE_SEMANTIC_ROLE,
+    ModelRole,
+    create_role_lm,
+    resolve_model_role,
+)
 from dspx.redaction import sanitize_diagnostic_text
 from dspx.services.program_oracle_semantic_contract import (
     ORACLE_SEMANTIC_FIXTURE_SCHEMA,
@@ -259,7 +265,7 @@ class FixtureReplayOracleSemanticBackend:
 
 def _settings(
     environ: Mapping[str, str] | None = None,
-) -> tuple[str, str, str, str | None]:
+) -> tuple[str, ModelRole, str, str | None]:
     env = os.environ if environ is None else environ
     backend_kind = str(env.get("DSPX_ORACLE_SEMANTIC_BACKEND", "live")).strip().lower()
     if backend_kind not in _ALLOWED_BACKENDS:
@@ -267,18 +273,19 @@ def _settings(
             "DSPX_ORACLE_SEMANTIC_BACKEND must be one of: "
             + ", ".join(sorted(_ALLOWED_BACKENDS))
         )
-    preferred_model = resolve_model_role("oracle_semantic", environ=env).model
+    role = resolve_model_role("oracle_semantic", environ=env)
     provider_name = str(
         env.get("DSPX_ORACLE_SEMANTIC_PROVIDER", "dspy-lm-auth")
     ).strip()
     fixture_path = str(env.get("DSPX_ORACLE_SEMANTIC_FIXTURE_PATH", "")).strip() or None
-    return backend_kind, preferred_model, provider_name, fixture_path
+    return backend_kind, role, provider_name, fixture_path
 
 
 def resolve_program_oracle_semantic_backend(
     *, environ: Mapping[str, str] | None = None
 ) -> ProgramOracleSemanticBackend:
-    backend_kind, preferred_model, provider_name, fixture_path = _settings(environ)
+    backend_kind, role, provider_name, fixture_path = _settings(environ)
+    preferred_model = role.model
     if backend_kind == "fixture-replay":
         if fixture_path is None:
             raise ProgramOracleSemanticBackendError(
@@ -288,10 +295,13 @@ def resolve_program_oracle_semantic_backend(
             fixture_path=Path(fixture_path), preferred_model=preferred_model
         )
 
-    from dspx import provider_registry
+    if provider_name == "dspy-lm-auth":
+        lm = create_role_lm("oracle_semantic", environ=environ, resolved_role=role)
+    else:
+        from dspx import provider_registry
 
-    provider_registry.ensure_default_providers()
-    lm = provider_registry.create(provider_name)
+        provider_registry.ensure_default_providers()
+        lm = provider_registry.create(provider_name)
     return LiveLMOracleSemanticBackend(
         provider_name=provider_name,
         preferred_model=preferred_model,
@@ -303,7 +313,8 @@ def preflight_program_oracle_semantic_backend(
     *, environ: Mapping[str, str] | None = None
 ) -> OracleSemanticPreflight:
     try:
-        backend_kind, preferred_model, provider_name, fixture_path = _settings(environ)
+        backend_kind, role, provider_name, fixture_path = _settings(environ)
+        preferred_model = role.model
     except Exception as exc:
         return OracleSemanticPreflight(
             ready=False,
@@ -390,7 +401,7 @@ def preflight_program_oracle_semantic_backend(
             raise ProgramOracleSemanticBackendError(
                 f"unknown provider: {provider_name}"
             )
-        configured_model = None
+        configured_model = preferred_model if provider_name == "dspy-lm-auth" else None
     except Exception as exc:
         return OracleSemanticPreflight(
             ready=False,

@@ -6,8 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-from typer.testing import CliRunner
-
 from dspx.capabilities import ProviderCapabilities
 from dspx.cli.commands.oracle import app as oracle_app
 from dspx.dtos import LMResponse
@@ -23,6 +21,7 @@ from dspx.services.program_oracle_semantic_contract import (
     OracleSemanticPreflight,
     OracleSemanticRequest,
 )
+from typer.testing import CliRunner
 
 
 def _analysis() -> dict[str, object]:
@@ -118,11 +117,89 @@ def test_live_preflight_resolves_provider_without_calling_model(monkeypatch) -> 
     ).to_dict()
 
     assert payload["ready"] is True
-    assert payload["preferred_model"] == "codex/gpt-5.6-luna"
+    assert payload["preferred_model"] == "codex/gpt-5.6-sol"
     assert payload["configured_provider"] == "test-provider"
     assert payload["configured_model"] is None
     assert payload["executed_model"] is None
     assert payload["live_verified"] is False
+
+
+def test_dspy_lm_auth_preflight_binds_configured_model_without_factory(
+    monkeypatch,
+) -> None:
+    from dspx import provider_registry
+
+    monkeypatch.setattr(provider_registry, "ensure_default_providers", lambda: None)
+    monkeypatch.setattr(
+        provider_registry,
+        "capabilities",
+        lambda name: ProviderCapabilities(
+            json_mode=True, structured_output_format="json"
+        ),
+    )
+    monkeypatch.setattr(
+        provider_registry,
+        "available",
+        lambda: {"dspy-lm-auth": object()},
+    )
+    monkeypatch.setattr(
+        provider_registry,
+        "create",
+        lambda name: pytest.fail("preflight must not run provider factories"),
+    )
+
+    payload = preflight_program_oracle_semantic_backend(
+        environ={
+            "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
+            "DSPX_ORACLE_SEMANTIC_PROVIDER": "dspy-lm-auth",
+            "DSPX_ORACLE_SEMANTIC_MODEL": "codex/gpt-5.6-sol",
+        }
+    ).to_dict()
+
+    assert payload["ready"] is True
+    assert payload["preferred_model"] == "codex/gpt-5.6-sol"
+    assert payload["configured_model"] == "codex/gpt-5.6-sol"
+    assert payload["executed_model"] is None
+    assert payload["live_verified"] is False
+
+
+def test_dspy_lm_auth_resolver_constructs_the_resolved_role(monkeypatch) -> None:
+    import dspx.services.program_oracle_semantic_backend as semantic_backend
+    from dspx import provider_registry
+
+    lm = _LiveLM()
+    lm.requested_model = "codex/gpt-5.6-sol"
+    captured: dict[str, object] = {}
+
+    def fake_create_role_lm(name, *, environ, resolved_role):
+        captured["name"] = name
+        captured["environ"] = environ
+        captured["role"] = resolved_role
+        return lm
+
+    monkeypatch.setattr(semantic_backend, "create_role_lm", fake_create_role_lm)
+    monkeypatch.setattr(
+        provider_registry,
+        "create",
+        lambda name: pytest.fail("role-bound dspy-lm-auth must bypass generic factory"),
+    )
+    environ = {
+        "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
+        "DSPX_ORACLE_SEMANTIC_PROVIDER": "dspy-lm-auth",
+        "DSPX_ORACLE_SEMANTIC_MODEL": "codex/gpt-5.6-sol",
+        "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT": "xhigh",
+    }
+
+    backend = resolve_program_oracle_semantic_backend(environ=environ)
+
+    assert isinstance(backend, LiveLMOracleSemanticBackend)
+    assert backend.preferred_model == "codex/gpt-5.6-sol"
+    assert backend.configured_model == "codex/gpt-5.6-sol"
+    assert captured["name"] == "oracle_semantic"
+    assert captured["environ"] is environ
+    role = captured["role"]
+    assert getattr(role, "model") == "codex/gpt-5.6-sol"
+    assert getattr(role, "reasoning_effort") == "xhigh"
 
 
 def test_live_preflight_fails_for_provider_without_json_capability(monkeypatch) -> None:
@@ -150,14 +227,14 @@ def test_live_execution_preserves_preferred_configured_and_observed_models() -> 
     lm = _LiveLM()
     backend = LiveLMOracleSemanticBackend(
         provider_name="openai-api",
-        preferred_model="codex/gpt-5.6-luna",
+        preferred_model="codex/gpt-5.6-sol",
         lm=lm,
     )
 
     payload = backend.analyze(_request()).to_dict()
 
     assert payload["execution_status"] == "succeeded"
-    assert payload["preferred_model"] == "codex/gpt-5.6-luna"
+    assert payload["preferred_model"] == "codex/gpt-5.6-sol"
     assert payload["configured_model"] == "openai/gpt-5.4"
     assert payload["executed_provider"] is None
     assert payload["executed_model"] == "openai/gpt-5.4-2026-06-01"
@@ -168,7 +245,7 @@ def test_live_execution_preserves_preferred_configured_and_observed_models() -> 
 def test_failed_live_execution_never_claims_executed_identity() -> None:
     backend = LiveLMOracleSemanticBackend(
         provider_name="openai-api",
-        preferred_model="codex/gpt-5.6-luna",
+        preferred_model="codex/gpt-5.6-sol",
         lm=_LiveLM(fail=True),
     )
 
@@ -207,7 +284,7 @@ def test_fixture_replay_is_deterministic_and_never_claims_live_execution(
     _write_fixture(fixture, request)
     backend = FixtureReplayOracleSemanticBackend(
         fixture_path=fixture,
-        preferred_model="codex/gpt-5.6-luna",
+        preferred_model="codex/gpt-5.6-sol",
     )
 
     first = backend.analyze(request).to_dict()
@@ -231,7 +308,7 @@ def test_fixture_replay_fails_closed_for_missing_request(tmp_path: Path) -> None
     with pytest.raises(ProgramOracleSemanticBackendError, match="has no entry"):
         FixtureReplayOracleSemanticBackend(
             fixture_path=fixture,
-            preferred_model="codex/gpt-5.6-luna",
+            preferred_model="codex/gpt-5.6-sol",
         ).analyze(_request())
 
 
@@ -276,7 +353,7 @@ def test_fixture_replay_rejects_symlinks(tmp_path: Path) -> None:
     with pytest.raises(ProgramOracleSemanticBackendError, match="non-symlink"):
         FixtureReplayOracleSemanticBackend(
             fixture_path=link,
-            preferred_model="codex/gpt-5.6-luna",
+            preferred_model="codex/gpt-5.6-sol",
         ).analyze(request)
 
 
@@ -315,7 +392,7 @@ def test_cli_preflight_json_and_not_ready_exit(monkeypatch) -> None:
     ready = OracleSemanticPreflight(
         ready=True,
         backend_kind="live",
-        preferred_model="codex/gpt-5.6-luna",
+        preferred_model="codex/gpt-5.6-sol",
         configured_provider="test-provider",
         configured_model=None,
         fixture_path=None,
@@ -338,7 +415,7 @@ def test_cli_preflight_json_and_not_ready_exit(monkeypatch) -> None:
     not_ready = OracleSemanticPreflight(
         ready=False,
         backend_kind="fixture-replay",
-        preferred_model="codex/gpt-5.6-luna",
+        preferred_model="codex/gpt-5.6-sol",
         configured_provider=None,
         configured_model=None,
         fixture_path=None,

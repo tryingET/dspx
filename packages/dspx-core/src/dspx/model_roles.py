@@ -6,8 +6,8 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from dspx.dspy_lm_auth_lm import DspyLMAuthLM
 
@@ -56,7 +56,7 @@ QUALITY_CRITERIA_ROLE = ModelRole(
 
 ORACLE_SEMANTIC_ROLE = ModelRole(
     name="oracle_semantic",
-    model="codex/gpt-5.6-luna",
+    model="codex/gpt-5.6-sol",
     reasoning_effort="max",
     purpose="interpret receipt-bound behavioral evidence and shape bounded exploration",
 )
@@ -100,11 +100,16 @@ def create_role_lm(
     *,
     environ: Mapping[str, str] | None = None,
     timeout: float | None = 60.0,
+    resolved_role: ModelRole | None = None,
 ) -> DspyLMAuthLM:
-    """Create a lazy authenticated DSPy LM for a declared foundry role."""
+    """Create a lazy authenticated DSPy LM from one resolved role snapshot."""
 
     env = os.environ if environ is None else environ
-    role = resolve_model_role(name, environ=env)
+    role = resolved_role or resolve_model_role(name, environ=env)
+    if role.name != name:
+        raise ValueError(
+            f"resolved model role {role.name!r} does not match requested role {name!r}"
+        )
     auth_storage = str(env.get("DSPX_LM_AUTH_STORAGE", "~/.pi/agent/auth.json")).strip()
     return DspyLMAuthLM(
         model=role.model,
