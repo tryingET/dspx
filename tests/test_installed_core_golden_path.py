@@ -93,15 +93,23 @@ def _load_payload_contract() -> ModuleType:
         sys.path.remove(script_dir)
 
 
-def _payload_wheel_and_install(tmp_path: Path) -> tuple[Path, Path]:
-    wheel = tmp_path / "dspx_core-0.1.0-py3-none-any.whl"
+def _payload_wheel_and_install(
+    tmp_path: Path,
+    *,
+    package_root_name: str = "dspx",
+    distribution_stem: str = "dspx_core",
+    version: str = "0.1.0",
+) -> tuple[Path, Path]:
+    wheel = tmp_path / f"{distribution_stem}-{version}-py3-none-any.whl"
     site_root = tmp_path / "site-packages"
+    dist_info = f"{distribution_stem}-{version}.dist-info"
+    distribution_name = distribution_stem.replace("_", "-")
     files = {
-        "dspx/__init__.py": b"VALUE = 'original'\n",
-        "dspx/runtime.py": b"RUNTIME = True\n",
-        "dspx_core-0.1.0.dist-info/METADATA": (
-            b"Metadata-Version: 2.4\nName: dspx-core\nVersion: 0.1.0\n\n"
-        ),
+        f"{package_root_name}/__init__.py": b"VALUE = 'original'\n",
+        f"{package_root_name}/runtime.py": b"RUNTIME = True\n",
+        f"{dist_info}/METADATA": (
+            f"Metadata-Version: 2.4\nName: {distribution_name}\nVersion: {version}\n\n"
+        ).encode(),
     }
     record_stream = StringIO()
     writer = csv.writer(record_stream, lineterminator="\n")
@@ -113,13 +121,35 @@ def _payload_wheel_and_install(tmp_path: Path) -> tuple[Path, Path]:
         installed = site_root / name
         installed.parent.mkdir(parents=True, exist_ok=True)
         installed.write_bytes(raw)
-    record_name = "dspx_core-0.1.0.dist-info/RECORD"
+    record_name = f"{dist_info}/RECORD"
     writer.writerow((record_name, "", ""))
     with zipfile.ZipFile(wheel, "w") as archive:
         for name, raw in files.items():
             archive.writestr(name, raw)
         archive.writestr(record_name, record_stream.getvalue())
     return wheel, site_root
+
+
+def test_installed_payload_verifier_supports_an_explicit_alternate_package_root(
+    tmp_path: Path,
+) -> None:
+    contract = _load_payload_contract()
+    wheel, site_root = _payload_wheel_and_install(
+        tmp_path,
+        package_root_name="dspy_lm_auth",
+        distribution_stem="dspy_lm_auth",
+        version="0.1.3",
+    )
+
+    verified = contract.verify_installed_payload(
+        wheel_path=wheel,
+        site_packages_root=site_root,
+        package_root_name="dspy_lm_auth",
+    )
+
+    assert verified["record_verified_file_count"] == 3
+    assert verified["package_inventory_verified"] is True
+    assert verified["package_root_name"] == "dspy_lm_auth"
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> str:

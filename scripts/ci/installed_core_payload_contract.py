@@ -260,12 +260,16 @@ def _verify_source_cache(
 
 
 def _installed_package_paths(
-    site_root: Path, *, expected_package_paths: set[PurePosixPath]
+    site_root: Path,
+    *,
+    expected_package_paths: set[PurePosixPath],
+    package_root_name: str,
 ) -> set[PurePosixPath]:
     """Return wheel-owned package files after verifying derived bytecode caches."""
-    package_root = site_root / "dspx"
+    package_label = f"installed {package_root_name} package"
+    package_root = site_root / package_root_name
     if not package_root.is_dir() or package_root.is_symlink():
-        raise InstalledCoreGoldenPathError("installed dspx package root is invalid")
+        raise InstalledCoreGoldenPathError(f"{package_label} root is invalid")
     observed: set[PurePosixPath] = set()
     for directory, dirnames, filenames in os.walk(package_root, followlinks=False):
         parent = Path(directory)
@@ -273,7 +277,7 @@ def _installed_package_paths(
             child = parent / name
             if child.is_symlink():
                 raise InstalledCoreGoldenPathError(
-                    f"installed dspx package contains a symlink: {child.relative_to(site_root)}"
+                    f"{package_label} contains a symlink: {child.relative_to(site_root)}"
                 )
         for name in filenames:
             child = parent / name
@@ -288,7 +292,7 @@ def _installed_package_paths(
                     or source_path not in expected_package_paths
                 ):
                     raise InstalledCoreGoldenPathError(
-                        f"installed dspx package contains undeclared cache content: {relative}"
+                        f"{package_label} contains undeclared cache content: {relative}"
                     )
                 _verify_source_cache(
                     child,
@@ -298,26 +302,36 @@ def _installed_package_paths(
                 continue
             if child.suffix in {".pyc", ".pyo"}:
                 raise InstalledCoreGoldenPathError(
-                    f"installed dspx package contains bytecode outside a source cache: {relative}"
+                    f"{package_label} contains bytecode outside a source cache: {relative}"
                 )
             observed_state = child.lstat()
             if stat.S_ISLNK(observed_state.st_mode) or not stat.S_ISREG(
                 observed_state.st_mode
             ):
                 raise InstalledCoreGoldenPathError(
-                    f"installed dspx package file is unsafe: {relative}"
+                    f"{package_label} file is unsafe: {relative}"
                 )
             observed.add(PurePosixPath(relative.as_posix()))
     return observed
 
 
 def verify_installed_payload(
-    *, wheel_path: Path, site_packages_root: Path
+    *,
+    wheel_path: Path,
+    site_packages_root: Path,
+    package_root_name: str = "dspx",
 ) -> dict[str, object]:
-    """Bind every wheel RECORD payload and complete importable package inventory."""
+    """Bind every wheel RECORD payload and one complete importable package inventory."""
 
+    if not package_root_name.isidentifier():
+        raise InstalledCoreGoldenPathError("installed package root name is invalid")
+    wheel_label = (
+        "installed Core wheel"
+        if package_root_name == "dspx"
+        else f"installed {package_root_name} wheel"
+    )
     wheel_raw = _stable_regular_bytes(
-        wheel_path, label="installed Core wheel", limit=MAX_WHEEL_BYTES
+        wheel_path, label=wheel_label, limit=MAX_WHEEL_BYTES
     )
     site_root = site_packages_root.resolve()
     expected_package_paths: set[PurePosixPath] = set()
@@ -342,10 +356,12 @@ def verify_installed_payload(
                 f"installed wheel payload hash drift: {relative.as_posix()}"
             )
         verified_count += 1
-        if relative.parts[0] == "dspx":
+        if relative.parts[0] == package_root_name:
             expected_package_paths.add(relative)
     observed_package_paths = _installed_package_paths(
-        site_root, expected_package_paths=expected_package_paths
+        site_root,
+        expected_package_paths=expected_package_paths,
+        package_root_name=package_root_name,
     )
     if observed_package_paths != expected_package_paths:
         missing = sorted(
@@ -355,10 +371,11 @@ def verify_installed_payload(
             path.as_posix() for path in observed_package_paths - expected_package_paths
         )
         raise InstalledCoreGoldenPathError(
-            f"installed dspx package inventory drift: missing={missing!r}, unexpected={unexpected!r}"
+            f"installed {package_root_name} package inventory drift: missing={missing!r}, unexpected={unexpected!r}"
         )
     return {
         "wheel_sha256": hashlib.sha256(wheel_raw).hexdigest(),
         "record_verified_file_count": verified_count,
         "package_inventory_verified": True,
+        "package_root_name": package_root_name,
     }

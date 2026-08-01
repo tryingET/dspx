@@ -59,6 +59,7 @@ def _verify_auth_install(
     payload = verify_installed_payload(
         wheel_path=wheel,
         site_packages_root=Path(str(installed.locate_file(""))),
+        package_root_name="dspy_lm_auth",
     )
     if payload["wheel_sha256"] != expected_sha256:
         raise InstalledCoreGoldenPathError(
