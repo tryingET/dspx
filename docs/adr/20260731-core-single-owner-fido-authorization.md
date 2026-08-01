@@ -1,5 +1,5 @@
 ---
-summary: "Adopt an explicit concentrated single-owner Core authorization policy with hardware-backed exact-payload authentication."
+summary: "Proposed explicit concentrated single-owner Core authorization with immutable owner-policy lineage and hardware-backed exact-payload authentication."
 status: proposed
 ---
 
@@ -7,18 +7,27 @@ status: proposed
 
 ## Context
 
-DSPx has one real owner. The historical 2-of-3 policy correctly remains disabled because aliases cannot create independent judgment. Evidence signing/custody is live, but package release authority remains separate.
+DSPx has one real owner. The historical 2-of-3 policy correctly remains disabled because aliases cannot create independent judgment. Evidence signing/custody is live, but package release authority remains separate. Independent review required revision before Decision 96 may advance.
 
-## Decision
+## Proposed decision
 
-Adopt a new immutable single-owner policy generation binding `tryingET` / GitHub user ID `260287438` to a dedicated FIDO2 OpenSSH public key. Require exact canonical payload SSHSIG verification under namespace `dspx-core-release-authorization-v1`, user presence/verification, a 15-minute maximum lifetime, a single-use nonce, current policy and custody, denylist clearance, and explicit concentrated-risk claims.
+Adopt a new immutable single-owner policy generation binding `tryingET` / GitHub user ID `260287438` to a dedicated FIDO2 OpenSSH ED25519-SK public key. Require:
 
-Package publication and sdist support remain false. Technical controls are conjunctions, not additional principals.
+- a full Git/AK-bound current owner-policy selector and anti-rollback checkpoint;
+- exact canonical payload SSHSIG under namespace `dspx-core-release-authorization-v1`;
+- OpenSSH cryptographic verification plus explicit signed UP and UV flag enforcement;
+- a 15-minute maximum lifetime and durable single-use nonce tombstone;
+- current trust policy, owner policy, denylist, evidence authenticity, clean source, and paired custody before and after nonce reservation;
+- a non-publishing consumer with no registry credential.
+
+Technical controls are conjunctions, not additional principals. Package publication and sdist support remain false.
 
 ## Consequences
 
-The model is honest and operational for a solo project, but owner compromise can authorize a release. No consumer may report authority until it independently verifies technical evidence and atomically consumes the nonce; caller-asserted booleans are not proof. Publication remains a later owner transition.
+The model is honest and operational for a solo project, but owner compromise can authorize a release. PIN/touch does not prove payload inspection, host integrity, device model/non-exportability, GitHub identity, or independent judgment. Recovery credentials remain the same principal.
+
+A narrow post-snapshot revocation race remains because external currentness reads cannot be transactionally locked with the local nonce database. The future true-result linearization point is the durable exact authorization-receipt commit.
 
 ## Current gate
 
-The dedicated FIDO public key is registered, but the first exact-payload signature was not completed because user verification requires the authenticator PIN in a real terminal. A fingerprint identifies the public key; it cannot prove owner intent. The checked-in owner policy therefore keeps `authorization_enabled=false`, and the adapter returns `release_authority=false` even after signature authentication until the trusted technical consumer and atomic nonce ledger exist.
+This ADR is not recorded. Decision 96 remains `review_pending` with `review_outcome=revise_rfc`. The owner policy remains disabled. The repair slice may authenticate and durably shadow-consume an approval, but every result remains `release_authority=false` until fresh review, accepted owner-policy lineage, real PIN/touch dogfood, and a separately authorized true-result transition.
