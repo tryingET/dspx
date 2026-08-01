@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -21,6 +20,7 @@ from core_release_evidence_io import (
     stable_regular_bytes,
 )
 from core_release_authorization_ledger import NonceLedger
+from core_release_authorization_snapshot import SnapshotInputs, stage_run_inputs
 from core_release_owner_authorization import (
     OWNER_SELECTOR_REF_PATTERN,
     PAYLOAD_SCHEMA,
@@ -35,23 +35,6 @@ from core_release_signing_identity import verify_sigstore_bundle
 
 REPOSITORY = "tryingET/dspx"
 RECEIPT_SCHEMA = "dspx-core-release-authorization-shadow-receipt-v1"
-
-
-@dataclass(frozen=True)
-class SnapshotInputs:
-    repo_root: Path
-    trust_checkpoint: Path
-    owner_checkpoint: Path
-    evidence_bundle: Path
-    statement_path: Path
-    sigstore_bundle: Path
-    subject_path: Path
-    receipt_path: Path
-    receipt_statement_path: Path
-    receipt_sigstore_bundle: Path
-    trusted_root_path: Path
-    ak_command: str = "ak"
-    gh_command: str = "gh"
 
 
 def _utc_now() -> datetime:
@@ -71,7 +54,7 @@ def _utc_timestamp(value: object, label: str) -> datetime:
 
 
 def _derive_snapshot(inputs: SnapshotInputs, *, now: datetime) -> dict[str, Any]:
-    return derive_live_snapshot(
+    return _derive_staged_snapshot(
         repo_root=inputs.repo_root,
         trust_checkpoint=inputs.trust_checkpoint,
         owner_checkpoint=inputs.owner_checkpoint,
@@ -167,7 +150,7 @@ def _receipt_artifact(
     return cast(Mapping[str, Any], matches[0])
 
 
-def derive_live_snapshot(
+def _derive_staged_snapshot(
     *,
     repo_root: Path,
     trust_checkpoint: Path,
@@ -312,6 +295,42 @@ def derive_live_snapshot(
     }
 
 
+def derive_live_snapshot(
+    *,
+    repo_root: Path,
+    trust_checkpoint: Path,
+    owner_checkpoint: Path,
+    evidence_bundle: Path,
+    statement_path: Path,
+    sigstore_bundle: Path,
+    subject_path: Path,
+    receipt_path: Path,
+    receipt_statement_path: Path,
+    receipt_sigstore_bundle: Path,
+    trusted_root_path: Path,
+    now: datetime,
+    ak_command: str = "ak",
+    gh_command: str = "gh",
+) -> dict[str, Any]:
+    inputs = SnapshotInputs(
+        repo_root=repo_root,
+        trust_checkpoint=trust_checkpoint,
+        owner_checkpoint=owner_checkpoint,
+        evidence_bundle=evidence_bundle,
+        statement_path=statement_path,
+        sigstore_bundle=sigstore_bundle,
+        subject_path=subject_path,
+        receipt_path=receipt_path,
+        receipt_statement_path=receipt_statement_path,
+        receipt_sigstore_bundle=receipt_sigstore_bundle,
+        trusted_root_path=trusted_root_path,
+        ak_command=ak_command,
+        gh_command=gh_command,
+    )
+    with stage_run_inputs(inputs) as staged:
+        return _derive_snapshot(staged.inputs, now=now)
+
+
 def _verify_with_policy(
     *,
     statement_path: Path,
@@ -393,69 +412,72 @@ def consume_shadow(
         json.dumps(dict(payload), sort_keys=True, separators=(",", ":")) + "\n"
     ).encode()
     payload_digest = hashlib.sha256(preliminary_raw).hexdigest()
-    ledger.reserve(
-        owner_selector_ref=owner_ref,
-        fingerprint=fingerprint,
-        nonce=nonce,
-        payload_sha256=payload_digest,
-        now=_utc_now(),
-    )
-    first = _derive_snapshot(inputs, now=_utc_now())
-    expected = payload_from_snapshot(
-        first,
-        nonce=nonce,
-        issued_at=_utc_timestamp(payload.get("issued_at"), "approval issued_at"),
-        expires_at=_utc_timestamp(payload.get("expires_at"), "approval expires_at"),
-    )
-    if dict(payload) != expected:
-        raise CoreReleaseEvidenceError(
-            "approval payload does not match independently derived evidence"
+    with stage_run_inputs(inputs, signature_path=signature_path) as staged:
+        if staged.signature_path is None:
+            raise CoreReleaseEvidenceError("owner approval signature staging failed")
+        ledger.reserve(
+            owner_selector_ref=owner_ref,
+            fingerprint=fingerprint,
+            nonce=nonce,
+            payload_sha256=payload_digest,
+            now=_utc_now(),
         )
-    owner_policy = cast(Mapping[str, Any], first["owner_policy"])
-    authentication = authenticate_owner_approval(
-        policy=owner_policy,
-        payload=payload,
-        signature_path=signature_path,
-        consumed_nonces=set(),
-        now=_utc_now(),
-    )
-    second = _derive_snapshot(inputs, now=_utc_now())
-    if dict(first) != dict(second):
-        raise CoreReleaseEvidenceError(
-            "authorization currentness changed after nonce reservation"
+        first = _derive_snapshot(staged.inputs, now=_utc_now())
+        expected = payload_from_snapshot(
+            first,
+            nonce=nonce,
+            issued_at=_utc_timestamp(payload.get("issued_at"), "approval issued_at"),
+            expires_at=_utc_timestamp(payload.get("expires_at"), "approval expires_at"),
         )
-    final_now = _utc_now()
-    for field in ("evidence_expires_at", "receipt_expires_at"):
-        if final_now >= _utc_timestamp(second.get(field), field):
+        if dict(payload) != expected:
             raise CoreReleaseEvidenceError(
-                "authorization custody expired before finalization"
+                "approval payload does not match independently derived evidence"
             )
-    final_raw = canonical_payload(payload, policy=owner_policy, now=final_now)
-    if hashlib.sha256(final_raw).hexdigest() != payload_digest:
-        raise CoreReleaseEvidenceError("authorization canonical payload changed")
-    receipt = {
-        "schema_version": RECEIPT_SCHEMA,
-        "status": "shadow_verified_not_authorized",
-        "payload_sha256": payload_digest,
-        "owner_selector_ref": owner_ref,
-        "trust_selector_ref": first["trust_selector_ref"],
-        "nonce": nonce,
-        "security_key_counter": authentication["security_key_counter"],
-        "evidence_artifact_id": first["evidence_artifact_id"],
-        "receipt_artifact_id": first["receipt_artifact_id"],
-        "linearization_point": "durable_nonce_receipt_commit",
-        "finalized_at": final_now.astimezone(timezone.utc).strftime(
-            "%Y-%m-%dT%H:%M:%SZ"
-        ),
-        "release_authority": False,
-        "package_publication": False,
-        "sdist_supported": False,
-    }
-    ledger.finalize(
-        owner_selector_ref=owner_ref,
-        fingerprint=fingerprint,
-        nonce=nonce,
-        payload_sha256=payload_digest,
-        receipt=receipt,
-    )
-    return receipt
+        owner_policy = cast(Mapping[str, Any], first["owner_policy"])
+        authentication = authenticate_owner_approval(
+            policy=owner_policy,
+            payload=payload,
+            signature_path=staged.signature_path,
+            consumed_nonces=set(),
+            now=_utc_now(),
+        )
+        second = _derive_snapshot(staged.inputs, now=_utc_now())
+        if dict(first) != dict(second):
+            raise CoreReleaseEvidenceError(
+                "authorization currentness changed after nonce reservation"
+            )
+        final_now = _utc_now()
+        for field in ("evidence_expires_at", "receipt_expires_at"):
+            if final_now >= _utc_timestamp(second.get(field), field):
+                raise CoreReleaseEvidenceError(
+                    "authorization custody expired before finalization"
+                )
+        final_raw = canonical_payload(payload, policy=owner_policy, now=final_now)
+        if hashlib.sha256(final_raw).hexdigest() != payload_digest:
+            raise CoreReleaseEvidenceError("authorization canonical payload changed")
+        receipt = {
+            "schema_version": RECEIPT_SCHEMA,
+            "status": "shadow_verified_not_authorized",
+            "payload_sha256": payload_digest,
+            "owner_selector_ref": owner_ref,
+            "trust_selector_ref": first["trust_selector_ref"],
+            "nonce": nonce,
+            "security_key_counter": authentication["security_key_counter"],
+            "evidence_artifact_id": first["evidence_artifact_id"],
+            "receipt_artifact_id": first["receipt_artifact_id"],
+            "linearization_point": "durable_nonce_receipt_commit",
+            "finalized_at": final_now.astimezone(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
+            "release_authority": False,
+            "package_publication": False,
+            "sdist_supported": False,
+        }
+        ledger.finalize(
+            owner_selector_ref=owner_ref,
+            fingerprint=fingerprint,
+            nonce=nonce,
+            payload_sha256=payload_digest,
+            receipt=receipt,
+        )
+        return receipt

@@ -1,5 +1,7 @@
 ---
 summary: "Revise the explicit concentrated single-owner Core authorization design around immutable policy lineage, UP/UV-enforced FIDO SSHSIG, and durable shadow consumption."
+read_when:
+  - "Reviewing or changing the proposed single-owner FIDO Core release-authorization design."
 status: revision-under-review
 ---
 
@@ -31,11 +33,15 @@ The duplicate-key-free canonical payload binds repository name/numeric ID, trust
 
 The trusted consumer derives these fields from independently verified artifacts and live owner surfaces. It does not accept caller booleans, digests, currentness JSON, or a caller clock.
 
+For each attempt, the consumer copies every bounded local artifact and the detached owner signature exactly once into a newly created `0700`, current-owner per-run directory. Staged files are current-owner non-symlink regular files with mode `0600`. All JSON parsing, bundle validation, Sigstore/cosign and receipt verification, owner authentication, and artifact hashing use only that staged generation; the consumer never reopens caller-owned originals. Both before/after currentness derivations reuse the same staged bytes. Live AK/GitHub observations and monotonic checkpoint state remain fresh state reads rather than staged evidence inputs.
+
 ## Revocation and replay
 
 Immutable owner-policy generations define an authorization kill switch, disabled-reason invariant, and revoked fingerprints. An enabled generation has `disabled_reason: null`; a disabled generation has a non-empty reason. A policy listing its current key as revoked is invalid. Disablement, revocation, replacement, or recovery uses a superseding immutable generation.
 
-The nonce ledger uses FULL-durability SQLite and a unique `(owner-selector-ref, fingerprint, nonce)` key. Before signature/external verification, the consumer commits a PENDING reservation. Failure or crash leaves that tombstone consumed. After a second currentness read, it transactionally commits the exact shadow authorization receipt. Only a later accepted implementation may emit true after that durable commit.
+The nonce ledger uses FULL-durability SQLite and a unique `(owner-selector-ref, fingerprint, nonce)` key. Its immediate parent must be current-owner-only; every ancestor component must be a non-symlink directory owned by root or the current owner and not group/other writable. Construction retains one SQLite connection plus the exact database and parent device/inode/owner/mode identities. Reserve, finalize, and status fail closed if the database entry becomes a different inode, a symlink, or any parent identity changes; they never reconnect through the mutable pathname.
+
+Before signature/external verification, the consumer commits a PENDING reservation. Failure or crash leaves that tombstone consumed. After a second currentness read, it transactionally commits the exact shadow authorization receipt. Only a later accepted implementation may emit true after that durable commit.
 
 ## Linearization and TOCTOU
 

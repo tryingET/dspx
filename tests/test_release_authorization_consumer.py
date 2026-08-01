@@ -8,9 +8,12 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import importlib.util
+import os
 from pathlib import Path
 import sqlite3
+import stat
 import sys
+import tempfile
 from types import ModuleType
 
 import pytest
@@ -35,6 +38,17 @@ OWNER_REF = (
     + "6" * 64
 )
 FINGERPRINT = "SHA256:OYAnSnMFl+jvWmFJ6TFcHdikBdL7N2MG3k+FIlSqVis"
+
+STAGED_FIELDS = (
+    "evidence_bundle",
+    "statement_path",
+    "sigstore_bundle",
+    "subject_path",
+    "receipt_path",
+    "receipt_statement_path",
+    "receipt_sigstore_bundle",
+    "trusted_root_path",
+)
 
 
 def _load() -> ModuleType:
@@ -105,19 +119,17 @@ def _mock_auth(monkeypatch: pytest.MonkeyPatch, module: ModuleType) -> None:
 
 
 def _inputs(module: ModuleType, tmp_path: Path) -> object:
-    unused = tmp_path / "unused"
+    directory = Path(tempfile.mkdtemp(prefix="inputs-", dir=tmp_path))
+    paths: dict[str, Path] = {}
+    for field in STAGED_FIELDS:
+        path = directory / field
+        path.write_bytes(f"original:{field}".encode())
+        paths[field] = path
     return module.SnapshotInputs(
         repo_root=ROOT,
-        trust_checkpoint=unused,
-        owner_checkpoint=unused,
-        evidence_bundle=unused,
-        statement_path=unused,
-        sigstore_bundle=unused,
-        subject_path=unused,
-        receipt_path=unused,
-        receipt_statement_path=unused,
-        receipt_sigstore_bundle=unused,
-        trusted_root_path=unused,
+        trust_checkpoint=directory / "trust-checkpoint.json",
+        owner_checkpoint=directory / "owner-checkpoint.json",
+        **paths,
     )
 
 
@@ -164,6 +176,209 @@ def test_unexpected_replay_enabling_trigger_is_rejected(
     connection.close()
     with pytest.raises(module.CoreReleaseEvidenceError, match="schema drift"):
         module.NonceLedger(path)
+
+
+def test_retained_ledger_revalidates_schema_inside_reservation_transaction(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    path = tmp_path / "ledger.sqlite3"
+    ledger = module.NonceLedger(path)
+    connection = sqlite3.connect(path)
+    connection.execute(
+        "CREATE TRIGGER replay_before_insert BEFORE INSERT ON authorizations "
+        "BEGIN DELETE FROM authorizations WHERE nonce=NEW.nonce; END"
+    )
+    connection.commit()
+    connection.close()
+    with pytest.raises(module.CoreReleaseEvidenceError, match="schema drift"):
+        ledger.reserve(
+            owner_selector_ref=OWNER_REF,
+            fingerprint=FINGERPRINT,
+            nonce="8" * 64,
+            payload_sha256="7" * 64,
+            now=NOW,
+        )
+
+
+def test_ledger_rejects_database_symlink(module: ModuleType, tmp_path: Path) -> None:
+    target = tmp_path / "target.sqlite3"
+    target.write_bytes(b"not-a-ledger")
+    target.chmod(0o600)
+    link = tmp_path / "ledger.sqlite3"
+    link.symlink_to(target)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="path is unsafe"):
+        module.NonceLedger(link)
+
+
+def test_ledger_rejects_symlinked_parent_component(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir(mode=0o700)
+    linked_parent = tmp_path / "linked-parent"
+    linked_parent.symlink_to(real_parent, target_is_directory=True)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="component is unsafe"):
+        module.NonceLedger(linked_parent / "ledger.sqlite3")
+
+
+def test_ledger_rejects_non_owner_only_immediate_parent(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    parent = tmp_path / "shared-parent"
+    parent.mkdir(mode=0o755)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="not owner-only"):
+        module.NonceLedger(parent / "ledger.sqlite3")
+
+
+def test_ledger_rejects_database_entry_replacement_before_reserve(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    path = tmp_path / "ledger.sqlite3"
+    ledger = module.NonceLedger(path)
+    replacement = tmp_path / "replacement.sqlite3"
+    replacement.write_bytes(b"replacement")
+    replacement.chmod(0o600)
+    os.replace(replacement, path)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="identity changed"):
+        ledger.reserve(
+            owner_selector_ref=OWNER_REF,
+            fingerprint=FINGERPRINT,
+            nonce="8" * 64,
+            payload_sha256="7" * 64,
+            now=NOW,
+        )
+
+
+def test_ledger_rejects_database_entry_replacement_before_finalize(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    path = tmp_path / "ledger.sqlite3"
+    ledger = module.NonceLedger(path)
+    ledger.reserve(
+        owner_selector_ref=OWNER_REF,
+        fingerprint=FINGERPRINT,
+        nonce="8" * 64,
+        payload_sha256="7" * 64,
+        now=NOW,
+    )
+    replacement = tmp_path / "replacement.sqlite3"
+    replacement.write_bytes(b"replacement")
+    replacement.chmod(0o600)
+    os.replace(replacement, path)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="identity changed"):
+        ledger.finalize(
+            owner_selector_ref=OWNER_REF,
+            fingerprint=FINGERPRINT,
+            nonce="8" * 64,
+            payload_sha256="7" * 64,
+            receipt={"release_authority": False},
+        )
+
+
+def test_ledger_rejects_parent_replacement(module: ModuleType, tmp_path: Path) -> None:
+    parent = tmp_path / "ledger-parent"
+    parent.mkdir(mode=0o700)
+    ledger = module.NonceLedger(parent / "ledger.sqlite3")
+    moved = tmp_path / "original-parent"
+    parent.rename(moved)
+    parent.mkdir(mode=0o700)
+    with pytest.raises(
+        module.CoreReleaseEvidenceError, match="parent identity changed"
+    ):
+        ledger.reserve(
+            owner_selector_ref=OWNER_REF,
+            fingerprint=FINGERPRINT,
+            nonce="8" * 64,
+            payload_sha256="7" * 64,
+            now=NOW,
+        )
+
+
+def test_ledger_rejects_post_open_symlink_replacement(
+    module: ModuleType, tmp_path: Path
+) -> None:
+    path = tmp_path / "ledger.sqlite3"
+    ledger = module.NonceLedger(path)
+    original = tmp_path / "original.sqlite3"
+    path.rename(original)
+    path.symlink_to(original)
+    with pytest.raises(module.CoreReleaseEvidenceError, match="path is unsafe"):
+        ledger.reserve(
+            owner_selector_ref=OWNER_REF,
+            fingerprint=FINGERPRINT,
+            nonce="8" * 64,
+            payload_sha256="7" * 64,
+            now=NOW,
+        )
+
+
+@pytest.mark.parametrize("swapped_field", STAGED_FIELDS)
+def test_consumer_uses_one_coherent_staged_generation_when_original_is_swapped(
+    module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    swapped_field: str,
+) -> None:
+    inputs = _inputs(module, tmp_path)
+    originals = {field: getattr(inputs, field).read_bytes() for field in STAGED_FIELDS}
+    calls = 0
+
+    def derive(staged_inputs: object, *, now: datetime) -> dict[str, object]:
+        nonlocal calls
+        assert now == NOW
+        calls += 1
+        if calls == 1:
+            getattr(inputs, swapped_field).write_bytes(b"adversarial replacement")
+        for field in STAGED_FIELDS:
+            staged_path = getattr(staged_inputs, field)
+            assert staged_path != getattr(inputs, field)
+            assert staged_path.read_bytes() == originals[field]
+            assert stat.S_IMODE(staged_path.stat().st_mode) == 0o600
+            assert stat.S_IMODE(staged_path.parent.stat().st_mode) == 0o700
+            assert staged_path.stat().st_uid == os.geteuid()
+        return _snapshot()
+
+    monkeypatch.setattr(module, "_derive_snapshot", derive)
+    monkeypatch.setattr(module, "_utc_now", lambda: NOW)
+    _mock_auth(monkeypatch, module)
+    signature = tmp_path / f"approval-{swapped_field}.sig"
+    signature.write_bytes(b"fixture")
+    receipt = module.consume_shadow(
+        payload=_payload(module),
+        signature_path=signature,
+        ledger=module.NonceLedger(tmp_path / f"ledger-{swapped_field}.sqlite3"),
+        inputs=inputs,
+    )
+    assert calls == 2
+    assert getattr(inputs, swapped_field).read_bytes() == b"adversarial replacement"
+    assert receipt["release_authority"] is False
+
+
+def test_consumer_authenticates_only_the_staged_signature_generation(
+    module: ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    inputs = _inputs(module, tmp_path)
+    _mock_snapshot(monkeypatch, module, _snapshot)
+    signature = tmp_path / "approval.sig"
+    signature.write_bytes(b"signed generation")
+
+    def authenticate(**kwargs: object) -> dict[str, object]:
+        signature.write_bytes(b"adversarial replacement")
+        staged_signature = kwargs["signature_path"]
+        assert isinstance(staged_signature, Path)
+        assert staged_signature != signature
+        assert staged_signature.read_bytes() == b"signed generation"
+        return {"security_key_counter": 11, "release_authority": False}
+
+    monkeypatch.setattr(module, "authenticate_owner_approval", authenticate)
+    receipt = module.consume_shadow(
+        payload=_payload(module),
+        signature_path=signature,
+        ledger=module.NonceLedger(tmp_path / "ledger.sqlite3"),
+        inputs=inputs,
+    )
+    assert signature.read_bytes() == b"adversarial replacement"
+    assert receipt["release_authority"] is False
 
 
 def test_shadow_commit_is_durable_and_never_authoritative(
