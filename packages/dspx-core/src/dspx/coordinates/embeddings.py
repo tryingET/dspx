@@ -24,6 +24,12 @@ from typing import Any, cast, Literal, Mapping, Protocol, runtime_checkable
 
 from dspx.run_receipts import resolve_run_identity
 
+from .embedding_identity import (
+    SentenceTransformerIdentitySpec,
+    build_sentence_transformer_identity,
+    validate_unit_vector,
+)
+
 logger = logging.getLogger(__name__)
 
 # Embedding schema version - bump when changing embedding behavior
@@ -408,23 +414,111 @@ class MockEmbedder:
 
 
 class SentenceTransformerEmbedder:
-    """Real embedder using sentence-transformers."""
+    """Real embedder with optional retained-artifact and normalization controls."""
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(
+        self,
+        model_name: str = "all-MiniLM-L6-v2",
+        *,
+        model_root: Path | None = None,
+        normalize_embeddings: bool = False,
+        device: str | None = None,
+    ):
         sentence_transformers = import_module("sentence_transformers")
         sentence_transformer_cls = getattr(sentence_transformers, "SentenceTransformer")
 
         self._model_name = model_name
-        self._model = sentence_transformer_cls(model_name)
+        self._model_root = model_root
+        self._normalize_embeddings = normalize_embeddings
+        self._device = device
+        self._observed_vector_dtype: str | None = None
+        source = str(model_root) if model_root is not None else model_name
+        kwargs: dict[str, Any] = {"trust_remote_code": False}
+        if device is not None:
+            kwargs["device"] = device
+        if model_root is not None:
+            kwargs["local_files_only"] = True
+        self._model = sentence_transformer_cls(source, **kwargs)
+        self._observed_device = str(getattr(self._model, "device", ""))
         self._dimension = self._model.get_sentence_embedding_dimension()
+        if isinstance(self._dimension, bool) or not isinstance(self._dimension, int):
+            raise EmbeddingValidationError(
+                "sentence-transformer dimension must be an integer"
+            )
 
     def encode(self, texts: list[str]) -> list[list[float]]:
-        """Encode texts using sentence-transformers."""
-        embeddings = self._model.encode(texts, convert_to_numpy=True)
-        return [emb.tolist() for emb in embeddings]
+        """Encode text under the configured normalization contract."""
+        embeddings = self._model.encode(
+            texts,
+            convert_to_numpy=True,
+            normalize_embeddings=self._normalize_embeddings,
+        )
+        observed_dtype = str(getattr(embeddings, "dtype", ""))
+        observed_shape = getattr(embeddings, "shape", None)
+        if observed_dtype != "float32" or observed_shape != (
+            len(texts),
+            self._dimension,
+        ):
+            raise EmbeddingValidationError(
+                "sentence-transformer output must be a float32 matrix with exact batch shape"
+            )
+        self._observed_vector_dtype = observed_dtype
+        vectors = [emb.tolist() for emb in embeddings]
+        if self._normalize_embeddings:
+            for vector in vectors:
+                validate_unit_vector(vector)
+        return vectors
 
     def get_dimension(self) -> int:
         return self._dimension
+
+    def build_identity(
+        self,
+        spec: SentenceTransformerIdentitySpec,
+        *,
+        runtime_versions: Mapping[str, str] | None = None,
+        frozen_runtime_lock_sha256: str,
+    ) -> dict[str, Any]:
+        """Build complete identity only for a retained local model snapshot."""
+
+        if self._model_root is None:
+            raise EmbeddingValidationError(
+                "complete sentence-transformer identity requires a retained model root"
+            )
+        if self._normalize_embeddings is not spec.normalize_embeddings:
+            raise EmbeddingValidationError(
+                "embedding normalization configuration drift"
+            )
+        if self._device != spec.device:
+            raise EmbeddingValidationError("embedding device configuration drift")
+        if self._observed_device != spec.device:
+            raise EmbeddingValidationError("observed model device drift")
+        if self._observed_vector_dtype is None:
+            raise EmbeddingValidationError(
+                "complete identity requires one observed full-batch encoding"
+            )
+        tokenizer = getattr(self._model, "tokenizer", None)
+        if tokenizer is None:
+            raise EmbeddingValidationError(
+                "sentence-transformer tokenizer is unavailable"
+            )
+        torch = import_module("torch")
+        runtime_observations = {
+            "model_device": self._observed_device,
+            "torch_cuda_available": bool(torch.cuda.is_available()),
+            "torch_default_dtype": str(torch.get_default_dtype()),
+            "numpy_output_dtype": self._observed_vector_dtype,
+        }
+        return build_sentence_transformer_identity(
+            spec=spec,
+            model_root=self._model_root,
+            tokenizer=tokenizer,
+            dimension=self._dimension,
+            observed_vector_dtype=self._observed_vector_dtype,
+            frozen_runtime_lock_sha256=frozen_runtime_lock_sha256,
+            runtime_observations=runtime_observations,
+            runtime_versions=runtime_versions,
+        )
 
 
 class EmbeddingEngine:

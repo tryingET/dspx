@@ -29,6 +29,10 @@ dependencies = [
 lm-auth = [
   "dspy-lm-auth>=0.1.3",
 ]
+oracle-embeddings = [
+  "sentence-transformers==5.1.2",
+  "torch==2.13.0+cpu",
+]
 oracle-postgres = [
   "psycopg[binary]>=3.2.0",
 ]

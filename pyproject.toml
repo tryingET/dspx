@@ -1,6 +1,14 @@
 [tool.uv.workspace]
 members = ["packages/dspx-core", "apps/forge"]
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
 [dependency-groups]
 dev = [
     "ruff>=0.5.0",

@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-01T20:29:41.642150461+00:00",
+  "task_id": 4480,
+  "entity_version": 5,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "benchmarks/semantic/oracle-embedding-evaluation-v1.json",
+      "docs/project/product-posture.md",
+      "docs/project/semantic-benchmarks.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/pyproject.toml",
+      "packages/dspx-core/src/dspx/coordinates/embedding_identity.py",
+      "packages/dspx-core/src/dspx/coordinates/embeddings.py",
+      "packages/dspx-core/src/dspx/coordinates/oracle_embedding_evaluation.py",
+      "packages/dspx-core/src/dspx/coordinates/oracle_embedding_verification.py",
+      "packages/dspx-core/src/dspx/coordinates/storage.py",
+      "pyproject.toml",
+      "scripts/ci/run_oracle_embedding_evaluation.py",
+      "scripts/ci/validate_installed_live_oracle_evaluation.py",
+      "tests/test_installed_live_oracle_evaluation.py",
+      "tests/test_oracle_embedding_evaluation.py",
+      "uv.lock"
+    ],
+    "required_paths": [
+      "docs/project/product-posture.md",
+      "packages/dspx-core/src/dspx/coordinates/embedding_identity.py",
+      "packages/dspx-core/src/dspx/coordinates/embeddings.py",
+      "scripts/ci/run_oracle_embedding_evaluation.py",
+      "tests/test_oracle_embedding_evaluation.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

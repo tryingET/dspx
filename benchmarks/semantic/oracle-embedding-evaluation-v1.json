@@ -1,0 +1,240 @@
+{
+  "schema_version": "dspx-oracle-embedding-evaluation-contract-v1",
+  "status": "precommitted_evaluation_not_run",
+  "source_bindings": {
+    "installed_live_evaluation_contract": {
+      "path": "benchmarks/semantic/installed-live-oracle-evaluation-v1.json",
+      "sha256": "9ff735cd4ba29cfe430c9bce12d697877fa18a91cff78bd98defedcdeed5201a"
+    },
+    "program_semantic_corpus": {
+      "path": "benchmarks/semantic/program-corpus-v2.json",
+      "sha256": "4c877c7992d8b70044645c57e2753ea9f170da027179376cafbc4d6000db0ec9"
+    },
+    "uv_lock": {
+      "path": "uv.lock",
+      "sha256": "d941b76c442e4c89143b1ab0abcc03a57b477943e6cb0e588bc08c3ec5a4ef09"
+    }
+  },
+  "backend": {
+    "name": "sentence-transformers",
+    "repository_id": "sentence-transformers/all-MiniLM-L6-v2",
+    "revision": "c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+    "dependency": "sentence-transformers==5.1.2",
+    "torch_dependency": "torch==2.13.0+cpu",
+    "expected_dimension": 384,
+    "vector_dtype": "float32",
+    "normalization": {
+      "encode_normalize_embeddings": true,
+      "postcondition": "finite_l2_unit_vector"
+    },
+    "distance": {
+      "ranking_metric": "cosine_similarity_descending",
+      "reported_distance": "one_minus_cosine_similarity"
+    },
+    "runtime_identity_packages": [
+      "huggingface-hub",
+      "numpy",
+      "safetensors",
+      "sentence-transformers",
+      "tokenizers",
+      "torch",
+      "transformers"
+    ],
+    "tokenizer_runtime_fields": [
+      "implementation",
+      "model_max_length",
+      "padding_side",
+      "truncation_side",
+      "vocabulary_size"
+    ],
+    "artifact_manifest_source": {
+      "kind": "hugging_face_commit_tree_metadata",
+      "url": "https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/c9745ed1d9f207416be6d2e6f8de32d1f16199bf?recursive=true&expand=true",
+      "commit": "c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+      "captured_at": "2026-08-01T22:00:00Z"
+    },
+    "artifact_manifest": [
+      {
+        "path": "1_Pooling/config.json",
+        "size": 190,
+        "source_git_oid": "d1514c3162bbe87b343f565fadc62e6c06f04f03",
+        "lfs_sha256": null
+      },
+      {
+        "path": "config.json",
+        "size": 612,
+        "source_git_oid": "72b987fd805cfa2b58c4c8c952b274a11bfd5a00",
+        "lfs_sha256": null
+      },
+      {
+        "path": "config_sentence_transformers.json",
+        "size": 116,
+        "source_git_oid": "fd1b291129c607e5d49799f87cb219b27f98acdf",
+        "lfs_sha256": null
+      },
+      {
+        "path": "model.safetensors",
+        "size": 90868376,
+        "source_git_oid": "d49eff1e4a6f0e3ba5069f21c6d20aad156dd2c9",
+        "lfs_sha256": "53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db"
+      },
+      {
+        "path": "modules.json",
+        "size": 349,
+        "source_git_oid": "952a9b81c0bfd99800fabf352f69c7ccd46c5e43",
+        "lfs_sha256": null
+      },
+      {
+        "path": "sentence_bert_config.json",
+        "size": 53,
+        "source_git_oid": "59d594003bf59880a884c574bf88ef7555bb0202",
+        "lfs_sha256": null
+      },
+      {
+        "path": "special_tokens_map.json",
+        "size": 112,
+        "source_git_oid": "e7b0375001f109a6b8873d756ad4f7bbb15fbaa5",
+        "lfs_sha256": null
+      },
+      {
+        "path": "tokenizer.json",
+        "size": 466247,
+        "source_git_oid": "cb202bfe2e3c98645018a6d12f182a434c9d3e02",
+        "lfs_sha256": null
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 350,
+        "source_git_oid": "c79f2b6a0cea6f4b564fed1938984bace9d30ff0",
+        "lfs_sha256": null
+      },
+      {
+        "path": "vocab.txt",
+        "size": 231508,
+        "source_git_oid": "fb140275c155a9c7c5a3b3e0e77a9e839594a938",
+        "lfs_sha256": null
+      }
+    ],
+    "runtime_environment": {
+      "lock_path": "uv.lock",
+      "lock_sha256": "d941b76c442e4c89143b1ab0abcc03a57b477943e6cb0e588bc08c3ec5a4ef09",
+      "python_implementation": "cpython",
+      "python_major_minor": "3.13",
+      "device": "cpu",
+      "expected_package_versions": {
+        "huggingface-hub": "0.36.2",
+        "numpy": "2.4.2",
+        "safetensors": "0.8.0",
+        "sentence-transformers": "5.1.2",
+        "tokenizers": "0.22.2",
+        "torch": "2.13.0+cpu",
+        "transformers": "4.57.6"
+      },
+      "installer": "uv_run_isolated_frozen",
+      "uv_version": "uv 0.11.14 (3fdfdc7d4 2026-05-12 x86_64-unknown-linux-gnu)",
+      "selected_wheel_sha256": {
+        "huggingface-hub": "48f0c8eac16145dfce371e9d2d7772854a4f591bcb56c9cf548accf531d54270",
+        "numpy": "d0d9b7c93578baafcbc5f0b83eaf17b79d345c6f36917ba0c67f45226911d499",
+        "safetensors": "fd6f3f93c9a0a7cc2788ee63fb763353d4bd2e89b0751bc78fcf7dda00bea774",
+        "sentence-transformers": "724ce0ea62200f413f1a5059712aff66495bc4e815a1493f7f9bca242414c333",
+        "tokenizers": "369cc9fc8cc10cb24143873a0d95438bb8ee257bb80c71989e3ee290e8d72c67",
+        "torch": "3fbf9c9d1f3c10c2d59d04aca426dee9ccc6ceb32d255c61e93acc3b4f75fae6",
+        "transformers": "4c9e9de11333ddfe5114bc872c9f370509198acf0b87a832a0ab9458e2bd0550"
+      },
+      "observed_execution_requirements": {
+        "model_device": "cpu",
+        "torch_cuda_available": false,
+        "torch_default_dtype": "torch.float32",
+        "numpy_output_dtype": "float32"
+      },
+      "platform": "linux-x86_64"
+    }
+  },
+  "evaluation": {
+    "coverage_claim": "three_frozen_held_out_top1_routing_queries_only",
+    "store": "candidate_local_sqlite",
+    "records": [
+      {
+        "case_id": "single-module-authority-boundary",
+        "text": "Local benchmark evidence is advisory only. It can support inspection but cannot approve, deploy, publish, promote, or activate a candidate. Governance authority remains external."
+      },
+      {
+        "case_id": "pipeline-evidence-calibration",
+        "text": "When one evaluation check fails and no root cause is known, report the observed failure and uncertainty. Do not infer a cause, blame a component, or claim the system is broadly broken without evidence."
+      },
+      {
+        "case_id": "pdf-transition-review-runtime-replay",
+        "text": "Create review-only PDF transition findings, evidence, and proposed remediation steps. Do not modify canonical source records, approve transitions, or perform external effects."
+      }
+    ],
+    "queries": [
+      {
+        "id": "authority-boundary-paraphrase",
+        "expected_case_id": "single-module-authority-boundary",
+        "text": "Can local benchmark evidence by itself deploy or approve this candidate?"
+      },
+      {
+        "id": "calibration-paraphrase",
+        "expected_case_id": "pipeline-evidence-calibration",
+        "text": "One check failed but no cause is known; what conclusion is justified?"
+      },
+      {
+        "id": "review-only-paraphrase",
+        "expected_case_id": "pdf-transition-review-runtime-replay",
+        "text": "Prepare review evidence and proposals without changing canonical records."
+      }
+    ],
+    "thresholds": {
+      "recall_at_1": 1.0,
+      "mean_reciprocal_rank": 1.0,
+      "normalized_discounted_cumulative_gain_at_3": 1.0,
+      "minimum_labeled_query_count": 3
+    },
+    "falsifiers": [
+      "model_revision_or_artifact_identity_incomplete",
+      "tokenizer_runtime_identity_incomplete",
+      "runtime_normalization_dimension_or_distance_drift",
+      "mock_unknown_or_mixed_backend_identity",
+      "non_finite_or_non_unit_vector",
+      "expected_case_not_uniquely_ranked_first",
+      "metric_below_threshold",
+      "record_query_or_label_order_drift",
+      "shared_store_or_semantic_analysis_lm_effect"
+    ]
+  },
+  "attempt_budget": {
+    "maximum_model_acquisition_and_evaluation_sequences": 1,
+    "separate_health_probes": 0,
+    "dspx_managed_retries": 0,
+    "selective_query_reruns_allowed": false,
+    "failed_or_indeterminate_sequence_is_terminal": true,
+    "dependency_internal_transport_call_cardinality": "not_proven",
+    "dependency_internal_retry_absence": "not_proven",
+    "enforcement": {
+      "kind": "canonical_local_atomic_consumed_marker",
+      "namespace": "dspx/oracle-embedding-evaluations",
+      "key": "contract_sha256",
+      "marker_created_before_model_acquisition": true,
+      "started_or_terminal_marker_forbids_another_root": true,
+      "external_marker_deletion_or_tampering_outside_claim": true
+    }
+  },
+  "effects": {
+    "semantic_analysis_lm_calls": 0,
+    "shared_store_connections": 0,
+    "shared_oracle_publications": 0,
+    "release_or_activation_mutations": 0,
+    "ak_mutations_from_evaluated_code": 0
+  },
+  "claim_boundary": {
+    "production_semantic_embedding_gate_requires_complete_identity_and_all_metrics": true,
+    "broad_or_statistically_representative_semantic_quality": false,
+    "semantic_analysis_lm_quality": false,
+    "shared_coordinate_store_readiness": false,
+    "oracle_governance_authority": false,
+    "release_readiness": false,
+    "release_authority": false,
+    "package_publication": false,
+    "production_activation": false
+  }
+}
