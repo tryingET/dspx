@@ -357,6 +357,36 @@ def _valid_journey(root: Path) -> dict[str, Path]:
     }
 
 
+def test_current_replay_preserves_recorded_journey_relative_receipt_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_verifier()
+    root = tmp_path / "journey"
+    receipt_path = Path("benchmark") / CASE_ID / "manifest.json.meta.json"
+    payload = {"status": "ok", "receipt_path": str(receipt_path)}
+    _write_json(root / "replay-check.json", payload)
+    observed: dict[str, Any] = {}
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        observed["command"] = command
+        observed["cwd"] = kwargs.get("cwd")
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(payload),
+            stderr="",
+        )
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    module._verify_current_replay(journey_root=root, venv_root=root / "venv")
+
+    command = observed["command"]
+    assert isinstance(command, list)
+    assert command[command.index("--from") + 1] == str(receipt_path)
+    assert observed["cwd"] == root
+
+
 def test_valid_journey_proves_only_bounded_live_semantics(tmp_path: Path) -> None:
     module = _load_verifier()
     root = tmp_path / "journey"

@@ -2,13 +2,14 @@
   "schema_version": 1,
   "exported_at": "2026-08-01T16:40:55.969293237+00:00",
   "task_id": 4458,
-  "entity_version": 2,
-  "commit_sha": "dbd9a108769b80000c31a41f3fdddebff5621008",
+  "entity_version": 3,
+  "commit_sha": "b2b7d20e0f9358be3e254eba307462d03c0da8aa",
   "scope": {
     "allowed_paths": [
       "docs/project/semantic-benchmarks.md",
       "governance/task-scopes/AK-4458.snapshot.json",
       "packages/dspx-core/src/dspx/services/program_topology.py",
+      "scripts/ci/verify_installed_core_live_semantic.py",
       "scripts/run_installed_core_live_semantic.sh",
       "tests/test_installed_core_live_semantic.py",
       "tests/test_program_topology_intent_pipeline.py",
@@ -17,6 +18,7 @@
     "required_paths": [
       "governance/task-scopes/AK-4458.snapshot.json",
       "packages/dspx-core/src/dspx/services/program_topology.py",
+      "scripts/ci/verify_installed_core_live_semantic.py",
       "scripts/run_installed_core_live_semantic.sh",
       "tests/test_installed_core_live_semantic.py",
       "tests/test_program_topology_intent_prompt_inference.py"

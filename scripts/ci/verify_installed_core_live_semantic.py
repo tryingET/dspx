@@ -107,7 +107,7 @@ def _verify_auth_install(
 
 
 def _verify_current_replay(*, journey_root: Path, venv_root: Path) -> None:
-    candidate_root = journey_root / "benchmark" / CASE_ID
+    receipt_path = Path("benchmark") / CASE_ID / "manifest.json.meta.json"
     replay_environment = os.environ.copy()
     replay_environment["DSPX_CACHE_DIR"] = str(
         journey_root / "benchmark" / ".cache" / CASE_ID
@@ -119,7 +119,7 @@ def _verify_current_replay(*, journey_root: Path, venv_root: Path) -> None:
             "run",
             "replay",
             "--from",
-            str(candidate_root / "manifest.json.meta.json"),
+            str(receipt_path),
             "--check-only",
             "--json",
         ],
