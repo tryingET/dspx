@@ -38,7 +38,7 @@ def load_semantic_corpus(path: Path) -> dict[str, Any]:
     if not isinstance(raw, dict) or raw.get("schema_version") != CORPUS_SCHEMA:
         raise ValueError(f"unsupported semantic benchmark corpus: {path}")
     allowed_top_level = {"schema_version", "name", "version", "thresholds", "cases"}
-    unknown_top_level = set(raw) - allowed_top_level
+    unknown_top_level = set(cast(dict[str, Any], raw)) - allowed_top_level
     if unknown_top_level:
         raise ValueError(
             "corpus contains unknown fields: " + ", ".join(sorted(unknown_top_level))

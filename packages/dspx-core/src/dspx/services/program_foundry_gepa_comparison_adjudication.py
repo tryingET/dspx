@@ -9,7 +9,7 @@ import json
 import os
 import secrets
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from dspx.services.program_foundry_gepa_comparison_jury import (
     ProgramFoundryGepaComparisonJuryError,
@@ -254,11 +254,14 @@ def _validate_policy_aggregate(
             "comparison jury blocking_concerns_present conflicts with judgment counts"
         )
     improvements = aggregate.get("unique_improvement_requests")
-    if (
-        not isinstance(improvements, list)
-        or not all(isinstance(item, str) for item in improvements)
-        or improvements != sorted(set(improvements))
+    if not isinstance(improvements, list) or not all(
+        isinstance(item, str) for item in improvements
     ):
+        raise ProgramFoundryGepaComparisonAdjudicationError(
+            "comparison jury improvement requests must be sorted unique strings"
+        )
+    validated_improvements = cast(list[str], improvements)
+    if validated_improvements != sorted(set(validated_improvements)):
         raise ProgramFoundryGepaComparisonAdjudicationError(
             "comparison jury improvement requests must be sorted unique strings"
         )
