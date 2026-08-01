@@ -70,6 +70,36 @@ The lane fails closed on stale or substituted evidence, failed/degraded generate
 
 Offline mode uses the stub provider through the generated DSPy program runtime. Live mode uses only the explicitly selected provider, remains non-deterministic, and is never a default CI gate.
 
+## Exact installed-wheel live semantic journey
+
+The source-checkout live benchmark and the credential-free installed-wheel package proof intentionally remain separate. To test their composition without weakening either contract, use the explicit opt-in journey with a newly built exact Core wheel, its SHA-256, one currently available Codex subscription model, and a fresh managed scratch root outside the checkout:
+
+```bash
+just installed-core-live-semantic \
+  wheel=/absolute/path/dspx_core-0.1.0-py3-none-any.whl \
+  wheel_sha256=<64-lowercase-hex> \
+  provider=dspy-lm-auth \
+  model=codex/gpt-5.6-sol \
+  root="$TMPDIR/dspx-installed-live-$(date -u +%Y%m%dT%H%M%SZ)"
+```
+
+The runner makes exactly one benchmark invocation, runs no separate health probe or mechanical retry, and disables DSPx's historical Codex stream-compatibility retry for this journey. Retry behavior internal to the released provider dependency remains `not_proven` rather than being inferred from one invocation. The runner creates a clean Python 3.13 environment outside the checkout, downloads the exact PyPI wheel recorded by `uv.lock` for `dspy-lm-auth==0.1.3`, verifies its SHA-256, and installs both that artifact and the exact hash-bound Core wheel by local hash-bound URL. It unsets `PYTHONPATH`, snapshots the exact checked-in `single-module-authority-boundary` case, and runs that case through the installed Core program-semantic path. It then performs current receipt-integrity replay, indexes the resulting evidence into a candidate-local mock-embedding Oracle database, regenerates and compares the local Oracle report, and independently re-derives semantic concept coverage from current observed behavior.
+
+The fixed evidence packet is `<root>/installed-core-live-semantic-proof.json`. It binds exact Core and released auth wheel identities plus installed `RECORD` payload verification, requested provider/model, candidate and receipt identities, independently derived semantic score, current behavior/manifest/receipt/workflow/Oracle/replay hashes, the invocation disposition, and the candidate-local Oracle record. The provider's final resolved model identity remains `not_proven`; requested model metadata is not silently upgraded into executed-model proof.
+
+Effects and privacy boundaries:
+
+- network reads and provider-owned auth refresh may occur;
+- the runner never inspects or copies tokens, headers, auth-store contents, or credential paths;
+- unbounded provider responses and raw failure details are not retained, while the one bounded checked-in benchmark behavior output remains inspectable in the local candidate artifacts;
+- failure preserves the owner-only journey root plus a step/exit receipt; that receipt distinguishes possible bounded sanitized benchmark detail from unretained raw error detail and reports only a PATH-canary observation for AK;
+- mock Oracle embeddings prove indexing/report plumbing only and never production-semantic quality;
+- the runner requests no shared Oracle, AK, governance, promotion, activation, registry, or publication mutation; the proof confirms workflow declarations plus no PATH-canary observation but does not claim broad AK-invocation absence.
+
+A pass proves only that the exact installed Core wheel used the named real-provider route to produce behavior satisfying this bounded semantic case, that current receipt/artifact integrity replay passed, and that candidate-local Oracle could interpret the resulting evidence. It does not prove runtime execution reproduction, semantic reproduction, quality-evaluation reproduction, network isolation, auth-store nonmutation, exact resolved-model identity, provider-internal retry absence, broad AK-invocation absence, production-semantic Oracle quality, release authority, package publication, or sdist support.
+
+This live journey is never a default CI or release-evidence gate. Do not modify `ci-package` or the stub-backed installed proof to consume its nondeterministic credentialed output.
+
 ## Authority and artifact boundary
 
 A passing result is local benchmark evidence only. Neither harness approves or activates a program, selects or promotes a candidate, indexes shared Oracle, calls AK, mutates governance, or mutates external authority. The direct-provider harness writes only its atomically replaced result file. The generated-program harness writes a fresh work root containing intents, caches, candidate assemblies, receipts, behavior evidence, and workflow sidecars, plus its atomically replaced aggregate result; remove both the work root and aggregate result to roll back those local artifacts. Any later evidence registration, adjudication, or activation must occur through its owning authorized surface.

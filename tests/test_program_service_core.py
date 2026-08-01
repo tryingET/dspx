@@ -61,6 +61,20 @@ def test_behavior_results_retry_rejects_mixed_or_non_codex_errors() -> None:
     )
 
 
+def test_codex_stream_compatibility_retry_can_be_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_PROGRAM_CODEX_STREAM_COMPAT_RETRY", "0")
+    assert not program_service._codex_stream_compatibility_retry_enabled()
+
+
+def test_codex_stream_compatibility_retry_preserves_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DSPX_PROGRAM_CODEX_STREAM_COMPAT_RETRY", raising=False)
+    assert program_service._codex_stream_compatibility_retry_enabled()
+
+
 @pytest.mark.slow
 def test_program_service_materializes_candidate_assembly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

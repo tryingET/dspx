@@ -935,6 +935,17 @@ rules:
       - pytest_release_bundle
       - package_check_retain_smoke
 
+  - match: "scripts/run_installed_core_live_semantic.sh"
+    category: installed_live_semantic_runner
+    impact_group: installed_live_semantic
+    risk: expanded
+    exclusive: true
+    commands:
+      - ruff_touched
+      - pytest_touched
+      - pytest_program_generation_spine
+      - workflow_contract_check
+
   - match: "tests/test_release_*.py"
     category: core_release_evidence_test
     impact_group: package_release
