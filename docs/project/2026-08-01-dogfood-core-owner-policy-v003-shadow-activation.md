@@ -141,11 +141,17 @@ The trusted consumer reserved the fresh nonce before external verification and d
 - `package_publication=false`
 - `sdist_supported=false`
 
-The new ledger parent and database were owner-only modes `0700` and `0600`. A read-only post-commit query found exactly one `committed` row whose embedded receipt matched all authority-false fields. The single intentional replay exited nonzero with `authorization nonce is already reserved or consumed`; it was not retried.
+The new ledger parent and database were owner-only modes `0700` and `0600`. A read-only post-commit query found exactly one `committed` row whose embedded receipt matched all authority-false fields. For the single intentional replay, the controller recorded exit `1`, empty stdout, and exact stderr `authorization nonce is already reserved or consumed`; durable ledger state and HEAD CLI exit semantics independently corroborated that observation. The replay was not retried.
 
 ## Negative matrix and quality gates
 
 The isolated release test matrix passed `150` tests, including exact-payload drift, expiry, absent UP/UV, disabled/revoked policy, selector downgrade/fork/gap, evidence and custody drift, coherent staged input replacement, and ledger entry/parent/symlink/schema replacement. Scoped Ruff and repository workflow-contract checks also passed. These fixtures did not mutate the protected checkpoints or committed live ledger.
+
+## Independent post-run review
+
+An independent read-only reviewer accepted AK-4420 closeout with no blocker, high, or medium findings. The reviewer reconciled the payload, signature, receipt, immutable ledger row, live and snapshotted checkpoints, exact selector coordinates, replay streams plus CLI semantics, and a fresh 150-test command/stdout/stderr/exit-code receipt.
+
+The owner-only local evidence manifest SHA-256 is `1e0850875e65eb95d1f24d88655d7541d8141f714d2cc59363d69e902557c9b3`. The only low residual is provenance calibration: replay exit `1` was controller-captured and corroborated, not independently generated. Review performed no replay, signing, consumption, AK/GitHub mutation, private-key access, or inspection of `.ontology/`.
 
 ## Proved absence of effects in the four stopped attempts
 
@@ -161,7 +167,7 @@ For each of the four abandoned attempts described above:
 
 ## Completion boundary and next legal move
 
-AK-4420 may close after independent post-run review confirms this evidence and the committed receipt. Do not reuse the successful payload, nonce, or signature.
+AK-4420 completed its defined authority-false scope after independent post-run review accepted this evidence and the committed receipt. Do not reuse the successful payload, nonce, or signature.
 
 This result does not authorize an authority-true consumer, package publication, registry credentials, or sdist support. Any authority-true proposal requires a separate decision/task, exact implementation review, validation and rollback artifacts, and a new payload, nonce, signature, and durable consumption ceremony.
 
