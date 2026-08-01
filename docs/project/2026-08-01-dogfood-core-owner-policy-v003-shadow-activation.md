@@ -1,5 +1,5 @@
 ---
-summary: "Fail-closed partial dogfood evidence for owner-policy v003: currentness succeeded, but the confirmation window expired before signing."
+summary: "Fail-closed partial dogfood evidence for owner-policy v003: currentness succeeded, but two confirmation windows ended without signing."
 read_when:
   - "Checking task 4420 progress or why no v003 biometric signature/consume receipt exists yet."
   - "Preparing a later fresh payload after the unconfirmed v003 ceremony stop."
@@ -12,7 +12,7 @@ type: "evidence"
 
 `stopped_before_signing`
 
-Decision 99 and owner-policy v003 currentness completed, but the required explicit operator confirmation did not arrive before the displayed payload expired. No signature was produced, no nonce ledger was created, no nonce was consumed, and no shadow receipt exists. The payload will not be reused, edited, signed, or mechanically retried.
+Decision 99 and owner-policy v003 currentness completed, but the required explicit operator confirmation did not arrive in either displayed confirmation window. No signature was produced, no nonce ledger was created, no nonce was consumed, and no shadow receipt exists. Both payloads and nonces are abandoned and will not be reused, edited, signed, or mechanically retried.
 
 This is a fail-closed partial execution, not a successful shadow dogfood.
 
@@ -72,6 +72,18 @@ The complete canonical bytes and SHA-256 were displayed in the operator confirma
 
 The confirmation form timed out after 600 seconds with no response. A direct peer follow-up also timed out. The payload expired during that wait.
 
+## Second fresh confirmation stop
+
+After the operator explicitly issued `prepare fresh payload`, task deferral 198 was released and AK-4420 was reclaimed. The trusted prepare surface reran current trust/owner policy, denylist, evidence, Sigstore, source, and paired-custody checks and created a distinct payload in a new owner-only scratch directory.
+
+- Payload SHA-256: `aa205de0e85d0c1f44aef259512e387480cd9be2685bebf11a603978ecfc1b8c`
+- Issued: `2026-08-01T12:59:11Z`
+- Expiry: `2026-08-01T13:09:11Z`
+- Nonce: `ed0eddd9edf3e5f440642395f382a8d10b5de3cdbac9e19ef9e2f5939b78df1d`
+- Authority ref, policy/selector identities, workflow run, wheel, manifest, statement, source, and package identity matched the accepted first preparation except for the required fresh nonce/window.
+
+The complete canonical bytes and hash were displayed in a new interactive confirmation form. That form timed out after 420 seconds without an explicit confirm/reject response. The signing gate therefore stopped immediately. This second payload and nonce are abandoned even if any lifetime remained at timeout; no signing or consumer command ran.
+
 ## Proved absence of effects
 
 - Detached signature path does not exist.
@@ -84,6 +96,6 @@ The confirmation form timed out after 600 seconds with no response. A direct pee
 
 ## Next legal move
 
-A new explicit operator instruction is required before preparing a fresh payload. The next attempt must use a new nonce and validity window, redisplay all canonical bytes and SHA-256, and obtain confirmation before signing. It may then continue Phases 4–6 exactly once.
+A new explicit operator instruction and a coordinated immediate confirmation window are required before preparing another payload. Any later attempt must use a new nonce and validity window, redisplay all canonical bytes and SHA-256, and obtain confirmation before signing. It may then continue Phases 4–6 exactly once.
 
 If continued activation is no longer desired, use the prepared forward-only rollback procedure: create a higher immutable disabled generation (expected v004 only after live-chain confirmation), never rewrite v003 or reset the checkpoint.
