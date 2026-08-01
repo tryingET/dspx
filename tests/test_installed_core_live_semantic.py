@@ -7,15 +7,14 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import sqlite3
 import subprocess
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VERIFIER_PATH = REPO_ROOT / "scripts/ci/verify_installed_core_live_semantic.py"
@@ -24,6 +23,29 @@ RUNNER_PATH = REPO_ROOT / "scripts/run_installed_core_live_semantic.sh"
 CASE_ID = "single-module-authority-boundary"
 PROVIDER = "dspy-lm-auth"
 MODEL = "codex/gpt-5.6-sol"
+
+
+def test_installed_live_just_recipe_preserves_documented_argument_order() -> None:
+    result = subprocess.run(
+        [
+            "just",
+            "--dry-run",
+            "installed-core-live-semantic",
+            "wheel=/proof/core.whl",
+            f"wheel_sha256={'a' * 64}",
+            f"provider={PROVIDER}",
+            f"model={MODEL}",
+            "root=/proof/journey",
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rendered = result.stdout + result.stderr
+    assert 'selected_provider="provider=dspy-lm-auth"' in rendered
+    assert 'selected_model="model=codex/gpt-5.6-sol"' in rendered
+    assert 'work="root=/proof/journey"' in rendered
 
 
 def _load_verifier() -> ModuleType:

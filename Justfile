@@ -199,7 +199,7 @@ program-semantic-benchmark-live provider root="generated/ci/program-semantic-ben
   selected="{{provider}}"; selected="${selected#provider=}"; work="{{root}}"; work="${work#root=}"; target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_program_semantic_benchmarks.py --live --provider "$selected" --work-root "$work" --out "$target"
 
 # Explicit opt-in exact-wheel live semantic journey; one invocation, no DSPx compatibility retry, never publishes.
-installed-core-live-semantic wheel wheel_sha256 model root provider="dspy-lm-auth":
+installed-core-live-semantic wheel wheel_sha256 provider model root:
   artifact="{{wheel}}"; artifact="${artifact#wheel=}"; digest="{{wheel_sha256}}"; digest="${digest#wheel_sha256=}"; selected_model="{{model}}"; selected_model="${selected_model#model=}"; work="{{root}}"; work="${work#root=}"; selected_provider="{{provider}}"; selected_provider="${selected_provider#provider=}"; bash scripts/run_installed_core_live_semantic.sh --wheel "$artifact" --wheel-sha256 "$digest" --root "$work" --provider "$selected_provider" --model "$selected_model"
 
 # Executable boundary contract matrix for validation-only/preflight/rooting/parser surfaces
