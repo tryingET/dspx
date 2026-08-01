@@ -8,22 +8,22 @@ from __future__ import annotations
 
 import base64
 import copy
-from datetime import datetime, timedelta, timezone
 import importlib
 import json
 import os
-from pathlib import Path
-import subprocess
 import stat
+import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any
 
+import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID, ObjectIdentifier
-import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO_ROOT / "scripts/ci"
@@ -44,7 +44,8 @@ def _modules() -> tuple[ModuleType, ModuleType, ModuleType, ModuleType]:
             "core_release_signing",
         )
         modules = tuple(importlib.import_module(name) for name in names)
-        return modules  # type: ignore[return-value]
+        assert len(modules) == 4
+        return modules[0], modules[1], modules[2], modules[3]
     finally:
         sys.path.remove(str(SCRIPTS))
 

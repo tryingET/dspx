@@ -6,16 +6,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from io import BytesIO
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tarfile
-from types import ModuleType
 import zipfile
+from collections.abc import Callable
+from datetime import datetime, timezone
+from io import BytesIO
+from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -175,7 +177,9 @@ def test_receipt_allows_bounded_provider_timestamp_rounding(
     ],
 )
 def test_receipt_validator_rejects_identity_and_authority_drift(
-    module: ModuleType, mutation: object, message: str
+    module: ModuleType,
+    mutation: Callable[[dict[str, Any]], None],
+    message: str,
 ) -> None:
     receipt = module.build_receipt(_metadata())
     mutation(receipt)

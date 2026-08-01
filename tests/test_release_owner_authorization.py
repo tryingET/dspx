@@ -6,13 +6,14 @@ from __future__ import annotations
 
 import base64
 import copy
-from datetime import datetime, timezone
 import importlib.util
 import json
-from pathlib import Path
 import struct
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -58,11 +59,11 @@ def module() -> ModuleType:
 
 
 @pytest.fixture
-def policy() -> dict[str, object]:
+def policy() -> dict[str, Any]:
     return json.loads(POLICY.read_text(encoding="utf-8"))
 
 
-def _payload() -> dict[str, object]:
+def _payload() -> dict[str, Any]:
     return {
         "schema_version": "dspx-core-single-owner-approval-payload-v2",
         "repository": {"name": "tryingET/dspx", "id": 1_318_473_695},
@@ -86,7 +87,7 @@ def _payload() -> dict[str, object]:
     }
 
 
-def _enabled(policy: dict[str, object]) -> dict[str, object]:
+def _enabled(policy: dict[str, Any]) -> dict[str, Any]:
     changed = copy.deepcopy(policy)
     changed["revocation"]["authorization_enabled"] = True
     changed["revocation"]["disabled_reason"] = None
@@ -98,7 +99,7 @@ def _string(raw: bytes) -> bytes:
 
 
 def _sshsig(
-    policy: dict[str, object],
+    policy: dict[str, Any],
     *,
     flags: int = 5,
     counter: int = 7,
@@ -141,7 +142,7 @@ def _mock_ssh(monkeypatch: pytest.MonkeyPatch, module: ModuleType) -> None:
 
 
 def test_policy_pins_one_real_hardware_principal(
-    module: ModuleType, policy: dict[str, object]
+    module: ModuleType, policy: dict[str, Any]
 ) -> None:
     valid = module.validate_policy(policy, now=NOW)
     assert valid["claims"]["human_principal_count"] == 1
@@ -149,7 +150,7 @@ def test_policy_pins_one_real_hardware_principal(
 
 
 def test_ordinary_or_alternate_key_type_is_rejected(
-    module: ModuleType, policy: dict[str, object]
+    module: ModuleType, policy: dict[str, Any]
 ) -> None:
     for kind in ("ssh-ed25519", "sk-ecdsa-sha2-nistp256@openssh.com"):
         changed = copy.deepcopy(policy)
@@ -160,7 +161,7 @@ def test_ordinary_or_alternate_key_type_is_rejected(
 
 
 def test_revocation_invariants_and_current_key_rejection(
-    module: ModuleType, policy: dict[str, object]
+    module: ModuleType, policy: dict[str, Any]
 ) -> None:
     enabled = _enabled(policy)
     assert module.validate_policy(enabled, now=NOW)
@@ -179,7 +180,7 @@ def test_revocation_invariants_and_current_key_rejection(
 
 
 def test_fingerprint_requires_exact_ssh_keygen_token(
-    module: ModuleType, policy: dict[str, object], monkeypatch: pytest.MonkeyPatch
+    module: ModuleType, policy: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _mock_ssh(monkeypatch, module)
     shortened = copy.deepcopy(policy)
@@ -194,7 +195,7 @@ def test_fingerprint_requires_exact_ssh_keygen_token(
 
 def test_exact_up_uv_signature_authenticates_but_never_grants_authority(
     module: ModuleType,
-    policy: dict[str, object],
+    policy: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -218,14 +219,14 @@ def test_exact_up_uv_signature_authenticates_but_never_grants_authority(
     [(0, "presence"), (1, "verification"), (4, "presence"), (7, "flags")],
 )
 def test_security_key_flags_fail_closed(
-    module: ModuleType, policy: dict[str, object], flags: int, message: str
+    module: ModuleType, policy: dict[str, Any], flags: int, message: str
 ) -> None:
     with pytest.raises(module.CoreReleaseEvidenceError, match=message):
         module.parse_sk_signature_details(_sshsig(policy, flags=flags), policy=policy)
 
 
 def test_wrong_sk_algorithm_and_key_fail_closed(
-    module: ModuleType, policy: dict[str, object]
+    module: ModuleType, policy: dict[str, Any]
 ) -> None:
     with pytest.raises(module.CoreReleaseEvidenceError, match="algorithm"):
         module.parse_sk_signature_details(
@@ -240,7 +241,7 @@ def test_wrong_sk_algorithm_and_key_fail_closed(
 
 
 def test_wrong_sshsig_namespace_and_truncation_fail_closed(
-    module: ModuleType, policy: dict[str, object]
+    module: ModuleType, policy: dict[str, Any]
 ) -> None:
     with pytest.raises(module.CoreReleaseEvidenceError, match="envelope"):
         module.parse_sk_signature_details(
@@ -253,7 +254,7 @@ def test_wrong_sshsig_namespace_and_truncation_fail_closed(
 
 
 def test_selector_and_authority_refs_are_exact(
-    module: ModuleType, policy: dict[str, object]
+    module: ModuleType, policy: dict[str, Any]
 ) -> None:
     for field, value in (
         ("policy_selector_ref", "dspx-core-policy-selector-v1:git:" + "1" * 40),
@@ -285,7 +286,7 @@ def test_duplicate_json_is_rejected(module: ModuleType) -> None:
     ],
 )
 def test_identity_digest_drift_is_rejected(
-    module: ModuleType, policy: dict[str, object], field: str
+    module: ModuleType, policy: dict[str, Any], field: str
 ) -> None:
     changed = _payload()
     changed[field] = "bad"
@@ -295,7 +296,7 @@ def test_identity_digest_drift_is_rejected(
 
 def test_replay_expiry_and_disabled_switch_fail_closed(
     module: ModuleType,
-    policy: dict[str, object],
+    policy: dict[str, Any],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
