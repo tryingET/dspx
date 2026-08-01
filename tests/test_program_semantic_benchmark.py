@@ -587,6 +587,33 @@ def test_program_semantic_benchmark_mode_contract_fails_closed(tmp_path: Path) -
         )
 
 
+def test_live_corpus_can_stop_after_first_caught_case_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[Path] = []
+
+    def fail_first(intent_path: Path, **_kwargs: Any) -> dict[str, Any]:
+        calls.append(intent_path)
+        raise RuntimeError("effect disposition unknown")
+
+    monkeypatch.setattr(benchmark, "run_program_loop_from_intent_path", fail_first)
+    result = run_program_semantic_benchmark(
+        load_program_semantic_corpus(CORPUS_PATH),
+        corpus_path=CORPUS_PATH,
+        work_root=tmp_path / "live",
+        result_path=tmp_path / "live.json",
+        mode="live",
+        provider="dspy-lm-auth",
+        stop_after_case_error=True,
+    )
+
+    assert len(calls) == 1
+    assert result["summary"]["cases_total"] == 1
+    assert result["summary"]["cases_failed"] == 1
+    assert result["summary"]["threshold_pass"] is False
+    assert result["cases"][0]["error"] == "effect disposition unknown"
+
+
 def test_program_semantic_result_schema_rejects_authority_widening(
     tmp_path: Path,
 ) -> None:

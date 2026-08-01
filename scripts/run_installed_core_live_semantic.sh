@@ -39,14 +39,15 @@ case "$journey_root" in /*) ;; *) printf 'error: --root must be absolute\n' >&2;
 case "$wheel_sha256" in *[!0-9a-f]*|'') printf 'error: invalid wheel SHA-256\n' >&2; exit 2 ;; esac
 [ "${#wheel_sha256}" -eq 64 ] || { printf 'error: wheel SHA-256 must contain 64 characters\n' >&2; exit 2; }
 [ "$provider" = "dspy-lm-auth" ] || { printf 'error: only dspy-lm-auth is supported\n' >&2; exit 2; }
-case "$model" in codex/*) ;; *) printf 'error: --model must use codex/\n' >&2; exit 2 ;; esac
-case "$model" in *[!A-Za-z0-9._/-]*) printf 'error: unsupported model characters\n' >&2; exit 2 ;; esac
+[ "$model" = "codex/gpt-5.6-sol" ] \
+  || { printf 'error: --model must match the precommitted route\n' >&2; exit 2; }
 [ -f "$wheel" ] && [ ! -L "$wheel" ] || { printf 'error: wheel must be a regular non-symlink file\n' >&2; exit 2; }
 [ "$(sha256sum "$wheel" | awk '{print $1}')" = "$wheel_sha256" ] \
   || { printf 'error: wheel SHA-256 mismatch\n' >&2; exit 2; }
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_root="$(cd -- "$script_dir/.." && pwd -P)"
+python3 "$repo_root/scripts/ci/validate_installed_live_oracle_evaluation.py" >/dev/null
 parent="$(dirname -- "$journey_root")"; name="$(basename -- "$journey_root")"
 [ "$name" != "." ] && [ "$name" != ".." ] || { printf 'error: root must name a new child\n' >&2; exit 2; }
 [ -d "$parent" ] && [ ! -L "$parent" ] || { printf 'error: root parent must be an existing non-symlink directory\n' >&2; exit 2; }
@@ -100,13 +101,19 @@ write_attempt() {
   ATTEMPT_DISPOSITION="$disposition" python3 - <<'PY'
 import json, os, pathlib
 payload = {
-    "schema_version": "dspx-installed-core-live-attempt-v1",
+    "schema_version": "dspx-installed-core-live-attempt-v2",
     "benchmark_invocation_count": 1,
     "disposition": os.environ["ATTEMPT_DISPOSITION"],
     "dspx_stream_compatibility_retry_enabled": False,
     "provider_internal_retry_behavior": "not_proven",
     "separate_health_probe_run": False,
     "mechanical_retry_run": False,
+    "selective_quality_rerun_allowed": False,
+    "case_execution_order": [
+        "single-module-authority-boundary",
+        "pipeline-evidence-calibration",
+        "pdf-transition-review-runtime-replay",
+    ],
 }
 pathlib.Path("provider-attempt.json.tmp").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 PY
@@ -159,17 +166,18 @@ PY
 uv pip install --python ./venv/bin/python "$core_requirement" "$auth_requirement"
 assert_root_identity
 
-current_step="snapshot_single_existing_corpus_case"
-python3 - "$repo_root/benchmarks/semantic/program-corpus-v2.json" corpus.json <<'PY'
-import json, pathlib, sys
-source = json.loads(pathlib.Path(sys.argv[1]).read_text())
-source["cases"] = [case for case in source["cases"] if case.get("id") == "single-module-authority-boundary"]
-if len(source["cases"]) != 1:
-    raise SystemExit("single-module-authority-boundary corpus case is unavailable")
-pathlib.Path("corpus.json").write_text(json.dumps(source, indent=2, sort_keys=True) + "\n")
-PY
-chmod 0600 corpus.json
-install -d -m 0700 canary-bin oracle
+current_step="snapshot_exact_three_strata_contract"
+cp -- "$repo_root/benchmarks/semantic/program-corpus-v2.json" corpus.json
+cp -- "$repo_root/benchmarks/semantic/installed-live-oracle-evaluation-v1.json" \
+  evaluation-contract.json
+[ "$(sha256sum corpus.json | awk '{print $1}')" = \
+  "4c877c7992d8b70044645c57e2753ea9f170da027179376cafbc4d6000db0ec9" ] \
+  || { printf 'error: corpus snapshot hash drift\n' >&2; exit 1; }
+[ "$(sha256sum evaluation-contract.json | awk '{print $1}')" = \
+  "9ff735cd4ba29cfe430c9bce12d697877fa18a91cff78bd98defedcdeed5201a" ] \
+  || { printf 'error: evaluation contract snapshot hash drift\n' >&2; exit 1; }
+chmod 0600 corpus.json evaluation-contract.json
+install -d -m 0700 canary-bin oracle replay
 cat > canary-bin/ak <<'SH'
 #!/usr/bin/env bash
 printf 'forbidden AK invocation\n' > "${DSPX_INSTALLED_LIVE_AK_MARKER:?}"
@@ -223,7 +231,7 @@ set +e
 ./venv/bin/python "$repo_root/scripts/run_program_semantic_benchmarks.py" \
   --corpus corpus.json --work-root benchmark --out benchmark-result.json \
   --result-schema "$repo_root/benchmarks/semantic/program-result-schema-v2.json" \
-  --live --provider "$provider" >/dev/null
+  --stop-after-case-error --live --provider "$provider" >/dev/null
 benchmark_rc=$?
 set -e
 if [ "$benchmark_rc" -ne 0 ]; then
@@ -236,16 +244,22 @@ attempt_terminal="true"
 chmod 0600 benchmark-result.json provider-attempt.json
 assert_root_identity
 
-candidate_root="benchmark/single-module-authority-boundary"
-export DSPX_CACHE_DIR="benchmark/.cache/single-module-authority-boundary"
-current_step="receipt_integrity_replay"
-./venv/bin/dspx run replay --from "$candidate_root/manifest.json.meta.json" \
-  --check-only --json > replay-check.json
-chmod 0600 replay-check.json
-assert_root_identity
+current_step="receipt_integrity_replay_all_cases"
+for case_id in \
+  single-module-authority-boundary \
+  pipeline-evidence-calibration \
+  pdf-transition-review-runtime-replay
+do
+  candidate_root="benchmark/$case_id"
+  export DSPX_CACHE_DIR="benchmark/.cache/$case_id"
+  ./venv/bin/dspx run replay --from "$candidate_root/manifest.json.meta.json" \
+    --check-only --json > "replay/$case_id.json"
+  chmod 0600 "replay/$case_id.json"
+  assert_root_identity
+done
 
-current_step="candidate_local_oracle_index"
-./venv/bin/dspx oracle index --from-program-evidence --path "$candidate_root" \
+current_step="candidate_local_oracle_index_all_cases"
+./venv/bin/dspx oracle index --from-program-evidence --path benchmark \
   --index-path oracle/coordinates.db --json > oracle-index-result.json
 chmod 0600 oracle-index-result.json
 assert_root_identity

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-01T19:25:25.982489748+00:00",
+  "task_id": 4471,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "benchmarks/semantic/installed-live-oracle-evaluation-v1.json",
+      "docs/project/product-posture.md",
+      "docs/project/semantic-benchmarks.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_semantic_benchmark.py",
+      "scripts/ci/installed_core_live_semantic_contract.py",
+      "scripts/ci/installed_core_live_semantic_oracle.py",
+      "scripts/ci/installed_core_live_semantic_scoring.py",
+      "scripts/ci/verify_installed_core_live_semantic.py",
+      "scripts/run_installed_core_live_semantic.sh",
+      "scripts/run_program_semantic_benchmarks.py",
+      "tests/test_installed_core_live_semantic.py",
+      "tests/test_program_semantic_benchmark.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_semantic_benchmark.py",
+      "scripts/ci/installed_core_live_semantic_contract.py",
+      "scripts/run_installed_core_live_semantic.sh",
+      "scripts/run_program_semantic_benchmarks.py",
+      "tests/test_installed_core_live_semantic.py",
+      "tests/test_program_semantic_benchmark.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

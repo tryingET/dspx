@@ -18,7 +18,7 @@ import sys
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from installed_core_live_semantic_contract import CASE_ID, verify_journey_artifacts
+from installed_core_live_semantic_contract import CASE_IDS, verify_journey_artifacts
 from installed_core_payload_contract import verify_installed_payload
 from installed_core_proof_contract import verify_install_origin
 from installed_core_proof_io import (
@@ -108,37 +108,42 @@ def _verify_auth_install(
 
 
 def _verify_current_replay(*, journey_root: Path, venv_root: Path) -> None:
-    receipt_path = Path("benchmark") / CASE_ID / "manifest.json.meta.json"
-    replay_environment = os.environ.copy()
-    replay_environment["DSPX_CACHE_DIR"] = str(
-        journey_root / "benchmark" / ".cache" / CASE_ID
-    )
-    replay_environment.pop("PYTHONPATH", None)
-    current_replay = subprocess.run(
-        [
-            str(venv_root / "bin" / "dspx"),
-            "run",
-            "replay",
-            "--from",
-            str(receipt_path),
-            "--check-only",
-            "--json",
-        ],
-        cwd=journey_root,
-        env=replay_environment,
-        capture_output=True,
-        check=False,
-        text=True,
-    )
-    if current_replay.returncode != 0:
-        raise InstalledCoreGoldenPathError("current replay rejected")
-    try:
-        current_payload = json.loads(current_replay.stdout)
-        recorded_payload = json.loads((journey_root / "replay-check.json").read_text())
-    except (OSError, json.JSONDecodeError) as exc:
-        raise InstalledCoreGoldenPathError("replay evidence is invalid") from exc
-    if current_payload != recorded_payload:
-        raise InstalledCoreGoldenPathError("replay evidence is stale")
+    for case_id in CASE_IDS:
+        receipt_path = Path("benchmark") / case_id / "manifest.json.meta.json"
+        replay_environment = os.environ.copy()
+        replay_environment["DSPX_CACHE_DIR"] = str(
+            journey_root / "benchmark" / ".cache" / case_id
+        )
+        replay_environment.pop("PYTHONPATH", None)
+        current_replay = subprocess.run(
+            [
+                str(venv_root / "bin" / "dspx"),
+                "run",
+                "replay",
+                "--from",
+                str(receipt_path),
+                "--check-only",
+                "--json",
+            ],
+            cwd=journey_root,
+            env=replay_environment,
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        if current_replay.returncode != 0:
+            raise InstalledCoreGoldenPathError(f"current replay rejected for {case_id}")
+        try:
+            current_payload = json.loads(current_replay.stdout)
+            recorded_payload = json.loads(
+                (journey_root / "replay" / f"{case_id}.json").read_text()
+            )
+        except (OSError, json.JSONDecodeError) as exc:
+            raise InstalledCoreGoldenPathError("replay evidence is invalid") from exc
+        if current_payload != recorded_payload:
+            raise InstalledCoreGoldenPathError(
+                f"replay evidence is stale for {case_id}"
+            )
 
 
 def _verify_current_oracle_report(*, journey_root: Path, venv_root: Path) -> None:

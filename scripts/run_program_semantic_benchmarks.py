@@ -45,6 +45,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--provider")
+    parser.add_argument(
+        "--stop-after-case-error",
+        action="store_true",
+        help="Stop conservatively after the first caught case error",
+    )
     return parser.parse_args()
 
 
@@ -65,6 +70,7 @@ def main() -> int:
             result_path=args.out,
             mode="live" if args.live else "offline",
             provider=args.provider,
+            stop_after_case_error=args.stop_after_case_error,
         )
         result_schema = args.result_schema or Path(
             "benchmarks/semantic/program-result-schema-v2.json"

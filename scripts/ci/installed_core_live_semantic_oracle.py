@@ -1,4 +1,4 @@
-# summary: "Confines and validates the candidate-local Oracle row for installed live semantic proof."
+# summary: "Confines and validates all candidate-local Oracle rows for installed live semantic proof."
 # read_when:
 #   - "Changing installed live Oracle SQLite identity or behavior-hash binding."
 
@@ -23,9 +23,9 @@ def _mapping(value: object, label: str) -> Mapping[str, Any]:
 
 
 def verify_oracle_sqlite(
-    root_descriptor: int, *, receipt_bundle_id: str, behavior_results_sha256: str
+    root_descriptor: int, *, expected_records: Mapping[str, str]
 ) -> None:
-    """Read the exact confined SQLite inode and bind its sole row to behavior."""
+    """Bind each confined SQLite row to one expected receipt and behavior hash."""
 
     database_descriptor = open_relative_regular(
         root_descriptor,
@@ -47,21 +47,36 @@ def verify_oracle_sqlite(
     finally:
         connection.close()
         os.close(database_descriptor)
-    if len(rows) != 1:
+    if len(rows) != len(expected_records):
         raise InstalledCoreGoldenPathError("candidate-local Oracle row count drift")
-    run_id, run_kind, metadata_raw = rows[0]
-    expected_identity = (
-        f"program-oracle-evidence:{receipt_bundle_id}",
-        "program-oracle-evidence",
-    )
-    if (run_id, run_kind) != expected_identity:
-        raise InstalledCoreGoldenPathError("candidate-local Oracle row identity drift")
-    try:
-        metadata = _mapping(json.loads(metadata_raw), "candidate-local Oracle metadata")
-    except (TypeError, json.JSONDecodeError) as exc:
+    observed_receipts: set[str] = set()
+    for run_id, run_kind, metadata_raw in rows:
+        prefix = "program-oracle-evidence:"
+        if run_kind != "program-oracle-evidence" or not str(run_id).startswith(prefix):
+            raise InstalledCoreGoldenPathError(
+                "candidate-local Oracle row identity drift"
+            )
+        receipt_bundle_id = str(run_id)[len(prefix) :]
+        expected_hash = expected_records.get(receipt_bundle_id)
+        if expected_hash is None or receipt_bundle_id in observed_receipts:
+            raise InstalledCoreGoldenPathError(
+                "candidate-local Oracle receipt identity drift"
+            )
+        observed_receipts.add(receipt_bundle_id)
+        try:
+            metadata = _mapping(
+                json.loads(metadata_raw), "candidate-local Oracle metadata"
+            )
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise InstalledCoreGoldenPathError(
+                "candidate-local Oracle metadata is invalid"
+            ) from exc
+        behavior = _mapping(metadata.get("behavior"), "candidate-local Oracle behavior")
+        if behavior.get("result_hash") != expected_hash:
+            raise InstalledCoreGoldenPathError(
+                "candidate-local Oracle behavior hash drift"
+            )
+    if observed_receipts != set(expected_records):
         raise InstalledCoreGoldenPathError(
-            "candidate-local Oracle metadata is invalid"
-        ) from exc
-    behavior = _mapping(metadata.get("behavior"), "candidate-local Oracle behavior")
-    if behavior.get("result_hash") != behavior_results_sha256:
-        raise InstalledCoreGoldenPathError("candidate-local Oracle behavior hash drift")
+            "candidate-local Oracle receipt coverage drift"
+        )

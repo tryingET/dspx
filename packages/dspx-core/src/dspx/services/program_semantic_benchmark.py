@@ -909,6 +909,7 @@ def run_program_semantic_benchmark(
     result_path: Path,
     mode: str = "offline",
     provider: str | None = None,
+    stop_after_case_error: bool = False,
 ) -> dict[str, Any]:
     """Run every semantic case through a generated candidate and current evidence."""
 
@@ -1012,6 +1013,8 @@ def run_program_semantic_benchmark(
             else:
                 row["runtime_replay_status"] = "failed"
         rows.append(row)
+        if stop_after_case_error and error is not None:
+            break
     score = round(sum(row["score"] for row in rows) / len(rows), 6)
     failed = sum(row["status"] != "passed" for row in rows)
     result_schema = (
