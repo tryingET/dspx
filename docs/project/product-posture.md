@@ -25,7 +25,7 @@ This file is a dated projection, not live authority, a task list, or a changelog
 
 ### Posture in one sentence
 
-DSPx has a substantial local-first, behavior-first Core plus verified non-authoritative signing/custody and owner-authentication evidence; the active product gap is an exact installed-wheel, real-provider behavioral journey, not more release-authority machinery or autonomous-foundry expansion.
+DSPx has a substantial local-first, behavior-first Core plus verified non-authoritative signing/custody, owner authentication, and one qualified recovered installed-wheel real-provider case; the active product gap is representative live-behavior breadth and production-semantic Oracle quality, not more release-authority machinery or autonomous-foundry expansion.
 
 ### Active frontier: Core production readiness
 
@@ -46,6 +46,8 @@ The latest bounded proof establishes:
 - successful 14-day and 90-day signed evidence/custody canaries with current paired-availability verification;
 - immutable single-owner FIDO policy v003 currentness plus one mechanically displayed, explicitly confirmed YubiKey Bio signature with OpenSSH and strict UP+UV verification;
 - one durable authority-false shadow receipt, replay rejection, and independent post-run acceptance with `release_authority=false`, `package_publication=false`, and `sdist_supported=false`.
+- one exact Core wheel (`b4d10c1…51e8`) installed outside the checkout with `PYTHONPATH` unset alongside the hash-bound released `dspy-lm-auth==0.1.3` wheel, then used for one benchmark invocation requesting `codex/gpt-5.6-sol` through the named provider route; its bounded authority case scored `1.0`, matched all four required concept groups, and hit no forbidden concepts;
+- current receipt-integrity replay plus one candidate-local mock-Oracle record/report, exact installed payload verification, and a final proof (`08ed5ef…dd04e`) accepted by independent review as **qualified recovered verification**: the original runner status remains failed at `independent_evidence_verification`, while corrected deterministic postprocessing passed without a second benchmark/provider invocation.
 
 These observations are implemented and exercised by the package and focused test lanes. They are not release approval.
 
@@ -53,11 +55,11 @@ These observations are implemented and exercised by the package and focused test
 
 The repo-declared local confidence gates are green:
 
-- `just typecheck` passes after module-quality rank-key normalization removed the unsafe `int(object)` boundary.
-- `just typecheck-tests` passes after test fixtures gained typed mutable boundaries, frozen-capability mutation was checked through Pydantic's `ValidationError`, and marker-environment values were narrowed without casts or filtering.
-- `just verify-full` passes at the commit-bound exact-wheel environment-binding baseline. The credential-free offline suite passed 2608 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
+- `just typecheck` passes across Core and Forge after semantic-corpus keys and validated GEPA improvement requests gained explicit string narrowing.
+- `just typecheck-tests` passes after release-evidence fixtures gained callable/deeply mutable boundaries and dynamic module imports gained explicit tuple cardinality.
+- `just verify-full` passes at the AK-4458 recovered-verification baseline. The credential-free offline suite passed 2742 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
 
-This establishes the cited repo-local full-gate baseline. Later bounded evidence separately establishes signer verification, public CI evidence custody, and authority-false owner authentication. Neither proof establishes installed-wheel live-provider quality, production-semantic Oracle quality, package publication, release approval, or activation.
+This establishes the cited repo-local full-gate baseline. Separate bounded evidence establishes signer verification, public CI evidence custody, authority-false owner authentication, and one installed-wheel live-provider case. That single case does not establish broad live-provider or production-semantic quality, an end-to-end runner status pass, package publication, release approval, or activation.
 
 For the lossless-normalization fixup, `just loop-impact-run` passed the repo-selected expanded plan: 14 focused environment-SBOM tests, 91 impact-planner tests, 69 release-bundle tests, workflow and Ruff checks, and a fresh Core/Forge package and retained-bundle journey. The proof covers duplicate Core requirements, bounded iterable consumption, and explicit empty, incomplete, widened, or invalid marker environments. This is current working-tree proof, not commit-bound or release-authoritative evidence.
 
@@ -76,7 +78,7 @@ Inspect the completed implementation records with `ak task show 4125`, `ak task 
 
 Current evidence does **not** prove:
 
-- live-provider correctness or production-semantic program quality;
+- broad live-provider correctness, representative program quality, or production-semantic quality; current live evidence covers only one bounded authority case;
 - production-semantic Oracle embeddings or comparison quality;
 - OS-level network isolation or exclusion of absolute-path/external API effects;
 - hash-locked dependency resolution, retained dependency artifacts, reproducible builds, or future resolver stability;
@@ -94,12 +96,14 @@ Current evidence does **not** prove:
 | Execution and replay | Generated examples/datasets can run through bounded behavior harnesses and explicit runtime episodes. Replay claims are machine-readable and receipt-bound. | No general semantic-reproduction claim, broad provider/runtime coverage, or receipt-bound multi-episode product contract. |
 | Oracle behavioral evidence | Candidate-local evidence can be indexed and reported with explicit backend identity; Oracle exposes search, drift, territory, frontier, attractor, and program-evidence concepts. | Production-semantic embedding quality and shared-backend readiness remain separate empirical/operational gates. Oracle remains interpretation, not authority. |
 | Refinement and review | Local proposals, GEPA attempts, second candidates, comparisons, jury/model-jury evidence, adjudication records, plans, status, and activation-preflight packets exist as inspectable sidecars and guided workflows. | Further autonomous orchestration is paused. External apply, activation, and owner acceptance remain unavailable without their own authority contracts. |
-| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel identity, two SBOM scopes, signed public CI evidence/custody, immutable owner-policy currentness, and one hardware-authenticated authority-false shadow consume are observed. | Package publication, release authority, independently controlled quorum, sdist support, and an installed-wheel live-provider product journey remain unavailable or unproved. |
-| Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop; source-checkout semantic benchmarks can call a real provider. | No existing lane composes exact installed-wheel origin, a real provider, evaluated program behavior, receipt replay, and candidate-local Oracle reporting in one bounded journey. |
+| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel identity, two SBOM scopes, signed public CI evidence/custody, immutable owner-policy currentness, one hardware-authenticated authority-false shadow consume, and one qualified installed-wheel live-provider proof are observed. | Representative multi-case/provider behavioral coverage, package publication, release authority, independently controlled quorum, and sdist support remain unavailable or unproved. |
+| Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop; one live invocation plus recovered verification composes exact wheel origin, one real-provider case, replay, and candidate-local Oracle reporting. | No representative installed-wheel live corpus or production-semantic Oracle lane is proven, and the corrected verifier has not yet completed inside a fresh runner invocation end to end. |
 
 ### Root cause and sequencing consequence
 
-The remaining product-proof gap is compositional, not absence of components. The credential-free installed-wheel lane proves exact wheel origin, stub behavior, replay integrity, and candidate-local Oracle plumbing. The live semantic lanes prove provider-backed behavior from the source checkout but deliberately skip installed-wheel origin and, for the generated-program live path, Oracle indexing/reporting. Widening the deterministic release proof to include credentials would contaminate its reproducibility and custody claims; enabling package authority before a live installed product journey would optimize release machinery around an empirically unproved user path. The lawful next slice is therefore a separate opt-in installed-wheel live semantic journey with explicit provider effects, sanitized evidence, mock-Oracle nonclaims, and no publication authority.
+The former product-proof gap was compositional rather than absence of components. Dogfood exposed the missing seams instead of hiding them: the wrapper argument order did not match its documented positional order; aggregate-schema lookup depended on scratch cwd; generated provider-facing signatures retained intent quality criteria only as evaluator metadata; replay freshness compared equivalent relative and absolute path spellings; and auth-wheel verification reused a Core-only package-root inventory assumption. AK-4450 preserved the first semantic failure. AK-4458 projected declared objective/constraints/output quality into provider-visible signatures, fixed the path and package assumptions, then produced one score-`1.0` live behavior result and a recovered deterministic proof without weakening the corpus, scorer, or authority boundary.
+
+The sequencing consequence now changes. Exact installed composition is observed for one bounded case, so repeating release ceremony or one-case canaries has lower product value. The next lawful product slice should broaden representative installed-wheel live behavior and then evaluate a production-semantic Oracle backend against those observed episodes, while keeping deterministic release evidence, credentials, shared Oracle, publication, and activation separate.
 
 ## Durable boundaries
 
@@ -110,12 +114,12 @@ The remaining product-proof gap is compositional, not absence of components. The
 - Prompt/procedure truth remains in Prompt Vault, semantic ontology remains with ROCS/owner repos, and task/direction/decision/evidence authority remains in AK.
 - Domain-specific generated review programs consume owner-supplied contracts and evidence; DSPx does not redefine domain truth, remediation policy, or acceptance authority.
 
-## Observable exit signals for the active frontier
+## Observed exit signals and next gap
 
-The Core frontier advances only when one explicit opt-in journey shows all applicable conditions without widening claims:
+One live invocation plus recovered deterministic verification established the following one-case conditions without widening claims:
 
 - an exact Core wheel path and SHA-256 are installed outside the checkout with `PYTHONPATH` unset;
-- a pinned released auth-provider dependency and an explicit currently available provider/model route execute one bounded existing semantic intent;
+- a pinned released auth-provider dependency and an explicit requested provider/model route execute one bounded existing semantic intent;
 - behavior status and declared quality are derived from observed outputs, including truthful nonzero failure on provider or semantic failure;
 - manifest, receipt, behavior, Oracle evidence/report, candidate identity, and exact wheel/provider dependency identities are hash-bound in one sanitized evidence packet;
 - receipt replay integrity passes while runtime execution reproduction, semantic reproduction, and quality-evaluation reproduction remain explicitly not run or not evaluated;
@@ -124,7 +128,7 @@ The Core frontier advances only when one explicit opt-in journey shows all appli
 - focused package/provider/semantic/replay/Oracle tests, scoped static checks, impact validation, direction checks, and pre-push validation pass;
 - product posture and AK state are reconciled before any completion or readiness statement.
 
-Passing these signals would establish a live installed-product journey, not production-semantic Oracle quality, network isolation, reproducible live inference, release approval, registry publication, rollout, or production activation.
+These signals are now observed for one bounded case through AK evidence 5927–5932 and the qualified recovered proof. They do not establish representative behavioral breadth, production-semantic Oracle quality, network isolation, reproducible live inference, an end-to-end runner status pass, release approval, registry publication, rollout, or production activation.
 
 ## Target product experience
 
