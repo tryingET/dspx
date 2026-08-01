@@ -21,11 +21,11 @@ Use it as an **active work artifact**:
 
 This file is a dated projection, not live authority, a task list, or a changelog. Active direction, tasks, decisions, and evidence live in Agent Kernel (AK). Shipped behavior lives in code and its current executable proof. Historical posture snapshots remain available in Git history; do not append implementation diaries here.
 
-## Current snapshot — 2026-07-25
+## Current snapshot — 2026-08-01
 
 ### Posture in one sentence
 
-DSPx has a substantial local-first, behavior-first Core with one-intent candidate generation, bounded execution, receipts/replay, Oracle inspection, refinement, and review evidence; the active product gap is truthful production readiness, not further autonomous-foundry expansion.
+DSPx has a substantial local-first, behavior-first Core plus verified non-authoritative signing/custody and owner-authentication evidence; the active product gap is an exact installed-wheel, real-provider behavioral journey, not more release-authority machinery or autonomous-foundry expansion.
 
 ### Active frontier: Core production readiness
 
@@ -43,6 +43,9 @@ The latest bounded proof establishes:
 - machine-readable replay claims that distinguish receipt integrity, deterministic regeneration, runtime reproduction, semantic reproduction, and quality-evaluation reproduction;
 - explicit Oracle embedding-backend identity, with mock vectors labeled plumbing-only and unavailable production backends failing closed;
 - bounded, paged local Oracle reads that tolerate malformed legacy rows without turning them into trusted evidence.
+- successful 14-day and 90-day signed evidence/custody canaries with current paired-availability verification;
+- immutable single-owner FIDO policy v003 currentness plus one mechanically displayed, explicitly confirmed YubiKey Bio signature with OpenSSH and strict UP+UV verification;
+- one durable authority-false shadow receipt, replay rejection, and independent post-run acceptance with `release_authority=false`, `package_publication=false`, and `sdist_supported=false`.
 
 These observations are implemented and exercised by the package and focused test lanes. They are not release approval.
 
@@ -54,19 +57,20 @@ The repo-declared local confidence gates are green:
 - `just typecheck-tests` passes after test fixtures gained typed mutable boundaries, frozen-capability mutation was checked through Pydantic's `ValidationError`, and marker-environment values were narrowed without casts or filtering.
 - `just verify-full` passes at the commit-bound exact-wheel environment-binding baseline. The credential-free offline suite passed 2608 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
 
-This establishes the current repo-local full-gate baseline. It does not establish live-provider quality, production-semantic Oracle quality, signer verification, CI custody, publication, release approval, or activation.
+This establishes the cited repo-local full-gate baseline. Later bounded evidence separately establishes signer verification, public CI evidence custody, and authority-false owner authentication. Neither proof establishes installed-wheel live-provider quality, production-semantic Oracle quality, package publication, release approval, or activation.
 
 For the lossless-normalization fixup, `just loop-impact-run` passed the repo-selected expanded plan: 14 focused environment-SBOM tests, 91 impact-planner tests, 69 release-bundle tests, workflow and Ruff checks, and a fresh Core/Forge package and retained-bundle journey. The proof covers duplicate Core requirements, bounded iterable consumption, and explicit empty, incomplete, widened, or invalid marker environments. This is current working-tree proof, not commit-bound or release-authoritative evidence.
 
-### Accepted signing/custody decision and contingent next moves
+### Accepted signing/custody decisions and observed authority-false activation
 
 Decision 88 and `docs/adr/20260731-core-release-signing-custody.md` accept the owner policy for exact keyless Core wheel-evidence signing, a separate fail-closed 2-of-3 owner threshold, and bounded public non-secret GitHub Actions evidence custody. Decision 91 permits the non-authoritative evidence plane to activate without fabricating three owner principals; it does not weaken or satisfy the release threshold. These decisions are architecture truth, not implementation evidence or package release authority.
 
 1. **Signer implementation** — Decision 92 and Decision 93 now select immutable trust policy v2 after live Fulcio extension `.1.24` exposed a numeric-ID-bound token-subject change. V1 remains immutable history. The exact wheel-only statements, generic Fulcio OID `.1.8`–`.1.24` matching, pinned-root offline Cosign verification, live-AK selector resolution, deny policy, anti-rollback checkpointing, and separate 2-of-3 approval evaluation remain active. Live 14/90-day canaries verified workload signatures, but the unbound roster keeps release authority false and package publication unavailable.
 2. **CI evidence custody activation** — runs `30659977281` (14-day) and `30660312181` (90-day) completed successfully with signed evidence, signed custody receipts, and fresh exact paired-availability checks. Downloaded artifacts passed the public non-secret preflight and retained false package-release/publication claims. The environment reviewer is the same solo operator and is only a deliberate-action gate, not independent review. `DSPX_CORE_RELEASE_SIGNING_ENABLED=true` remains enabled after both canaries; see `docs/project/2026-07-31-core-evidence-live-dogfood.md` for receipts, failed-path evidence, and current expiry.
-3. **Exact-sdist install proof** — AK-4137 remains contingent on a later owner declaring sdist support/signer-subject inclusion or on an observed sdist defect. Decision 88 keeps the sdist in the explicit non-subject auxiliary role `unsigned_unsupported_distribution_evidence`, so it does not trigger AK-4137.
+3. **Owner-authentication shadow** — Decision 96 accepts the explicit concentrated single-owner FIDO architecture; Decision 99 activates immutable owner policy v003 only for authority-false shadow proof. AK-4420 completed one exact mechanical display, explicit hash confirmation, YubiKey Bio UP+UV signature, durable `shadow_verified_not_authorized` receipt, replay rejection, negative matrix, and independent closeout review. No package or registry effect occurred.
+4. **Exact-sdist install proof** — AK-4137 remains contingent on a later owner declaring sdist support/signer-subject inclusion or on an observed sdist defect. Decision 88 keeps the sdist in the explicit non-subject auxiliary role `unsigned_unsupported_distribution_evidence`, so it does not trigger AK-4137.
 
-Inspect the completed implementation records with `ak task show 4125`, `ak task show 4126`, and the active activation/policy tasks; inspect the continuing event gate with `ak task show 4137` and `ak task deferred`. Live signature and bounded custody are now observed. They remain evidence only and do not prove release authorization, package publication, permanent custody, or sdist support.
+Inspect the completed implementation records with `ak task show 4125`, `ak task show 4126`, and `ak task show 4420`; inspect the continuing event gate with `ak task show 4137` and `ak task deferred`. AK-4383 was reconciled as already satisfied after anonymous public `origin/main` ancestry proved all Decision 88 offline commits reachable; no duplicate Git effect was performed. Live signature, bounded custody, and hardware owner authentication are observed. They remain evidence only and do not prove release authorization, package publication, permanent custody, or sdist support.
 
 ### Explicit nonclaims
 
@@ -78,7 +82,7 @@ Current evidence does **not** prove:
 - hash-locked dependency resolution, retained dependency artifacts, reproducible builds, or future resolver stability;
 - artifact-source provenance for direct-URL dependencies, which the resolved-environment SBOM now rejects rather than representing incompletely;
 - vulnerability, license, VEX, or supply-chain policy acceptance;
-- attested provenance, trusted signer identity, signature verification, or CI custody;
+- release-authoritative provenance, an independently controlled owner quorum, registry authority, or publication approval;
 - exact-sdist PEP 517 build/install behavior or source-to-wheel equivalence;
 - registry publication, technical release completeness, release readiness, promotion, activation, or external authority.
 
@@ -90,8 +94,12 @@ Current evidence does **not** prove:
 | Execution and replay | Generated examples/datasets can run through bounded behavior harnesses and explicit runtime episodes. Replay claims are machine-readable and receipt-bound. | No general semantic-reproduction claim, broad provider/runtime coverage, or receipt-bound multi-episode product contract. |
 | Oracle behavioral evidence | Candidate-local evidence can be indexed and reported with explicit backend identity; Oracle exposes search, drift, territory, frontier, attractor, and program-evidence concepts. | Production-semantic embedding quality and shared-backend readiness remain separate empirical/operational gates. Oracle remains interpretation, not authority. |
 | Refinement and review | Local proposals, GEPA attempts, second candidates, comparisons, jury/model-jury evidence, adjudication records, plans, status, and activation-preflight packets exist as inspectable sidecars and guided workflows. | Further autonomous orchestration is paused. External apply, activation, and owner acceptance remain unavailable without their own authority contracts. |
-| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel payload identity, exact wheel-to-installed-root metadata and direct-edge reconciliation, two SBOM scopes, release claim separation, local evidence retention, and accepted signing/custody architecture are established. | Decision 88 implementation is the immediate gate: signer verification, public CI custody, roster bindings, receipt/currentness checks, and dogfood remain unproved; publication/readiness remain false. |
-| Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop. | The product still needs owner-gated release operations and later live empirical proof before a production-ready claim. |
+| Packaging and release evidence | Core-only installed-wheel behavior, exact-wheel identity, two SBOM scopes, signed public CI evidence/custody, immutable owner-policy currentness, and one hardware-authenticated authority-false shadow consume are observed. | Package publication, release authority, independently controlled quorum, sdist support, and an installed-wheel live-provider product journey remain unavailable or unproved. |
+| Operator experience | `program-loop` provides a coherent local intent-to-candidate/evidence/state path; `just smoke-base` dogfoods an offline no-AK loop; source-checkout semantic benchmarks can call a real provider. | No existing lane composes exact installed-wheel origin, a real provider, evaluated program behavior, receipt replay, and candidate-local Oracle reporting in one bounded journey. |
+
+### Root cause and sequencing consequence
+
+The remaining product-proof gap is compositional, not absence of components. The credential-free installed-wheel lane proves exact wheel origin, stub behavior, replay integrity, and candidate-local Oracle plumbing. The live semantic lanes prove provider-backed behavior from the source checkout but deliberately skip installed-wheel origin and, for the generated-program live path, Oracle indexing/reporting. Widening the deterministic release proof to include credentials would contaminate its reproducibility and custody claims; enabling package authority before a live installed product journey would optimize release machinery around an empirically unproved user path. The lawful next slice is therefore a separate opt-in installed-wheel live semantic journey with explicit provider effects, sanitized evidence, mock-Oracle nonclaims, and no publication authority.
 
 ## Durable boundaries
 
@@ -104,17 +112,19 @@ Current evidence does **not** prove:
 
 ## Observable exit signals for the active frontier
 
-The Core frontier advances only when current evidence shows all applicable conditions, without widening claims:
+The Core frontier advances only when one explicit opt-in journey shows all applicable conditions without widening claims:
 
-- accepted Decision 88 remains the current signer/custody policy and any supersession follows its live-AK selector rules;
-- the exact required release subjects are verified against that policy and the result is machine-checkable;
-- the dedicated workflow implements public non-secret evidence custody without implying package publication or release authority;
-- retained evidence is bound to the exact built subjects, source state, SBOM scopes, installed proof, and verification result;
-- failure, revocation, stale evidence, wrong signer, missing subject, permission, partial-write, and retention/deletion cases fail closed or report effect-indeterminate truthfully;
-- `just typecheck`, `just typecheck-tests`, `just verify-full`, package, focused adversarial, docs, workflow, direction, and scoped landing checks pass;
+- an exact Core wheel path and SHA-256 are installed outside the checkout with `PYTHONPATH` unset;
+- a pinned released auth-provider dependency and an explicit currently available provider/model route execute one bounded existing semantic intent;
+- behavior status and declared quality are derived from observed outputs, including truthful nonzero failure on provider or semantic failure;
+- manifest, receipt, behavior, Oracle evidence/report, candidate identity, and exact wheel/provider dependency identities are hash-bound in one sanitized evidence packet;
+- receipt replay integrity passes while runtime execution reproduction, semantic reproduction, and quality-evaluation reproduction remain explicitly not run or not evaluated;
+- candidate-local Oracle indexing/reporting succeeds with mock embeddings labeled plumbing-only and no shared publication;
+- credential paths, tokens, headers, auth-store contents, and secret-shaped errors are neither inspected nor retained; possible provider-owned auth refresh is disclosed rather than denied;
+- focused package/provider/semantic/replay/Oracle tests, scoped static checks, impact validation, direction checks, and pre-push validation pass;
 - product posture and AK state are reconciled before any completion or readiness statement.
 
-Passing these signals would establish a stronger technical release-evidence posture. Release approval, registry publication, rollout, and production activation would still require their owning decisions and evidence.
+Passing these signals would establish a live installed-product journey, not production-semantic Oracle quality, network isolation, reproducible live inference, release approval, registry publication, rollout, or production activation.
 
 ## Target product experience
 
