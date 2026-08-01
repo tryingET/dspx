@@ -1,0 +1,42 @@
+{
+  "schema_version": "dspx-core-release-owner-policy-v2",
+  "owner_policy_version": 3,
+  "effective_at": "2026-08-01T07:10:00Z",
+  "repository": {
+    "name": "tryingET/dspx",
+    "id": 1318473695
+  },
+  "principal": {
+    "kind": "github-user",
+    "login": "tryingET",
+    "id": 260287438,
+    "authority_model": "explicit_single_owner_concentrated_risk"
+  },
+  "authentication": {
+    "kind": "openssh-sshsig-fido2",
+    "namespace": "dspx-core-release-authorization-v1",
+    "key_type": "sk-ssh-ed25519@openssh.com",
+    "public_key": "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIBCkb/WarAKuQZ7wrwWV6b2kdB4c9lyqLnMWp58N1ZsMAAAABHNzaDo= dspx-core-release-owner:tryingET@260287438",
+    "fingerprint_sha256": "SHA256:OYAnSnMFl+jvWmFJ6TFcHdikBdL7N2MG3k+FIlSqVis",
+    "user_presence_required": true,
+    "user_verification_required": true
+  },
+  "approval": {
+    "purpose": "authorize-dspx-core-wheel-release",
+    "max_age_seconds": 900,
+    "single_use_nonce": true
+  },
+  "revocation": {
+    "authorization_enabled": true,
+    "disabled_reason": null,
+    "revoked_fingerprints": []
+  },
+  "claims": {
+    "human_principal_count": 1,
+    "independent_quorum": false,
+    "concentrated_risk_accepted": true,
+    "technical_controls_are_conjunction_not_principals": true,
+    "package_publication": false,
+    "sdist_supported": false
+  }
+}
