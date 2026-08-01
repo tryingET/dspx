@@ -60,9 +60,10 @@ The repo-declared local confidence gates are green:
 
 - `just typecheck` passes across Core and Forge after semantic-corpus keys and validated GEPA improvement requests gained explicit string narrowing.
 - `just typecheck-tests` passes after release-evidence fixtures gained callable/deeply mutable boundaries and dynamic module imports gained explicit tuple cardinality.
-- `just verify-full` passes at the AK-4468 offline-contract baseline. The credential-free offline suite passed 2766 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
+- `just verify-full` passes at the AK-4471 declared-strata runner/posture baseline. The credential-free offline suite passed 2777 tests with 4 expected skips; the residual live/network/model/GPU/Postgres lane reported 5 expected skips.
 - `just installed-live-oracle-evaluation-contract-check` validates the exact hash-bound three-case corpus/contract, route/attempt budget, held-out Oracle labels/metrics, layer separation, and declared zero-operation/nonclaim posture. The validator is standard-library-only, parses source declarations without importing DSPx, rejects any contract-byte or foreign-corpus drift, and is tested with an empty fresh HOME/cache; this remains a contract check rather than general syscall isolation proof.
 - The Oracle route-binding slice passed 93 focused and adjacent model-role, semantic-backend, runtime, foundry, config, and provider tests plus package and test typechecking.
+- The final pre-live runner/verifier gate passed 62 focused semantic-benchmark, installed-contract, adversarial claim-binding, and fail-fast tests; independent adversarial review returned PASS before the sole corpus attempt.
 
 This establishes the cited repo-local full-gate baseline. Separate bounded evidence establishes signer verification, public CI evidence custody, authority-false owner authentication, the qualified recovered one-case result, and one fresh end-to-end installed runner pass over three declared strata. Three one-example lexical contracts do not establish statistical representativeness, broad live-provider or production-semantic quality, executed-model identity, package publication, release approval, or activation.
 
