@@ -2,8 +2,8 @@
   "schema_version": 1,
   "exported_at": "2026-08-01T19:25:25.982489748+00:00",
   "task_id": 4471,
-  "entity_version": 3,
-  "commit_sha": null,
+  "entity_version": 4,
+  "commit_sha": "a63f7907dd419f5e3ef3718d61e597e7bb17b365",
   "scope": {
     "allowed_paths": [
       "Justfile",
