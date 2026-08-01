@@ -1,5 +1,5 @@
 ---
-summary: "Fail-closed partial dogfood evidence for owner-policy v003: currentness succeeded, but two confirmation windows ended without signing."
+summary: "Fail-closed partial dogfood evidence for owner-policy v003: currentness succeeded, but confirmation and display-integrity gates stopped before signing."
 read_when:
   - "Checking task 4420 progress or why no v003 biometric signature/consume receipt exists yet."
   - "Preparing a later fresh payload after the unconfirmed v003 ceremony stop."
@@ -12,7 +12,7 @@ type: "evidence"
 
 `stopped_before_signing`
 
-Decision 99 and owner-policy v003 currentness completed, but the required explicit operator confirmation did not arrive in either displayed confirmation window. No signature was produced, no nonce ledger was created, no nonce was consumed, and no shadow receipt exists. Both payloads and nonces are abandoned and will not be reused, edited, signed, or mechanically retried.
+Decision 99 and owner-policy v003 currentness completed, but no attempt crossed both exact-byte display confirmation and signing gates. No signature was produced, no nonce ledger was created, no nonce was consumed, and no shadow receipt exists. Every prepared payload and nonce described below is abandoned and will not be reused, edited, signed, or mechanically retried.
 
 This is a fail-closed partial execution, not a successful shadow dogfood.
 
@@ -83,6 +83,31 @@ After the operator explicitly issued `prepare fresh payload`, task deferral 198 
 - Authority ref, policy/selector identities, workflow run, wheel, manifest, statement, source, and package identity matched the accepted first preparation except for the required fresh nonce/window.
 
 The complete canonical bytes and hash were displayed in a new interactive confirmation form. That form timed out after 420 seconds without an explicit confirm/reject response. The signing gate therefore stopped immediately. This second payload and nonce are abandoned even if any lifetime remained at timeout; no signing or consumer command ran.
+
+## Third fresh confirmation stop
+
+After a coordinated operator-ready event, the trusted prepare surface produced another distinct payload and reran the accepted live checks.
+
+- Payload SHA-256: `fb1715e013781258bb0f198bbc9586899414b1dbe46af789ff4489dc7ff5bef6`
+- Issued: `2026-08-01T13:20:05Z`
+- Expiry: `2026-08-01T13:30:05Z`
+- Nonce: `aae4606a5fafd73ffc0d4be7ea504f25745bbfc8765f40d1d6544a665e470bf2`
+
+The canonical bytes and hash were relayed to the controller, but no exact-payload confirmation returned before expiry. No signing, ledger, or consumer command ran. The payload and nonce are abandoned.
+
+## Fourth fresh display-integrity stop
+
+After the operator again reported immediate readiness, the trusted prepare surface produced a fourth distinct payload.
+
+- Canonical-file payload SHA-256: `5fb9ee2a1bfeb79c086c57bd7daa92c04923a6e53fc0d16e657ffa207e69216f`
+- Issued: `2026-08-01T14:26:18Z`
+- Expiry: `2026-08-01T14:36:18Z`
+- Nonce: `dd141433a15bd71752b8fc17b986dd3bbc33bdfc5f7570d65a139d13b95c3043`
+- Canonical-file source commit: `c6170846054cf162462503d674da513ef74b160d`
+
+The controller detected that its displayed JSON altered `source_commit_sha`; those displayed bytes therefore did not hash to the canonical-file SHA-256. Exact-byte informed confirmation was impossible. The signing gate stopped fail-closed immediately, and an operator stop notification was sent. No signing, ledger, or consumer command ran. This payload and nonce are abandoned even if the canonical file itself remained unmodified.
+
+A future attempt must transmit canonical payload bytes mechanically from the file and recompute the hash over the exact displayed byte sequence; manual field copying is not an acceptable ceremony transport.
 
 ## Proved absence of effects
 
