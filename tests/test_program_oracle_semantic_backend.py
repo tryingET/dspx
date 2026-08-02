@@ -13,6 +13,7 @@ from dspx.services.program_oracle_semantic_backend import (
     FixtureReplayOracleSemanticBackend,
     LiveLMOracleSemanticBackend,
     ProgramOracleSemanticBackendError,
+    _analysis_prompt,
     _analysis_response_format,
     preflight_program_oracle_semantic_backend,
     resolve_program_oracle_semantic_backend,
@@ -43,6 +44,26 @@ def _request() -> OracleSemanticRequest:
         evidence={"receipt_refs": ["receipt:run-7"], "accuracy": 0.72},
         quality_contract={"minimum_accuracy": 0.9},
     )
+
+
+def test_codebook_prompt_requires_minimum_directly_entailed_code_set() -> None:
+    request = OracleSemanticRequest(
+        objective="Classify only observed behavior",
+        evidence={"refs": [{"ref": "receipt:run-7"}], "status": "passed"},
+        quality_contract={
+            "analysis_codebook": {
+                "observations": ["passed", "failed"],
+                "hypotheses": ["cause_unproven"],
+            }
+        },
+    )
+
+    prompt = _analysis_prompt(request)
+
+    assert "directly and unambiguously entails" in prompt
+    assert "Use an empty array" in prompt
+    assert "minimum exact code set" in prompt
+    assert "not every plausible code" in prompt
 
 
 class _LiveLM:

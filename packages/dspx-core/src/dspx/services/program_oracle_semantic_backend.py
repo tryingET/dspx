@@ -72,7 +72,12 @@ def _analysis_prompt(request: OracleSemanticRequest) -> str:
         "For observations, failure_attractors, quality_contract_violations, "
         "hypotheses, and recommended_experiments, return only exact codes from "
         "the field-specific REQUEST.quality_contract.analysis_codebook; each "
-        "array item must be one code with no prose. "
+        "array item must be one code with no prose. Select a code only when the "
+        "receipt-bound evidence directly and unambiguously entails it for that "
+        "specific field. Use an empty array when no field code is directly "
+        "entailed. Exclude merely possible, related, generic, precautionary, "
+        "alternative, opposite, or downstream codes. Return the minimum exact "
+        "code set justified by the evidence, not every plausible code. "
         if codebook_mode
         else "Put exactly one factual assertion in each array item; do not join "
         "separate or contrary assertions in one item. "
