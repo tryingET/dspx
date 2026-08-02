@@ -139,13 +139,13 @@
       "transformers": "4c9e9de11333ddfe5114bc872c9f370509198acf0b87a832a0ab9458e2bd0550"
     },
     "expected_distribution_content_sha256": {
-      "huggingface-hub": "31797bab19873eff84f8f99334b24ed2dce62203479af9442034258e27111512",
-      "numpy": "a94de5340d0f32cb6d006d0996d0738458bdd89baccbb259b7ccb75048b9787b",
-      "safetensors": "479344b91736ad74a4c6ef069e778e81c9d3174ab38308bb5deb6ddfbb3fe5de",
-      "sentence-transformers": "db3b71adadbaea1e4efb711259188c28621316540d80dde6e3724b19f25a6806",
-      "tokenizers": "a66f36604045fcaaa7c4a9349a1d92aaa82990578462d74ee73eaaf5b719c79c",
-      "torch": "5a95ca41a6f24d69350d094122f9f4479ed84a4fb40547be097f07ceb3f1bd3b",
-      "transformers": "d23c9679f2f91a5e2e2b693b2046841b0d841faef8a7d77eb935ee38c0bfb425"
+      "huggingface-hub": "e6cfd48b0ee95f7461b93dab7ce4bb10b341f13483b610594f3d759a851ae5fd",
+      "numpy": "75a006ce7c2a490ca6d81f3fa9feeebcd0785ba897fa84c13f22d4bdfc0fd2d2",
+      "safetensors": "f0422d36c0cc94c2fe894cc07a1631c83b3b532bc15ea0023fde373c23ab252d",
+      "sentence-transformers": "25bed313d2af7cc7b118205616427404c7519779d9776602bacf0447d3c5fd99",
+      "tokenizers": "9c1d9628afeaf1259f64db6540a1769f7322b1110970312c943b5243319209c7",
+      "torch": "d692cd98d2f697eaeb309064d10ef38a901b7826c947206333cc953828f58984",
+      "transformers": "e356bb4ce7a99595a03de1df6de1c23ca8e5d26c836dbaacc26082e9d3c60537"
     }
   },
   "evaluation": {

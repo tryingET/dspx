@@ -27,7 +27,7 @@ from .storage import CoordinateIndex
 CONTRACT_SCHEMA = "dspx-oracle-embedding-selection-contract-v2"
 RESULT_SCHEMA = "dspx-oracle-embedding-selection-result-v2"
 EXPECTED_CONTRACT_SHA256 = (
-    "5785964ea525dac2e58eec5637e155ff871f8af4ed8c6b271d2a4d26214da860"
+    "e4ff030f2133f19a65b7586606874f1c8fa3895f6bf114580fc2e8d8ab43d9a3"
 )
 BASELINE_DB_FILE = "minilm-comparison.sqlite3"
 CHALLENGER_DB_FILE = "mdenseon-comparison.sqlite3"
