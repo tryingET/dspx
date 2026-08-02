@@ -9,8 +9,11 @@ import json
 import sqlite3
 from pathlib import Path
 
+from click import Group
+
 import pytest
 from typer.testing import CliRunner
+from typer.main import get_command
 
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, reset_embedding_engine
@@ -1214,7 +1217,12 @@ def test_program_run_cli_help_describes_inputs_as_file_path() -> None:
 
     assert result.exit_code == 0, result.output
     assert "Path to a JSON file" in result.output
-    assert "--capture-replay-fixture" in result.output
+    command = get_command(app)
+    assert isinstance(command, Group)
+    program_run = command.commands["program-run"]
+    assert any(
+        "--capture-replay-fixture" in option.opts for option in program_run.params
+    )
 
 
 def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:

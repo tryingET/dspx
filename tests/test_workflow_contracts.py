@@ -10,6 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from click import unstyle
+
 import pytest
 
 
@@ -704,7 +706,7 @@ def test_current_repo_standardized_targets_are_side_effect_free() -> None:
             check=False,
         )
         assert run.returncode == 0, run.stderr
-        assert "Usage: python -m dspx.cli.dspx" in run.stdout
+        assert "Usage: python -m dspx.cli.dspx" in unstyle(run.stdout)
         assert uv_lock.read_bytes() == before
     finally:
         if uv_lock.read_bytes() != before:
