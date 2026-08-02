@@ -150,7 +150,7 @@ def test_dogfood_first_pass_records_typed_transport(
     assert payload["recovery"] == "first_pass"
     assert len(payload["attempts"]) == 1
     assert payload["claims"]["typed_output_json_transport_passed"] is False
-    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4546"] is True
+    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4547"] is True
     assert payload["claims"]["ak_4506_ledger_reused"] is False
     assert payload["attempts"][0]["transport"]["stream_completed_match"] is False
     assert payload["attempts"][0]["transport"]["output_text_source"] == "typed_stream"
@@ -240,6 +240,16 @@ def test_dogfood_records_only_allowlisted_transport_failure_code(
 
     failure = json.loads(ledger.read_text(encoding="utf-8"))
     assert failure["error_code"] == "stream_location_ambiguous"
+    assert (
+        module._stream_error_code(
+            "Codex typed output stream item was absent from empty completion"
+        )
+        == "stream_item_absent_empty_completion"
+    )
+    assert (
+        module._stream_error_code("Codex typed output stream item had an index gap")
+        == "stream_item_index_gap"
+    )
     assert module._stream_error_code("api_key=secret unexpected") == (
         "stream_adapter_unclassified"
     )
