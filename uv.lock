@@ -611,7 +611,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.13.5" },
     { name = "cryptography", specifier = ">=46.0.0" },
     { name = "dspy-ai", specifier = ">=3.1.3" },
-    { name = "dspy-lm-auth", marker = "extra == 'lm-auth'", specifier = ">=0.1.3" },
+    { name = "dspy-lm-auth", marker = "extra == 'lm-auth'", git = "https://github.com/tryingET/dspy-lm-auth.git?tag=v0.1.4" },
     { name = "duckduckgo-search", specifier = ">=8.1.1" },
     { name = "fastapi", specifier = ">=0.111.0" },
     { name = "granian", specifier = ">=1.4.3" },
@@ -691,15 +691,11 @@ wheels = [
 
 [[package]]
 name = "dspy-lm-auth"
-version = "0.1.3"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.4"
+source = { git = "https://github.com/tryingET/dspy-lm-auth.git?tag=v0.1.4#c17bbc3c801228355142d2c3ee932ef15a3f4d23" }
 dependencies = [
     { name = "dspy" },
     { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/47/05/5c2af92dc2dfbf9a50346b20924d427ae292ab66357322e5c2533497ba8c/dspy_lm_auth-0.1.3.tar.gz", hash = "sha256:399433296691e5ef6fb6610457c6752005c9ebaec09e18061bf28a4f9ec870e6", size = 21909, upload-time = "2026-03-11T17:19:53.456Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/d4/063452617a0cc95e4b120a0777e54330ea2939deb22c384817ce87347789/dspy_lm_auth-0.1.3-py3-none-any.whl", hash = "sha256:67102c73bf20e2e5736ae65fba4aff05c7d8a8f6a5dec302ea71c78bf097491f", size = 16244, upload-time = "2026-03-11T17:19:52.253Z" },
 ]
 
 [[package]]

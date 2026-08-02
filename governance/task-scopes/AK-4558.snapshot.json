@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-02T21:02:14.546285063+00:00",
+  "task_id": 4558,
+  "entity_version": 3,
+  "commit_sha": "ba11662e",
+  "scope": {
+    "allowed_paths": [
+      "docs/UPSTREAM_CONTRIBUTING_WORKFLOW.md",
+      "docs/project/developer_workflow.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/pyproject.toml",
+      "pyproject.toml",
+      "uv.lock"
+    ],
+    "required_paths": [
+      "packages/dspx-core/pyproject.toml",
+      "pyproject.toml",
+      "uv.lock"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
