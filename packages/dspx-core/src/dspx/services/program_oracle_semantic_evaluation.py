@@ -9,6 +9,7 @@ import json
 import os
 import pwd
 import stat
+import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ CONTRACT_RELATIVE_PATH = Path(
 EXPECTED_CONTRACT_SHA256 = (
     "ed1dcb7b3ba170e2fbdb4a714cc0d8a594dad6b715bb60f07988a52c41af662b"
 )
+FROZEN_SOURCE_COMMIT = "204017bfbecdbda9ceba496ff4c586ffa91f7ac1"
 RESULT_NAME = "evaluation-result.json"
 ATTEMPT_NAME = "attempt-status.json"
 VERIFICATION_NAME = "independent-verification.json"
@@ -67,6 +69,19 @@ def _sha256_bytes(raw: bytes) -> str:
 
 def _sha256_file(path: Path) -> str:
     return _sha256_bytes(path.read_bytes())
+
+
+def _sha256_git_blob(repo_root: Path, commit: str, path: str) -> str:
+    try:
+        raw = subprocess.check_output(
+            ["git", "-C", str(repo_root), "show", f"{commit}:{path}"],
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise SemanticAnalysisEvaluationError(
+            f"frozen source binding is unavailable: {commit}:{path}"
+        ) from exc
+    return _sha256_bytes(raw)
 
 
 def _mapping(value: object, label: str) -> dict[str, Any]:
@@ -265,7 +280,8 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
         expected_hash = binding.get("sha256")
         if (
             not isinstance(expected_hash, str)
-            or _sha256_file(root / expected_path) != expected_hash
+            or _sha256_git_blob(root, FROZEN_SOURCE_COMMIT, expected_path)
+            != expected_hash
         ):
             raise SemanticAnalysisEvaluationError(f"{label} source hash drift")
 

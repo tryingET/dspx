@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-02T18:17:02.165216863+00:00",
+  "task_id": 4532,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "benchmarks/semantic/oracle-semantic-analysis-evaluation-v1.json",
+      "docs/project/semantic-benchmarks.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py",
+      "scripts/ci/run_oracle_semantic_stream_dogfood.py",
+      "tests/test_oracle_semantic_analysis_evaluation.py",
+      "tests/test_oracle_semantic_stream_dogfood.py",
+      "tests/test_program_oracle_semantic_backend.py",
+      "tests/test_provider_v4.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "scripts/ci/run_oracle_semantic_stream_dogfood.py",
+      "tests/test_oracle_semantic_stream_dogfood.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

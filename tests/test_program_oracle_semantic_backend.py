@@ -13,6 +13,7 @@ from dspx.services.program_oracle_semantic_backend import (
     FixtureReplayOracleSemanticBackend,
     LiveLMOracleSemanticBackend,
     ProgramOracleSemanticBackendError,
+    _analysis_response_format,
     preflight_program_oracle_semantic_backend,
     resolve_program_oracle_semantic_backend,
 )
@@ -53,7 +54,7 @@ class _LiveLM:
 
     def generate(self, request, **kwargs):
         self.calls += 1
-        assert kwargs == {"response_format": {"type": "json_object"}}
+        assert kwargs == {"response_format": _analysis_response_format()}
         if self.fail:
             raise RuntimeError(
                 "provider unavailable; authorization: Bearer secret-token-value"

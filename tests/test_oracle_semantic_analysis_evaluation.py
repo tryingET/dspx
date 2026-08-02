@@ -17,9 +17,11 @@ from dspx.dspy_lm_auth_lm import DspyLMAuthLM
 from dspx.dtos import LMResponse
 from dspx.services.program_oracle_semantic_backend import (
     LiveLMOracleSemanticBackend,
+    _analysis_response_format,
     _analysis_prompt,
 )
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
+from dspx.services.program_oracle_semantic_evaluation import FROZEN_SOURCE_COMMIT
 from dspx.services.program_oracle_semantic_verification import SOURCE_PATHS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -109,7 +111,7 @@ class _SequenceLM:
         self.prompts: list[str] = []
 
     def generate(self, request, **kwargs):
-        assert kwargs == {"response_format": {"type": "json_object"}}
+        assert kwargs == {"response_format": _analysis_response_format()}
         self.prompts.append(request.prompt)
         response = self.analyses[self.calls]
         self.calls += 1
@@ -144,6 +146,7 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
         "ed1dcb7b3ba170e2fbdb4a714cc0d8a594dad6b715bb60f07988a52c41af662b"
     )
     assert contract["attempt_policy"]["case_order"] == list(module._CASE_ORDER)
+    assert FROZEN_SOURCE_COMMIT == "204017bfbecdbda9ceba496ff4c586ffa91f7ac1"
     for case in contract["cases"]:
         request = module._request(case)
         prompt = _analysis_prompt(request)

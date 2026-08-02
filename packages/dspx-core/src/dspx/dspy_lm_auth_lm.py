@@ -73,13 +73,6 @@ class DspyLMAuthMinimalResponse:
 
 
 @dataclass
-class DspyLMAuthCodexStreamResponse:
-    output_text: str
-    usage: Any | None
-    raw: Any | None = None
-
-
-@dataclass
 class DspyLmAuthCall:
     model: str
     auth_provider: str | None
@@ -87,6 +80,7 @@ class DspyLmAuthCall:
     ended_at: float
     text: str
     usage: dict[str, Any] | None
+    transport: dict[str, Any] | None = None
     error: str | None = None
 
 
@@ -138,6 +132,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         self._resolved_model_type: str | None = None
         self._resolved_headers: dict[str, str] | None = None
         self._uses_codex_route: bool | None = None
+        self._stream_metadata_reader: Any | None = None
 
     def _import_module(self):
         try:
@@ -148,75 +143,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 "or 'pip install dspy-lm-auth'. From the DSPx repo, prefer 'just link-dspy-lm-auth' "
                 "to use the workspace contrib checkout."
             ) from e
-        self._patch_codex_stream_text_capture(dspy_lm_auth)
         return dspy_lm_auth
-
-    @staticmethod
-    def _patch_codex_stream_text_capture(module: Any) -> None:
-        try:
-            lm_module = importlib.import_module(f"{module.__name__}.lm")
-        except Exception:
-            lm_module = getattr(module, "lm", None)
-        if lm_module is None or getattr(lm_module, "_dspx_stream_text_patch", False):
-            return
-        original = getattr(lm_module, "_consume_codex_response_stream", None)
-        if not callable(original):
-            return
-
-        def _consume_with_text(response_stream: Any) -> Any:
-            if not hasattr(response_stream, "completed_response"):
-                return response_stream
-            text_parts: list[str] = []
-            done_text: str | None = None
-            error_messages: list[str] = []
-            for event in response_stream:
-                delta = getattr(event, "delta", None)
-                if isinstance(delta, str) and delta:
-                    text_parts.append(delta)
-                    continue
-                event_type = str(getattr(event, "type", ""))
-                event_error = getattr(event, "error", None)
-                if event_error is not None or any(
-                    marker in event_type.lower()
-                    for marker in ("error", "failed", "incomplete")
-                ):
-                    message = getattr(event_error, "message", None) or getattr(
-                        event, "message", None
-                    )
-                    error_messages.append(str(message or event_type or "unknown"))
-                    continue
-                if "output_text.done" in event_type:
-                    text = getattr(event, "text", None)
-                    if isinstance(text, str) and text:
-                        done_text = text
-            if error_messages:
-                raise RuntimeError(
-                    "Codex response stream ended with error: "
-                    + "; ".join(error_messages)
-                )
-            completed_event = getattr(response_stream, "completed_response", None)
-            completed_response = getattr(completed_event, "response", None)
-            output_text = ("".join(text_parts) or done_text or "").strip()
-            if completed_response is None:
-                if output_text:
-                    return DspyLMAuthCodexStreamResponse(
-                        output_text=output_text,
-                        usage=None,
-                        raw=response_stream,
-                    )
-                raise RuntimeError(
-                    "Codex response stream ended without a completed response"
-                )
-            if not output_text:
-                return completed_response
-            return DspyLMAuthCodexStreamResponse(
-                output_text=output_text,
-                usage=getattr(completed_response, "usage", None),
-                raw=completed_response,
-            )
-
-        setattr(lm_module, "_consume_codex_response_stream", _consume_with_text)
-        setattr(lm_module, "_dspx_stream_text_patch", True)
 
     def _build_inner(self) -> Any:
         if self._inner is not None:
@@ -225,6 +152,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             if self._inner is not None:
                 return self._inner
             mod = self._import_module()
+            self._stream_metadata_reader = getattr(mod, "get_stream_metadata", None)
             init_kwargs = dict(self.kwargs)
             if self.timeout is not None and "timeout" not in init_kwargs:
                 init_kwargs["timeout"] = self.timeout
@@ -369,6 +297,49 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             pass
         return None
 
+    @staticmethod
+    def _normalize_transport_metadata(raw: Any) -> dict[str, Any] | None:
+        if not isinstance(raw, dict):
+            return None
+        counts = raw.get("event_counts")
+        output_text_chars = raw.get("output_text_chars")
+        completed_output_text = raw.get("completed_output_text")
+        stream_output_text_chars = raw.get("stream_output_text_chars")
+        stream_completed_match = raw.get("stream_completed_match")
+        allowed = {
+            "failure",
+            "lifecycle",
+            "output_text_delta",
+            "reasoning",
+            "refusal",
+            "tool",
+            "unknown",
+        }
+        if (
+            not isinstance(counts, dict)
+            or any(str(key) not in allowed for key in counts)
+            or any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in counts.values()
+            )
+            or not isinstance(completed_output_text, bool)
+            or not isinstance(output_text_chars, int)
+            or isinstance(output_text_chars, bool)
+            or output_text_chars < 0
+            or not isinstance(stream_output_text_chars, int)
+            or isinstance(stream_output_text_chars, bool)
+            or stream_output_text_chars < 0
+            or not isinstance(stream_completed_match, bool)
+        ):
+            return None
+        return {
+            "event_counts": {str(key): counts[key] for key in sorted(counts)},
+            "completed_output_text": completed_output_text,
+            "output_text_chars": output_text_chars,
+            "stream_output_text_chars": stream_output_text_chars,
+            "stream_completed_match": stream_completed_match,
+        }
+
     def runtime_metadata(self) -> dict[str, Any]:
         data: dict[str, Any] = {
             "provider_family": "dspy-lm-auth",
@@ -481,6 +452,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         err: str | None = None
         text = ""
         usage: dict[str, Any] | None = None
+        transport: dict[str, Any] | None = None
         call_kwargs = dict(kwargs)
         if bool(self._uses_codex_route) or self.requested_model.startswith("codex/"):
             call_kwargs.pop("max_tokens", None)
@@ -500,6 +472,9 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             )
             text = self._extract_text(resp)
             usage = self._extract_usage(resp)
+            reader = self._stream_metadata_reader
+            raw_transport = reader(resp) if callable(reader) else None
+            transport = self._normalize_transport_metadata(raw_transport)
             return DspyLMAuthMinimalResponse(
                 model=getattr(self, "model", None)
                 or f"dspy-lm-auth/{self.requested_model}",
@@ -531,6 +506,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                     ended_at=time.time(),
                     text=text,
                     usage=usage,
+                    transport=transport,
                     error=err,
                 )
             )

@@ -16,7 +16,6 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.dspy_lm_auth_lm import (
-    DspyLMAuthCodexStreamResponse,
     DspyLMAuthResponseError,
     DspyLMAuthLM,
     DspyLMAuthMinimalResponse,
@@ -116,7 +115,13 @@ def test_dspy_lm_auth_default_capabilities_refresh_with_env_changes(
 
 
 def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -> None:
-    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    fake = types.SimpleNamespace(
+        LM=_FakeLM,
+        AuthStorage=_FakeAuthStorage,
+        get_stream_metadata=lambda response: getattr(
+            response, "_dspy_lm_auth_stream", None
+        ),
+    )
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
 
     storage = tmp_path / "auth.json"
@@ -143,7 +148,13 @@ def test_dspy_lm_auth_wrapper_health_and_generate(monkeypatch, tmp_path: Path) -
 
 
 def test_dspy_lm_auth_healthcheck_redacts_probe_text(monkeypatch) -> None:
-    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    fake = types.SimpleNamespace(
+        LM=_FakeLM,
+        AuthStorage=_FakeAuthStorage,
+        get_stream_metadata=lambda response: getattr(
+            response, "_dspy_lm_auth_stream", None
+        ),
+    )
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
 
     lm = DspyLMAuthLM(auth_provider="codex")
@@ -165,7 +176,13 @@ def test_dspy_lm_auth_healthcheck_redacts_direct_errors(monkeypatch) -> None:
                 f"auth_storage=/tmp/secret-auth.json api_key=supersecret-{provider}"
             )
 
-    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=BadAuthStorage)
+    fake = types.SimpleNamespace(
+        LM=_FakeLM,
+        AuthStorage=BadAuthStorage,
+        get_stream_metadata=lambda response: getattr(
+            response, "_dspy_lm_auth_stream", None
+        ),
+    )
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
 
     lm = DspyLMAuthLM(auth_provider="codex", auth_storage="/tmp/secret-auth.json")
@@ -247,7 +264,13 @@ def test_dspy_lm_auth_wrapper_import_error_mentions_repo_helper(monkeypatch) -> 
 def test_dspy_lm_auth_wrapper_strips_unsupported_params_and_streams_codex_route(
     monkeypatch, tmp_path: Path
 ) -> None:
-    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    fake = types.SimpleNamespace(
+        LM=_FakeLM,
+        AuthStorage=_FakeAuthStorage,
+        get_stream_metadata=lambda response: getattr(
+            response, "_dspy_lm_auth_stream", None
+        ),
+    )
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
     _FakeLM.last_kwargs = None
 
@@ -269,7 +292,13 @@ def test_dspy_lm_auth_wrapper_strips_unsupported_params_and_streams_codex_route(
 def test_dspy_lm_auth_generate_preserves_user_image_blocks(
     monkeypatch, tmp_path: Path
 ) -> None:
-    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    fake = types.SimpleNamespace(
+        LM=_FakeLM,
+        AuthStorage=_FakeAuthStorage,
+        get_stream_metadata=lambda response: getattr(
+            response, "_dspy_lm_auth_stream", None
+        ),
+    )
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
     _FakeLM.last_messages = None
 
@@ -317,7 +346,13 @@ def test_dspy_lm_auth_generate_preserves_user_image_blocks(
 def test_dspy_lm_auth_codex_route_normalizes_assistant_message_blocks(
     monkeypatch, tmp_path: Path
 ) -> None:
-    fake = types.SimpleNamespace(LM=_FakeLM, AuthStorage=_FakeAuthStorage)
+    fake = types.SimpleNamespace(
+        LM=_FakeLM,
+        AuthStorage=_FakeAuthStorage,
+        get_stream_metadata=lambda response: getattr(
+            response, "_dspy_lm_auth_stream", None
+        ),
+    )
     monkeypatch.setitem(sys.modules, "dspy_lm_auth", fake)
     _FakeLM.last_messages = None
 
@@ -367,112 +402,6 @@ def test_dspy_lm_auth_minimal_response_uses_responses_output_text_blocks() -> No
     assert resp.output[0].content[0].text == "hello"
 
 
-def test_dspy_lm_auth_codex_stream_patch_captures_output_text(monkeypatch) -> None:
-    fake_module = types.SimpleNamespace(__name__="fake_dspy_lm_auth")
-    fake_lm_module = types.ModuleType("fake_dspy_lm_auth.lm")
-    setattr(
-        fake_lm_module,
-        "_consume_codex_response_stream",
-        lambda response_stream: response_stream,
-    )
-    monkeypatch.setitem(sys.modules, "fake_dspy_lm_auth.lm", fake_lm_module)
-
-    DspyLMAuthLM._patch_codex_stream_text_capture(fake_module)
-
-    completed_response = types.SimpleNamespace(usage={"total_tokens": 3})
-    completed_event = types.SimpleNamespace(response=completed_response)
-
-    class _Stream:
-        completed_response = completed_event
-
-        def __iter__(self):
-            return iter(
-                [
-                    types.SimpleNamespace(delta="auto"),
-                    types.SimpleNamespace(delta="plan"),
-                    types.SimpleNamespace(
-                        type="response.output_text.done", text="ignored"
-                    ),
-                ]
-            )
-
-    consume = getattr(fake_lm_module, "_consume_codex_response_stream")
-    captured = consume(_Stream())
-    assert isinstance(captured, DspyLMAuthCodexStreamResponse)
-    assert captured.output_text == "autoplan"
-    assert captured.usage == {"total_tokens": 3}
-    assert captured.raw is completed_response
-
-
-def test_dspy_lm_auth_codex_stream_patch_uses_text_when_completed_response_missing(
-    monkeypatch,
-) -> None:
-    fake_module = types.SimpleNamespace(__name__="fake_dspy_lm_auth_missing_completed")
-    fake_lm_module = types.ModuleType("fake_dspy_lm_auth_missing_completed.lm")
-    setattr(
-        fake_lm_module,
-        "_consume_codex_response_stream",
-        lambda response_stream: response_stream,
-    )
-    monkeypatch.setitem(
-        sys.modules, "fake_dspy_lm_auth_missing_completed.lm", fake_lm_module
-    )
-
-    DspyLMAuthLM._patch_codex_stream_text_capture(fake_module)
-
-    class _Stream:
-        completed_response = types.SimpleNamespace(response=None)
-
-        def __iter__(self):
-            return iter(
-                [
-                    types.SimpleNamespace(delta="stage "),
-                    types.SimpleNamespace(delta="d"),
-                ]
-            )
-
-    consume = getattr(fake_lm_module, "_consume_codex_response_stream")
-    captured = consume(_Stream())
-    assert isinstance(captured, DspyLMAuthCodexStreamResponse)
-    assert captured.output_text == "stage d"
-    assert captured.usage is None
-
-
-def test_dspy_lm_auth_codex_stream_patch_raises_on_error_event(
-    monkeypatch,
-) -> None:
-    fake_module = types.SimpleNamespace(__name__="fake_dspy_lm_auth_error_stream")
-    fake_lm_module = types.ModuleType("fake_dspy_lm_auth_error_stream.lm")
-    setattr(
-        fake_lm_module,
-        "_consume_codex_response_stream",
-        lambda response_stream: response_stream,
-    )
-    monkeypatch.setitem(
-        sys.modules, "fake_dspy_lm_auth_error_stream.lm", fake_lm_module
-    )
-
-    DspyLMAuthLM._patch_codex_stream_text_capture(fake_module)
-
-    class _Stream:
-        completed_response = types.SimpleNamespace(response=None)
-
-        def __iter__(self):
-            return iter(
-                [
-                    types.SimpleNamespace(delta="partial text"),
-                    types.SimpleNamespace(
-                        type="response.failed",
-                        error=types.SimpleNamespace(message="rate limited"),
-                    ),
-                ]
-            )
-
-    consume = getattr(fake_lm_module, "_consume_codex_response_stream")
-    with pytest.raises(RuntimeError, match="rate limited"):
-        consume(_Stream())
-
-
 class _UsageObj:
     def model_dump(self):
         return {"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5}
@@ -492,6 +421,7 @@ class _ResponseObj:
     def __init__(self, text: str):
         self.output = [_Message(text)]
         self.usage = _UsageObj()
+        self._dspy_lm_auth_stream: dict[str, object] | None = None
 
 
 def test_dspy_lm_auth_extracts_output_text_and_usage_from_response_object() -> None:
@@ -502,6 +432,61 @@ def test_dspy_lm_auth_extracts_output_text_and_usage_from_response_object() -> N
         "completion_tokens": 3,
         "total_tokens": 5,
     }
+
+
+def test_dspy_lm_auth_history_retains_bounded_transport_metadata(monkeypatch) -> None:
+    class Inner:
+        def forward(self, **kwargs):
+            response = _ResponseObj("hello")
+            response._dspy_lm_auth_stream = {
+                "event_counts": {
+                    "lifecycle": 3,
+                    "output_text_delta": 1,
+                    "reasoning": 2,
+                },
+                "completed_output_text": True,
+                "output_text_chars": 5,
+                "stream_output_text_chars": 5,
+                "stream_completed_match": True,
+            }
+            return response
+
+    lm = DspyLMAuthLM(model="codex/gpt-5.6-sol", auth_provider="codex")
+    lm._uses_codex_route = True
+    lm._stream_metadata_reader = lambda response: response._dspy_lm_auth_stream
+    monkeypatch.setattr(lm, "_build_inner", lambda: Inner())
+
+    response = lm.generate(LMRequest(prompt="hello"))
+
+    assert response.outputs == ["hello"]
+    assert lm.history[-1].transport == {
+        "event_counts": {
+            "lifecycle": 3,
+            "output_text_delta": 1,
+            "reasoning": 2,
+        },
+        "completed_output_text": True,
+        "output_text_chars": 5,
+        "stream_output_text_chars": 5,
+        "stream_completed_match": True,
+    }
+    assert "reasoning" not in lm.history[-1].text
+
+
+def test_dspy_lm_auth_rejects_unbounded_transport_metadata() -> None:
+    response = _ResponseObj("hello")
+    response._dspy_lm_auth_stream = {
+        "event_counts": {"provider-controlled-event-name": 1},
+        "completed_output_text": True,
+        "output_text_chars": 5,
+        "stream_output_text_chars": 5,
+        "stream_completed_match": True,
+    }
+
+    assert (
+        DspyLMAuthLM._normalize_transport_metadata(response._dspy_lm_auth_stream)
+        is None
+    )
 
 
 def test_cli_providers_resolve_and_benchmark(monkeypatch, tmp_path: Path) -> None:

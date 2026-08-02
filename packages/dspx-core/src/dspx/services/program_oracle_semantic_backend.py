@@ -36,6 +36,29 @@ _ALLOWED_BACKENDS = frozenset({"live", "fixture-replay"})
 _MAX_FIXTURE_BYTES = 1_000_000
 
 
+def _analysis_response_format() -> dict[str, Any]:
+    properties: dict[str, dict[str, Any]] = {
+        field: {"type": "array", "items": {"type": "string"}}
+        for field in REQUIRED_ANALYSIS_FIELDS
+    }
+    properties["confidence"] = {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0,
+    }
+    return {
+        "type": "json_schema",
+        "name": "dspx_oracle_semantic_analysis",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": properties,
+            "required": [*REQUIRED_ANALYSIS_FIELDS, "confidence"],
+            "additionalProperties": False,
+        },
+    }
+
+
 def _analysis_prompt(request: OracleSemanticRequest) -> str:
     schema = {
         **{field: ["string"] for field in REQUIRED_ANALYSIS_FIELDS},
@@ -76,7 +99,7 @@ def _parse_analysis_text(raw: str) -> OracleSemanticAnalysis:
         payload = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ProgramOracleSemanticBackendError(
-            f"Oracle semantic provider returned invalid JSON: {exc}"
+            f"Oracle semantic extracted output was not valid JSON: {exc}"
         ) from exc
     if not isinstance(payload, dict):
         raise ProgramOracleSemanticBackendError(
@@ -120,7 +143,7 @@ class LiveLMOracleSemanticBackend:
         try:
             response = generate(
                 LMRequest(prompt=_analysis_prompt(request)),
-                response_format={"type": "json_object"},
+                response_format=_analysis_response_format(),
             )
             response_observed = True
             observed_model = getattr(response, "model", None)
