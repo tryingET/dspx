@@ -10,6 +10,7 @@ import json
 import sqlite3
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -27,6 +28,13 @@ CASE_IDS = (
 )
 PROVIDER = "dspy-lm-auth"
 MODEL = "codex/gpt-5.6-sol"
+AUTH_VERSION = "0.1.4"
+AUTH_WHEEL_URL = (
+    "https://github.com/tryingET/dspy-lm-auth/releases/download/v0.1.4/"
+    "dspy_lm_auth-0.1.4-py3-none-any.whl"
+)
+AUTH_WHEEL_SHA256 = "ea24c9534fa80c30fc3f3c95f522c36931b67a0b820e275b1de5b2db714931c6"
+AUTH_REQUIREMENT = f"dspy-lm-auth @ {AUTH_WHEEL_URL}#sha256={AUTH_WHEEL_SHA256}"
 
 
 def _load_module(path: Path, name: str) -> ModuleType:
@@ -317,7 +325,7 @@ def _valid_journey(root: Path) -> dict[str, Any]:
             "pythonpath_unset": True,
             "auth_store_nonmutation_proven": False,
             "network_isolation_proven": False,
-            "dspy_lm_auth_wheel_sha256": "67102c73bf20e2e5736ae65fba4aff05c7d8a8f6a5dec302ea71c78bf097491f",
+            "dspy_lm_auth_wheel_sha256": AUTH_WHEEL_SHA256,
             "dspx_stream_compatibility_retry_enabled": False,
             "provider_internal_retry_behavior": "not_proven",
             "unbounded_raw_provider_response_retained": False,
@@ -664,6 +672,31 @@ def test_runtime_requested_model_must_match(tmp_path: Path) -> None:
         module.verify_journey_artifacts(
             root, provider=PROVIDER, requested_model="codex/other-model"
         )
+
+
+def test_core_extra_and_live_runner_bind_the_maintained_release() -> None:
+    core_project = tomllib.loads(
+        (REPO_ROOT / "packages/dspx-core/pyproject.toml").read_text(encoding="utf-8")
+    )
+    assert core_project["project"]["optional-dependencies"]["lm-auth"] == [
+        AUTH_REQUIREMENT
+    ]
+    workspace_project = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    assert "dspy-lm-auth" not in workspace_project["tool"]["uv"]["sources"]
+
+    verifier = _load_verifier()
+    assert verifier.EXPECTED_AUTH_VERSION == AUTH_VERSION
+    assert verifier.EXPECTED_AUTH_WHEEL_URL == AUTH_WHEEL_URL
+    source = RUNNER_PATH.read_text(encoding="utf-8")
+    assert f"AUTH_WHEEL_URL='{AUTH_WHEEL_URL}'" in source
+    assert f"AUTH_WHEEL_SHA256='{AUTH_WHEEL_SHA256}'" in source
+    assert "dspy_lm_auth-0.1.4-py3-none-any.whl" in source
+    assert 'print(f"dspx-core[lm-auth] @ ' in source
+    assert 'print(f"dspy-lm-auth @ ' not in source
+    assert '"$core_requirement" "$auth_requirement"' not in source
+    assert "files.pythonhosted.org" not in source
 
 
 def test_runner_is_valid_bash_and_freezes_one_full_corpus_attempt(

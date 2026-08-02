@@ -68,10 +68,6 @@ def _wheel_direct_dependencies(
             raise CoreReleaseEvidenceError(
                 "Core wheel dependency inventory drift"
             ) from exc
-        if requirement.url is not None:
-            raise CoreReleaseEvidenceError(
-                "resolved environment cannot prove exact-wheel direct URL dependencies"
-            )
         if requirement.marker is not None:
             try:
                 enabled = requirement.marker.evaluate({**environment, "extra": ""})
@@ -81,6 +77,10 @@ def _wheel_direct_dependencies(
                 ) from exc
             if not enabled:
                 continue
+        if requirement.url is not None:
+            raise CoreReleaseEvidenceError(
+                "resolved environment cannot prove active exact-wheel direct URL dependencies"
+            )
         name = canonicalize_name(requirement.name)
         component = components_by_name.get(name)
         if component is None:

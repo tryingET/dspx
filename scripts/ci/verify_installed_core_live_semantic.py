@@ -16,7 +16,6 @@ from pathlib import Path
 import subprocess
 import sys
 from typing import Any
-from urllib.parse import unquote, urlparse
 
 from installed_core_live_semantic_contract import CASE_IDS, verify_journey_artifacts
 from installed_core_payload_contract import verify_installed_payload
@@ -29,7 +28,11 @@ from installed_core_proof_io import (
 )
 
 EXPECTED_AUTH_DISTRIBUTION = "dspy-lm-auth"
-EXPECTED_AUTH_VERSION = "0.1.3"
+EXPECTED_AUTH_VERSION = "0.1.4"
+EXPECTED_AUTH_WHEEL_URL = (
+    "https://github.com/tryingET/dspy-lm-auth/releases/download/v0.1.4/"
+    "dspy_lm_auth-0.1.4-py3-none-any.whl"
+)
 
 
 def _verify_auth_install(
@@ -78,16 +81,9 @@ def _verify_auth_install(
         raise InstalledCoreGoldenPathError(
             "dspy-lm-auth direct URL fields are not exact"
         )
-    parsed = urlparse(str(direct_url["url"]))
-    if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
+    if direct_url["url"] != EXPECTED_AUTH_WHEEL_URL:
         raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth direct URL is not a local wheel"
-        )
-    if parsed.query or parsed.fragment != f"sha256={expected_sha256}":
-        raise InstalledCoreGoldenPathError("dspy-lm-auth direct URL hash is not exact")
-    if Path(unquote(parsed.path)).absolute() != wheel:
-        raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth direct URL names another wheel"
+            "dspy-lm-auth direct URL does not name the reviewed tryingET release"
         )
     if direct_url["archive_info"]:
         raise InstalledCoreGoldenPathError(

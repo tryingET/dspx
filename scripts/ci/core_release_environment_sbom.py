@@ -171,7 +171,11 @@ def _normalize_records(
 
 
 def _validate_root_against_wheel(
-    root: Mapping[str, Any], *, wheel_raw: bytes, wheel_filename: str
+    root: Mapping[str, Any],
+    *,
+    wheel_raw: bytes,
+    wheel_filename: str,
+    marker_environment: Mapping[str, str],
 ) -> None:
     inventory = _wheel_inventory(wheel_raw, wheel_filename=wheel_filename)
     wheel_name = canonicalize_name(
@@ -200,9 +204,22 @@ def _validate_root_against_wheel(
     ]
     wheel_dependencies = cast(list[dict[str, str]], inventory["dependencies"])
     wheel = [_requirement(row["requirement"], _ROOT_NAME) for row in wheel_dependencies]
-    if any(requirement.url is not None for requirement in [*installed, *wheel]):
+    for requirement in [*installed, *wheel]:
+        if requirement.url is None:
+            continue
+        if requirement.marker is not None:
+            try:
+                enabled = requirement.marker.evaluate(
+                    {**marker_environment, "extra": ""}
+                )
+            except Exception as exc:
+                raise CoreReleaseEvidenceError(
+                    "Core wheel dependency marker cannot be evaluated"
+                ) from exc
+            if not enabled:
+                continue
         raise CoreReleaseEvidenceError(
-            "resolved environment cannot prove exact-wheel direct URL dependencies"
+            "resolved environment cannot prove active exact-wheel direct URL dependencies"
         )
     installed_requirements = {
         _requirement_identity(requirement) for requirement in installed
@@ -321,9 +338,6 @@ def build_environment_sbom(
     if _ROOT_NAME not in normalized:
         raise CoreReleaseEvidenceError("resolved environment lacks dspx-core")
     root = normalized[_ROOT_NAME]
-    _validate_root_against_wheel(
-        root, wheel_raw=wheel_raw, wheel_filename=wheel_filename
-    )
     observed_environment = dict(
         _environment_identity() if environment is None else environment
     )
@@ -335,6 +349,12 @@ def build_environment_sbom(
         key: _safe_text(value, f"marker environment {key}")
         for key, value in sorted(observed_environment.items())
     }
+    _validate_root_against_wheel(
+        root,
+        wheel_raw=wheel_raw,
+        wheel_filename=wheel_filename,
+        marker_environment=observed_environment,
+    )
     closure, edges = _resolved_closure(normalized, observed_environment)
     wheel_hash = _sha256(wheel_raw)
     proof_hash = _sha256(installed_proof_raw)

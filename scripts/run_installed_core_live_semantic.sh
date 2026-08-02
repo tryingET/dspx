@@ -7,9 +7,9 @@
 set -euo pipefail
 umask 077
 
-AUTH_WHEEL_URL='https://files.pythonhosted.org/packages/d3/d4/063452617a0cc95e4b120a0777e54330ea2939deb22c384817ce87347789/dspy_lm_auth-0.1.3-py3-none-any.whl'
-AUTH_WHEEL_SHA256='67102c73bf20e2e5736ae65fba4aff05c7d8a8f6a5dec302ea71c78bf097491f'
-AUTH_WHEEL_NAME='dspy_lm_auth-0.1.3-py3-none-any.whl'
+AUTH_WHEEL_URL='https://github.com/tryingET/dspy-lm-auth/releases/download/v0.1.4/dspy_lm_auth-0.1.4-py3-none-any.whl'
+AUTH_WHEEL_SHA256='ea24c9534fa80c30fc3f3c95f522c36931b67a0b820e275b1de5b2db714931c6'
+AUTH_WHEEL_NAME='dspy_lm_auth-0.1.4-py3-none-any.whl'
 
 usage() {
   cat >&2 <<'EOF'
@@ -157,13 +157,7 @@ print(f"dspx-core[lm-auth] @ {Path(sys.argv[1]).as_uri()}#sha256={sys.argv[2]}")
 PY
 )"
 auth_wheel="$journey_root/inputs/$AUTH_WHEEL_NAME"
-auth_requirement="$(python3 - "$auth_wheel" "$AUTH_WHEEL_SHA256" <<'PY'
-from pathlib import Path
-import sys
-print(f"dspy-lm-auth @ {Path(sys.argv[1]).as_uri()}#sha256={sys.argv[2]}")
-PY
-)"
-uv pip install --python ./venv/bin/python "$core_requirement" "$auth_requirement"
+uv pip install --python ./venv/bin/python "$core_requirement"
 assert_root_identity
 
 current_step="snapshot_exact_three_strata_contract"

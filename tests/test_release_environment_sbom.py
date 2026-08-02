@@ -314,7 +314,7 @@ def test_environment_sbom_rejects_exact_wheel_root_metadata_drift() -> None:
             _build(module, drifted)
 
 
-def test_environment_sbom_rejects_unproven_direct_url_dependencies() -> None:
+def test_environment_sbom_rejects_active_and_ignores_inactive_direct_urls() -> None:
     module = _load()
     direct_url = "alpha @ https://packages.example.invalid/alpha.whl"
     records = _records()
@@ -325,7 +325,7 @@ def test_environment_sbom_rejects_unproven_direct_url_dependencies() -> None:
     ]
     with pytest.raises(
         module.CoreReleaseEvidenceError,
-        match="cannot prove exact-wheel direct URL dependencies",
+        match="cannot prove active exact-wheel direct URL dependencies",
     ):
         module.build_environment_sbom(
             wheel_raw=_wheel_bytes(requirements=records[0]["requirements"]),
@@ -334,6 +334,34 @@ def test_environment_sbom_rejects_unproven_direct_url_dependencies() -> None:
             records=records,
             environment=_environment(),
         )
+
+    inactive_records = _records()
+    inactive_records = [row for row in inactive_records if row["name"] != "alpha"]
+    inactive_records[0]["requirements"] = [
+        f"{direct_url} ; extra == 'lm-auth'",
+        "beta==3; python_version >= '3.13'",
+        "ignored; python_version < '3'",
+    ]
+    inactive_wheel = _wheel_bytes(requirements=inactive_records[0]["requirements"])
+    inactive = module.build_environment_sbom(
+        wheel_raw=inactive_wheel,
+        wheel_filename="dspx_core-0.1.0-py3-none-any.whl",
+        installed_proof_raw=b'{"proof":"exact"}',
+        records=inactive_records,
+        environment=_environment(),
+    )
+    assert sorted(row["name"] for row in inactive["components"]) == ["beta", "gamma"]
+    assert (
+        module.validate_environment_sbom(
+            inactive,
+            wheel_raw=inactive_wheel,
+            wheel_filename="dspx_core-0.1.0-py3-none-any.whl",
+            installed_proof_raw=b'{"proof":"exact"}',
+            records=inactive_records,
+            environment=_environment(),
+        )
+        == inactive
+    )
 
     retained = _build(module)
 
@@ -347,7 +375,7 @@ def test_environment_sbom_rejects_unproven_direct_url_dependencies() -> None:
 
     with pytest.raises(
         module.CoreReleaseEvidenceError,
-        match="cannot prove exact-wheel direct URL dependencies",
+        match="cannot prove active exact-wheel direct URL dependencies",
     ):
         module._validate_retained_environment_sbom(
             retained,
