@@ -51,6 +51,12 @@ from dspx.coordinates.oracle_embedding_selection import (
 
 CONTRACT_FILE = "benchmarks/semantic/oracle-embedding-selection-v2.json"
 BASELINE_CONTRACT_FILE = "benchmarks/semantic/oracle-embedding-evaluation-v1.json"
+RECOVERY_CONTRACT_FILE = (
+    "benchmarks/semantic/oracle-embedding-selection-recovery-v1.json"
+)
+EXPECTED_RECOVERY_CONTRACT_SHA256 = (
+    "7ff3259036a2658a633582046150524ce1d2857344ff4862f246a8ee27668713"
+)
 RESULT_FILE = "selection-result.json"
 VERIFICATION_FILE = "independent-verification.json"
 ATTEMPT_FILE = "attempt-status.json"
@@ -63,9 +69,11 @@ _HANDOFF_PATH_ENV = "DSPX_ORACLE_EMBEDDING_SELECTION_HANDOFF_PATH"
 _HANDOFF_NONCE_ENV = "DSPX_ORACLE_EMBEDDING_SELECTION_HANDOFF_NONCE"
 _FROZEN_RUNTIME_REEXECUTED = False
 _TASK_ID = 4510
+_RECOVERY_TASK_ID = 4517
 _REQUIRED_TRACKED_SOURCE_FILES = (
     CONTRACT_FILE,
     BASELINE_CONTRACT_FILE,
+    RECOVERY_CONTRACT_FILE,
     "uv.lock",
     "packages/dspx-core/src/dspx/coordinates/embedding_identity.py",
     "packages/dspx-core/src/dspx/coordinates/embeddings.py",
@@ -81,6 +89,7 @@ _REQUIRED_TRACKED_SOURCE_FILES = (
 _SOURCE_STATUS_PATHS = (
     CONTRACT_FILE,
     BASELINE_CONTRACT_FILE,
+    RECOVERY_CONTRACT_FILE,
     "uv.lock",
     "packages/dspx-core/src/dspx",
     "scripts/ci/run_oracle_embedding_selection.py",
@@ -190,11 +199,22 @@ def _exec_in_frozen_runtime() -> None:
                 _HANDOFF_NONCE_ENV: nonce,
             }
         )
-        os.execve(
-            uv,
+        recovery_or_verification = any(
+            flag in sys.argv
+            for flag in ("--recover", "--recovered-adapter", "--verify-only")
+        )
+        command = [uv, "run"]
+        if recovery_or_verification:
+            command.append("--offline")
+            environment.update(
+                {
+                    "UV_OFFLINE": "1",
+                    "HF_HUB_OFFLINE": "1",
+                    "TRANSFORMERS_OFFLINE": "1",
+                }
+            )
+        command.extend(
             [
-                uv,
-                "run",
                 "--isolated",
                 "--frozen",
                 "--package",
@@ -204,7 +224,11 @@ def _exec_in_frozen_runtime() -> None:
                 "python",
                 str(Path(__file__).resolve()),
                 *sys.argv[1:],
-            ],
+            ]
+        )
+        os.execve(
+            uv,
+            command,
             environment,
         )
     finally:
@@ -368,6 +392,66 @@ def _update_ledger(
     )
 
 
+def _default_recovery_ledger_path() -> Path:
+    account_home = Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
+    return (
+        account_home
+        / ".local/state/dspx/oracle-embedding-selection-recoveries"
+        / f"AK-{_RECOVERY_TASK_ID}.json"
+    )
+
+
+def _claim_recovery(root: Path, ledger_path: Path, *, source_commit: str) -> None:
+    ledger_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    payload = {
+        "schema_version": "dspx-oracle-embedding-selection-recovery-ledger-v1",
+        "status": "started_effect_indeterminate_if_interrupted",
+        "recovery_contract_sha256": EXPECTED_RECOVERY_CONTRACT_SHA256,
+        "base_contract_sha256": EXPECTED_CONTRACT_SHA256,
+        "ak_task_id": _RECOVERY_TASK_ID,
+        "source_commit": source_commit,
+        "root": str(root),
+        "attempt_budget_consumed": 1,
+        "another_root_allowed": False,
+    }
+    raw = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+    try:
+        descriptor = os.open(ledger_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as exc:
+        raise SelectionError(
+            "the canonical recovery attempt ledger is already consumed"
+        ) from exc
+    with os.fdopen(descriptor, "wb") as stream:
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _update_recovery_ledger(
+    ledger_path: Path,
+    *,
+    root: Path,
+    source_commit: str,
+    status: str,
+    evidence: Mapping[str, Any],
+) -> None:
+    _write_json(
+        ledger_path,
+        {
+            "schema_version": "dspx-oracle-embedding-selection-recovery-ledger-v1",
+            "status": status,
+            "recovery_contract_sha256": EXPECTED_RECOVERY_CONTRACT_SHA256,
+            "base_contract_sha256": EXPECTED_CONTRACT_SHA256,
+            "ak_task_id": _RECOVERY_TASK_ID,
+            "source_commit": source_commit,
+            "root": str(root),
+            "attempt_budget_consumed": 1,
+            "another_root_allowed": False,
+            "evidence": dict(evidence),
+        },
+    )
+
+
 def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     path = repo_root / CONTRACT_FILE
     raw = path.read_bytes()
@@ -385,6 +469,71 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     }.items():
         if _sha256_file(repo_root / relative) != expected:
             raise SelectionError(f"source binding drift: {relative}")
+    return contract, observed
+
+
+def load_recovery_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
+    path = repo_root / RECOVERY_CONTRACT_FILE
+    raw = path.read_bytes()
+    observed = hashlib.sha256(raw).hexdigest()
+    if observed != EXPECTED_RECOVERY_CONTRACT_SHA256:
+        raise SelectionError("recovery contract byte hash drift")
+    payload = json.loads(raw)
+    if not isinstance(payload, dict):
+        raise SelectionError("recovery contract must be an object")
+    contract = cast(dict[str, Any], payload)
+    base = _mapping(contract.get("base_selection_contract"), "base contract")
+    preserved = _mapping(
+        contract.get("preserved_terminal_attempt"), "preserved attempt"
+    )
+    retained = _mapping(contract.get("retained_challenger"), "retained challenger")
+    correction = _mapping(contract.get("correction"), "adapter correction")
+    budget = _mapping(contract.get("attempt_budget"), "recovery budget")
+    enforcement = _mapping(budget.get("enforcement"), "recovery enforcement")
+    effects = _mapping(contract.get("effects"), "recovery effects")
+    claims = _mapping(contract.get("claim_boundary"), "recovery claims")
+    if (
+        contract.get("schema_version")
+        != "dspx-oracle-embedding-selection-recovery-contract-v1"
+        or contract.get("status") != "precommitted_recovery_not_run"
+        or contract.get("ak_task_id") != _RECOVERY_TASK_ID
+        or base.get("path") != CONTRACT_FILE
+        or base.get("sha256") != EXPECTED_CONTRACT_SHA256
+        or _sha256_file(repo_root / CONTRACT_FILE) != EXPECTED_CONTRACT_SHA256
+        or preserved.get("ak_task_id") != _TASK_ID
+        or preserved.get("status") != "failed_or_indeterminate_terminal"
+        or preserved.get("history_mutation_allowed") is not False
+        or retained.get("repository_id") != "lightonai/mDenseOn"
+        or retained.get("revision") != "a5fdb000f7a21da96c3bddde3a782ef777316df3"
+        or retained.get("network_reacquisition_allowed") is not False
+        or correction.get("remove_model_input_keys") != ["token_type_ids"]
+        or correction.get("other_tokenizer_or_model_input_changes_allowed") is not False
+        or correction.get("full_documents_and_queries_required") is not True
+        or budget.get("maximum_full_recovery_sequences") != 1
+        or budget.get("selective_query_reruns_allowed") is not False
+        or budget.get("dspx_managed_retries") != 0
+        or enforcement.get("key") != "ak_task_id_and_recovery_contract_sha256"
+        or enforcement.get("marker_created_before_model_execution") is not True
+        or any(type(value) is not int or value != 0 for value in effects.values())
+        or claims.get("same_fifteen_query_oracle_specific_dense_selection_only")
+        is not True
+        or any(
+            value is not False
+            for key, value in claims.items()
+            if key != "same_fifteen_query_oracle_specific_dense_selection_only"
+        )
+    ):
+        raise SelectionError("recovery contract execution or claim boundary drift")
+    for key in ("attempt_status_path", "ledger_path"):
+        evidence_path = Path(cast(str, preserved[key]))
+        expected_hash = cast(str, preserved[f"{key.removesuffix('_path')}_sha256"])
+        if (
+            not evidence_path.is_absolute()
+            or not evidence_path.is_file()
+            or evidence_path.is_symlink()
+            or _sha256_file(evidence_path) != expected_hash
+        ):
+            raise SelectionError(f"preserved recovery lineage drift: {key}")
     return contract, observed
 
 
@@ -521,38 +670,93 @@ def _run_challenger(
 
 
 def _verify_only(
-    *, repo_root: Path, root: Path, baseline_model_root: Path
+    *,
+    repo_root: Path,
+    root: Path,
+    baseline_model_root: Path,
+    challenger_model_root: Path | None = None,
+    recovered_adapter: bool = False,
 ) -> dict[str, Any]:
     contract, _ = load_contract(repo_root)
     _verify_frozen_runtime(contract, repo_root)
     source_commit = _source_commit(repo_root)
     baseline_spec = baseline_identity_spec(_load_baseline_contract(repo_root))
-    challenger_root = root / MODEL_DIR
+    challenger_root = (
+        root / MODEL_DIR if challenger_model_root is None else challenger_model_root
+    )
     result = json.loads((root / RESULT_FILE).read_bytes())
     if not isinstance(result, dict) or result.get("source_commit") != source_commit:
         raise SelectionError("retained result source-commit binding drift")
-    return verify_retained_selection(
+    verification = verify_retained_selection(
         root=root,
         contract=contract,
         baseline_spec=baseline_spec,
         baseline_model_root=baseline_model_root,
         challenger_model_root=challenger_root,
+        recovered_adapter=recovered_adapter,
     )
+    if recovered_adapter:
+        recovery, recovery_hash = load_recovery_contract(repo_root)
+        preserved = _mapping(
+            recovery["preserved_terminal_attempt"], "preserved attempt"
+        )
+        retained = _mapping(recovery["retained_challenger"], "retained challenger")
+        recovery_result = _mapping(result.get("recovery"), "recovery result")
+        resources = _mapping(result.get("resources"), "resources")
+        if (
+            challenger_root.resolve() != Path(cast(str, retained["root"])).resolve()
+            or recovery_result
+            != {
+                "schema_version": "dspx-oracle-embedding-selection-recovery-result-v1",
+                "recovery_contract_sha256": recovery_hash,
+                "ak_task_id": _RECOVERY_TASK_ID,
+                "model_artifact_acquisitions": 0,
+                "network_calls": 0,
+                "removed_model_input_keys": ["token_type_ids"],
+                "preserved_attempt_status_sha256": preserved["attempt_status_sha256"],
+                "preserved_ledger_sha256": preserved["ledger_sha256"],
+            }
+            or resources.get("artifact_acquisition_seconds") != 0.0
+            or resources.get("model_artifact_acquisitions") != 0
+            or any(
+                os.environ.get(key) != "1"
+                for key in (
+                    "UV_OFFLINE",
+                    "HF_HUB_OFFLINE",
+                    "TRANSFORMERS_OFFLINE",
+                )
+            )
+        ):
+            raise SelectionError("recovery lineage, offline, or resource drift")
+        verification["recovery_contract_sha256"] = recovery_hash
+        verification["preserved_failure_lineage_verified"] = True
+        verification["zero_acquisition_and_offline_contract_verified"] = True
+    return verification
 
 
 def _run_independent_verifier(
-    *, repo_root: Path, root: Path, baseline_model_root: Path
+    *,
+    repo_root: Path,
+    root: Path,
+    baseline_model_root: Path,
+    challenger_model_root: Path | None = None,
+    recovered_adapter: bool = False,
 ) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--root",
+        str(root),
+        "--baseline-model-root",
+        str(baseline_model_root),
+        "--verify-only",
+    ]
+    if challenger_model_root is not None:
+        command.extend(["--challenger-model-root", str(challenger_model_root)])
+    if recovered_adapter:
+        command.append("--recovered-adapter")
     completed = subprocess.run(
-        [
-            sys.executable,
-            str(Path(__file__).resolve()),
-            "--root",
-            str(root),
-            "--baseline-model-root",
-            str(baseline_model_root),
-            "--verify-only",
-        ],
+        command,
         cwd=repo_root,
         check=False,
         capture_output=True,
@@ -709,11 +913,183 @@ def _acquire_and_run(*, repo_root: Path, root: Path, baseline_model_root: Path) 
         raise
 
 
+def _recover_and_run(
+    *,
+    repo_root: Path,
+    root: Path,
+    baseline_model_root: Path,
+    challenger_model_root: Path,
+) -> int:
+    recovery, recovery_hash = load_recovery_contract(repo_root)
+    contract, contract_hash = load_contract(repo_root)
+    _verify_frozen_runtime(contract, repo_root)
+    source_commit = _source_commit(repo_root)
+    retained = _mapping(recovery["retained_challenger"], "retained challenger")
+    preserved = _mapping(recovery["preserved_terminal_attempt"], "preserved attempt")
+    expected_challenger_root = Path(cast(str, retained["root"])).resolve()
+    preserved_root = Path(cast(str, preserved["root"])).resolve()
+    if challenger_model_root.resolve() != expected_challenger_root:
+        raise SelectionError("recovery challenger root identity drift")
+    baseline_spec = baseline_identity_spec(_load_baseline_contract(repo_root))
+    validate_model_artifact_root(baseline_spec, baseline_model_root)
+    challenger_spec = challenger_identity_spec(contract)
+    validate_model_artifact_root(challenger_spec, challenger_model_root)
+    if (
+        _sha256_file(challenger_model_root / "model.safetensors")
+        != retained["model_safetensors_sha256"]
+    ):
+        raise SelectionError("recovery challenger model hash drift")
+    if not root.is_absolute() or root.exists():
+        raise SelectionError("recovery root must be absolute and not already exist")
+    if (
+        repo_root.resolve() == root.resolve()
+        or repo_root.resolve() in root.resolve().parents
+        or preserved_root == root.resolve()
+        or preserved_root in root.resolve().parents
+        or challenger_model_root.resolve() == root.resolve()
+        or challenger_model_root.resolve() in root.resolve().parents
+        or not root.parent.is_dir()
+        or root.parent.is_symlink()
+    ):
+        raise SelectionError(
+            "recovery root parent is unavailable or inside the repository"
+        )
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    root.mkdir(mode=0o700, parents=False)
+    ledger_path = _default_recovery_ledger_path()
+    try:
+        _claim_recovery(root, ledger_path, source_commit=source_commit)
+    except BaseException:
+        root.rmdir()
+        raise
+    _write_json(
+        root / ATTEMPT_FILE,
+        {
+            "schema_version": "dspx-oracle-embedding-selection-recovery-attempt-v1",
+            "status": "started_terminal_result_pending",
+            "recovery_contract_sha256": recovery_hash,
+            "base_contract_sha256": contract_hash,
+            "ak_task_id": _RECOVERY_TASK_ID,
+            "source_commit": source_commit,
+            "attempt_budget_consumed": 1,
+            "selective_rerun_allowed": False,
+            "model_artifact_acquisitions": 0,
+            "preserved_attempt_status_sha256": preserved["attempt_status_sha256"],
+            "preserved_ledger_sha256": preserved["ledger_sha256"],
+        },
+    )
+    try:
+        baseline = _run_baseline(
+            repo_root=repo_root,
+            contract=contract,
+            model_root=baseline_model_root,
+            root=root,
+        )
+        challenger, resources, vector_hashes = _run_challenger(
+            contract=contract,
+            model_root=challenger_model_root,
+            root=root,
+        )
+        resources["artifact_acquisition_seconds"] = 0.0
+        resources["model_artifact_acquisitions"] = 0
+        result = select_model(
+            contract=contract,
+            baseline=baseline,
+            challenger=challenger,
+            resources=resources,
+        )
+        result["full_batch_reproduction"] = {
+            "verified": True,
+            "vector_hashes": vector_hashes,
+        }
+        result["source_commit"] = source_commit
+        result["recovery"] = {
+            "schema_version": "dspx-oracle-embedding-selection-recovery-result-v1",
+            "recovery_contract_sha256": recovery_hash,
+            "ak_task_id": _RECOVERY_TASK_ID,
+            "model_artifact_acquisitions": 0,
+            "network_calls": 0,
+            "removed_model_input_keys": ["token_type_ids"],
+            "preserved_attempt_status_sha256": preserved["attempt_status_sha256"],
+            "preserved_ledger_sha256": preserved["ledger_sha256"],
+        }
+        _write_json(root / RESULT_FILE, result)
+        verification = _run_independent_verifier(
+            repo_root=repo_root,
+            root=root,
+            baseline_model_root=baseline_model_root,
+            challenger_model_root=challenger_model_root,
+            recovered_adapter=True,
+        )
+        _write_json(root / VERIFICATION_FILE, verification)
+        terminal = (
+            "passed" if result["status"] == "passed" else "challenger_not_selected"
+        )
+        evidence = {
+            "result_sha256": _sha256_file(root / RESULT_FILE),
+            "verification_sha256": _sha256_file(root / VERIFICATION_FILE),
+            "selected_model": result["selected_model"],
+            "model_artifact_acquisitions": 0,
+        }
+        _write_json(
+            root / ATTEMPT_FILE,
+            {
+                "schema_version": "dspx-oracle-embedding-selection-recovery-attempt-v1",
+                "status": terminal,
+                "recovery_contract_sha256": recovery_hash,
+                "base_contract_sha256": contract_hash,
+                "ak_task_id": _RECOVERY_TASK_ID,
+                "source_commit": source_commit,
+                "attempt_budget_consumed": 1,
+                "selective_rerun_allowed": False,
+                **evidence,
+            },
+        )
+        _update_recovery_ledger(
+            ledger_path,
+            root=root,
+            source_commit=source_commit,
+            status=terminal,
+            evidence=evidence,
+        )
+        print(json.dumps({"status": terminal, **evidence}, indent=2, sort_keys=True))
+        return 0 if terminal == "passed" else 1
+    except BaseException as exc:
+        sanitized = str(exc).replace(str(root), "<recovery-root>")[:500]
+        _write_json(
+            root / ATTEMPT_FILE,
+            {
+                "schema_version": "dspx-oracle-embedding-selection-recovery-attempt-v1",
+                "status": "failed_or_indeterminate_terminal",
+                "recovery_contract_sha256": recovery_hash,
+                "base_contract_sha256": contract_hash,
+                "ak_task_id": _RECOVERY_TASK_ID,
+                "source_commit": source_commit,
+                "attempt_budget_consumed": 1,
+                "selective_rerun_allowed": False,
+                "error_class": type(exc).__name__,
+                "error": sanitized,
+            },
+        )
+        _update_recovery_ledger(
+            ledger_path,
+            root=root,
+            source_commit=source_commit,
+            status="failed_or_indeterminate_terminal",
+            evidence={"error_class": type(exc).__name__},
+        )
+        raise
+
+
 def main() -> int:
     _exec_in_frozen_runtime()
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--baseline-model-root", type=Path, required=True)
+    parser.add_argument("--challenger-model-root", type=Path)
+    parser.add_argument("--recover", action="store_true")
+    parser.add_argument("--recovered-adapter", action="store_true")
     parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[2]
@@ -723,9 +1099,24 @@ def main() -> int:
                 repo_root=repo_root,
                 root=args.root.resolve(),
                 baseline_model_root=args.baseline_model_root.resolve(),
+                challenger_model_root=(
+                    args.challenger_model_root.resolve()
+                    if args.challenger_model_root is not None
+                    else None
+                ),
+                recovered_adapter=args.recovered_adapter,
             )
             print(json.dumps(verification, indent=2, sort_keys=True))
             return 0
+        if args.recover:
+            if args.challenger_model_root is None:
+                raise SelectionError("--recover requires --challenger-model-root")
+            return _recover_and_run(
+                repo_root=repo_root,
+                root=args.root.resolve(),
+                baseline_model_root=args.baseline_model_root.resolve(),
+                challenger_model_root=args.challenger_model_root.resolve(),
+            )
         return _acquire_and_run(
             repo_root=repo_root,
             root=args.root.resolve(),

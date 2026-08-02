@@ -27,6 +27,7 @@ from dspx.coordinates.mdenseon import (
     MDENSEON_REPOSITORY_ID,
     MDENSEON_REVISION,
     MDenseOnError,
+    modernbert_model_inputs,
     validate_serialized_mdenseon_semantics,
 )
 from dspx.coordinates.oracle_embedding_selection import (
@@ -46,6 +47,9 @@ from dspx.coordinates.oracle_embedding_selection import (
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = REPO_ROOT / "benchmarks/semantic/oracle-embedding-selection-v2.json"
+RECOVERY_CONTRACT_PATH = (
+    REPO_ROOT / "benchmarks/semantic/oracle-embedding-selection-recovery-v1.json"
+)
 RUNNER_PATH = REPO_ROOT / "scripts/ci/run_oracle_embedding_selection.py"
 V1_CONTRACT_PATH = REPO_ROOT / "benchmarks/semantic/oracle-embedding-evaluation-v1.json"
 V1_VERIFIER_PATH = (
@@ -605,3 +609,82 @@ def test_runner_has_no_semantic_lm_or_shared_store_imports() -> None:
     assert "program_oracle_semantic_backend" not in source
     assert "PostgresPgvectorCoordinateStore" not in source
     assert "psycopg" not in source
+
+
+def test_modernbert_input_filter_removes_only_token_type_ids() -> None:
+    input_ids = object()
+    attention_mask = object()
+    token_type_ids = object()
+    original = {
+        "input_ids": input_ids,
+        "attention_mask": attention_mask,
+        "token_type_ids": token_type_ids,
+    }
+    resolved = modernbert_model_inputs(original)
+    assert resolved == {
+        "input_ids": input_ids,
+        "attention_mask": attention_mask,
+    }
+    assert original["token_type_ids"] is token_type_ids
+
+
+def test_recovery_contract_binds_failed_history_and_retained_model() -> None:
+    runner = _load_runner()
+    recovery, observed = runner.load_recovery_contract(REPO_ROOT)
+    assert observed == runner.EXPECTED_RECOVERY_CONTRACT_SHA256
+    assert runner._sha256_file(RECOVERY_CONTRACT_PATH) == observed
+    preserved = recovery["preserved_terminal_attempt"]
+    retained = recovery["retained_challenger"]
+    assert (
+        runner._sha256_file(Path(preserved["attempt_status_path"]))
+        == preserved["attempt_status_sha256"]
+    )
+    assert (
+        runner._sha256_file(Path(preserved["ledger_path"]))
+        == preserved["ledger_sha256"]
+    )
+    assert (
+        runner._sha256_file(Path(retained["root"]) / "model.safetensors")
+        == retained["model_safetensors_sha256"]
+    )
+    assert retained["network_reacquisition_allowed"] is False
+
+
+def test_recovery_attempt_ledger_is_task_fixed_and_single_use(tmp_path: Path) -> None:
+    runner = _load_runner()
+    ledger = tmp_path / "recovery-ledger.json"
+    root = tmp_path / "recovery"
+    source_commit = "b" * 40
+    runner._claim_recovery(root, ledger, source_commit=source_commit)
+    with pytest.raises(SelectionError, match="already consumed"):
+        runner._claim_recovery(root, ledger, source_commit=source_commit)
+    payload = json.loads(ledger.read_bytes())
+    assert payload["ak_task_id"] == 4517
+    assert (
+        payload["recovery_contract_sha256"] == runner.EXPECTED_RECOVERY_CONTRACT_SHA256
+    )
+    assert payload["another_root_allowed"] is False
+
+
+def test_recovery_path_has_no_acquisition_call_and_forces_offline_mode() -> None:
+    tree = ast.parse(RUNNER_PATH.read_text())
+    recovery = next(
+        node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_recover_and_run"
+    )
+    assert not any(
+        isinstance(node, ast.Name) and node.id == "snapshot_download"
+        for node in ast.walk(recovery)
+    )
+    source = ast.get_source_segment(RUNNER_PATH.read_text(), recovery)
+    assert source is not None
+    assert 'os.environ["HF_HUB_OFFLINE"] = "1"' in source
+    assert 'os.environ["TRANSFORMERS_OFFLINE"] = "1"' in source
+    runner_source = RUNNER_PATH.read_text()
+    assert 'command.append("--offline")' in runner_source
+    assert '"UV_OFFLINE": "1"' in runner_source
+    assert "preserved_root in root.resolve().parents" in source
+    assert "challenger_model_root.resolve() in root.resolve().parents" in source
+    assert "recovered_adapter=True" in source

@@ -625,6 +625,7 @@ def _verify_identity(
     expected_artifacts: Sequence[Mapping[str, Any]],
     expected_runtime: Mapping[str, Any],
     expected_tokenizer: Mapping[str, Any],
+    recovered_adapter: bool = False,
 ) -> int:
     identity = _mapping(result.get("identity"), "model identity")
     encoding = _mapping(identity.get("encoding"), "encoding identity")
@@ -702,21 +703,23 @@ def _verify_identity(
         raise SelectionError("retained model identity is not bound to root and runtime")
     if challenger:
         adapter = _mapping(identity.get("adapter"), "mDenseOn adapter identity")
+        expected_adapter: dict[str, Any] = {
+            "name": "dspx-mdenseon-cls-v1",
+            "trust_remote_code": False,
+            "pooling": "last_hidden_state_cls_token",
+            "document_prompt": "document: ",
+            "query_prompt": "query: ",
+            "maximum_tokens": 8192,
+            "serialized_semantics_verified": True,
+        }
+        if recovered_adapter:
+            expected_adapter["removed_model_input_keys"] = ["token_type_ids"]
         architecture = _mapping(
             identity.get("architecture"), "mDenseOn architecture identity"
         )
         if (
             identity.get("backend") != "transformers-dense"
-            or adapter
-            != {
-                "name": "dspx-mdenseon-cls-v1",
-                "trust_remote_code": False,
-                "pooling": "last_hidden_state_cls_token",
-                "document_prompt": "document: ",
-                "query_prompt": "query: ",
-                "maximum_tokens": 8192,
-                "serialized_semantics_verified": True,
-            }
+            or adapter != expected_adapter
             or architecture
             != {
                 "model_type": "modernbert",
@@ -916,6 +919,7 @@ def verify_retained_selection(
     baseline_spec: SentenceTransformerIdentitySpec,
     baseline_model_root: Path,
     challenger_model_root: Path,
+    recovered_adapter: bool = False,
 ) -> dict[str, Any]:
     """Independently reload, re-rank, and verify the retained selection package."""
 
@@ -958,6 +962,7 @@ def verify_retained_selection(
         expected_tokenizer=_mapping(
             expected_challenger["tokenizer_identity"], "challenger tokenizer"
         ),
+        recovered_adapter=recovered_adapter,
     )
     baseline_db_sha256, baseline_vectors = _verify_database(
         root / BASELINE_DB_FILE,
@@ -977,11 +982,34 @@ def verify_retained_selection(
     _verify_scored_result(
         challenger, contract=contract, document_vectors=challenger_vectors
     )
+    resources = _mapping(result.get("resources"), "resources")
+    retained_model_bytes = sum(
+        path.stat().st_size
+        for path in challenger_model_root.rglob("*")
+        if path.is_file() and ".cache" not in path.parts
+    )
+    if (
+        resources.get("retained_model_bytes") != retained_model_bytes
+        or type(resources.get("peak_rss_bytes")) is not int
+        or cast(int, resources["peak_rss_bytes"]) <= 0
+        or any(
+            not isinstance(resources.get(key), (int, float))
+            or isinstance(resources.get(key), bool)
+            or not math.isfinite(cast(float, resources[key]))
+            or cast(float, resources[key]) < 0.0
+            for key in (
+                "model_load_seconds",
+                "total_encode_seconds",
+                "full_batch_reproduction_seconds",
+            )
+        )
+    ):
+        raise SelectionError("retained resource observation drift")
     expected = select_model(
         contract=contract,
         baseline=baseline,
         challenger=challenger,
-        resources=_mapping(result.get("resources"), "resources"),
+        resources=resources,
     )
     for key in (
         "status",
@@ -1022,5 +1050,6 @@ def verify_retained_selection(
         "database_vectors_independently_ranked": True,
         "metrics_independently_rederived": True,
         "selection_independently_rederived": True,
+        "resource_contract_independently_checked": True,
         "claim_boundary_verified": True,
     }

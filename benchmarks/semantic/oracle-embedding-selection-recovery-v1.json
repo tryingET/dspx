@@ -1,0 +1,73 @@
+{
+  "schema_version": "dspx-oracle-embedding-selection-recovery-contract-v1",
+  "status": "precommitted_recovery_not_run",
+  "ak_task_id": 4517,
+  "base_selection_contract": {
+    "path": "benchmarks/semantic/oracle-embedding-selection-v2.json",
+    "sha256": "e4ff030f2133f19a65b7586606874f1c8fa3895f6bf114580fc2e8d8ab43d9a3"
+  },
+  "preserved_terminal_attempt": {
+    "ak_task_id": 4510,
+    "root": "/home/tryinget/.local/state/pi-quests/tmp/dspx-oracle-embedding-selection-ak4510-20260802T061504Z-737025",
+    "attempt_status_path": "/home/tryinget/.local/state/pi-quests/tmp/dspx-oracle-embedding-selection-ak4510-20260802T061504Z-737025/attempt-status.json",
+    "attempt_status_sha256": "934f458805842c84854ccb0b0a372028fbf9d3bfa492705eedaf9cd343e0050e",
+    "ledger_path": "/home/tryinget/.local/state/dspx/oracle-embedding-selections/AK-4510.json",
+    "ledger_sha256": "fc44afebef315d444dfda96df44addd697754dbae581cd806f4f940681ab235d",
+    "status": "failed_or_indeterminate_terminal",
+    "error_class": "TypeError",
+    "error": "ModernBertModel.forward() got an unexpected keyword argument 'token_type_ids'",
+    "challenger_vectors_produced": 0,
+    "history_mutation_allowed": false
+  },
+  "retained_challenger": {
+    "repository_id": "lightonai/mDenseOn",
+    "revision": "a5fdb000f7a21da96c3bddde3a782ef777316df3",
+    "root": "/home/tryinget/.local/state/pi-quests/tmp/dspx-oracle-embedding-selection-ak4510-20260802T061504Z-737025/mdenseon-snapshot",
+    "artifact_count": 8,
+    "model_safetensors_sha256": "a336c49fc679aeb23969114b12fb7317804da3cc7d8bc214818009dea39d545c",
+    "network_reacquisition_allowed": false
+  },
+  "correction": {
+    "adapter": "dspx-mdenseon-cls-v1",
+    "remove_model_input_keys": [
+      "token_type_ids"
+    ],
+    "other_tokenizer_or_model_input_changes_allowed": false,
+    "reason": "ModernBertModel.forward does not accept token_type_ids",
+    "full_documents_and_queries_required": true
+  },
+  "attempt_budget": {
+    "maximum_full_recovery_sequences": 1,
+    "selective_query_reruns_allowed": false,
+    "dspx_managed_retries": 0,
+    "failed_or_indeterminate_sequence_is_terminal": true,
+    "enforcement": {
+      "kind": "canonical_local_atomic_consumed_marker",
+      "namespace": "dspx/oracle-embedding-selection-recoveries",
+      "key": "ak_task_id_and_recovery_contract_sha256",
+      "marker_created_before_model_execution": true,
+      "started_or_terminal_marker_forbids_another_root": true
+    }
+  },
+  "effects": {
+    "model_artifact_acquisitions": 0,
+    "network_calls": 0,
+    "semantic_analysis_lm_calls": 0,
+    "shared_store_connections": 0,
+    "shared_oracle_publications": 0,
+    "release_or_activation_mutations": 0,
+    "ak_mutations_from_evaluated_code": 0
+  },
+  "claim_boundary": {
+    "same_fifteen_query_oracle_specific_dense_selection_only": true,
+    "statistical_representativeness": false,
+    "broad_production_semantic_quality": false,
+    "semantic_analysis_lm_quality": false,
+    "shared_coordinate_store_readiness": false,
+    "mlateon_readiness": false,
+    "oracle_governance_authority": false,
+    "release_authority": false,
+    "package_publication": false,
+    "production_activation": false
+  }
+}

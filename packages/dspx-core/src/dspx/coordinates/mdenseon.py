@@ -44,6 +44,16 @@ class MDenseOnError(ValueError):
     """Raised when mDenseOn cannot preserve its frozen encoding contract."""
 
 
+def modernbert_model_inputs(encoded: Mapping[str, Any]) -> dict[str, Any]:
+    """Remove only the segment IDs unsupported by ModernBERT's forward API."""
+
+    resolved = dict(encoded)
+    resolved.pop("token_type_ids", None)
+    if set(resolved) != set(encoded) - {"token_type_ids"}:
+        raise MDenseOnError("mDenseOn model-input filtering changed an unexpected key")
+    return resolved
+
+
 def _read_model_json(root: Path, relative: str) -> object:
     path = root / relative
     try:
@@ -251,12 +261,14 @@ class MDenseOnEmbedder:
         )
         prompted = [f"{prompt}{text}" for text in texts]
         torch = import_module("torch")
-        encoded = self._tokenizer(
-            prompted,
-            padding=True,
-            truncation=True,
-            max_length=self._max_tokens,
-            return_tensors="pt",
+        encoded = modernbert_model_inputs(
+            self._tokenizer(
+                prompted,
+                padding=True,
+                truncation=True,
+                max_length=self._max_tokens,
+                return_tensors="pt",
+            )
         )
         encoded = {name: value.to(self._device) for name, value in encoded.items()}
         with torch.inference_mode():
@@ -331,6 +343,7 @@ class MDenseOnEmbedder:
                     "query_prompt": MDENSEON_QUERY_PROMPT,
                     "maximum_tokens": MDENSEON_MAX_TOKENS,
                     "serialized_semantics_verified": True,
+                    "removed_model_input_keys": ["token_type_ids"],
                 },
                 "architecture": {
                     "model_type": "modernbert",
