@@ -1,4 +1,4 @@
-# summary: "Tests the independent-label AK-4568 successor Oracle semantic-analysis LM evaluation membrane."
+# summary: "Tests the dependency-preflighted AK-4569 Oracle semantic-analysis LM evaluation membrane."
 
 from __future__ import annotations
 
@@ -143,7 +143,7 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     contract, observed_hash = module.load_contract(REPO_ROOT)
 
     assert observed_hash == (
-        "27eeb61640c3270d2acc52d4b9b2072815eb036877975f29ae2954989fce8435"
+        "305cc8611540110e074d78fcdb46b92cf34acc33c753b50b89c1a019752edb88"
     )
     assert contract["attempt_policy"]["case_order"] == list(module._CASE_ORDER)
     assert FROZEN_SOURCE_COMMIT == "a67e87168efea9a4ff303acd2575dc327438077a"
@@ -152,11 +152,29 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
         prompt = _analysis_prompt(request)
         assert case["hidden_marker"] not in prompt
         assert json.dumps(case["hidden_labels"], sort_keys=True) not in prompt
-        assert "HIDDEN-AK4568" not in prompt
+        assert "HIDDEN-AK4569" not in prompt
     assert (
         "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py"
         in SOURCE_PATHS
     )
+
+
+def test_dependency_preflight_fails_before_root_or_ledger_consumption(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = _load_runner()
+    root = tmp_path / "must-not-exist"
+
+    def fail_preflight() -> dict[str, str]:
+        raise module.SemanticAnalysisEvaluationError("dependency unavailable")
+
+    monkeypatch.setattr(module, "preflight_maintained_lm_auth", fail_preflight)
+    with pytest.raises(
+        module.SemanticAnalysisEvaluationError, match="dependency unavailable"
+    ):
+        module.run_evaluation(repo_root=REPO_ROOT, root=root)
+
+    assert not root.exists()
 
 
 def test_every_frozen_case_can_satisfy_the_external_scorer() -> None:
@@ -303,7 +321,7 @@ def test_double_run_is_explicitly_wiring_only_and_live_verifier_rejects(
     }
     assert lm.calls == 4
     assert len(lm.prompts) == 4
-    assert all("HIDDEN-AK4568" not in prompt for prompt in lm.prompts)
+    assert all("HIDDEN-AK4569" not in prompt for prompt in lm.prompts)
     assert verification["status"] == "rejected"
     assert verification["labels_freshly_deterministically_rescored"] is True
     assert verification["implementation_independence_claimed"] is False

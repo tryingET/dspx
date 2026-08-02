@@ -1,6 +1,6 @@
-# summary: "Verifies committed-source and artifact provenance for AK-4568 semantic-analysis evaluation."
+# summary: "Verifies dependency, committed-source, and artifact provenance for AK-4569 semantic analysis."
 # read_when:
-#   - "Verifying AK-4568 source identity, production-adapter provenance, or terminal artifacts."
+#   - "Verifying AK-4569 dependency identity, source identity, or terminal artifacts."
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ from dspx.services.program_oracle_semantic_evaluation import (
     _sha256_file,
     _write_private_exclusive,
     load_contract,
+    preflight_maintained_lm_auth,
 )
 from dspx.services.program_oracle_semantic_scoring import score_analysis
 
@@ -51,7 +52,7 @@ _SEMANTIC_RESULT_FIELDS = {
     "error",
 }
 SOURCE_PATHS = (
-    "benchmarks/semantic/oracle-semantic-analysis-evaluation-v2.json",
+    "benchmarks/semantic/oracle-semantic-analysis-evaluation-v3.json",
     "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
     "packages/dspx-core/src/dspx/model_roles.py",
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
@@ -222,6 +223,9 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     result_hash = _sha256_bytes(result_raw)
     evidence_class = str(result.get("evidence_class") or "")
     source_identity = _mapping(result.get("source_identity"), "source_identity")
+    dependency_identity = _mapping(
+        result.get("dependency_identity"), "dependency_identity"
+    )
     if evidence_class not in {LIVE_EVIDENCE_CLASS, WIRING_EVIDENCE_CLASS}:
         raise SemanticAnalysisEvaluationError("evaluation evidence class drift")
     expected_source_identity = (
@@ -229,12 +233,19 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         if evidence_class == LIVE_EVIDENCE_CLASS
         else {"status": "wiring_only_not_committed_source_proof"}
     )
+    expected_dependency_identity = (
+        preflight_maintained_lm_auth()
+        if evidence_class == LIVE_EVIDENCE_CLASS
+        else {"status": "wiring_only_dependency_not_required"}
+    )
     if source_identity != expected_source_identity:
         raise SemanticAnalysisEvaluationError("committed source identity drift")
+    if dependency_identity != expected_dependency_identity:
+        raise SemanticAnalysisEvaluationError("maintained dependency identity drift")
     if (
         result.get("schema_version") != RESULT_SCHEMA
         or result.get("contract_sha256") != contract_hash
-        or result.get("ak_task_id") != 4568
+        or result.get("ak_task_id") != 4569
     ):
         raise SemanticAnalysisEvaluationError("evaluation result identity drift")
     rows = _sequence(result.get("cases"), "result.cases")
@@ -253,10 +264,11 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     if (
         attempt.get("schema_version") != ATTEMPT_SCHEMA
         or attempt.get("contract_sha256") != contract_hash
-        or attempt.get("ak_task_id") != 4568
+        or attempt.get("ak_task_id") != 4569
         or attempt.get("evaluation_processes") != 1
         or attempt.get("evidence_class") != evidence_class
         or attempt.get("source_identity") != source_identity
+        or attempt.get("dependency_identity") != dependency_identity
         or attempt.get("separate_health_probes") != 0
         or attempt.get("dspx_managed_retries") != 0
         or attempt.get("selective_case_rerun") is not False
@@ -270,8 +282,8 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     _require_private_mode(canonical_ledger, 0o600, "attempt ledger")
     ledger, _ = _read_json(canonical_ledger, label="attempt ledger")
     if ledger != {
-        "schema_version": "dspx-oracle-semantic-analysis-evaluation-ledger-v2",
-        "ak_task_id": 4568,
+        "schema_version": "dspx-oracle-semantic-analysis-evaluation-ledger-v3",
+        "ak_task_id": 4569,
         "contract_sha256": contract_hash,
         "root": str(target),
         "status": result.get("status"),

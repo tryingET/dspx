@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# summary: "Runs or verifies the one-process AK-4568 successor Oracle semantic-analysis LM evaluation."
+# summary: "Runs or verifies the dependency-preflighted AK-4569 Oracle semantic-analysis LM evaluation."
 # read_when:
 #   - "Running the frozen independent-label Oracle semantic-analysis evaluation."
 
@@ -39,6 +39,7 @@ from dspx.services.program_oracle_semantic_evaluation import (
     _sha256_file,
     _write_private_exclusive,
     load_contract,
+    preflight_maintained_lm_auth,
 )
 from dspx.services.program_oracle_semantic_scoring import score_analysis
 from dspx.services.program_oracle_semantic_verification import (
@@ -199,6 +200,11 @@ def run_evaluation(
     root: Path,
     evidence_class: str = _LIVE_EVIDENCE_CLASS,
 ) -> dict[str, Any]:
+    dependency_identity = (
+        preflight_maintained_lm_auth()
+        if evidence_class == _LIVE_EVIDENCE_CLASS
+        else {"status": "wiring_only_dependency_not_required"}
+    )
     contract, contract_hash = load_contract(repo_root)
     source_identity = (
         _committed_source_identity(repo_root)
@@ -218,12 +224,13 @@ def run_evaluation(
     _write_private_exclusive(target / CONTRACT_SNAPSHOT_NAME, contract)
     attempt: dict[str, Any] = {
         "schema_version": ATTEMPT_SCHEMA,
-        "ak_task_id": 4568,
+        "ak_task_id": 4569,
         "status": "started",
         "contract_sha256": contract_hash,
         "evaluation_processes": 1,
         "evidence_class": evidence_class,
         "source_identity": source_identity,
+        "dependency_identity": dependency_identity,
         "separate_health_probes": 0,
         "dspx_managed_retries": 0,
         "selective_case_rerun": False,
@@ -355,10 +362,11 @@ def run_evaluation(
     payload = {
         "schema_version": RESULT_SCHEMA,
         "status": terminal_status,
-        "ak_task_id": 4568,
+        "ak_task_id": 4569,
         "contract_sha256": contract_hash,
         "evidence_class": evidence_class,
         "source_identity": source_identity,
+        "dependency_identity": dependency_identity,
         "execution_provenance": adapter_provenance,
         "cases": case_results,
         "summary": {
