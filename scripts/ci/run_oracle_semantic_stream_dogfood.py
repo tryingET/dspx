@@ -24,7 +24,7 @@ from dspx.services.program_oracle_semantic_backend import (
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_scoring import score_analysis
 
-TASK_ID = 4535
+TASK_ID = 4537
 SCHEMA = "dspx-oracle-semantic-stream-dogfood-v1"
 RESULT_NAME = "semantic-stream-dogfood.json"
 CONTRACT_PATH = Path("benchmarks/semantic/oracle-semantic-analysis-evaluation-v1.json")
@@ -238,11 +238,11 @@ def _transport_after_call(lm: DspyLMAuthLM, before: int) -> dict[str, Any]:
         stream_completed_match = transport.get("stream_completed_match")
         if (
             not isinstance(counts, Mapping)
-            or completed_output_text is not True
+            or not isinstance(completed_output_text, bool)
             or not isinstance(chars, int)
             or isinstance(chars, bool)
             or chars != len(call.text)
-            or chars <= 0
+            or completed_output_text != (chars > 0)
             or not isinstance(stream_output_text_chars, int)
             or isinstance(stream_output_text_chars, bool)
             or stream_output_text_chars < 0
@@ -253,7 +253,7 @@ def _transport_after_call(lm: DspyLMAuthLM, before: int) -> dict[str, Any]:
             )
         return {
             "event_counts": {str(key): counts[key] for key in sorted(counts)},
-            "completed_output_text": True,
+            "completed_output_text": completed_output_text,
             "output_text_chars": chars,
             "stream_output_text_chars": stream_output_text_chars,
             "stream_completed_match": stream_completed_match,
@@ -354,7 +354,7 @@ def _run_attempts(
             "semantic_label_gate_passed": bool(
                 live_passed and score and score.get("status") == "passed"
             ),
-            "ak_4506_case_reexecuted_under_ak_4535": True,
+            "ak_4506_case_reexecuted_under_ak_4537": True,
             "ak_4506_ledger_reused": False,
             "production_activation": False,
             "provider_transport_call_count_proven": False,
@@ -432,7 +432,7 @@ def run(
 
 def _ledger_path() -> Path:
     home = Path(pwd.getpwuid(os.getuid()).pw_dir)
-    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4535.json"
+    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4537.json"
 
 
 def main() -> int:

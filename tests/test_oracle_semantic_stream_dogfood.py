@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import time
 from pathlib import Path
@@ -83,6 +84,7 @@ def _backend(
     def analyze(request: Any) -> OracleSemanticResult:
         del request
         result = results.pop(0)
+        text = "structured" if result.execution_status == "succeeded" else ""
         now = time.time()
         lm.history.append(
             DspyLmAuthCall(
@@ -90,16 +92,16 @@ def _backend(
                 auth_provider="codex",
                 started_at=now,
                 ended_at=now,
-                text="structured",
+                text=text,
                 usage={},
                 transport={
                     "event_counts": {
-                        "output_text_delta": 1,
+                        "output_text_delta": int(bool(text)),
                         "reasoning": 1,
                     },
-                    "output_text_chars": 10,
-                    "completed_output_text": True,
-                    "stream_output_text_chars": 10,
+                    "output_text_chars": len(text),
+                    "completed_output_text": bool(text),
+                    "stream_output_text_chars": len(text),
                     "stream_completed_match": stream_completed_match,
                 },
             )
@@ -142,7 +144,7 @@ def test_dogfood_first_pass_records_typed_transport(
         payload["claims"]["authoritative_completed_response_json_transport_passed"]
         is False
     )
-    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4535"] is True
+    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4537"] is True
     assert payload["claims"]["ak_4506_ledger_reused"] is False
     assert payload["attempts"][0]["transport"]["stream_completed_match"] is False
     assert "typed_stream_json_transport_passed" not in payload["claims"]
@@ -181,7 +183,10 @@ def test_dogfood_allows_one_visible_corrective_retry(
     assert payload["first_pass_status"] == "failed_after_live_response"
     assert payload["recovery"] == "one_corrective_retry"
     assert [attempt["attempt"] for attempt in payload["attempts"]] == [1, 2]
-    assert ledger.read_text(encoding="utf-8").count("attempt_count") == 1
+    assert payload["attempts"][0]["transport"]["completed_output_text"] is False
+    assert payload["attempts"][0]["transport"]["output_text_chars"] == 0
+    assert payload["attempts"][1]["transport"]["completed_output_text"] is True
+    assert json.loads(ledger.read_text(encoding="utf-8"))["attempt_count"] == 2
 
     with pytest.raises(FileExistsError):
         module.run(
