@@ -24,18 +24,18 @@ from dspx.services.program_oracle_semantic_backend import (
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_scoring import score_analysis
 
-TASK_ID = 4540
+TASK_ID = 4542
 SCHEMA = "dspx-oracle-semantic-stream-dogfood-v1"
 RESULT_NAME = "semantic-stream-dogfood.json"
 CONTRACT_PATH = Path("benchmarks/semantic/oracle-semantic-analysis-evaluation-v1.json")
-DEPENDENCY_COMMIT = "678be83e654dbd3ad1201cecc6c8175354d165d4"
+DEPENDENCY_COMMIT = "a35839da3c1a0cfde80c4c800468382c33e05342"
 DEPENDENCY_ORIGIN = "https://github.com/MaximeRivest/dspy-lm-auth"
 DEPENDENCY_REVIEWED_REF = "myfork/fix/dspy-3-dict-usage-normalization"
 SCRIPT_REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPENDENCY_HASHES = {
     "src/dspy_lm_auth/__init__.py": "6ca0881c8a3301b017975aa1507d4b561abd54a6a4d727d6d008cba843fb52f4",
     "src/dspy_lm_auth/lm.py": "10c930b2b00af8acdf8984bfa74281510cec975561e5ed2b4caefa768d14e3a8",
-    "src/dspy_lm_auth/codex_stream.py": "3f738dbdb45f5ea8a08ef45b52be05c53fd584c10239320bdda2699b6bb71021",
+    "src/dspy_lm_auth/codex_stream.py": "9ee7053c0a253de47caf595423ad84e1d94df7c97b7a3d09b0d1d9fbef2abf7e",
 }
 
 
@@ -377,7 +377,7 @@ def _run_attempts(
             "semantic_label_gate_passed": bool(
                 live_passed and score and score.get("status") == "passed"
             ),
-            "ak_4506_case_reexecuted_under_ak_4540": True,
+            "ak_4506_case_reexecuted_under_ak_4542": True,
             "ak_4506_ledger_reused": False,
             "production_activation": False,
             "provider_transport_call_count_proven": False,
@@ -455,7 +455,7 @@ def run(
 
 def _ledger_path() -> Path:
     home = Path(pwd.getpwuid(os.getuid()).pw_dir)
-    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4540.json"
+    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4542.json"
 
 
 def main() -> int:
