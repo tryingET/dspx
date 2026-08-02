@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-02T19:43:08.188631486+00:00",
+  "task_id": 4540,
+  "entity_version": 2,
+  "commit_sha": "3ee847c35398b1cece875a9f6ae67b8bf7acadec",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/semantic-benchmarks.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "scripts/ci/run_oracle_semantic_stream_dogfood.py",
+      "tests/test_oracle_semantic_stream_dogfood.py"
+    ],
+    "required_paths": [
+      "scripts/ci/run_oracle_semantic_stream_dogfood.py",
+      "tests/test_oracle_semantic_stream_dogfood.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
