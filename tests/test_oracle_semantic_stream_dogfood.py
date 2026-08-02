@@ -68,7 +68,10 @@ def _result(*, succeeded: bool) -> OracleSemanticResult:
 
 
 def _backend(
-    results: list[OracleSemanticResult], *, stream_completed_match: bool = True
+    results: list[OracleSemanticResult],
+    *,
+    stream_completed_match: bool = True,
+    output_text_source: str = "completed_response",
 ) -> LiveLMOracleSemanticBackend:
     lm = DspyLMAuthLM(
         model="codex/gpt-5.6-sol",
@@ -85,6 +88,7 @@ def _backend(
         del request
         result = results.pop(0)
         text = "structured" if result.execution_status == "succeeded" else ""
+        source = output_text_source if text else "none"
         now = time.time()
         lm.history.append(
             DspyLmAuthCall(
@@ -100,7 +104,10 @@ def _backend(
                         "reasoning": 1,
                     },
                     "output_text_chars": len(text),
-                    "completed_output_text": bool(text),
+                    "completed_output_text": bool(
+                        text and source == "completed_response"
+                    ),
+                    "output_text_source": source,
                     "stream_output_text_chars": len(text),
                     "stream_completed_match": stream_completed_match,
                 },
@@ -126,7 +133,9 @@ def test_dogfood_first_pass_records_typed_transport(
         artifact_root=artifact,
         ledger_path=ledger,
         resolve_backend=lambda: _backend(
-            [_result(succeeded=True)], stream_completed_match=False
+            [_result(succeeded=True)],
+            stream_completed_match=False,
+            output_text_source="typed_stream",
         ),
         dependency_identity=lambda: {
             "package": "dspy-lm-auth",
@@ -140,14 +149,15 @@ def test_dogfood_first_pass_records_typed_transport(
     assert payload["status"] == "wiring_only_passed"
     assert payload["recovery"] == "first_pass"
     assert len(payload["attempts"]) == 1
-    assert (
-        payload["claims"]["authoritative_completed_response_json_transport_passed"]
-        is False
-    )
-    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4537"] is True
+    assert payload["claims"]["typed_output_json_transport_passed"] is False
+    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4539"] is True
     assert payload["claims"]["ak_4506_ledger_reused"] is False
     assert payload["attempts"][0]["transport"]["stream_completed_match"] is False
-    assert "typed_stream_json_transport_passed" not in payload["claims"]
+    assert payload["attempts"][0]["transport"]["output_text_source"] == "typed_stream"
+    assert (
+        "authoritative_completed_response_json_transport_passed"
+        not in payload["claims"]
+    )
     assert payload["semantic_score"]["status"] == "passed"
     assert "raw" not in str(payload).lower()
     assert (artifact / module.RESULT_NAME).stat().st_mode & 0o777 == 0o600

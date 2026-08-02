@@ -24,18 +24,18 @@ from dspx.services.program_oracle_semantic_backend import (
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_scoring import score_analysis
 
-TASK_ID = 4537
+TASK_ID = 4539
 SCHEMA = "dspx-oracle-semantic-stream-dogfood-v1"
 RESULT_NAME = "semantic-stream-dogfood.json"
 CONTRACT_PATH = Path("benchmarks/semantic/oracle-semantic-analysis-evaluation-v1.json")
-DEPENDENCY_COMMIT = "5b601686a86686323fdade9b9c917fe3539e894a"
+DEPENDENCY_COMMIT = "6a6dc15aa1af3ca23e055344bcede23d3f8a4f87"
 DEPENDENCY_ORIGIN = "https://github.com/MaximeRivest/dspy-lm-auth"
 DEPENDENCY_REVIEWED_REF = "myfork/fix/dspy-3-dict-usage-normalization"
 SCRIPT_REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPENDENCY_HASHES = {
     "src/dspy_lm_auth/__init__.py": "6ca0881c8a3301b017975aa1507d4b561abd54a6a4d727d6d008cba843fb52f4",
     "src/dspy_lm_auth/lm.py": "10c930b2b00af8acdf8984bfa74281510cec975561e5ed2b4caefa768d14e3a8",
-    "src/dspy_lm_auth/codex_stream.py": "7366c04eb08936bb5acfb426dd36d4f811119963b1f787173176372d35057582",
+    "src/dspy_lm_auth/codex_stream.py": "a80d7cb36dc5e450cebb6ec07e1d32277221da5adcdb30e234ce6d578f649a0a",
 }
 
 
@@ -234,15 +234,16 @@ def _transport_after_call(lm: DspyLMAuthLM, before: int) -> dict[str, Any]:
         counts = transport.get("event_counts")
         chars = transport.get("output_text_chars")
         completed_output_text = transport.get("completed_output_text")
+        output_text_source = transport.get("output_text_source")
         stream_output_text_chars = transport.get("stream_output_text_chars")
         stream_completed_match = transport.get("stream_completed_match")
         if (
             not isinstance(counts, Mapping)
             or not isinstance(completed_output_text, bool)
+            or output_text_source not in {"completed_response", "typed_stream", "none"}
             or not isinstance(chars, int)
             or isinstance(chars, bool)
             or chars != len(call.text)
-            or completed_output_text != (chars > 0)
             or not isinstance(stream_output_text_chars, int)
             or isinstance(stream_output_text_chars, bool)
             or stream_output_text_chars < 0
@@ -251,10 +252,32 @@ def _transport_after_call(lm: DspyLMAuthLM, before: int) -> dict[str, Any]:
             raise RuntimeError(
                 "typed stream transport evidence does not bind to output"
             )
+        source_is_bound = (
+            (
+                output_text_source == "completed_response"
+                and completed_output_text
+                and chars > 0
+            )
+            or (
+                output_text_source == "typed_stream"
+                and not completed_output_text
+                and chars > 0
+                and stream_output_text_chars == chars
+            )
+            or (
+                output_text_source == "none"
+                and not completed_output_text
+                and chars == 0
+                and stream_output_text_chars == 0
+            )
+        )
+        if not source_is_bound:
+            raise RuntimeError("typed output source does not bind to output")
         return {
             "event_counts": {str(key): counts[key] for key in sorted(counts)},
             "completed_output_text": completed_output_text,
             "output_text_chars": chars,
+            "output_text_source": output_text_source,
             "stream_output_text_chars": stream_output_text_chars,
             "stream_completed_match": stream_completed_match,
         }
@@ -350,11 +373,11 @@ def _run_attempts(
         "analysis": analysis,
         "semantic_score": score,
         "claims": {
-            "authoritative_completed_response_json_transport_passed": live_passed,
+            "typed_output_json_transport_passed": live_passed,
             "semantic_label_gate_passed": bool(
                 live_passed and score and score.get("status") == "passed"
             ),
-            "ak_4506_case_reexecuted_under_ak_4537": True,
+            "ak_4506_case_reexecuted_under_ak_4539": True,
             "ak_4506_ledger_reused": False,
             "production_activation": False,
             "provider_transport_call_count_proven": False,
@@ -432,7 +455,7 @@ def run(
 
 def _ledger_path() -> Path:
     home = Path(pwd.getpwuid(os.getuid()).pw_dir)
-    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4537.json"
+    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4539.json"
 
 
 def main() -> int:

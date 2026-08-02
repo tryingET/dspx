@@ -325,6 +325,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         counts = raw.get("event_counts")
         output_text_chars = raw.get("output_text_chars")
         completed_output_text = raw.get("completed_output_text")
+        output_text_source = raw.get("output_text_source")
         stream_output_text_chars = raw.get("stream_output_text_chars")
         stream_completed_match = raw.get("stream_completed_match")
         allowed = {
@@ -344,6 +345,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 for value in counts.values()
             )
             or not isinstance(completed_output_text, bool)
+            or output_text_source not in {"completed_response", "typed_stream", "none"}
             or not isinstance(output_text_chars, int)
             or isinstance(output_text_chars, bool)
             or output_text_chars < 0
@@ -353,10 +355,32 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             or not isinstance(stream_completed_match, bool)
         ):
             return None
+        source_is_bound = (
+            (
+                output_text_source == "completed_response"
+                and completed_output_text
+                and output_text_chars > 0
+            )
+            or (
+                output_text_source == "typed_stream"
+                and not completed_output_text
+                and output_text_chars > 0
+                and stream_output_text_chars == output_text_chars
+            )
+            or (
+                output_text_source == "none"
+                and not completed_output_text
+                and output_text_chars == 0
+                and stream_output_text_chars == 0
+            )
+        )
+        if not source_is_bound:
+            return None
         return {
             "event_counts": {str(key): counts[key] for key in sorted(counts)},
             "completed_output_text": completed_output_text,
             "output_text_chars": output_text_chars,
+            "output_text_source": output_text_source,
             "stream_output_text_chars": stream_output_text_chars,
             "stream_completed_match": stream_completed_match,
         }

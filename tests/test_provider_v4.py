@@ -500,6 +500,7 @@ def test_dspy_lm_auth_history_retains_bounded_transport_metadata(monkeypatch) ->
                 },
                 "completed_output_text": True,
                 "output_text_chars": 5,
+                "output_text_source": "completed_response",
                 "stream_output_text_chars": 5,
                 "stream_completed_match": True,
             }
@@ -521,25 +522,42 @@ def test_dspy_lm_auth_history_retains_bounded_transport_metadata(monkeypatch) ->
         },
         "completed_output_text": True,
         "output_text_chars": 5,
+        "output_text_source": "completed_response",
         "stream_output_text_chars": 5,
         "stream_completed_match": True,
     }
     assert "reasoning" not in lm.history[-1].text
 
 
-def test_dspy_lm_auth_rejects_unbounded_transport_metadata() -> None:
-    response = _ResponseObj("hello")
-    response._dspy_lm_auth_stream = {
-        "event_counts": {"provider-controlled-event-name": 1},
+def test_dspy_lm_auth_rejects_unbounded_or_contradictory_transport_metadata() -> None:
+    valid = {
+        "event_counts": {"output_text_delta": 1},
         "completed_output_text": True,
         "output_text_chars": 5,
+        "output_text_source": "completed_response",
         "stream_output_text_chars": 5,
         "stream_completed_match": True,
     }
+    invalid = [
+        {**valid, "event_counts": {"provider-controlled-event-name": 1}},
+        {**valid, "completed_output_text": False},
+        {
+            **valid,
+            "completed_output_text": False,
+            "output_text_source": "typed_stream",
+            "stream_output_text_chars": 4,
+        },
+        {
+            **valid,
+            "completed_output_text": False,
+            "output_text_source": "none",
+            "stream_output_text_chars": 0,
+        },
+    ]
 
-    assert (
-        DspyLMAuthLM._normalize_transport_metadata(response._dspy_lm_auth_stream)
-        is None
+    assert all(
+        DspyLMAuthLM._normalize_transport_metadata(metadata) is None
+        for metadata in invalid
     )
 
 
