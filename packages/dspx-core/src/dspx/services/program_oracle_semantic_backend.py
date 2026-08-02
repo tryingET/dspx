@@ -41,10 +41,27 @@ def _analysis_prompt(request: OracleSemanticRequest) -> str:
         **{field: ["string"] for field in REQUIRED_ANALYSIS_FIELDS},
         "confidence": 0.0,
     }
+    quality = request.quality_contract
+    codebook_mode = isinstance(quality, Mapping) and isinstance(
+        quality.get("analysis_codebook"), Mapping
+    )
+    item_contract = (
+        "For observations, failure_attractors, quality_contract_violations, "
+        "hypotheses, and recommended_experiments, return only exact codes from "
+        "the field-specific REQUEST.quality_contract.analysis_codebook; each "
+        "array item must be one code with no prose. "
+        if codebook_mode
+        else "Put exactly one factual assertion in each array item; do not join "
+        "separate or contrary assertions in one item. "
+    )
     return (
         "You are DSPx Oracle semantic analysis. Analyze only the receipt-bound "
         "evidence supplied below. Return exactly one JSON object matching the "
-        "output shape. Do not claim deployment or transition authority.\n\n"
+        "output shape. "
+        f"{item_contract}"
+        "Do not claim "
+        "deployment or transition authority. In evidence_refs, cite only exact "
+        "ref values present in the supplied evidence.\n\n"
         f"OUTPUT_SHAPE={canonical_json(schema)}\n"
         f"REQUEST={canonical_json(request.payload())}"
     )
@@ -98,22 +115,27 @@ class LiveLMOracleSemanticBackend:
                 live_call_succeeded=False,
                 error="configured provider does not implement generate(LMRequest)",
             )
+        response_observed = False
+        executed_model: str | None = None
         try:
             response = generate(
                 LMRequest(prompt=_analysis_prompt(request)),
                 response_format={"type": "json_object"},
             )
+            response_observed = True
+            observed_model = getattr(response, "model", None)
+            if observed_model is not None and str(observed_model).strip():
+                executed_model = str(observed_model).strip()
+            if executed_model is None:
+                raise ProgramOracleSemanticBackendError(
+                    "successful Oracle semantic response omitted executed model identity"
+                )
             outputs = getattr(response, "outputs", None)
             if not isinstance(outputs, list) or not outputs:
                 raise ProgramOracleSemanticBackendError(
                     "Oracle semantic provider returned no outputs"
                 )
             analysis = _parse_analysis_text(str(outputs[0]))
-            observed_model = getattr(response, "model", None)
-            if observed_model is None or not str(observed_model).strip():
-                raise ProgramOracleSemanticBackendError(
-                    "successful Oracle semantic response omitted executed model identity"
-                )
             return OracleSemanticResult(
                 request_sha256=request.request_sha256,
                 backend_kind="live",
@@ -123,7 +145,7 @@ class LiveLMOracleSemanticBackend:
                 # LMResponse currently observes model, but not the final routed
                 # provider. Do not copy configured intent into executed evidence.
                 executed_provider=None,
-                executed_model=str(observed_model).strip(),
+                executed_model=executed_model,
                 execution_status="succeeded",
                 live_call_succeeded=True,
                 analysis=analysis,
@@ -136,9 +158,13 @@ class LiveLMOracleSemanticBackend:
                 configured_provider=self.provider_name,
                 configured_model=self.configured_model,
                 executed_provider=None,
-                executed_model=None,
-                execution_status="failed_before_live_success",
-                live_call_succeeded=False,
+                executed_model=executed_model,
+                execution_status=(
+                    "failed_after_live_response"
+                    if response_observed
+                    else "failed_before_live_success"
+                ),
+                live_call_succeeded=response_observed,
                 error=sanitize_diagnostic_text(str(exc)),
             )
 
