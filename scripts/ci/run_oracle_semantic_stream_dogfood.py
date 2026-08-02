@@ -24,7 +24,7 @@ from dspx.services.program_oracle_semantic_backend import (
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_scoring import score_analysis
 
-TASK_ID = 4542
+TASK_ID = 4543
 SCHEMA = "dspx-oracle-semantic-stream-dogfood-v1"
 RESULT_NAME = "semantic-stream-dogfood.json"
 CONTRACT_PATH = Path("benchmarks/semantic/oracle-semantic-analysis-evaluation-v1.json")
@@ -37,6 +37,39 @@ DEPENDENCY_HASHES = {
     "src/dspy_lm_auth/lm.py": "10c930b2b00af8acdf8984bfa74281510cec975561e5ed2b4caefa768d14e3a8",
     "src/dspy_lm_auth/codex_stream.py": "9ee7053c0a253de47caf595423ad84e1d94df7c97b7a3d09b0d1d9fbef2abf7e",
 }
+
+
+class DogfoodTransportError(RuntimeError):
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
+
+
+_STREAM_ERROR_CODES = (
+    ("location was ambiguous", "stream_location_ambiguous"),
+    ("item was absent", "stream_item_absent"),
+    ("item was not a message", "stream_item_not_message"),
+    ("identity drifted", "stream_item_identity_drift"),
+    ("content was absent", "stream_content_absent"),
+    ("content was not output text", "stream_content_not_output_text"),
+    ("target was not empty", "stream_target_not_empty"),
+    ("content was not detached", "stream_content_not_detached"),
+    ("without a completed response", "completed_response_missing"),
+    ("could not be normalized", "completed_response_normalization_failed"),
+    ("completed response returned an error", "completed_response_error"),
+    ("completed response returned a refusal", "completed_response_refusal"),
+    ("completed response status=", "completed_response_status_invalid"),
+    ("response stream ended with error", "response_stream_error"),
+    ("response stream returned a refusal", "response_stream_refusal"),
+)
+
+
+def _stream_error_code(error: str) -> str:
+    lowered = error.lower()
+    for marker, code in _STREAM_ERROR_CODES:
+        if marker in lowered:
+            return code
+    return "stream_adapter_unclassified"
 
 
 def _canonical(value: object) -> str:
@@ -226,11 +259,13 @@ def _transport_after_call(lm: DspyLMAuthLM, before: int) -> dict[str, Any]:
     calls = lm.history[before:]
     try:
         if len(calls) != 1:
-            raise RuntimeError("dspy-lm-auth history cardinality drift")
+            raise DogfoodTransportError("history_cardinality_drift")
         call = calls[0]
         transport = call.transport
-        if call.error is not None or not isinstance(transport, Mapping):
-            raise RuntimeError("typed stream transport evidence is unavailable")
+        if call.error is not None:
+            raise DogfoodTransportError(_stream_error_code(call.error))
+        if not isinstance(transport, Mapping):
+            raise DogfoodTransportError("transport_metadata_missing")
         counts = transport.get("event_counts")
         chars = transport.get("output_text_chars")
         completed_output_text = transport.get("completed_output_text")
@@ -249,9 +284,7 @@ def _transport_after_call(lm: DspyLMAuthLM, before: int) -> dict[str, Any]:
             or stream_output_text_chars < 0
             or not isinstance(stream_completed_match, bool)
         ):
-            raise RuntimeError(
-                "typed stream transport evidence does not bind to output"
-            )
+            raise DogfoodTransportError("transport_metadata_invalid")
         source_is_bound = (
             (
                 output_text_source == "completed_response"
@@ -272,7 +305,7 @@ def _transport_after_call(lm: DspyLMAuthLM, before: int) -> dict[str, Any]:
             )
         )
         if not source_is_bound:
-            raise RuntimeError("typed output source does not bind to output")
+            raise DogfoodTransportError("transport_source_unbound")
         return {
             "event_counts": {str(key): counts[key] for key in sorted(counts)},
             "completed_output_text": completed_output_text,
@@ -377,7 +410,7 @@ def _run_attempts(
             "semantic_label_gate_passed": bool(
                 live_passed and score and score.get("status") == "passed"
             ),
-            "ak_4506_case_reexecuted_under_ak_4542": True,
+            "ak_4506_case_reexecuted_under_ak_4543": True,
             "ak_4506_ledger_reused": False,
             "production_activation": False,
             "provider_transport_call_count_proven": False,
@@ -441,21 +474,21 @@ def run(
     except Exception as exc:
         for call in lm.history:
             call.text = ""
-        _replace_private(
-            ledger_path,
-            {
-                **marker,
-                "status": "failed",
-                "error_type": type(exc).__name__,
-                "attempt_count": len(lm.history),
-            },
-        )
+        failure = {
+            **marker,
+            "status": "failed",
+            "error_type": type(exc).__name__,
+            "attempt_count": len(lm.history),
+        }
+        if isinstance(exc, DogfoodTransportError):
+            failure["error_code"] = exc.code
+        _replace_private(ledger_path, failure)
         raise
 
 
 def _ledger_path() -> Path:
     home = Path(pwd.getpwuid(os.getuid()).pw_dir)
-    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4542.json"
+    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4543.json"
 
 
 def main() -> int:

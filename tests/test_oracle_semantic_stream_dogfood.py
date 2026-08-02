@@ -150,7 +150,7 @@ def test_dogfood_first_pass_records_typed_transport(
     assert payload["recovery"] == "first_pass"
     assert len(payload["attempts"]) == 1
     assert payload["claims"]["typed_output_json_transport_passed"] is False
-    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4542"] is True
+    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4543"] is True
     assert payload["claims"]["ak_4506_ledger_reused"] is False
     assert payload["attempts"][0]["transport"]["stream_completed_match"] is False
     assert payload["attempts"][0]["transport"]["output_text_source"] == "typed_stream"
@@ -207,3 +207,40 @@ def test_dogfood_allows_one_visible_corrective_retry(
             dependency_identity=lambda: pytest.fail("consumed ledger must fail first"),
             test_mode=True,
         )
+
+
+def test_dogfood_records_only_allowlisted_transport_failure_code(
+    monkeypatch, tmp_path: Path
+) -> None:
+    module = _module()
+    monkeypatch.setattr(module, "_clean_commit", lambda repo, **kwargs: "source-commit")
+
+    def fail_attempts(**kwargs):
+        del kwargs
+        raise module.DogfoodTransportError("stream_location_ambiguous")
+
+    monkeypatch.setattr(module, "_run_attempts", fail_attempts)
+    artifact = tmp_path / "artifact"
+    ledger = tmp_path / "state" / "ledger.json"
+    ledger.parent.mkdir(mode=0o700)
+
+    with pytest.raises(module.DogfoodTransportError):
+        module.run(
+            repo_root=REPO_ROOT,
+            artifact_root=artifact,
+            ledger_path=ledger,
+            resolve_backend=lambda: _backend([_result(succeeded=True)]),
+            dependency_identity=lambda: {
+                "package": "dspy-lm-auth",
+                "version": "test",
+                "git_commit": "dependency-commit",
+            },
+            test_mode=True,
+        )
+
+    failure = json.loads(ledger.read_text(encoding="utf-8"))
+    assert failure["error_code"] == "stream_location_ambiguous"
+    assert module._stream_error_code("api_key=secret unexpected") == (
+        "stream_adapter_unclassified"
+    )
+    assert "secret" not in ledger.read_text(encoding="utf-8")
