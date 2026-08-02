@@ -228,6 +228,7 @@ class CoordinateStore(Protocol):
         until: datetime | None = None,
         min_similarity: float = -1.0,
         embedding_version: int | None = EMBEDDING_VERSION,
+        embedding_backend_identity: dict[str, Any] | None = None,
     ) -> list[SearchResult]: ...
 
     def search_by_text(
@@ -295,6 +296,81 @@ class ParseSinceError(ValueError):
     """Raised when a since string cannot be parsed."""
 
     pass
+
+
+class EmbeddingVersionConflictError(ValueError):
+    """Raised when an upsert would overwrite another semantic space version."""
+
+
+_COORDINATE_UPSERT_SQL = """
+    INSERT INTO coordinates (
+        run_id, vector_json, input_text, output_text, config_text,
+        run_kind, provider, template_version, created_at, dimension,
+        source_path, metadata_json, indexed_at, embedding_version
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(run_id) DO UPDATE SET
+        vector_json = excluded.vector_json,
+        input_text = excluded.input_text,
+        output_text = excluded.output_text,
+        config_text = excluded.config_text,
+        run_kind = excluded.run_kind,
+        provider = excluded.provider,
+        template_version = excluded.template_version,
+        created_at = excluded.created_at,
+        dimension = excluded.dimension,
+        source_path = excluded.source_path,
+        metadata_json = excluded.metadata_json,
+        indexed_at = excluded.indexed_at,
+        embedding_version = excluded.embedding_version
+    WHERE coordinates.embedding_version = excluded.embedding_version
+"""
+
+
+def _coordinate_record_values(record: CoordinateRecord) -> tuple[Any, ...]:
+    return (
+        record.run_id,
+        record.vector_json,
+        record.input_text,
+        record.output_text,
+        record.config_text,
+        record.run_kind,
+        record.provider,
+        record.template_version,
+        record.created_at,
+        record.dimension,
+        record.source_path,
+        record.metadata_json,
+        record.indexed_at,
+        record.embedding_version,
+    )
+
+
+def _embedding_space_key(identity: object) -> tuple[str, str, int, str] | None:
+    """Return the semantic-space identity fields needed for safe comparison."""
+
+    if not isinstance(identity, dict):
+        return None
+    schema = identity.get("schema_version")
+    backend = identity.get("effective_backend")
+    model = identity.get("model")
+    dimension = identity.get("dimension")
+    adapter = identity.get("adapter")
+    if (
+        not isinstance(schema, str)
+        or not isinstance(backend, str)
+        or not isinstance(model, str)
+        or isinstance(dimension, bool)
+        or not isinstance(dimension, int)
+        or dimension <= 0
+        or (adapter is not None and not isinstance(adapter, dict))
+    ):
+        return None
+    return (
+        schema,
+        backend,
+        dimension,
+        json.dumps({"model": model, "adapter": adapter}, sort_keys=True),
+    )
 
 
 class CoordinateIndex:
@@ -464,39 +540,23 @@ class CoordinateIndex:
             conn.close()
 
     def upsert(self, embedding: ExecutionEmbedding) -> bool:
-        """Insert or update an embedding in the index.
+        """Insert or update within one embedding version without rewriting history.
 
         Returns:
-            True if inserted/updated, False on error
+            True if inserted/updated, False on error or cross-version conflict
         """
         record = CoordinateRecord.from_embedding(embedding)
         try:
             with self._conn() as conn:
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO coordinates (
-                        run_id, vector_json, input_text, output_text, config_text,
-                        run_kind, provider, template_version, created_at, dimension,
-                        source_path, metadata_json, indexed_at, embedding_version
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        record.run_id,
-                        record.vector_json,
-                        record.input_text,
-                        record.output_text,
-                        record.config_text,
-                        record.run_kind,
-                        record.provider,
-                        record.template_version,
-                        record.created_at,
-                        record.dimension,
-                        record.source_path,
-                        record.metadata_json,
-                        record.indexed_at,
-                        record.embedding_version,
-                    ),
+                cursor = conn.execute(
+                    _COORDINATE_UPSERT_SQL,
+                    _coordinate_record_values(record),
                 )
+                if cursor.rowcount == 0:
+                    raise EmbeddingVersionConflictError(
+                        f"run {record.run_id} is retained in another embedding version; "
+                        f"use a new index for version {record.embedding_version}"
+                    )
             return True
         except Exception as e:
             logger.error(f"Failed to upsert embedding {record.run_id}: {e}")
@@ -525,31 +585,16 @@ class CoordinateIndex:
 
                 try:
                     for record in records:
-                        conn.execute(
-                            """
-                            INSERT OR REPLACE INTO coordinates (
-                                run_id, vector_json, input_text, output_text, config_text,
-                                run_kind, provider, template_version, created_at, dimension,
-                                source_path, metadata_json, indexed_at, embedding_version
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                record.run_id,
-                                record.vector_json,
-                                record.input_text,
-                                record.output_text,
-                                record.config_text,
-                                record.run_kind,
-                                record.provider,
-                                record.template_version,
-                                record.created_at,
-                                record.dimension,
-                                record.source_path,
-                                record.metadata_json,
-                                record.indexed_at,
-                                record.embedding_version,
-                            ),
+                        cursor = conn.execute(
+                            _COORDINATE_UPSERT_SQL,
+                            _coordinate_record_values(record),
                         )
+                        if cursor.rowcount == 0:
+                            raise EmbeddingVersionConflictError(
+                                f"run {record.run_id} is retained in another embedding "
+                                f"version; use a new index for version "
+                                f"{record.embedding_version}"
+                            )
                     # Transaction commits on successful context exit
                     return len(records)
                 except Exception as e:
@@ -591,6 +636,7 @@ class CoordinateIndex:
         until: datetime | None = None,
         min_similarity: float = -1.0,
         embedding_version: int | None = EMBEDDING_VERSION,
+        embedding_backend_identity: dict[str, Any] | None = None,
     ) -> list[SearchResult]:
         """Search for similar embeddings.
 
@@ -605,12 +651,20 @@ class CoordinateIndex:
             until: Filter by creation date (before)
             min_similarity: Minimum similarity threshold
             embedding_version: Filter by embedding version (default: current)
+            embedding_backend_identity: Optional producer identity for semantic-space isolation
 
         Returns:
             List of SearchResult sorted by similarity (descending)
         """
         results = []
         dimension_mismatch_count = 0
+        expected_space = (
+            _embedding_space_key(embedding_backend_identity)
+            if embedding_backend_identity is not None
+            else None
+        )
+        if embedding_backend_identity is not None and expected_space is None:
+            raise ValueError("invalid embedding backend identity for search")
 
         # Build query with non-temporal filters. Temporal filters are applied
         # after parsing timestamps so offsets compare as instants, not strings.
@@ -647,6 +701,12 @@ class CoordinateIndex:
 
                     if emb.dimension != len(query_vector):
                         dimension_mismatch_count += 1
+                        continue
+                    if (
+                        expected_space is not None
+                        and _embedding_space_key(emb.metadata.get("embedding_backend"))
+                        != expected_space
+                    ):
                         continue
 
                     similarity = cosine_similarity(query_vector, emb.vector)
@@ -705,7 +765,7 @@ class CoordinateIndex:
         from .embeddings import get_embedding_engine
 
         engine = get_embedding_engine()
-        query_vector = engine.embed_text(query_text)
+        query_vector = engine.embed_query(query_text)
         return self.search(
             query_vector,
             top_k=top_k,
@@ -714,6 +774,8 @@ class CoordinateIndex:
             since=since,
             until=until,
             min_similarity=min_similarity,
+            embedding_version=EMBEDDING_VERSION,
+            embedding_backend_identity=engine.backend_identity,
         )
 
     def get_neighbors(
@@ -743,11 +805,15 @@ class CoordinateIndex:
         provider = emb.provider if same_provider else None
 
         # Search with one extra to account for self
+        raw_identity = emb.metadata.get("embedding_backend")
+        identity = raw_identity if isinstance(raw_identity, dict) else None
         results = self.search(
             emb.vector,
             top_k=top_k + 1,
             run_kind=run_kind,
             provider=provider,
+            embedding_version=emb.embedding_version,
+            embedding_backend_identity=identity,
         )
 
         # Filter out the query run itself

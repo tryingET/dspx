@@ -46,6 +46,27 @@ from dspx.coordinates.embeddings import (
 )
 
 
+class _RoleRecordingMDenseOn:
+    instances: list["_RoleRecordingMDenseOn"] = []
+
+    def __init__(self, model_name: str) -> None:
+        self.model_name = model_name
+        self.document_batches: list[list[str]] = []
+        self.query_batches: list[list[str]] = []
+        self.instances.append(self)
+
+    def get_dimension(self) -> int:
+        return 768
+
+    def encode_documents(self, texts: list[str]) -> list[list[float]]:
+        self.document_batches.append(list(texts))
+        return [[1.0] + [0.0] * 767 for _ in texts]
+
+    def encode_queries(self, texts: list[str]) -> list[list[float]]:
+        self.query_batches.append(list(texts))
+        return [[0.0, 1.0] + [0.0] * 766 for _ in texts]
+
+
 # =============================================================================
 # Embedding Tests
 # =============================================================================
@@ -104,6 +125,61 @@ class TestMockEmbedder:
             EmbeddingEngine(backend="mock", mock_dimension=cast(int, dimension))
 
 
+class TestMDenseOnBackend:
+    def test_selected_backend_uses_exact_model_and_asymmetric_roles(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import dspx.coordinates.embeddings as embeddings
+
+        _RoleRecordingMDenseOn.instances.clear()
+        monkeypatch.setattr(embeddings, "find_spec", lambda _name: object())
+        monkeypatch.setattr(embeddings, "MDenseOnEmbedder", _RoleRecordingMDenseOn)
+
+        engine = EmbeddingEngine(backend="transformers-dense")
+        document = engine.embed_execution(
+            run_id="role-test",
+            input_text="stored evidence",
+            output_text="observed behavior",
+        )
+        query = engine.embed_query("find evidence")
+
+        fake = _RoleRecordingMDenseOn.instances[-1]
+        assert fake.model_name == "lightonai/mDenseOn"
+        assert fake.document_batches == [
+            ["[INPUT]\nstored evidence\n\n[OUTPUT]\nobserved behavior"]
+        ]
+        assert fake.query_batches == [["find evidence"]]
+        assert document.embedding_version == 2
+        assert document.dimension == 768
+        assert query == [0.0, 1.0] + [0.0] * 766
+        assert engine.backend_identity["model"] == "lightonai/mDenseOn"
+        assert engine.backend_identity["adapter"] == {
+            "name": "dspx-mdenseon-cls-v1",
+            "revision": "a5fdb000f7a21da96c3bddde3a782ef777316df3",
+            "document_prompt": "document: ",
+            "query_prompt": "query: ",
+            "pooling": "last_hidden_state_cls_token",
+            "normalization": "l2",
+            "similarity": "cosine",
+            "maximum_tokens": 8192,
+        }
+
+    def test_auto_selection_prefers_selected_dense_backend(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import dspx.coordinates.embeddings as embeddings
+
+        monkeypatch.delenv("DSPX_ORACLE_EMBEDDING_BACKEND", raising=False)
+        monkeypatch.setattr(embeddings, "find_spec", lambda _name: object())
+
+        selection = resolve_embedding_backend()
+
+        assert selection.effective_backend == "transformers-dense"
+        assert selection.selection_source == "automatic_dependency_detection"
+        assert selection.to_dict()["model"] == "lightonai/mDenseOn"
+        assert selection.to_dict()["dimension"] == 768
+
+
 class TestExecutionEmbedding:
     """Tests for ExecutionEmbedding dataclass."""
 
@@ -136,7 +212,7 @@ class TestExecutionEmbedding:
         assert emb2.run_id == emb.run_id
         assert emb2.vector == emb.vector
         assert emb.metadata["embedding_backend"] == {
-            "schema_version": "dspx-embedding-backend-identity-v1",
+            "schema_version": "dspx-embedding-backend-identity-v2",
             "requested_backend": "mock",
             "effective_backend": "mock",
             "selection_source": "explicit_argument",
@@ -145,6 +221,7 @@ class TestExecutionEmbedding:
             "reason": "explicit deterministic test-double selection",
             "model": "sha256-deterministic-test-double-v1",
             "dimension": 64,
+            "adapter": None,
             "semantic_class": "deterministic_test_double",
             "semantic_claim": "plumbing_only_not_production_semantics",
             "production_semantic_claim_allowed": False,
@@ -256,6 +333,30 @@ class TestGlobalEngine:
         assert environment_selected.backend_identity["selection_source"] == (
             "DSPX_ORACLE_EMBEDDING_BACKEND"
         )
+        reset_embedding_engine()
+
+    def test_engine_construction_reuses_one_resolved_selection(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import dspx.coordinates.embeddings as embeddings
+
+        selection = resolve_embedding_backend("mock")
+        calls = 0
+
+        def resolve_once(_backend: str):
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                raise AssertionError("embedding backend was resolved twice")
+            return selection
+
+        monkeypatch.setattr(embeddings, "resolve_embedding_backend", resolve_once)
+        reset_embedding_engine()
+
+        engine = get_embedding_engine(backend="mock", force_new=True)
+
+        assert engine.backend == "mock"
+        assert calls == 1
         reset_embedding_engine()
 
     def test_parameter_change_creates_new_engine(self) -> None:
@@ -626,6 +727,66 @@ class TestCoordinateIndex:
         assert retrieved is not None
         assert retrieved.input_text == "updated"
 
+    def test_upsert_preserves_existing_row_across_embedding_versions(
+        self, index: CoordinateIndex, engine: EmbeddingEngine
+    ) -> None:
+        legacy = ExecutionEmbedding(
+            run_id="same-logical-run",
+            vector=[1.0] + [0.0] * 31,
+            input_text="historical-v1",
+            output_text="output",
+            config_text="",
+            run_kind="test",
+            provider="legacy",
+            template_version=None,
+            created_at="2026-01-01T00:00:00Z",
+            dimension=32,
+            embedding_version=1,
+        )
+        replacement = engine.embed_execution(
+            run_id="same-logical-run",
+            input_text="new-v2",
+            output_text="output",
+        )
+
+        assert index.upsert(legacy) is True
+        assert index.upsert(replacement) is False
+
+        retained = index.get("same-logical-run")
+        assert retained is not None
+        assert retained.embedding_version == 1
+        assert retained.input_text == "historical-v1"
+
+    def test_batch_upsert_rolls_back_on_cross_version_conflict(
+        self, index: CoordinateIndex, engine: EmbeddingEngine
+    ) -> None:
+        legacy = ExecutionEmbedding(
+            run_id="retained-v1",
+            vector=[1.0] + [0.0] * 31,
+            input_text="historical-v1",
+            output_text="output",
+            config_text="",
+            run_kind="test",
+            provider="legacy",
+            template_version=None,
+            created_at="2026-01-01T00:00:00Z",
+            dimension=32,
+            embedding_version=1,
+        )
+        assert index.upsert(legacy)
+        conflict = engine.embed_execution(
+            run_id="retained-v1", input_text="v2", output_text="output"
+        )
+        fresh = engine.embed_execution(
+            run_id="fresh-v2", input_text="v2", output_text="output"
+        )
+
+        assert index.upsert_batch([fresh, conflict]) == 0
+        assert index.get("fresh-v2") is None
+        retained = index.get("retained-v1")
+        assert retained is not None
+        assert retained.embedding_version == 1
+
     def test_list_all_applies_filters_and_bounded_sql_pagination(
         self,
         index: CoordinateIndex,
@@ -852,6 +1013,65 @@ class TestCoordinateIndex:
         for i in range(len(results) - 1):
             assert results[i].similarity >= results[i + 1].similarity
 
+    def test_search_by_text_uses_query_role_and_backend_identity(
+        self,
+        index: CoordinateIndex,
+        engine: EmbeddingEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import dspx.coordinates.embeddings as embeddings
+
+        record = engine.embed_execution(
+            run_id="role-bound", input_text="evidence", output_text="behavior"
+        )
+        assert index.upsert(record)
+        observed_queries: list[str] = []
+        original_embed_query = engine.embed_query
+
+        def record_query(text: str) -> list[float]:
+            observed_queries.append(text)
+            return original_embed_query(text)
+
+        monkeypatch.setattr(engine, "embed_query", record_query)
+        monkeypatch.setattr(embeddings, "get_embedding_engine", lambda: engine)
+
+        results = index.search_by_text("find evidence")
+
+        assert observed_queries == ["find evidence"]
+        assert [result.run_id for result in results] == ["role-bound"]
+
+    def test_search_excludes_same_version_records_from_other_semantic_space(
+        self, index: CoordinateIndex, engine: EmbeddingEngine
+    ) -> None:
+        expected = engine.embed_execution(
+            run_id="expected", input_text="one", output_text="two"
+        )
+        other_identity = dict(engine.backend_identity)
+        other_identity["model"] = "different-model"
+        other = ExecutionEmbedding(
+            run_id="other-space",
+            vector=list(expected.vector),
+            input_text="one",
+            output_text="two",
+            config_text="",
+            run_kind="test",
+            provider="mock",
+            template_version=None,
+            created_at="2026-01-01T00:00:00Z",
+            dimension=expected.dimension,
+            metadata={"embedding_backend": other_identity},
+            embedding_version=2,
+        )
+        assert index.upsert(expected)
+        assert index.upsert(other)
+
+        results = index.search(
+            expected.vector,
+            embedding_backend_identity=engine.backend_identity,
+        )
+
+        assert [result.run_id for result in results] == ["expected"]
+
     def test_search_negative_top_k_returns_empty(
         self, index: CoordinateIndex, engine: EmbeddingEngine
     ) -> None:
@@ -909,6 +1129,35 @@ class TestCoordinateIndex:
         # Should return up to 4 neighbors (5 total - 1 for self)
         assert len(neighbors) == 4
         assert all(n.run_id != "test-0" for n in neighbors)
+
+    def test_neighbors_stay_in_the_stored_embedding_version(
+        self, index: CoordinateIndex, engine: EmbeddingEngine
+    ) -> None:
+        for run_id in ("legacy-a", "legacy-b"):
+            assert index.upsert(
+                ExecutionEmbedding(
+                    run_id=run_id,
+                    vector=[1.0] + [0.0] * 31,
+                    input_text=run_id,
+                    output_text="",
+                    config_text="",
+                    run_kind="test",
+                    provider="legacy",
+                    template_version=None,
+                    created_at="2026-01-01T00:00:00Z",
+                    dimension=32,
+                    embedding_version=1,
+                )
+            )
+        assert index.upsert(
+            engine.embed_execution(
+                run_id="current-v2", input_text="current", output_text=""
+            )
+        )
+
+        neighbors = index.get_neighbors("legacy-a", top_k=10)
+
+        assert [result.run_id for result in neighbors] == ["legacy-b"]
 
     def test_stats(self, index: CoordinateIndex, engine: EmbeddingEngine) -> None:
         """Stats returns correct counts."""

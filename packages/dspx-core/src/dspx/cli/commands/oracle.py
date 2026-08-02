@@ -1186,7 +1186,6 @@ def oracle_stats(
     index = CoordinateIndex(db_path=index_path)
     selection = resolve_embedding_backend()
     backend_identity = selection.to_dict(
-        model_name="all-MiniLM-L6-v2",
         dimension=384 if selection.effective_backend == "mock" else None,
     )
 

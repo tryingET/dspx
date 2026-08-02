@@ -22,7 +22,13 @@ from urllib.parse import urlsplit, urlunsplit
 
 from .embeddings import EMBEDDING_VERSION, ExecutionEmbedding
 from .metrics import semantic_distance
-from .storage import CoordinateRecord, SearchResult, StoreHealth
+from .storage import (
+    CoordinateRecord,
+    EmbeddingVersionConflictError,
+    SearchResult,
+    StoreHealth,
+    _embedding_space_key,
+)
 
 _POSTGRES_ENV_KEYS = (
     "DSPX_ORACLE_DATABASE_URL",
@@ -138,6 +144,9 @@ class PostgresPgvectorCoordinateStore:
         try:
             yield conn
             conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
 
@@ -172,6 +181,25 @@ class PostgresPgvectorCoordinateStore:
                     """
                 )
                 cur.execute(
+                    """
+                    SELECT format_type(attribute.atttypid, attribute.atttypmod)
+                    FROM pg_attribute AS attribute
+                    WHERE attribute.attrelid = to_regclass(%s)
+                      AND attribute.attname = 'vector'
+                      AND NOT attribute.attisdropped
+                    """,
+                    (f'"{self.schema}"."oracle_records"',),
+                )
+                vector_row = cur.fetchone()
+                observed_vector_type = str(vector_row[0]) if vector_row else None
+                if observed_vector_type != vector_type:
+                    raise StoreConfigurationError(
+                        "Oracle Postgres vector dimension is incompatible with the "
+                        f"selected embedding space: observed {observed_vector_type!r}, "
+                        f"required {vector_type!r}; select a new schema instead of "
+                        "rewriting the existing coordinate table"
+                    )
+                cur.execute(
                     f"""
                     CREATE TABLE IF NOT EXISTS {self._qualified("oracle_store_meta")} (
                         key TEXT PRIMARY KEY,
@@ -187,58 +215,75 @@ class PostgresPgvectorCoordinateStore:
                     """
                 )
 
-    def upsert(self, embedding: ExecutionEmbedding) -> bool:
+    def _execute_upsert(self, cur: Any, embedding: ExecutionEmbedding) -> bool:
         record = CoordinateRecord.from_embedding(embedding)
+        cur.execute(
+            f"""
+            INSERT INTO {self._qualified("oracle_records")} AS retained (
+                run_id, vector, input_text, output_text, config_text,
+                run_kind, provider, template_version, created_at, dimension,
+                source_path, metadata, indexed_at, embedding_version
+            ) VALUES (%s, %s::vector, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)
+            ON CONFLICT (run_id) DO UPDATE SET
+                vector = EXCLUDED.vector,
+                input_text = EXCLUDED.input_text,
+                output_text = EXCLUDED.output_text,
+                config_text = EXCLUDED.config_text,
+                run_kind = EXCLUDED.run_kind,
+                provider = EXCLUDED.provider,
+                template_version = EXCLUDED.template_version,
+                created_at = EXCLUDED.created_at,
+                dimension = EXCLUDED.dimension,
+                source_path = EXCLUDED.source_path,
+                metadata = EXCLUDED.metadata,
+                indexed_at = EXCLUDED.indexed_at,
+                embedding_version = EXCLUDED.embedding_version
+            WHERE retained.embedding_version = EXCLUDED.embedding_version
+            """,
+            (
+                record.run_id,
+                _vector_literal(embedding.vector),
+                record.input_text,
+                record.output_text,
+                record.config_text,
+                record.run_kind,
+                record.provider,
+                record.template_version,
+                record.created_at,
+                record.dimension,
+                record.source_path,
+                record.metadata_json,
+                record.indexed_at,
+                record.embedding_version,
+            ),
+        )
+        return int(cur.rowcount or 0) > 0
+
+    def upsert(self, embedding: ExecutionEmbedding) -> bool:
         self._ensure_schema(dimension=embedding.dimension)
         with self._conn() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    f"""
-                    INSERT INTO {self._qualified("oracle_records")} (
-                        run_id, vector, input_text, output_text, config_text,
-                        run_kind, provider, template_version, created_at, dimension,
-                        source_path, metadata, indexed_at, embedding_version
-                    ) VALUES (%s, %s::vector, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)
-                    ON CONFLICT (run_id) DO UPDATE SET
-                        vector = EXCLUDED.vector,
-                        input_text = EXCLUDED.input_text,
-                        output_text = EXCLUDED.output_text,
-                        config_text = EXCLUDED.config_text,
-                        run_kind = EXCLUDED.run_kind,
-                        provider = EXCLUDED.provider,
-                        template_version = EXCLUDED.template_version,
-                        created_at = EXCLUDED.created_at,
-                        dimension = EXCLUDED.dimension,
-                        source_path = EXCLUDED.source_path,
-                        metadata = EXCLUDED.metadata,
-                        indexed_at = EXCLUDED.indexed_at,
-                        embedding_version = EXCLUDED.embedding_version
-                    """,
-                    (
-                        record.run_id,
-                        _vector_literal(embedding.vector),
-                        record.input_text,
-                        record.output_text,
-                        record.config_text,
-                        record.run_kind,
-                        record.provider,
-                        record.template_version,
-                        record.created_at,
-                        record.dimension,
-                        record.source_path,
-                        record.metadata_json,
-                        record.indexed_at,
-                        record.embedding_version,
-                    ),
-                )
-        return True
+                return self._execute_upsert(cur, embedding)
 
     def upsert_batch(self, embeddings: list[ExecutionEmbedding]) -> int:
-        indexed = 0
-        for embedding in embeddings:
-            if self.upsert(embedding):
-                indexed += 1
-        return indexed
+        if not embeddings:
+            return 0
+        dimensions = {embedding.dimension for embedding in embeddings}
+        if len(dimensions) != 1:
+            return 0
+        self._ensure_schema(dimension=next(iter(dimensions)))
+        try:
+            with self._conn() as conn:
+                with conn.cursor() as cur:
+                    for embedding in embeddings:
+                        if not self._execute_upsert(cur, embedding):
+                            raise EmbeddingVersionConflictError(
+                                f"run {embedding.run_id} is retained in another "
+                                "embedding version"
+                            )
+            return len(embeddings)
+        except EmbeddingVersionConflictError:
+            return 0
 
     def get(self, run_id: str) -> ExecutionEmbedding | None:
         with self._conn() as conn:
@@ -276,6 +321,7 @@ class PostgresPgvectorCoordinateStore:
         until: datetime | None = None,
         min_similarity: float = -1.0,
         embedding_version: int | None = EMBEDDING_VERSION,
+        embedding_backend_identity: dict[str, Any] | None = None,
     ) -> list[SearchResult]:
         where = ["dimension = %s"]
         where_params: list[Any] = [len(query_vector)]
@@ -294,6 +340,22 @@ class PostgresPgvectorCoordinateStore:
         if embedding_version is not None:
             where.append("embedding_version = %s")
             where_params.append(embedding_version)
+        if embedding_backend_identity is not None:
+            if _embedding_space_key(embedding_backend_identity) is None:
+                raise ValueError("invalid embedding backend identity for search")
+            identity_subset = {
+                key: embedding_backend_identity.get(key)
+                for key in (
+                    "schema_version",
+                    "effective_backend",
+                    "model",
+                    "dimension",
+                )
+            }
+            if "adapter" in embedding_backend_identity:
+                identity_subset["adapter"] = embedding_backend_identity["adapter"]
+            where.append("(metadata -> 'embedding_backend') @> %s::jsonb")
+            where_params.append(json.dumps(identity_subset, sort_keys=True))
         query_literal = _vector_literal(query_vector)
         params = [query_literal, *where_params, query_literal, max(top_k, 0)]
         sql = f"""
@@ -340,7 +402,8 @@ class PostgresPgvectorCoordinateStore:
     ) -> list[SearchResult]:
         from .embeddings import get_embedding_engine
 
-        query_vector = get_embedding_engine().embed_text(query_text)
+        engine = get_embedding_engine()
+        query_vector = engine.embed_query(query_text)
         return self.search(
             query_vector,
             top_k=top_k,
@@ -349,6 +412,8 @@ class PostgresPgvectorCoordinateStore:
             since=since,
             until=until,
             min_similarity=min_similarity,
+            embedding_version=EMBEDDING_VERSION,
+            embedding_backend_identity=engine.backend_identity,
         )
 
     def get_neighbors(
@@ -362,11 +427,15 @@ class PostgresPgvectorCoordinateStore:
         embedding = self.get(run_id)
         if embedding is None:
             return []
+        raw_identity = embedding.metadata.get("embedding_backend")
+        identity = raw_identity if isinstance(raw_identity, dict) else None
         results = self.search(
             embedding.vector,
             top_k=top_k + 1,
             run_kind=embedding.run_kind if same_kind else None,
             provider=embedding.provider if same_provider else None,
+            embedding_version=embedding.embedding_version,
+            embedding_backend_identity=identity,
         )
         return [result for result in results if result.run_id != run_id][:top_k]
 

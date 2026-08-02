@@ -83,6 +83,30 @@ def _backend_identity(backend: str, model: str, claim: str) -> dict[str, object]
     }
 
 
+def _mdenseon_backend_identity() -> dict[str, object]:
+    return {
+        "schema_version": "dspx-embedding-backend-identity-v2",
+        "effective_backend": "transformers-dense",
+        "model": "lightonai/mDenseOn",
+        "dimension": 768,
+        "adapter": {
+            "name": "dspx-mdenseon-cls-v1",
+            "revision": "a5fdb000f7a21da96c3bddde3a782ef777316df3",
+            "document_prompt": "document: ",
+            "query_prompt": "query: ",
+            "pooling": "last_hidden_state_cls_token",
+            "normalization": "l2",
+            "similarity": "cosine",
+            "maximum_tokens": 8192,
+        },
+        "semantic_class": "model_backed_semantic_embedding",
+        "semantic_claim": (
+            "oracle_selected_model_backed_semantics_requires_exact_runtime_identity"
+        ),
+        "production_semantic_claim_allowed": False,
+    }
+
+
 def _materialize_indexed_program(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> tuple[Path, Path]:
@@ -195,6 +219,37 @@ def test_program_oracle_report_fails_closed_for_mixed_backend_identity() -> None
         "semantic_claim": "mixed_embedding_semantics_not_comparable",
         "production_semantic_claim_allowed": False,
     }
+
+
+def test_program_oracle_report_accepts_selected_mdenseon_identity_narrowly() -> None:
+    report = summarize_program_oracle_evidence(
+        [_summary_embedding("mdenseon", _mdenseon_backend_identity())]
+    )
+
+    assert report["embedding_backend_counts"] == {"transformers-dense": 1}
+    assert report["embedding_backend_posture"] == {
+        "status": "model_backed_not_production_validated",
+        "semantic_claim": (
+            "oracle_selected_model_backed_semantics_requires_exact_runtime_identity"
+        ),
+        "production_semantic_claim_allowed": False,
+    }
+
+
+def test_program_oracle_report_rejects_mdenseon_role_contract_drift() -> None:
+    identity = _mdenseon_backend_identity()
+    adapter = identity["adapter"]
+    assert isinstance(adapter, dict)
+    identity["adapter"] = {**adapter, "query_prompt": ""}
+
+    report = summarize_program_oracle_evidence(
+        [_summary_embedding("mdenseon-drift", identity)]
+    )
+
+    assert report["embedding_backend_counts"] == {"unknown": 1}
+    assert report["embedding_backend_posture"]["status"] == (
+        "unknown_backend_identity_fail_closed"
+    )
 
 
 def test_program_oracle_report_fails_closed_for_mixed_dimensions() -> None:

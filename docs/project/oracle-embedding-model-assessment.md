@@ -1,8 +1,8 @@
 ---
-summary: "Evidence-ranked assessment of MiniLM, mDenseOn, and mLateOn for Oracle retrieval, including the preserved AK-4510 terminal result."
+summary: "Evidence-ranked MiniLM/mDenseOn/mLateOn assessment, preserved AK-4510 failure, and accepted AK-4517 mDenseOn adoption."
 read_when:
   - "When selecting or changing the Oracle embedding model."
-  - "When interpreting the AK-4510 mDenseOn attempt or planning its recovery."
+  - "When interpreting the preserved AK-4510 failure or AK-4517 recovery."
 type: "reference"
 ---
 
@@ -51,7 +51,7 @@ The unsupervised checkpoints are training-stage artifacts and were not considere
 
 ## Selection
 
-`lightonai/mDenseOn` is the preferred **dense challenger** because it materially improves the capabilities MiniLM lacks while preserving the one-vector/cosine storage architecture. mLateOn is excluded from this bounded selection because it changes the retrieval architecture.
+`lightonai/mDenseOn` is the selected **dense default** because it materially improves the capabilities MiniLM lacks while preserving the one-vector/cosine storage architecture. mLateOn is excluded from this bounded selection because it changes the retrieval architecture.
 
 The frozen AK-4510 contract precommitted 15 model-blind queries over 10 Oracle concepts, including six cross-lingual queries and one label located after MiniLM's 256-token window. It required exact model/runtime/tokenizer/prompt identity, candidate-local SQLite, no semantic-analysis LM or shared-store call, no selective rerun, and one task-fixed attempt ledger.
 
@@ -71,9 +71,27 @@ Observed facts:
 - the task-fixed ledger is consumed and forbids another AK-4510 root;
 - no semantic-analysis LM, shared-store, publication, release, or activation effect occurred.
 
-The failure is an adapter compatibility defect, not an observed semantic miss and not evidence that mDenseOn has poor retrieval quality. It produced no challenger rankings, metrics, or bounded CPU selection result. Under the precommitted policy, **MiniLM remains the current default** and mDenseOn is not yet adopted.
+The failure remains adapter-compatibility history, not an observed semantic miss. It is not rewritten by the later recovery.
 
-A lawful recovery must be a separately authorized, hash-bound full-batch sequence that preserves AK-4510, reuses the exact retained mDenseOn snapshot without reacquisition, removes only the unsupported tokenizer field, and reruns all records and queries without selective examples.
+## AK-4517 forward recovery and default adoption
+
+AK-4517 used a separate precommitted ledger and the exact retained AK-4510 snapshot entirely offline. The adapter removed only `token_type_ids`, then encoded every frozen document and query as complete ordered batches with explicit `document: ` and `query: ` roles. No artifact reacquisition, selective query rerun, DSPx retry, semantic-analysis LM call, shared-store connection, publication, release, or activation effect occurred.
+
+The terminal recovery is retained at:
+
+`/home/tryinget/.local/state/pi-quests/tmp/dspx-oracle-embedding-recovery-ak4517-20260802T064448Z-979337`
+
+Observed bounded results:
+
+- mDenseOn Recall@1, MRR, and nDCG@5 were each `1.0` over all 15 frozen labels;
+- MiniLM Recall@1 was `0.8`, MRR was `0.842857…`, and nDCG@5 was `0.833333…`;
+- cross-lingual Recall@1 improved by `0.333333…`, and the post-256-token long-context case improved by `1.0`;
+- model load was `2.1398` seconds, total encode time was `4.3162` seconds, retained model bytes were `1,262,138,563`, and peak RSS was `1,907,945,472` bytes on the frozen CPU runtime;
+- complete identity, absolute Oracle-specific quality, comparative capability, and bounded CPU resource gates all passed;
+- independent verification re-ranked both SQLite databases, re-derived metrics and selection, reproduced the complete batches, checked resources and preserved lineage, and returned `accepted`;
+- result SHA-256 is `b20249ef…03e20`; independent-verification SHA-256 is `3bd5db06…06548`.
+
+DSPx therefore uses embedding version `2` for newly produced mDenseOn coordinates, encodes indexed records as documents and text searches as queries, and keeps explicit `sentence-transformers` selection as the legacy MiniLM path. Existing version-1 rows are not rewritten: an in-place cross-version upsert fails closed, so adoption requires a new/rebuilt version-2 index rather than silent historical replacement. Backend identity remains production-claim-false unless the exact runtime identity is separately bound.
 
 ## Claims that remain false
 

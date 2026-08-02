@@ -49,8 +49,13 @@ def _embedding_backend_identity(
     }
     backend = raw.get("effective_backend")
     dimension = raw.get("dimension")
+    schema_version = raw.get("schema_version")
     common_valid = (
-        raw.get("schema_version") == "dspx-embedding-backend-identity-v1"
+        schema_version
+        in {
+            "dspx-embedding-backend-identity-v1",
+            "dspx-embedding-backend-identity-v2",
+        }
         and required.issubset(raw)
         and isinstance(dimension, int)
         and not isinstance(dimension, bool)
@@ -58,21 +63,65 @@ def _embedding_backend_identity(
         and dimension == expected_dimension
         and raw.get("production_semantic_claim_allowed") is False
     )
+    adapter_value = raw.get("adapter")
     mock_valid = (
         backend == "mock"
         and raw.get("model") == "sha256-deterministic-test-double-v1"
         and raw.get("semantic_class") == "deterministic_test_double"
         and raw.get("semantic_claim") == "plumbing_only_not_production_semantics"
+        and (
+            (
+                schema_version == "dspx-embedding-backend-identity-v1"
+                and "adapter" not in raw
+            )
+            or (
+                schema_version == "dspx-embedding-backend-identity-v2"
+                and adapter_value is None
+            )
+        )
     )
-    model_valid = (
+    legacy_model_valid = (
         backend == "sentence-transformers"
         and isinstance(raw.get("model"), str)
         and bool(str(raw.get("model")).strip())
         and raw.get("semantic_class") == "model_backed_semantic_embedding"
-        and raw.get("semantic_claim")
-        == "model_backed_semantics_not_production_validated"
+        and (
+            (
+                schema_version == "dspx-embedding-backend-identity-v1"
+                and "adapter" not in raw
+                and raw.get("semantic_claim")
+                == "model_backed_semantics_not_production_validated"
+            )
+            or (
+                schema_version == "dspx-embedding-backend-identity-v2"
+                and raw.get("semantic_claim")
+                == "legacy_model_backed_semantics_not_current_default"
+                and adapter_value is None
+            )
+        )
     )
-    if common_valid and (mock_valid or model_valid):
+    adapter = _safe_mapping(adapter_value)
+    selected_model_valid = (
+        schema_version == "dspx-embedding-backend-identity-v2"
+        and backend == "transformers-dense"
+        and raw.get("model") == "lightonai/mDenseOn"
+        and dimension == 768
+        and raw.get("semantic_class") == "model_backed_semantic_embedding"
+        and raw.get("semantic_claim")
+        == "oracle_selected_model_backed_semantics_requires_exact_runtime_identity"
+        and adapter
+        == {
+            "name": "dspx-mdenseon-cls-v1",
+            "revision": "a5fdb000f7a21da96c3bddde3a782ef777316df3",
+            "document_prompt": "document: ",
+            "query_prompt": "query: ",
+            "pooling": "last_hidden_state_cls_token",
+            "normalization": "l2",
+            "similarity": "cosine",
+            "maximum_tokens": 8192,
+        }
+    )
+    if common_valid and (mock_valid or legacy_model_valid or selected_model_valid):
         return raw
     return {
         "schema_version": "dspx-embedding-backend-identity-unknown",

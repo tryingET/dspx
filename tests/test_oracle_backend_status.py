@@ -49,7 +49,7 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         "created_by_status_check": False,
     }
     assert status["embedding_backend"] == {
-        "schema_version": "dspx-embedding-backend-identity-v1",
+        "schema_version": "dspx-embedding-backend-identity-v2",
         "requested_backend": "none",
         "effective_backend": "none",
         "selection_source": "DSPX_ORACLE_EMBEDDING_BACKEND",
@@ -58,6 +58,7 @@ def test_oracle_backend_status_reports_local_sqlite_without_creating_index(
         "reason": "embedding backend explicitly disabled",
         "model": None,
         "dimension": None,
+        "adapter": None,
         "semantic_class": "disabled",
         "semantic_claim": "no_embedding_backend_available",
         "production_semantic_claim_allowed": False,
@@ -107,6 +108,30 @@ def test_oracle_backend_status_reports_explicit_mock_as_plumbing_only(
     assert embedding["semantic_class"] == "deterministic_test_double"
     assert embedding["semantic_claim"] == "plumbing_only_not_production_semantics"
     assert embedding["production_semantic_claim_allowed"] is False
+    assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
+
+
+def test_oracle_backend_status_reports_selected_mdenseon_without_loading_model(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import dspx.coordinates.embeddings as embeddings
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "transformers-dense")
+    monkeypatch.setattr(embeddings, "find_spec", lambda _name: object())
+
+    status = build_oracle_backend_status()
+
+    identity = status["embedding_backend"]
+    assert identity["effective_backend"] == "transformers-dense"
+    assert identity["model"] == "lightonai/mDenseOn"
+    assert identity["dimension"] == 768
+    assert identity["adapter"]["revision"] == (
+        "a5fdb000f7a21da96c3bddde3a782ef777316df3"
+    )
+    assert identity["adapter"]["document_prompt"] == "document: "
+    assert identity["adapter"]["query_prompt"] == "query: "
+    assert identity["production_semantic_claim_allowed"] is False
     assert not (tmp_path / "generated" / "oracle" / "coordinates.db").exists()
 
 
@@ -200,6 +225,29 @@ def test_oracle_stats_does_not_require_operational_embedding_backend(
     assert payload["embedding_backend"]["semantic_claim"] == (
         "no_embedding_backend_available"
     )
+
+
+def test_oracle_stats_reports_selected_mdenseon_without_model_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import dspx.coordinates.embeddings as embeddings
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "transformers-dense")
+    monkeypatch.setattr(embeddings, "find_spec", lambda _name: object())
+    index_path = tmp_path / "oracle" / "coordinates.db"
+
+    result = runner.invoke(
+        app,
+        ["oracle", "stats", "--index-path", str(index_path), "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["engine_backend"] == "transformers-dense"
+    assert payload["engine_dimension"] == 768
+    assert payload["embedding_backend"]["model"] == "lightonai/mDenseOn"
+    assert payload["embedding_backend"]["adapter"]["query_prompt"] == "query: "
 
 
 def test_oracle_backend_status_cli_json(tmp_path: Path, monkeypatch) -> None:

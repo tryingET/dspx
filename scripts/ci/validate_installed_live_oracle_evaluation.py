@@ -27,7 +27,7 @@ EXPECTED_MODEL_ROLES_FILE_SHA256 = (
     "8d4a8b6c8de2de11482475bf8ae5d245dd8b82592e6957854f2d1f173be174d2"
 )
 EXPECTED_EMBEDDINGS_FILE_SHA256 = (
-    "ae3be19a7935b15f15fcae49bd527122625a0485254690e92abbd5f2e5b0bc87"
+    "3e969772037968eb74fba5554246826c9d6d6edca7258689844833d56b454207"
 )
 EXPECTED_CASES = (
     (
@@ -314,7 +314,7 @@ def _validate_source_bindings(
     backend_names, embedding_model = _embedding_source_identity(embeddings_path)
     _expect(
         backend_names,
-        {"none", "mock", "sentence-transformers"},
+        {"none", "mock", "sentence-transformers", "transformers-dense"},
         "embedding backend set",
     )
     oracle = _mapping(contract.get("oracle_evaluation"), "oracle_evaluation")

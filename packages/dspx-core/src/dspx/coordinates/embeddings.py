@@ -29,17 +29,39 @@ from .embedding_identity import (
     build_sentence_transformer_identity,
     validate_unit_vector,
 )
+from .mdenseon import (
+    MDENSEON_ADAPTER,
+    MDENSEON_DIMENSION,
+    MDENSEON_DOCUMENT_PROMPT,
+    MDENSEON_MAX_TOKENS,
+    MDENSEON_QUERY_PROMPT,
+    MDENSEON_REPOSITORY_ID,
+    MDENSEON_REVISION,
+    MDenseOnEmbedder,
+)
 
 logger = logging.getLogger(__name__)
 
 # Embedding schema version - bump when changing embedding behavior
-EMBEDDING_VERSION = 1
+EMBEDDING_VERSION = 2
 
-EmbeddingBackendName = Literal["none", "mock", "sentence-transformers"]
-EmbeddingBackendRequest = Literal["auto", "none", "mock", "sentence-transformers"]
-EMBEDDING_BACKEND_IDENTITY_SCHEMA = "dspx-embedding-backend-identity-v1"
+EmbeddingBackendName = Literal[
+    "none", "mock", "sentence-transformers", "transformers-dense"
+]
+EmbeddingBackendRequest = Literal[
+    "auto", "none", "mock", "sentence-transformers", "transformers-dense"
+]
+EMBEDDING_BACKEND_IDENTITY_SCHEMA = "dspx-embedding-backend-identity-v2"
 _EMBEDDING_BACKEND_ENV = "DSPX_ORACLE_EMBEDDING_BACKEND"
-_VALID_EMBEDDING_BACKENDS = {"none", "mock", "sentence-transformers"}
+_VALID_EMBEDDING_BACKENDS = {
+    "none",
+    "mock",
+    "sentence-transformers",
+    "transformers-dense",
+}
+
+_LEGACY_SENTENCE_TRANSFORMER_MODEL = "all-MiniLM-L6-v2"
+_LEGACY_SENTENCE_TRANSFORMER_DIMENSION = 384
 
 
 class EmbeddingBackendConfigurationError(RuntimeError):
@@ -61,7 +83,10 @@ class EmbeddingBackendSelection:
     def semantic_class(self) -> str:
         if self.effective_backend == "mock":
             return "deterministic_test_double"
-        if self.effective_backend == "sentence-transformers":
+        if self.effective_backend in {
+            "sentence-transformers",
+            "transformers-dense",
+        }:
             return "model_backed_semantic_embedding"
         return "disabled"
 
@@ -69,8 +94,12 @@ class EmbeddingBackendSelection:
     def semantic_claim(self) -> str:
         if self.effective_backend == "mock":
             return "plumbing_only_not_production_semantics"
+        if self.effective_backend == "transformers-dense":
+            return (
+                "oracle_selected_model_backed_semantics_requires_exact_runtime_identity"
+            )
         if self.effective_backend == "sentence-transformers":
-            return "model_backed_semantics_not_production_validated"
+            return "legacy_model_backed_semantics_not_current_default"
         return "no_embedding_backend_available"
 
     def to_dict(
@@ -79,10 +108,25 @@ class EmbeddingBackendSelection:
         model_name: str | None = None,
         dimension: int | None = None,
     ) -> dict[str, Any]:
+        adapter: dict[str, Any] | None = None
         if self.effective_backend == "mock":
             resolved_model = "sha256-deterministic-test-double-v1"
+        elif self.effective_backend == "transformers-dense":
+            resolved_model = model_name or MDENSEON_REPOSITORY_ID
+            dimension = dimension or MDENSEON_DIMENSION
+            adapter = {
+                "name": MDENSEON_ADAPTER,
+                "revision": MDENSEON_REVISION,
+                "document_prompt": MDENSEON_DOCUMENT_PROMPT,
+                "query_prompt": MDENSEON_QUERY_PROMPT,
+                "pooling": "last_hidden_state_cls_token",
+                "normalization": "l2",
+                "similarity": "cosine",
+                "maximum_tokens": MDENSEON_MAX_TOKENS,
+            }
         elif self.effective_backend == "sentence-transformers":
-            resolved_model = model_name
+            resolved_model = model_name or _LEGACY_SENTENCE_TRANSFORMER_MODEL
+            dimension = dimension or _LEGACY_SENTENCE_TRANSFORMER_DIMENSION
         else:
             resolved_model = None
         return {
@@ -95,6 +139,7 @@ class EmbeddingBackendSelection:
             "reason": self.reason,
             "model": resolved_model,
             "dimension": dimension,
+            "adapter": adapter,
             "semantic_class": self.semantic_class,
             "semantic_claim": self.semantic_claim,
             "production_semantic_claim_allowed": False,
@@ -121,7 +166,7 @@ def resolve_embedding_backend(
         if backend not in _VALID_EMBEDDING_BACKENDS:
             raise EmbeddingBackendConfigurationError(
                 f"Unsupported Oracle embedding backend {backend!r}; expected "
-                "none, mock, or sentence-transformers"
+                "none, mock, sentence-transformers, or transformers-dense"
             )
         selected = backend
         source = "explicit_argument"
@@ -131,15 +176,22 @@ def resolve_embedding_backend(
         if configured and configured not in _VALID_EMBEDDING_BACKENDS:
             raise EmbeddingBackendConfigurationError(
                 f"Invalid {_EMBEDDING_BACKEND_ENV}={configured!r}; expected "
-                "none, mock, or sentence-transformers"
+                "none, mock, sentence-transformers, or transformers-dense"
             )
         if configured:
             selected = configured
             source = _EMBEDDING_BACKEND_ENV
             explicitly_selected = True
+        elif all(
+            find_spec(module) is not None
+            for module in ("transformers", "torch", "huggingface_hub")
+        ):
+            selected = "transformers-dense"
+            source = "automatic_dependency_detection"
+            explicitly_selected = False
         elif find_spec("sentence_transformers") is not None:
             selected = "sentence-transformers"
-            source = "automatic_dependency_detection"
+            source = "legacy_dependency_detection"
             explicitly_selected = False
         else:
             selected = "none"
@@ -157,10 +209,20 @@ def resolve_embedding_backend(
     elif effective_backend == "mock":
         reason = "explicit deterministic test-double selection"
         available = True
+    elif effective_backend == "transformers-dense":
+        available = all(
+            find_spec(module) is not None
+            for module in ("transformers", "torch", "huggingface_hub")
+        )
+        reason = (
+            "selected mDenseOn runtime dependencies detected"
+            if available
+            else "transformers-dense selected but a required dependency is unavailable"
+        )
     else:
         available = find_spec("sentence_transformers") is not None
         reason = (
-            "sentence-transformers dependency detected"
+            "legacy sentence-transformers dependency detected"
             if available
             else "sentence-transformers selected but dependency is unavailable"
         )
@@ -531,31 +593,44 @@ class EmbeddingEngine:
     def __init__(
         self,
         backend: EmbeddingBackendRequest = "auto",
-        model_name: str = "all-MiniLM-L6-v2",
+        model_name: str | None = None,
         mock_dimension: int = 384,
+        *,
+        _selection: EmbeddingBackendSelection | None = None,
     ):
-        selection = resolve_embedding_backend(backend)
+        selection = _selection or resolve_embedding_backend(backend)
         if not selection.available:
             raise EmbeddingBackendConfigurationError(
                 f"Oracle embedding backend unavailable: {selection.reason}. "
                 f"Set {_EMBEDDING_BACKEND_ENV}=mock only for explicit test/plumbing use, "
-                "or install and select sentence-transformers."
+                "or install the oracle-embeddings dependencies and select a model backend."
             )
 
         self._selection = selection
         self._backend_name = selection.effective_backend
-        self._model_name = model_name
         self._mock_dimension = mock_dimension
 
-        if self._backend_name == "sentence-transformers":
-            self._embedder: EmbedderProtocol = SentenceTransformerEmbedder(model_name)
+        if self._backend_name == "transformers-dense":
+            resolved_model = model_name or MDENSEON_REPOSITORY_ID
+            if resolved_model != MDENSEON_REPOSITORY_ID:
+                raise EmbeddingBackendConfigurationError(
+                    "transformers-dense currently supports only the frozen lightonai/mDenseOn adapter"
+                )
+            self._embedder: EmbedderProtocol | MDenseOnEmbedder = MDenseOnEmbedder(
+                resolved_model
+            )
+        elif self._backend_name == "sentence-transformers":
+            resolved_model = model_name or _LEGACY_SENTENCE_TRANSFORMER_MODEL
+            self._embedder = SentenceTransformerEmbedder(resolved_model)
         elif self._backend_name == "mock":
+            resolved_model = "sha256-deterministic-test-double-v1"
             self._embedder = MockEmbedder(dimension=mock_dimension)
         else:  # guarded by selection.available; retained as a fail-closed invariant
             raise EmbeddingBackendConfigurationError(
                 f"Oracle embedding backend {self._backend_name!r} cannot encode vectors"
             )
 
+        self._model_name = resolved_model
         self._dimension = self._embedder.get_dimension()
 
     @property
@@ -570,7 +645,7 @@ class EmbeddingEngine:
 
     @property
     def model_name(self) -> str:
-        """Return the model name (for sentence-transformers)."""
+        """Return the selected model or deterministic test-double identity."""
         return self._model_name
 
     @property
@@ -582,13 +657,29 @@ class EmbeddingEngine:
             dimension=self._dimension,
         )
 
+    def embed_document(self, text: str) -> list[float]:
+        """Embed one stored document under the backend's document role."""
+        return self.embed_documents([text])[0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Embed stored documents under the backend's document role."""
+        if self._backend_name == "transformers-dense":
+            return cast(MDenseOnEmbedder, self._embedder).encode_documents(texts)
+        return cast(EmbedderProtocol, self._embedder).encode(texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        """Embed one retrieval request under the backend's query role."""
+        if self._backend_name == "transformers-dense":
+            return cast(MDenseOnEmbedder, self._embedder).encode_queries([text])[0]
+        return cast(EmbedderProtocol, self._embedder).encode([text])[0]
+
     def embed_text(self, text: str) -> list[float]:
-        """Embed a single text string."""
-        return self._embedder.encode([text])[0]
+        """Backward-compatible alias for document-role encoding."""
+        return self.embed_document(text)
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        """Embed multiple text strings."""
-        return self._embedder.encode(texts)
+        """Backward-compatible alias for document-role batch encoding."""
+        return self.embed_documents(texts)
 
     def embed_execution(
         self,
@@ -614,7 +705,7 @@ class EmbeddingEngine:
         if config_text:
             combined += f"\n\n[CONFIG]\n{config_text}"
 
-        vector = self.embed_text(combined)
+        vector = self.embed_document(combined)
 
         return ExecutionEmbedding(
             run_id=run_id,
@@ -802,12 +893,12 @@ class EmbeddingEngine:
 
 # Global engine instance and its configuration
 _ENGINE: EmbeddingEngine | None = None
-_ENGINE_CONFIG: tuple[str, str, str, bool, str, int] | None = None
+_ENGINE_CONFIG: tuple[str, str, str, bool, str | None, int] | None = None
 
 
 def get_embedding_engine(
     backend: EmbeddingBackendRequest = "auto",
-    model_name: str = "all-MiniLM-L6-v2",
+    model_name: str | None = None,
     mock_dimension: int = 384,
     force_new: bool = False,
 ) -> EmbeddingEngine:
@@ -818,7 +909,7 @@ def get_embedding_engine(
 
     Args:
         backend: Embedding backend to use
-        model_name: Model name for sentence-transformers
+        model_name: Explicit backend model name; defaults by selected backend
         mock_dimension: Dimension for mock embedder
         force_new: Force creation of new engine (ignore cached)
 
@@ -851,6 +942,7 @@ def get_embedding_engine(
                 backend=backend,
                 model_name=model_name,
                 mock_dimension=mock_dimension,
+                _selection=selection,
             )
             _ENGINE_CONFIG = config
 
