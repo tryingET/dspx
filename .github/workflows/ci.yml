@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.14"
@@ -43,7 +43,13 @@ jobs:
       matrix:
         shard: [core-0, core-1, core-2, core-3, forge, slow]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Prepare owner-only temporary directory
+        run: |
+          install -d -m 700 "$RUNNER_TEMP/dspx-tmp"
+          echo "TMPDIR=$RUNNER_TEMP/dspx-tmp" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.14"
@@ -51,6 +57,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - uses: extractions/setup-just@v3
+      - uses: cue-lang/setup-cue@v1.0.1
       - run: uv sync --frozen --all-packages --dev
       - name: Run bounded offline shard with coverage
         env:
@@ -71,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.14"
@@ -92,7 +99,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.14"

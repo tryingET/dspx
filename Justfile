@@ -107,9 +107,9 @@ typecheck-core:
 typecheck-forge:
   uvx ty check apps/forge/src
 
-# Type-check test harnesses and contract tests
+# Type-check test harnesses and contract tests with Forge's src layout visible.
 typecheck-tests:
-  uvx ty check tests
+  uvx ty check tests --extra-search-path apps/forge/src
 
 # Run tests (if present)
 test:
@@ -168,7 +168,7 @@ ci-quality:
   just workflow-contract-check
   uv run --frozen --no-sync ruff format --check packages/dspx-core/src apps/forge/src tests
   uv run --frozen --no-sync ruff check packages/dspx-core/src apps/forge/src tests
-  uv run --frozen --no-sync ty check packages/dspx-core/src apps/forge/src tests
+  uv run --frozen --no-sync ty check --extra-search-path apps/forge/src packages/dspx-core/src apps/forge/src tests
 
 # Build distributions; prove the Core wheel's stub-backed product journey; smoke Forge separately.
 ci-package:

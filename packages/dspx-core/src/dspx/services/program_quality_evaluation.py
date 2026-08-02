@@ -155,6 +155,7 @@ def declared_quality_output_fields(criteria: object) -> set[str]:
     for item in criteria:
         if not isinstance(item, Mapping):
             continue
+        item = cast(Mapping[str, object], item)
         output_field = item.get("output_field")
         if isinstance(output_field, str) and output_field:
             fields.add(output_field)

@@ -57,6 +57,7 @@ _EXPECTED_UV_VERSION = "uv 0.11.14 (3fdfdc7d4 2026-05-12 x86_64-unknown-linux-gn
 _HANDOFF_PATH_ENV = "DSPX_ORACLE_EMBEDDING_HANDOFF_PATH"
 _HANDOFF_NONCE_ENV = "DSPX_ORACLE_EMBEDDING_HANDOFF_NONCE"
 _FROZEN_RUNTIME_VERIFIED = False
+FROZEN_LOCK_COMMIT = "7b71dbd92405a3a903e93918c3299090f0347087"
 
 
 def _consume_runtime_handoff() -> bool:
@@ -206,6 +207,19 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256_git_blob(repo_root: Path, commit: str, path: str) -> str:
+    try:
+        raw = subprocess.check_output(
+            ["git", "-C", str(repo_root), "show", f"{commit}:{path}"],
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise EvaluationError(
+            f"frozen source binding is unavailable: {commit}:{path}"
+        ) from exc
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
     temporary = path.with_name(f".{path.name}.tmp")
     raw = (
@@ -239,7 +253,12 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     contract = cast(dict[str, Any], payload)
     validate_contract_payload(contract)
     for relative_path, expected_hash in EXPECTED_SOURCE_HASHES.items():
-        if _sha256_file(repo_root / relative_path) != expected_hash:
+        observed_source_hash = (
+            _sha256_git_blob(repo_root, FROZEN_LOCK_COMMIT, relative_path)
+            if relative_path == "uv.lock"
+            else _sha256_file(repo_root / relative_path)
+        )
+        if observed_source_hash != expected_hash:
             raise EvaluationError(f"source binding drift: {relative_path}")
     return contract, observed_hash
 

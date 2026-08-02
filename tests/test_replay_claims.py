@@ -76,8 +76,8 @@ def test_runtime_reproduction_separates_semantics_from_quality_evidence() -> Non
     assert _status(matrix, "runtime_execution_reproduction") == "passed"
     assert _status(matrix, "semantic_reproduction") == "not_evaluated"
     assert _status(matrix, "quality_evaluation_reproduction") == "passed"
-    quality = matrix["dimensions"]["quality_evaluation_reproduction"]  # type: ignore[index]
-    assert quality["evidence_level"] == (  # type: ignore[index]
+    quality = matrix["dimensions"]["quality_evaluation_reproduction"]
+    assert quality["evidence_level"] == (
         "receipt_bound_quality_evaluation_identity_not_independent_approval"
     )
     validate_replay_claim_matrix(
@@ -95,19 +95,19 @@ def test_runtime_reproduction_separates_semantics_from_quality_evidence() -> Non
             "release claim",
         ),
         (
-            lambda payload: payload["authority"].__setitem__(  # type: ignore[union-attr]
+            lambda payload: payload["authority"].__setitem__(
                 "promotion_authority", True
             ),
             "authority boundary",
         ),
         (
-            lambda payload: payload["dimensions"][  # type: ignore[index]
-                "semantic_reproduction"
-            ].__setitem__("status", "passed"),
+            lambda payload: payload["dimensions"]["semantic_reproduction"].__setitem__(
+                "status", "passed"
+            ),
             "semantic reproduction",
         ),
         (
-            lambda payload: payload["dimensions"][  # type: ignore[index]
+            lambda payload: payload["dimensions"][
                 "deterministic_regeneration"
             ].__setitem__("status", "passed"),
             "must not claim execution reproduction",

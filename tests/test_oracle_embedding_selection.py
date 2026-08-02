@@ -636,17 +636,24 @@ def test_recovery_contract_binds_failed_history_and_retained_model() -> None:
     preserved = recovery["preserved_terminal_attempt"]
     retained = recovery["retained_challenger"]
     assert (
-        runner._sha256_file(Path(preserved["attempt_status_path"]))
+        runner._sha256_file(
+            runner._retained_recovery_evidence_path(REPO_ROOT, "attempt_status_path")
+        )
         == preserved["attempt_status_sha256"]
     )
     assert (
-        runner._sha256_file(Path(preserved["ledger_path"]))
+        runner._sha256_file(
+            runner._retained_recovery_evidence_path(REPO_ROOT, "ledger_path")
+        )
         == preserved["ledger_sha256"]
     )
-    assert (
-        runner._sha256_file(Path(retained["root"]) / "model.safetensors")
-        == retained["model_safetensors_sha256"]
+    selection = json.loads(CONTRACT_PATH.read_bytes())
+    model_artifact = next(
+        row
+        for row in selection["candidates"]["challenger"]["artifact_manifest"]
+        if row["path"] == "model.safetensors"
     )
+    assert model_artifact["lfs_sha256"] == retained["model_safetensors_sha256"]
     assert retained["network_reacquisition_allowed"] is False
 
 

@@ -19,7 +19,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Iterator, Protocol, runtime_checkable
+from typing import Any, Iterator, Protocol, cast, runtime_checkable
 
 from .embeddings import ExecutionEmbedding, EMBEDDING_VERSION
 from .metrics import cosine_similarity, semantic_distance
@@ -350,6 +350,7 @@ def _embedding_space_key(identity: object) -> tuple[str, str, int, str] | None:
 
     if not isinstance(identity, dict):
         return None
+    identity = cast(dict[str, object], identity)
     schema = identity.get("schema_version")
     backend = identity.get("effective_backend")
     model = identity.get("model")

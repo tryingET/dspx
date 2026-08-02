@@ -711,6 +711,18 @@ def test_current_repo_standardized_targets_are_side_effect_free() -> None:
             uv_lock.write_bytes(before)
 
 
+def test_public_ci_provisions_portable_security_and_history_prerequisites() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow = (repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "actions/checkout@v4" not in workflow
+    assert workflow.count("actions/checkout@v5") == 4
+    assert workflow.count("fetch-depth: 0") == 2
+    assert workflow.count("Prepare owner-only temporary directory") == 1
+    assert 'install -d -m 700 "$RUNNER_TEMP/dspx-tmp"' in workflow
+    assert workflow.count("cue-lang/setup-cue@v1.0.1") == 1
+
+
 def test_collect_issues_passes_for_current_repo() -> None:
     repo_root = Path(__file__).resolve().parents[1]
 

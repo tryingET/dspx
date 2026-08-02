@@ -266,7 +266,7 @@ def _distribution_content_sha256(package_name: str) -> str:
     digest = hashlib.sha256()
     base = Path(str(installed.locate_file(""))).resolve()
     retained_count = 0
-    for relative in sorted(files, key=str):
+    for relative in sorted(files, key=lambda item: str(item)):
         relative_path = Path(str(relative))
         path = Path(str(installed.locate_file(relative))).resolve()
         if not _is_stable_distribution_path(relative_path) or base not in path.parents:

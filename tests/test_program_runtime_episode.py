@@ -1210,7 +1210,7 @@ def test_quality_runtime_provider_failure_remains_final_consumer_valid(
 
 
 def test_program_run_cli_help_describes_inputs_as_file_path() -> None:
-    result = runner.invoke(app, ["program-run", "--help"])
+    result = runner.invoke(app, ["program-run", "--help"], terminal_width=200)
 
     assert result.exit_code == 0, result.output
     assert "Path to a JSON file" in result.output

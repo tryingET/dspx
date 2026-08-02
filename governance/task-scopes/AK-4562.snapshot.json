@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-02T21:46:28.155029599+00:00",
+  "task_id": 4562,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      ".github/workflows/ci.yml",
+      "Justfile",
+      "benchmarks/semantic/oracle-embedding-evaluation-v1.json",
+      "benchmarks/semantic/oracle-embedding-selection-recovery-v1.json",
+      "benchmarks/semantic/retained/ak4510/**",
+      "governance/task-scopes/AK-4562.snapshot.json",
+      "packages/dspx-core/src/dspx/coordinates/embedding_identity.py",
+      "packages/dspx-core/src/dspx/coordinates/mdenseon.py",
+      "packages/dspx-core/src/dspx/coordinates/oracle_embedding_evaluation.py",
+      "packages/dspx-core/src/dspx/coordinates/storage.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py",
+      "packages/dspx-core/src/dspx/services/program_quality_evaluation.py",
+      "scripts/ci/run_oracle_embedding_evaluation.py",
+      "scripts/ci/run_oracle_embedding_selection.py",
+      "tests/test_module_service.py",
+      "tests/test_oracle_embedding_evaluation.py",
+      "tests/test_oracle_embedding_selection.py",
+      "tests/test_oracle_semantic_analysis_evaluation.py",
+      "tests/test_program_runtime_episode.py",
+      "tests/test_release_authorization_consumer.py",
+      "tests/test_release_environment_sbom.py",
+      "tests/test_replay_claims.py",
+      "tests/test_workflow_contracts.py",
+      "uv.lock"
+    ],
+    "required_paths": [
+      ".github/workflows/ci.yml"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

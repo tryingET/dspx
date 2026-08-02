@@ -328,7 +328,7 @@ def test_module_service_signature_mode_preserves_requested_io_contract(
 
     namespace: dict[str, Any] = {}
     exec(art.code, namespace, namespace)
-    student = namespace["build_student"]()  # type: ignore[index, operator]
+    student = namespace["build_student"]()
     assert list(student.predict.signature.input_fields.keys()) == [
         "question",
         "context",
@@ -346,7 +346,7 @@ def test_module_service_signature_mode_preserves_requested_io_contract(
     student.forward(question="What happened?", context="The sky is blue")
     assert captured == [{"question": "What happened?", "context": "The sky is blue"}]
 
-    io_spec = namespace["io_spec"]()  # type: ignore[index, operator]
+    io_spec = namespace["io_spec"]()
     assert io_spec == {"inputs": ["question", "context"], "outputs": ["answer"]}
 
 

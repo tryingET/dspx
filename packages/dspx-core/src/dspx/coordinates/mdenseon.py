@@ -10,7 +10,7 @@ import json
 import stat
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Literal, Mapping, cast
 
 from .embedding_identity import (
     SentenceTransformerIdentitySpec,
@@ -101,7 +101,10 @@ def validate_serialized_mdenseon_semantics(model_root: Path) -> None:
     }:
         raise MDenseOnError("mDenseOn serialized CLS pooling drift")
     sentence_transformer = _read_model_json(root, "config_sentence_transformers.json")
-    if not isinstance(sentence_transformer, dict) or {
+    if not isinstance(sentence_transformer, dict):
+        raise MDenseOnError("mDenseOn serialized prompt or similarity drift")
+    sentence_transformer = cast(dict[str, object], sentence_transformer)
+    if {
         "default_prompt_name": sentence_transformer.get("default_prompt_name"),
         "model_type": sentence_transformer.get("model_type"),
         "prompts": sentence_transformer.get("prompts"),

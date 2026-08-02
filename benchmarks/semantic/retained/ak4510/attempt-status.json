@@ -1,0 +1,11 @@
+{
+  "ak_task_id": 4510,
+  "attempt_budget_consumed": 1,
+  "contract_sha256": "e4ff030f2133f19a65b7586606874f1c8fa3895f6bf114580fc2e8d8ab43d9a3",
+  "error": "ModernBertModel.forward() got an unexpected keyword argument 'token_type_ids'",
+  "error_class": "TypeError",
+  "schema_version": "dspx-oracle-embedding-selection-attempt-v1",
+  "selective_rerun_allowed": false,
+  "source_commit": "7f096db311f36efbefd762120eacfe28da5cc753",
+  "status": "failed_or_indeterminate_terminal"
+}

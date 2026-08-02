@@ -70,6 +70,11 @@ _HANDOFF_NONCE_ENV = "DSPX_ORACLE_EMBEDDING_SELECTION_HANDOFF_NONCE"
 _FROZEN_RUNTIME_REEXECUTED = False
 _TASK_ID = 4510
 _RECOVERY_TASK_ID = 4517
+FROZEN_LOCK_COMMIT = "7b71dbd92405a3a903e93918c3299090f0347087"
+_RETAINED_RECOVERY_EVIDENCE = {
+    "attempt_status_path": "benchmarks/semantic/retained/ak4510/attempt-status.json",
+    "ledger_path": "benchmarks/semantic/retained/ak4510/ledger.json",
+}
 _REQUIRED_TRACKED_SOURCE_FILES = (
     CONTRACT_FILE,
     BASELINE_CONTRACT_FILE,
@@ -103,6 +108,30 @@ def _sha256_file(path: Path) -> str:
         while chunk := stream.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _sha256_git_blob(repo_root: Path, commit: str, path: str) -> str:
+    try:
+        raw = subprocess.check_output(
+            ["git", "-C", str(repo_root), "show", f"{commit}:{path}"],
+            stderr=subprocess.STDOUT,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise SelectionError(
+            f"frozen source binding is unavailable: {commit}:{path}"
+        ) from exc
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _retained_recovery_evidence_path(repo_root: Path, key: str) -> Path:
+    try:
+        relative = _RETAINED_RECOVERY_EVIDENCE[key]
+    except KeyError as exc:
+        raise SelectionError(f"unknown retained recovery evidence: {key}") from exc
+    path = repo_root / relative
+    if not path.is_file() or path.is_symlink():
+        raise SelectionError(f"preserved recovery lineage drift: {key}")
+    return path
 
 
 def _write_json(path: Path, payload: Mapping[str, Any]) -> None:
@@ -467,7 +496,12 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
         BASELINE_CONTRACT_FILE: "819204905f94449013fb25a5f6e21157db36210cbaa4b6e6e8811bb67ca3e92e",
         "uv.lock": _EXPECTED_LOCK_SHA256,
     }.items():
-        if _sha256_file(repo_root / relative) != expected:
+        observed_source = (
+            _sha256_git_blob(repo_root, FROZEN_LOCK_COMMIT, relative)
+            if relative == "uv.lock"
+            else _sha256_file(repo_root / relative)
+        )
+        if observed_source != expected:
             raise SelectionError(f"source binding drift: {relative}")
     return contract, observed
 
@@ -525,15 +559,34 @@ def load_recovery_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     ):
         raise SelectionError("recovery contract execution or claim boundary drift")
     for key in ("attempt_status_path", "ledger_path"):
-        evidence_path = Path(cast(str, preserved[key]))
+        configured_path = Path(cast(str, preserved[key]))
         expected_hash = cast(str, preserved[f"{key.removesuffix('_path')}_sha256"])
+        evidence_path = _retained_recovery_evidence_path(repo_root, key)
         if (
-            not evidence_path.is_absolute()
-            or not evidence_path.is_file()
-            or evidence_path.is_symlink()
+            not configured_path.is_absolute()
             or _sha256_file(evidence_path) != expected_hash
         ):
             raise SelectionError(f"preserved recovery lineage drift: {key}")
+    base_contract = _mapping(
+        json.loads((repo_root / CONTRACT_FILE).read_bytes()), "base selection contract"
+    )
+    challenger = _mapping(
+        _mapping(base_contract.get("candidates"), "base candidates").get("challenger"),
+        "base challenger",
+    )
+    model_artifact = next(
+        (
+            _mapping(row, "base challenger artifact")
+            for row in _array(challenger.get("artifact_manifest"), "base artifacts")
+            if _mapping(row, "base challenger artifact").get("path")
+            == "model.safetensors"
+        ),
+        None,
+    )
+    if model_artifact is None or model_artifact.get("lfs_sha256") != retained.get(
+        "model_safetensors_sha256"
+    ):
+        raise SelectionError("preserved recovery model lineage drift")
     return contract, observed
 
 
