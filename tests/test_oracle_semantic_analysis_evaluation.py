@@ -1,4 +1,4 @@
-# summary: "Tests the independent-label AK-4506 Oracle semantic-analysis LM evaluation membrane."
+# summary: "Tests the independent-label AK-4568 successor Oracle semantic-analysis LM evaluation membrane."
 
 from __future__ import annotations
 
@@ -143,16 +143,16 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     contract, observed_hash = module.load_contract(REPO_ROOT)
 
     assert observed_hash == (
-        "ed1dcb7b3ba170e2fbdb4a714cc0d8a594dad6b715bb60f07988a52c41af662b"
+        "27eeb61640c3270d2acc52d4b9b2072815eb036877975f29ae2954989fce8435"
     )
     assert contract["attempt_policy"]["case_order"] == list(module._CASE_ORDER)
-    assert FROZEN_SOURCE_COMMIT == "204017bfbecdbda9ceba496ff4c586ffa91f7ac1"
+    assert FROZEN_SOURCE_COMMIT == "a67e87168efea9a4ff303acd2575dc327438077a"
     for case in contract["cases"]:
         request = module._request(case)
         prompt = _analysis_prompt(request)
         assert case["hidden_marker"] not in prompt
         assert json.dumps(case["hidden_labels"], sort_keys=True) not in prompt
-        assert "HIDDEN-AK4506" not in prompt
+        assert "HIDDEN-AK4568" not in prompt
     assert (
         "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py"
         in SOURCE_PATHS
@@ -303,7 +303,7 @@ def test_double_run_is_explicitly_wiring_only_and_live_verifier_rejects(
     }
     assert lm.calls == 4
     assert len(lm.prompts) == 4
-    assert all("HIDDEN-AK4506" not in prompt for prompt in lm.prompts)
+    assert all("HIDDEN-AK4568" not in prompt for prompt in lm.prompts)
     assert verification["status"] == "rejected"
     assert verification["labels_freshly_deterministically_rescored"] is True
     assert verification["implementation_independence_claimed"] is False
