@@ -66,7 +66,9 @@ def _result(*, succeeded: bool) -> OracleSemanticResult:
     )
 
 
-def _backend(results: list[OracleSemanticResult]) -> LiveLMOracleSemanticBackend:
+def _backend(
+    results: list[OracleSemanticResult], *, stream_completed_match: bool = True
+) -> LiveLMOracleSemanticBackend:
     lm = DspyLMAuthLM(
         model="codex/gpt-5.6-sol",
         auth_provider="codex",
@@ -98,7 +100,7 @@ def _backend(results: list[OracleSemanticResult]) -> LiveLMOracleSemanticBackend
                     "output_text_chars": 10,
                     "completed_output_text": True,
                     "stream_output_text_chars": 10,
-                    "stream_completed_match": True,
+                    "stream_completed_match": stream_completed_match,
                 },
             )
         )
@@ -121,7 +123,9 @@ def test_dogfood_first_pass_records_typed_transport(
         repo_root=REPO_ROOT,
         artifact_root=artifact,
         ledger_path=ledger,
-        resolve_backend=lambda: _backend([_result(succeeded=True)]),
+        resolve_backend=lambda: _backend(
+            [_result(succeeded=True)], stream_completed_match=False
+        ),
         dependency_identity=lambda: {
             "package": "dspy-lm-auth",
             "version": "test",
@@ -134,9 +138,14 @@ def test_dogfood_first_pass_records_typed_transport(
     assert payload["status"] == "wiring_only_passed"
     assert payload["recovery"] == "first_pass"
     assert len(payload["attempts"]) == 1
-    assert payload["claims"]["typed_stream_json_transport_passed"] is False
-    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4534"] is True
+    assert (
+        payload["claims"]["authoritative_completed_response_json_transport_passed"]
+        is False
+    )
+    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4535"] is True
     assert payload["claims"]["ak_4506_ledger_reused"] is False
+    assert payload["attempts"][0]["transport"]["stream_completed_match"] is False
+    assert "typed_stream_json_transport_passed" not in payload["claims"]
     assert payload["semantic_score"]["status"] == "passed"
     assert "raw" not in str(payload).lower()
     assert (artifact / module.RESULT_NAME).stat().st_mode & 0o777 == 0o600

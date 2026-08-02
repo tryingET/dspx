@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import importlib
 import threading
 import time
@@ -240,27 +241,47 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
     @staticmethod
     def _extract_text(resp: Any) -> str:
         DspyLMAuthLM._raise_on_error_payload(resp)
-        try:
-            if hasattr(resp, "output_text") and getattr(resp, "output_text"):
-                return str(getattr(resp, "output_text") or "").strip()
-        except Exception:
-            pass
-        try:
-            output = getattr(resp, "output", None)
-            if isinstance(output, list):
-                texts: list[str] = []
-                for item in output:
-                    content = getattr(item, "content", None)
-                    if not isinstance(content, list):
-                        continue
-                    for block in content:
-                        text = getattr(block, "text", None)
-                        if text:
-                            texts.append(str(text))
-                if texts:
-                    return "\n".join(t.strip() for t in texts if str(t).strip()).strip()
-        except Exception:
-            pass
+
+        def response_has_field(value: Any, name: str) -> bool:
+            if isinstance(value, Mapping):
+                return name in value
+            return hasattr(value, name)
+
+        def response_field(value: Any, name: str) -> Any:
+            if isinstance(value, Mapping):
+                return value.get(name)
+            return getattr(value, name, None)
+
+        has_output = response_has_field(resp, "output")
+        has_output_text = response_has_field(resp, "output_text")
+        if has_output:
+            try:
+                output = response_field(resp, "output")
+                if isinstance(output, list):
+                    texts: list[str] = []
+                    for item in output:
+                        if response_field(item, "type") != "message":
+                            continue
+                        content = response_field(item, "content")
+                        if not isinstance(content, list):
+                            continue
+                        for block in content:
+                            if response_field(block, "type") != "output_text":
+                                continue
+                            text = response_field(block, "text")
+                            if isinstance(text, str):
+                                texts.append(text)
+                    return "".join(texts)
+            except Exception:
+                return ""
+        if has_output_text:
+            try:
+                output_text = response_field(resp, "output_text")
+                return output_text if isinstance(output_text, str) else ""
+            except Exception:
+                return ""
+        if has_output or has_output_text:
+            return ""
         try:
             if hasattr(resp, "choices"):
                 choices = getattr(resp, "choices") or []

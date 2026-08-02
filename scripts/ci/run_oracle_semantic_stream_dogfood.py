@@ -24,7 +24,7 @@ from dspx.services.program_oracle_semantic_backend import (
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_scoring import score_analysis
 
-TASK_ID = 4534
+TASK_ID = 4535
 SCHEMA = "dspx-oracle-semantic-stream-dogfood-v1"
 RESULT_NAME = "semantic-stream-dogfood.json"
 CONTRACT_PATH = Path("benchmarks/semantic/oracle-semantic-analysis-evaluation-v1.json")
@@ -350,11 +350,11 @@ def _run_attempts(
         "analysis": analysis,
         "semantic_score": score,
         "claims": {
-            "typed_stream_json_transport_passed": live_passed,
+            "authoritative_completed_response_json_transport_passed": live_passed,
             "semantic_label_gate_passed": bool(
                 live_passed and score and score.get("status") == "passed"
             ),
-            "ak_4506_case_reexecuted_under_ak_4534": True,
+            "ak_4506_case_reexecuted_under_ak_4535": True,
             "ak_4506_ledger_reused": False,
             "production_activation": False,
             "provider_transport_call_count_proven": False,
@@ -432,7 +432,7 @@ def run(
 
 def _ledger_path() -> Path:
     home = Path(pwd.getpwuid(os.getuid()).pw_dir)
-    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4534.json"
+    return home / ".local/state/dspx/oracle-semantic-stream-dogfoods/AK-4535.json"
 
 
 def main() -> int:

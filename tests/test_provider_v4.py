@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import builtins
+from collections import UserDict
 import json
 import sys
 import types
@@ -409,11 +410,13 @@ class _UsageObj:
 
 class _ContentBlock:
     def __init__(self, text: str):
+        self.type = "output_text"
         self.text = text
 
 
 class _Message:
     def __init__(self, text: str):
+        self.type = "message"
         self.content = [_ContentBlock(text)]
 
 
@@ -432,6 +435,57 @@ def test_dspy_lm_auth_extracts_output_text_and_usage_from_response_object() -> N
         "completion_tokens": 3,
         "total_tokens": 5,
     }
+
+
+def test_dspy_lm_auth_extracts_only_exact_typed_output_text() -> None:
+    output = '  {"observations": []}\n'
+    resp = SimpleNamespace(
+        output=[
+            SimpleNamespace(
+                type="reasoning",
+                content=[SimpleNamespace(type="reasoning_text", text="private")],
+            ),
+            _Message(output),
+            SimpleNamespace(
+                type="function_call",
+                content=[SimpleNamespace(type="output_text", text="tool")],
+            ),
+        ]
+    )
+
+    assert DspyLMAuthLM._extract_text(resp) == output
+    assert (
+        DspyLMAuthLM._extract_text(
+            UserDict(
+                {
+                    "output": [
+                        {
+                            "type": "message",
+                            "content": [{"type": "output_text", "text": output}],
+                        }
+                    ]
+                }
+            )
+        )
+        == output
+    )
+    assert (
+        DspyLMAuthLM._extract_text(
+            SimpleNamespace(
+                output=[
+                    SimpleNamespace(
+                        type="reasoning",
+                        content=[
+                            SimpleNamespace(type="reasoning_text", text="private")
+                        ],
+                    )
+                ]
+            )
+        )
+        == ""
+    )
+    assert DspyLMAuthLM._extract_text({"output": []}) == ""
+    assert DspyLMAuthLM._extract_text({"output_text": ""}) == ""
 
 
 def test_dspy_lm_auth_history_retains_bounded_transport_metadata(monkeypatch) -> None:
