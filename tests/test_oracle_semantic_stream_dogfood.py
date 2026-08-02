@@ -135,7 +135,7 @@ def test_dogfood_first_pass_records_typed_transport(
     assert payload["recovery"] == "first_pass"
     assert len(payload["attempts"]) == 1
     assert payload["claims"]["typed_stream_json_transport_passed"] is False
-    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4532"] is True
+    assert payload["claims"]["ak_4506_case_reexecuted_under_ak_4534"] is True
     assert payload["claims"]["ak_4506_ledger_reused"] is False
     assert payload["semantic_score"]["status"] == "passed"
     assert "raw" not in str(payload).lower()
