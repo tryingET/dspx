@@ -248,6 +248,7 @@ def _is_stable_distribution_path(relative_path: Path) -> bool:
     )
 
 
+@lru_cache(maxsize=32)
 def _distribution_content_sha256(package_name: str) -> str:
     """Hash stable imported wheel payload, excluding generated install projections."""
 
@@ -306,6 +307,28 @@ def runtime_package_versions(package_names: tuple[str, ...]) -> dict[str, str]:
     return resolved
 
 
+def validate_model_artifact_root(
+    spec: SentenceTransformerIdentitySpec, model_root: Path
+) -> list[dict[str, Any]]:
+    """Validate one retained root without importing or executing its model."""
+
+    root = model_root.resolve()
+    if not root.is_dir() or model_root.is_symlink():
+        raise EmbeddingIdentityError(
+            "model_root must be a retained non-symlink directory"
+        )
+    retained_paths = {
+        path.relative_to(root).as_posix()
+        for path in root.rglob("*")
+        if path.is_file() and ".cache" not in path.relative_to(root).parts
+    }
+    if retained_paths != set(spec.artifact_paths):
+        raise EmbeddingIdentityError(
+            "retained model root has missing or extra loader-relevant artifacts"
+        )
+    return [_hash_regular_file(root, expected) for expected in spec.artifact_manifest]
+
+
 def build_sentence_transformer_identity(
     *,
     spec: SentenceTransformerIdentitySpec,
@@ -320,11 +343,7 @@ def build_sentence_transformer_identity(
 ) -> dict[str, Any]:
     """Validate precommitted artifacts and bind observed runtime/vector semantics."""
 
-    root = model_root.resolve()
-    if not root.is_dir() or model_root.is_symlink():
-        raise EmbeddingIdentityError(
-            "model_root must be a retained non-symlink directory"
-        )
+    artifacts = validate_model_artifact_root(spec, model_root)
     if isinstance(dimension, bool) or dimension != spec.expected_dimension:
         raise EmbeddingIdentityError(
             f"embedding dimension drift: expected {spec.expected_dimension}, observed {dimension!r}"
@@ -370,16 +389,6 @@ def build_sentence_transformer_identity(
     ):
         raise EmbeddingIdentityError("Python runtime identity drift")
 
-    retained_paths = {
-        path.relative_to(root).as_posix()
-        for path in root.rglob("*")
-        if path.is_file() and ".cache" not in path.relative_to(root).parts
-    }
-    if retained_paths != set(spec.artifact_paths):
-        raise EmbeddingIdentityError(
-            "retained model root has missing or extra loader-relevant artifacts"
-        )
-
     tokenizer_identity = {
         "implementation": f"{type(tokenizer).__module__}.{type(tokenizer).__qualname__}",
         "model_max_length": tokenizer.model_max_length,
@@ -399,9 +408,6 @@ def build_sentence_transformer_identity(
     ):
         raise EmbeddingIdentityError("tokenizer runtime identity is incomplete")
 
-    artifacts = [
-        _hash_regular_file(root, expected) for expected in spec.artifact_manifest
-    ]
     return {
         "schema_version": IDENTITY_SCHEMA,
         "backend": "sentence-transformers",

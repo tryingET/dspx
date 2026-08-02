@@ -1,0 +1,354 @@
+{
+  "schema_version": "dspx-oracle-embedding-selection-contract-v2",
+  "status": "precommitted_evaluation_not_run",
+  "purpose": "model_blind_oracle_specific_dense_retrieval_selection",
+  "source_bindings": {
+    "retained_minilm_contract": {
+      "path": "benchmarks/semantic/oracle-embedding-evaluation-v1.json",
+      "sha256": "819204905f94449013fb25a5f6e21157db36210cbaa4b6e6e8811bb67ca3e92e"
+    },
+    "uv_lock": {
+      "path": "uv.lock",
+      "sha256": "d941b76c442e4c89143b1ab0abcc03a57b477943e6cb0e588bc08c3ec5a4ef09"
+    }
+  },
+  "candidates": {
+    "baseline": {
+      "repository_id": "sentence-transformers/all-MiniLM-L6-v2",
+      "revision": "c9745ed1d9f207416be6d2e6f8de32d1f16199bf",
+      "adapter": "sentence-transformers-v1",
+      "document_prompt": "",
+      "query_prompt": "",
+      "expected_dimension": 384,
+      "maximum_tokens": 256,
+      "tokenizer_identity": {
+        "implementation": "transformers.models.bert.tokenization_bert_fast.BertTokenizerFast",
+        "model_max_length": 256,
+        "padding_side": "right",
+        "truncation_side": "right",
+        "vocabulary_size": 30522
+      },
+      "retained_snapshot_must_match_v1_identity": true
+    },
+    "challenger": {
+      "repository_id": "lightonai/mDenseOn",
+      "revision": "a5fdb000f7a21da96c3bddde3a782ef777316df3",
+      "license": "apache-2.0",
+      "architecture": "modernbert_cls_dense_single_vector",
+      "adapter": "dspx-mdenseon-cls-v1",
+      "trust_remote_code": false,
+      "document_prompt": "document: ",
+      "query_prompt": "query: ",
+      "expected_dimension": 768,
+      "maximum_tokens": 8192,
+      "tokenizer_identity": {
+        "implementation": "transformers.tokenization_utils_fast.PreTrainedTokenizerFast",
+        "model_max_length": 8192,
+        "padding_side": "right",
+        "truncation_side": "right",
+        "vocabulary_size": 256000
+      },
+      "vector_dtype": "float32",
+      "normalize_embeddings": true,
+      "ranking_metric": "cosine_similarity_descending",
+      "reported_distance": "one_minus_cosine_similarity",
+      "artifact_manifest_source": {
+        "kind": "hugging_face_commit_tree_metadata",
+        "url": "https://huggingface.co/api/models/lightonai/mDenseOn/tree/a5fdb000f7a21da96c3bddde3a782ef777316df3?recursive=true&expand=true",
+        "captured_at": "2026-08-02T05:12:00Z"
+      },
+      "artifact_manifest": [
+        {
+          "path": "1_Pooling/config.json",
+          "size": 89,
+          "source_git_oid": "2236c262f1f83c50f7c304e98a8d1413980280df",
+          "lfs_sha256": null
+        },
+        {
+          "path": "config.json",
+          "size": 1932,
+          "source_git_oid": "b41719e26d9888f68bdf1b737d8fac6a7b5f3de1",
+          "lfs_sha256": null
+        },
+        {
+          "path": "config_sentence_transformers.json",
+          "size": 299,
+          "source_git_oid": "fbcfddf0e2a560bd5bff0eca3ea4b699f762e85d",
+          "lfs_sha256": null
+        },
+        {
+          "path": "model.safetensors",
+          "size": 1227771776,
+          "source_git_oid": "fee6ea6e7553c9a6c18efd20e34cb27dd51fefc9",
+          "lfs_sha256": "a336c49fc679aeb23969114b12fb7317804da3cc7d8bc214818009dea39d545c"
+        },
+        {
+          "path": "modules.json",
+          "size": 277,
+          "source_git_oid": "45d2436b717b3a70d63c0df4ab2c49d5cdb02c5b",
+          "lfs_sha256": null
+        },
+        {
+          "path": "sentence_bert_config.json",
+          "size": 241,
+          "source_git_oid": "d2cd15826913bba6e43310063d75883bb0b7b842",
+          "lfs_sha256": null
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 34363287,
+          "source_git_oid": "77bc4ceda098d394598712ca8194b5d87d704451",
+          "lfs_sha256": "a086e6a7efb90bbab8e379a63f3463fb13e6256ebec3343c1f1612cab693935b"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size": 662,
+          "source_git_oid": "91e01d28d92a58ab0571e5f1ba7f8dd336e48b15",
+          "lfs_sha256": null
+        }
+      ]
+    }
+  },
+  "runtime": {
+    "lock_path": "uv.lock",
+    "lock_sha256": "d941b76c442e4c89143b1ab0abcc03a57b477943e6cb0e588bc08c3ec5a4ef09",
+    "installer": "uv_run_isolated_frozen",
+    "uv_version": "uv 0.11.14 (3fdfdc7d4 2026-05-12 x86_64-unknown-linux-gnu)",
+    "python_implementation": "cpython",
+    "python_major_minor": "3.13",
+    "python_version": "3.13.12",
+    "distribution_content_hash_scope": "imported_package_and_library_payload_excluding_dist_info_and_generated_scripts",
+    "platform": "linux-x86_64",
+    "device": "cpu",
+    "expected_package_versions": {
+      "huggingface-hub": "0.36.2",
+      "numpy": "2.4.2",
+      "safetensors": "0.8.0",
+      "sentence-transformers": "5.1.2",
+      "tokenizers": "0.22.2",
+      "torch": "2.13.0+cpu",
+      "transformers": "4.57.6"
+    },
+    "selected_wheel_sha256": {
+      "huggingface-hub": "48f0c8eac16145dfce371e9d2d7772854a4f591bcb56c9cf548accf531d54270",
+      "numpy": "d0d9b7c93578baafcbc5f0b83eaf17b79d345c6f36917ba0c67f45226911d499",
+      "safetensors": "fd6f3f93c9a0a7cc2788ee63fb763353d4bd2e89b0751bc78fcf7dda00bea774",
+      "sentence-transformers": "724ce0ea62200f413f1a5059712aff66495bc4e815a1493f7f9bca242414c333",
+      "tokenizers": "369cc9fc8cc10cb24143873a0d95438bb8ee257bb80c71989e3ee290e8d72c67",
+      "torch": "3fbf9c9d1f3c10c2d59d04aca426dee9ccc6ceb32d255c61e93acc3b4f75fae6",
+      "transformers": "4c9e9de11333ddfe5114bc872c9f370509198acf0b87a832a0ab9458e2bd0550"
+    },
+    "expected_distribution_content_sha256": {
+      "huggingface-hub": "31797bab19873eff84f8f99334b24ed2dce62203479af9442034258e27111512",
+      "numpy": "a94de5340d0f32cb6d006d0996d0738458bdd89baccbb259b7ccb75048b9787b",
+      "safetensors": "479344b91736ad74a4c6ef069e778e81c9d3174ab38308bb5deb6ddfbb3fe5de",
+      "sentence-transformers": "db3b71adadbaea1e4efb711259188c28621316540d80dde6e3724b19f25a6806",
+      "tokenizers": "a66f36604045fcaaa7c4a9349a1d92aaa82990578462d74ee73eaaf5b719c79c",
+      "torch": "5a95ca41a6f24d69350d094122f9f4479ed84a4fb40547be097f07ceb3f1bd3b",
+      "transformers": "d23c9679f2f91a5e2e2b693b2046841b0d841faef8a7d77eb935ee38c0bfb425"
+    }
+  },
+  "evaluation": {
+    "coverage_claim": "fifteen_model_blind_queries_over_ten_declared_oracle_concepts_including_six_cross_lingual_and_one_post_256_token_tail_case",
+    "label_provenance": "human_semantic_labels_frozen_before_any_challenger_model_execution_and_not_provider_visible",
+    "store": "candidate_local_sqlite_per_model",
+    "records": [
+      {
+        "case_id": "authority-boundary",
+        "text": "Local benchmark and Oracle evidence are advisory. They may support inspection, but they cannot approve, deploy, publish, promote, or activate a candidate. Governing authority remains external."
+      },
+      {
+        "case_id": "uncertainty-calibration",
+        "text": "When one check fails and its cause is unknown, report the observed failure and uncertainty. Do not invent a root cause or generalize to broad system failure without evidence."
+      },
+      {
+        "case_id": "review-only-transition",
+        "text": "Prepare review-only findings, evidence, and remediation proposals. Do not modify canonical records, approve a transition, or perform external effects."
+      },
+      {
+        "case_id": "replay-identity",
+        "text": "Replay freshness compares one normalized invocation identity so equivalent relative and absolute path spellings do not create false staleness, while materially different invocations still fail closed."
+      },
+      {
+        "case_id": "effect-indeterminate-stop",
+        "text": "After a caught provider or controller error with indeterminate effects, preserve the failure and stop the sequence. Do not retry mechanically or continue to later cases."
+      },
+      {
+        "case_id": "release-evidence-not-authority",
+        "text": "A signed and retained release-evidence bundle proves bounded evidence integrity and custody only. It does not grant release authority, registry publication permission, or production activation."
+      },
+      {
+        "case_id": "model-identity-layers",
+        "text": "Preferred, requested, configured, and observed model identities are separate facts. A requested model name does not prove the provider executed that exact model."
+      },
+      {
+        "case_id": "store-semantics-separation",
+        "text": "Postgres and pgvector durability can prove persistence and retrieval mechanics. Store durability cannot prove embedding quality or semantic-analysis language-model quality."
+      },
+      {
+        "case_id": "embedding-role-prompts",
+        "text": "Asymmetric retrieval models must encode indexed records with the document role and search requests with the query role. Omitting or swapping those prompts changes embedding semantics."
+      },
+      {
+        "case_id": "runtime-reproduction-boundary",
+        "text_recipe": {
+          "prefix": "This retained diagnostic paragraph contains neutral operational filler and no reproduction conclusion. ",
+          "repeat": 90,
+          "tail": "A replay may be called runtime reproduction only after the executable workload is run again under the bound environment and its observable outputs match. Receipt integrity alone is not runtime reproduction."
+        }
+      }
+    ],
+    "queries": [
+      {
+        "id": "authority-en",
+        "expected_case_id": "authority-boundary",
+        "subset": "critical",
+        "text": "Can local Oracle evidence by itself authorize deployment or activation?"
+      },
+      {
+        "id": "authority-fr",
+        "expected_case_id": "authority-boundary",
+        "subset": "cross_lingual_critical",
+        "text": "Les preuves locales peuvent-elles à elles seules autoriser le déploiement ou l’activation du candidat ?"
+      },
+      {
+        "id": "calibration-de",
+        "expected_case_id": "uncertainty-calibration",
+        "subset": "cross_lingual",
+        "text": "Eine Prüfung ist fehlgeschlagen, aber die Ursache ist unbekannt. Welche Schlussfolgerung ist gerechtfertigt?"
+      },
+      {
+        "id": "review-es",
+        "expected_case_id": "review-only-transition",
+        "subset": "cross_lingual_critical",
+        "text": "Prepare hallazgos y propuestas solo para revisión, sin cambiar los registros canónicos."
+      },
+      {
+        "id": "replay-en",
+        "expected_case_id": "replay-identity",
+        "subset": "general",
+        "text": "Should equivalent relative and absolute invocation paths make replay evidence stale?"
+      },
+      {
+        "id": "terminal-en",
+        "expected_case_id": "effect-indeterminate-stop",
+        "subset": "critical",
+        "text": "What must happen after a caught error when external effects may already have occurred?"
+      },
+      {
+        "id": "release-ar",
+        "expected_case_id": "release-evidence-not-authority",
+        "subset": "cross_lingual_critical",
+        "text": "هل يثبت توقيع حزمة الأدلة أن إصدار الحزمة أو نشرها مُصرَّح به؟"
+      },
+      {
+        "id": "release-en",
+        "expected_case_id": "release-evidence-not-authority",
+        "subset": "critical",
+        "text": "Does a signed evidence bundle itself grant registry publication permission?"
+      },
+      {
+        "id": "identity-en",
+        "expected_case_id": "model-identity-layers",
+        "subset": "critical",
+        "text": "Does requesting a model name prove that the provider executed it?"
+      },
+      {
+        "id": "store-fr",
+        "expected_case_id": "store-semantics-separation",
+        "subset": "cross_lingual",
+        "text": "La durabilité de pgvector prouve-t-elle la qualité sémantique du modèle ?"
+      },
+      {
+        "id": "store-en",
+        "expected_case_id": "store-semantics-separation",
+        "subset": "general",
+        "text": "What does a successful shared coordinate-store durability test not prove?"
+      },
+      {
+        "id": "prompts-en",
+        "expected_case_id": "embedding-role-prompts",
+        "subset": "general",
+        "text": "Which retrieval role should be used when encoding records versus search requests?"
+      },
+      {
+        "id": "runtime-tail-en",
+        "expected_case_id": "runtime-reproduction-boundary",
+        "subset": "long_context_critical",
+        "text": "When may a retained replay truthfully be called runtime reproduction rather than receipt integrity?"
+      },
+      {
+        "id": "authority-pt",
+        "expected_case_id": "authority-boundary",
+        "subset": "cross_lingual",
+        "text": "Evidência local de benchmark pode, sozinha, aprovar ou ativar um candidato?"
+      },
+      {
+        "id": "terminal-code",
+        "expected_case_id": "effect-indeterminate-stop",
+        "subset": "general",
+        "text": "except ProviderError: preserve_attempt(); stop_without_retry()"
+      }
+    ],
+    "absolute_thresholds": {
+      "recall_at_1": 0.9,
+      "mean_reciprocal_rank": 0.95,
+      "normalized_discounted_cumulative_gain_at_5": 0.95,
+      "minimum_labeled_query_count": 15,
+      "critical_queries_must_rank_first": true,
+      "cross_lingual_recall_at_1": 0.8,
+      "long_context_recall_at_1": 1.0
+    },
+    "comparative_thresholds": {
+      "challenger_overall_recall_must_not_regress": true,
+      "challenger_mrr_must_not_regress": true,
+      "minimum_improvement_on_cross_lingual_or_long_context_recall": 0.2
+    },
+    "resource_thresholds": {
+      "maximum_retained_model_bytes": 1300000000,
+      "maximum_peak_rss_bytes": 8589934592,
+      "maximum_model_load_seconds": 300.0,
+      "maximum_total_encode_seconds": 600.0
+    }
+  },
+  "attempt_budget": {
+    "maximum_challenger_acquisition_and_comparative_evaluation_sequences": 1,
+    "separate_health_probes": 0,
+    "dspx_managed_retries": 0,
+    "selective_query_reruns_allowed": false,
+    "failed_or_indeterminate_sequence_is_terminal": true,
+    "baseline_reexecution_from_retained_verified_snapshot": 1,
+    "enforcement": {
+      "kind": "canonical_local_atomic_consumed_marker",
+      "namespace": "dspx/oracle-embedding-selections",
+      "key": "ak_task_id_and_contract_sha256",
+      "marker_created_before_challenger_acquisition": true,
+      "started_or_terminal_marker_forbids_another_root": true
+    }
+  },
+  "effects": {
+    "semantic_analysis_lm_calls": 0,
+    "shared_store_connections": 0,
+    "shared_oracle_publications": 0,
+    "release_or_activation_mutations": 0,
+    "ak_mutations_from_evaluated_code": 0
+  },
+  "selection_policy": {
+    "select_challenger_only_if_all_absolute_comparative_resource_and_identity_gates_pass": true,
+    "selected_model_if_passed": "lightonai/mDenseOn",
+    "selected_model_if_failed": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_version_if_challenger_selected": 2,
+    "historical_v1_rows_are_not_rewritten": true
+  },
+  "claim_boundary": {
+    "oracle_specific_comparative_selection_only": true,
+    "statistical_representativeness": false,
+    "broad_production_semantic_quality": false,
+    "semantic_analysis_lm_quality": false,
+    "shared_coordinate_store_readiness": false,
+    "oracle_governance_authority": false,
+    "release_authority": false,
+    "package_publication": false,
+    "production_activation": false
+  }
+}
