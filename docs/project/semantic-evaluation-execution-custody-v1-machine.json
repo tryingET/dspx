@@ -1,0 +1,209 @@
+{
+  "schema_version": "dspx-semantic-evaluation-execution-custody-machine-v1",
+  "decision_id": 105,
+  "authority_scope": "dspx_local_execution_episode_and_evidence_only",
+  "initial_state": "requested",
+  "terminal_states": [
+    "rejected",
+    "indeterminate",
+    "closed"
+  ],
+  "states": {
+    "requested": {
+      "meaning": "A caller request has been parsed; DSPx has committed no episode-owned effect.",
+      "durable": false
+    },
+    "rejected": {
+      "meaning": "Validation failed before local episode allocation; no attempt-start marker exists.",
+      "durable": true
+    },
+    "allocated": {
+      "meaning": "DSPx exclusively committed the episode identity and private normalized input snapshot; no attempt-start marker exists.",
+      "durable": true
+    },
+    "attempting": {
+      "meaning": "DSPx durably committed attempt start before invoking the generated-program runtime path; provider or other downstream effects may now be indeterminate.",
+      "durable": true
+    },
+    "outcome_observed": {
+      "meaning": "The DSPx invocation path returned a value or caught failure, and the exact observation was durably recorded; the evidence bundle is not yet sealed.",
+      "durable": true
+    },
+    "evidence_sealed": {
+      "meaning": "DSPx committed one immutable evidence manifest and receipt over all episode-owned evidence bytes after the observed outcome.",
+      "durable": true
+    },
+    "indeterminate": {
+      "meaning": "Attempt start or observed outcome cannot be reconciled to one complete sealed episode; the attempt identity is consumed and non-retryable.",
+      "durable": true
+    },
+    "closed": {
+      "meaning": "DSPx will perform no further mutation under the attempt identity. Closure claims only episode-owned local state, never provider or external-process cleanup.",
+      "durable": true
+    }
+  },
+  "operations": {
+    "reject_request": {
+      "linearization": "durable rejection record commit",
+      "effect": "dspx_local_evidence_write"
+    },
+    "allocate_episode": {
+      "linearization": "exclusive no-replace commit of episode identity and private normalized input snapshot",
+      "effect": "dspx_local_evidence_write"
+    },
+    "cancel_before_attempt": {
+      "linearization": "durable terminal marker proving attempt-start marker absence",
+      "effect": "dspx_local_evidence_write"
+    },
+    "recover_unstarted_allocation": {
+      "linearization": "recovery transaction verifies attempt-start marker absence and commits terminal abandonment",
+      "effect": "dspx_local_evidence_write"
+    },
+    "start_attempt": {
+      "linearization": "durable no-replace attempt-start marker committed before generated-program invocation",
+      "effect": "dspx_local_evidence_write_then_potential_external_effect"
+    },
+    "observe_return": {
+      "linearization": "durable commit of the exact returned output observation",
+      "effect": "dspx_local_evidence_write"
+    },
+    "observe_failure": {
+      "linearization": "durable commit of the sanitized caught-failure observation",
+      "effect": "dspx_local_evidence_write"
+    },
+    "recover_unknown_attempt": {
+      "linearization": "durable indeterminate marker after an attempt-start marker lacks one valid outcome observation",
+      "effect": "dspx_local_evidence_write"
+    },
+    "seal_evidence": {
+      "linearization": "exclusive commit of immutable evidence manifest and receipt after every referenced episode-owned artifact is hash-verified",
+      "effect": "dspx_local_evidence_write"
+    },
+    "recover_unsealed_outcome": {
+      "linearization": "durable indeterminate marker when an observed outcome cannot be reconciled to one immutable evidence seal",
+      "effect": "dspx_local_evidence_write"
+    },
+    "close_episode": {
+      "linearization": "durable terminal marker after immutable seal verification",
+      "effect": "dspx_local_evidence_write"
+    }
+  },
+  "transitions": [
+    {
+      "operation": "reject_request",
+      "from": "requested",
+      "to": "rejected",
+      "guards": [
+        "validation_failed",
+        "episode_not_allocated",
+        "attempt_start_absent"
+      ]
+    },
+    {
+      "operation": "allocate_episode",
+      "from": "requested",
+      "to": "allocated",
+      "guards": [
+        "request_valid",
+        "episode_identity_absent",
+        "output_root_confined_and_disjoint"
+      ]
+    },
+    {
+      "operation": "cancel_before_attempt",
+      "from": "allocated",
+      "to": "closed",
+      "guards": [
+        "attempt_start_absent",
+        "terminal_reason_is_cancelled_before_attempt"
+      ]
+    },
+    {
+      "operation": "recover_unstarted_allocation",
+      "from": "allocated",
+      "to": "closed",
+      "guards": [
+        "attempt_start_absent",
+        "terminal_reason_is_recovered_unstarted"
+      ]
+    },
+    {
+      "operation": "start_attempt",
+      "from": "allocated",
+      "to": "attempting",
+      "guards": [
+        "attempt_start_absent",
+        "candidate_and_input_bindings_current",
+        "effect_budget_accepted"
+      ]
+    },
+    {
+      "operation": "observe_return",
+      "from": "attempting",
+      "to": "outcome_observed",
+      "guards": [
+        "attempt_start_present",
+        "outcome_observation_absent",
+        "observation_kind_is_return"
+      ]
+    },
+    {
+      "operation": "observe_failure",
+      "from": "attempting",
+      "to": "outcome_observed",
+      "guards": [
+        "attempt_start_present",
+        "outcome_observation_absent",
+        "observation_kind_is_failure"
+      ]
+    },
+    {
+      "operation": "recover_unknown_attempt",
+      "from": "attempting",
+      "to": "indeterminate",
+      "guards": [
+        "attempt_start_present",
+        "valid_outcome_observation_absent"
+      ]
+    },
+    {
+      "operation": "seal_evidence",
+      "from": "outcome_observed",
+      "to": "evidence_sealed",
+      "guards": [
+        "one_outcome_observation_present",
+        "all_episode_owned_artifacts_hash_verified",
+        "evidence_seal_absent",
+        "receipt_describes_observed_effect"
+      ]
+    },
+    {
+      "operation": "recover_unsealed_outcome",
+      "from": "outcome_observed",
+      "to": "indeterminate",
+      "guards": [
+        "one_outcome_observation_present",
+        "valid_evidence_seal_absent_or_ambiguous"
+      ]
+    },
+    {
+      "operation": "close_episode",
+      "from": "evidence_sealed",
+      "to": "closed",
+      "guards": [
+        "evidence_seal_valid",
+        "terminal_reason_matches_observed_outcome",
+        "no_episode_owned_mutation_pending"
+      ]
+    }
+  ],
+  "invariants": [
+    "No transition leaves a terminal state.",
+    "No operation retries or re-executes a generated program under the same attempt identity.",
+    "Every potentially external generated-program invocation is preceded by the durable attempt-start marker.",
+    "A receipt is committed only by seal_evidence and only after one durable outcome observation.",
+    "Indeterminate consumes the attempt identity and carries no safe-non-start, success, evaluation, cleanup, or retry claim.",
+    "Closed claims no provider-call cardinality, provider-internal retry, network isolation, executed model identity, or external process cleanup.",
+    "Decision 106 consumes only the immutable sealed evidence projection; it cannot mutate this machine or infer unsupported effects."
+  ]
+}
