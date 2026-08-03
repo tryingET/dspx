@@ -1,6 +1,6 @@
 {
   "schema_version": "dspx-oracle-semantic-analysis-evaluation-v8",
-  "status": "successor_offline_review_pending_live_authorized_not_run",
+  "status": "offline_adjudicated_live_authorized_not_run",
   "ak_task_id": 4577,
   "purpose": "Execute exactly one separately authorized live evaluation from the independently adjudicated v7 semantic rubric and labels, preserving terminal evidence without retry.",
   "claim_scope": "four_candidate_local_cases_only_not_statistically_representative",
@@ -183,9 +183,9 @@
       "sha256": "8ead13cab9dc5f7614f56dae1d4499fb2257a6d41b28e5ce72dc43c41d29c1e8"
     },
     "successor_review": {
-      "status": "independent_successor_review_pending",
-      "reviewer": null,
-      "review_evidence": null,
+      "status": "independent_successor_review_accepted",
+      "reviewer": "dispatch-1785728185507",
+      "review_evidence": "ak:evidence:6269",
       "review_question": "Does v8 preserve v7 field_rubric, cases, hidden labels, and distractors while changing only successor identity and one-shot execution authorization?"
     }
   },
