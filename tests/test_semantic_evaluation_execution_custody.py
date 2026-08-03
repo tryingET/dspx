@@ -115,6 +115,7 @@ def _crash_allocation_before_commit(
             os._exit(29)
 
     with ExecutionCustodyStore.open(Path(root), fault_barrier=barrier) as store:
+        store._connection.execute("PRAGMA cache_size=1")
         store.allocate_attempt(
             "crash-allocation",
             request,
@@ -215,6 +216,14 @@ def test_return_path_seals_exact_projection_after_mediated_snapshot(
         )
         with pytest.raises(CustodyError, match="non-authority"):
             custody_module._validate_projection(invalid_non_authority)
+        for numeric_false in (0, 0.0):
+            invalid_numeric_non_authority = dict(projection)
+            invalid_numeric_non_authority["non_authority"] = dict(
+                projection["non_authority"]
+            )
+            invalid_numeric_non_authority["non_authority"]["governance"] = numeric_false
+            with pytest.raises(CustodyError, match="non-authority"):
+                custody_module._validate_projection(invalid_numeric_non_authority)
         assert input_bytes not in projection_bytes
 
         terminal = store.read_terminal(allocated.attempt_id)
@@ -313,6 +322,21 @@ def test_original_rejects_source_receipt_and_rejection_allocates_no_attempt(
             _sha(rejection_row["terminal_json"].encode())
             == rejection_row["terminal_digest"]
         )
+        missing_one = replace(
+            material, candidate_manifest_path=tmp_path / "missing-one.json"
+        )
+        missing_two = replace(
+            material, candidate_manifest_path=tmp_path / "missing-two.json"
+        )
+        material_rejection = store.reject_request(
+            "material-rejection", request, missing_one
+        )
+        assert (
+            store.reject_request("material-rejection", request, missing_one)
+            == material_rejection
+        )
+        with pytest.raises(CustodyError, match="operation ID reuse differs"):
+            store.reject_request("material-rejection", request, missing_two)
 
 
 def test_allocation_is_idempotent_and_snapshot_is_immutable(tmp_path: Path) -> None:
@@ -467,6 +491,9 @@ def test_hot_rollback_journal_is_validated_read_only_then_recovered(
     tmp_path: Path,
 ) -> None:
     request, material, _ = _sources(tmp_path)
+    large_input = canonical_json_bytes({"payload": "x" * (2 * 1024 * 1024)})
+    material.input_source_path.write_bytes(large_input)
+    request = replace(request, normalized_input_digest=_sha(large_input))
     store = _store(tmp_path)
     root = store.root
     store.close()
@@ -485,6 +512,7 @@ def test_hot_rollback_journal_is_validated_read_only_then_recovered(
     assert process.exitcode == 29
     journal = root / "custody.sqlite3-journal"
     assert journal.exists()
+    assert journal.read_bytes()[:8] == b"\xd9\xd5\x05\xf9\x20\xa1\x63\xd7"
     with ExecutionCustodyStore.open(root) as recovered:
         assert recovered.list_incomplete() == ()
     assert not journal.exists()
@@ -546,6 +574,20 @@ def test_failed_seal_transaction_exposes_no_partial_terminal(tmp_path: Path) -> 
             )
         closed = store.seal_and_close("recovery-seal", attempt.attempt_id)
         assert closed.terminal_reason == "observed_return"
+
+
+def test_callable_cannot_recover_its_own_active_attempt(tmp_path: Path) -> None:
+    request, material, _ = _sources(tmp_path)
+    with _store(tmp_path) as store:
+        attempt = store.allocate_attempt("allocate", request, material)
+
+        def invoke(_snapshot: SnapshotView) -> dict[str, bool]:
+            with pytest.raises(CustodyError, match="active callable"):
+                store.recover_unknown_attempt("self-recovery", attempt.attempt_id)
+            return {"ok": True}
+
+        result = store.run_attempt("run", attempt.attempt_id, material, invoke)
+        assert result.terminal_reason == "observed_return"
 
 
 def test_concurrent_run_has_exactly_one_callable_entry(tmp_path: Path) -> None:
@@ -877,6 +919,12 @@ def test_unsealed_recovery_requires_unconstructible_evidence_and_replays(
         assert first.state == "indeterminate"
         with pytest.raises(CustodyError, match="ineligible"):
             store.read_projection(attempt.attempt_id)
+        future_attempt = store.allocate_attempt(
+            "future-equal-allocation", request, material
+        )
+        assert future_attempt.attempt_id != attempt.attempt_id
+        with pytest.raises(CustodyError, match="ineligible"):
+            store.read_projection(attempt.attempt_id)
         original_start_digest = store._connection.execute(
             "SELECT event_digest FROM events WHERE attempt_id=? AND operation='start_attempt'",
             (attempt.attempt_id,),
@@ -903,6 +951,36 @@ def test_unsealed_recovery_requires_unconstructible_evidence_and_replays(
         )
         with pytest.raises(CustodyError, match="unsealed recovery terminal event"):
             store.read_terminal(attempt.attempt_id)
+
+
+def test_create_detects_store_substitution_before_reopen(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    replacement_parent = tmp_path / "replacement-parent"
+    replacement_parent.mkdir(mode=0o700)
+    replacement_store = ExecutionCustodyStore.create(replacement_parent)
+    replacement_root = replacement_store.root
+    replacement_store.close()
+
+    target_parent = tmp_path / "target-parent"
+    target_parent.mkdir(mode=0o700)
+    original_init = ExecutionCustodyStore.__init__
+    substituted = False
+
+    def substituting_init(
+        self: ExecutionCustodyStore, root: Path, *args: Any, **kwargs: Any
+    ) -> None:
+        nonlocal substituted
+        if kwargs.get("_expected_binding") is not None and not substituted:
+            substituted = True
+            root.rename(root.with_name(f"{root.name}-displaced"))
+            replacement_root.rename(root)
+        original_init(self, root, *args, **kwargs)
+
+    monkeypatch.setattr(ExecutionCustodyStore, "__init__", substituting_init)
+    with pytest.raises(CustodyError, match="binding changed before reopen"):
+        ExecutionCustodyStore.create(target_parent)
+    assert substituted is True
 
 
 def test_store_descriptor_binding_hardlink_sidecar_and_network_guards(

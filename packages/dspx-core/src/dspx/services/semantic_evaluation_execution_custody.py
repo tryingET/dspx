@@ -613,8 +613,10 @@ def _validate_projection(value: Mapping[str, Any]) -> None:
     _configured_label(runtime.get("configured_model"), "configured_model")
     _require_sha256(runtime.get("attempt_start_digest"), "start digest")
     non_authority = value.get("non_authority")
-    if not isinstance(non_authority, Mapping) or dict(non_authority) != dict(
-        NON_AUTHORITY
+    if (
+        not isinstance(non_authority, Mapping)
+        or set(non_authority) != set(NON_AUTHORITY)
+        or any(non_authority[key] is not False for key in NON_AUTHORITY)
     ):
         raise CustodyError("projection non-authority claims are invalid")
 
@@ -622,7 +624,13 @@ def _validate_projection(value: Mapping[str, Any]) -> None:
 class ExecutionCustodyStore:
     """Owner-local unactivated Decision 105 attempt store."""
 
-    def __init__(self, root: Path, *, fault_barrier: FaultBarrier | None = None):
+    def __init__(
+        self,
+        root: Path,
+        *,
+        fault_barrier: FaultBarrier | None = None,
+        _expected_binding: tuple[int, int, int, int] | None = None,
+    ):
         self.root = _reject_symlink_components(root, "store")
         _validate_owned_store_chain(self.root)
         _reject_network_filesystem(self.root)
@@ -633,6 +641,7 @@ class ExecutionCustodyStore:
         self._db_fd = -1
         self._closed = False
         self._execution_lock_depth = 0
+        self._callable_active = False
         connection: sqlite3.Connection | None = None
         try:
             parent, self._parent_fd = _open_directory_chain(
@@ -644,11 +653,23 @@ class ExecutionCustodyStore:
                 self.root.name, _DIRECTORY_FLAGS, dir_fd=self._parent_fd
             )
             self._db_fd = os.open("custody.sqlite3", _FILE_FLAGS, dir_fd=self._root_fd)
+            if _expected_binding is not None:
+                root_binding = os.fstat(self._root_fd)
+                database_binding = os.fstat(self._db_fd)
+                actual_binding = (
+                    root_binding.st_dev,
+                    root_binding.st_ino,
+                    database_binding.st_dev,
+                    database_binding.st_ino,
+                )
+                if actual_binding != _expected_binding:
+                    raise CustodyError("created store binding changed before reopen")
             self._verify_store()
-            self._verify_preopen_sidecars()
+            journal_state = self._verify_preopen_sidecars()
             descriptor_path = _sqlite_descriptor_path(self._db_fd)
+            immutable_option = "&immutable=1" if journal_state == "hot" else ""
             preflight = sqlite3.connect(
-                f"file:{descriptor_path}?mode=ro",
+                f"file:{descriptor_path}?mode=ro{immutable_option}",
                 timeout=10,
                 isolation_level=None,
                 uri=True,
@@ -657,7 +678,9 @@ class ExecutionCustodyStore:
                 preflight.row_factory = sqlite3.Row
                 preflight.execute("PRAGMA foreign_keys=ON")
                 self._verify_schema_connection(
-                    preflight, require_durability_configuration=False
+                    preflight,
+                    require_durability_configuration=False,
+                    require_integrity_checks=journal_state != "hot",
                 )
             finally:
                 preflight.close()
@@ -668,13 +691,13 @@ class ExecutionCustodyStore:
             self._connection = connection
             self._configure()
             try:
-                self._connection.execute("BEGIN IMMEDIATE")
+                self._connection.execute("BEGIN EXCLUSIVE")
+                self._remove_cold_rollback_journal()
                 self._connection.execute("COMMIT")
             except BaseException:
                 if self._connection.in_transaction:
                     self._connection.execute("ROLLBACK")
                 raise
-            self._remove_cold_rollback_journal()
             self._verify_schema()
             self._verify_store()
             self._reject_clean_sidecars()
@@ -763,7 +786,16 @@ class ExecutionCustodyStore:
             if root_fd >= 0:
                 os.close(root_fd)
             os.close(parent_fd)
-        return cls(parent_path / name, fault_barrier=fault_barrier)
+        return cls(
+            parent_path / name,
+            fault_barrier=fault_barrier,
+            _expected_binding=(
+                root_info.st_dev,
+                root_info.st_ino,
+                db_info.st_dev,
+                db_info.st_ino,
+            ),
+        )
 
     @classmethod
     def open(
@@ -835,7 +867,7 @@ class ExecutionCustodyStore:
     def _reject_clean_sidecars(self) -> None:
         self._verify_preopen_sidecars()
 
-    def _verify_preopen_sidecars(self) -> None:
+    def _verify_preopen_sidecars(self) -> Literal["absent", "cold", "hot"]:
         for suffix in ("-wal", "-shm"):
             try:
                 os.stat(
@@ -853,9 +885,11 @@ class ExecutionCustodyStore:
                 "custody.sqlite3-journal", _FILE_FLAGS, dir_fd=self._root_fd
             )
         except FileNotFoundError:
-            return
+            return "absent"
         try:
             journal = os.fstat(journal_fd)
+            _reject_network_descriptor(journal_fd, "SQLite rollback journal")
+            header = os.read(journal_fd, 8)
             journal_path = os.stat(
                 "custody.sqlite3-journal",
                 dir_fd=self._root_fd,
@@ -872,6 +906,11 @@ class ExecutionCustodyStore:
                 raise CustodyError("preopen SQLite rollback journal is unsafe")
         finally:
             os.close(journal_fd)
+        if header == b"\xd9\xd5\x05\xf9\x20\xa1\x63\xd7":
+            return "hot"
+        if header == b"\x00" * 8:
+            return "cold"
+        raise CustodyError("SQLite rollback journal header is invalid")
 
     def _remove_cold_rollback_journal(self) -> None:
         try:
@@ -882,6 +921,7 @@ class ExecutionCustodyStore:
             return
         try:
             journal = os.fstat(journal_fd)
+            _reject_network_descriptor(journal_fd, "cold SQLite rollback journal")
             path_info = os.stat(
                 "custody.sqlite3-journal",
                 dir_fd=self._root_fd,
@@ -910,6 +950,7 @@ class ExecutionCustodyStore:
             journal_fd = -1
         if journal_fd >= 0:
             try:
+                _reject_network_descriptor(journal_fd, "clean-close rollback journal")
                 header = os.read(journal_fd, 8)
             finally:
                 os.close(journal_fd)
@@ -929,22 +970,24 @@ class ExecutionCustodyStore:
                 if "locked" not in str(exc).lower():
                     raise CustodyError("clean-close SQLite probe failed") from exc
                 return
+            for suffix in ("-journal", "-wal", "-shm"):
+                try:
+                    os.stat(
+                        f"custody.sqlite3{suffix}",
+                        dir_fd=self._root_fd,
+                        follow_symlinks=False,
+                    )
+                except FileNotFoundError:
+                    continue
+                raise CustodyError(
+                    "unexpected SQLite sidecar remains after clean close"
+                )
             probe.execute("ROLLBACK")
             exclusive = False
         finally:
             if exclusive and probe.in_transaction:
                 probe.execute("ROLLBACK")
             probe.close()
-        for suffix in ("-journal", "-wal", "-shm"):
-            try:
-                os.stat(
-                    f"custody.sqlite3{suffix}",
-                    dir_fd=self._root_fd,
-                    follow_symlinks=False,
-                )
-            except FileNotFoundError:
-                continue
-            raise CustodyError("unexpected SQLite sidecar remains after clean close")
 
     def _configure(self) -> None:
         self._connection.execute("PRAGMA foreign_keys=ON")
@@ -958,14 +1001,23 @@ class ExecutionCustodyStore:
         connection: sqlite3.Connection,
         *,
         require_durability_configuration: bool,
+        require_integrity_checks: bool = True,
     ) -> None:
         try:
             meta = connection.execute(
                 "SELECT key, value FROM meta ORDER BY key"
             ).fetchall()
             actual_schema = _schema_objects(connection)
-            integrity = connection.execute("PRAGMA integrity_check").fetchall()
-            foreign_keys = connection.execute("PRAGMA foreign_key_check").fetchall()
+            integrity = (
+                connection.execute("PRAGMA integrity_check").fetchall()
+                if require_integrity_checks
+                else []
+            )
+            foreign_keys = (
+                connection.execute("PRAGMA foreign_key_check").fetchall()
+                if require_integrity_checks
+                else []
+            )
             foreign_keys_enabled = connection.execute("PRAGMA foreign_keys").fetchone()[
                 0
             ]
@@ -982,10 +1034,11 @@ class ExecutionCustodyStore:
             raise CustodyError("unknown custody store schema")
         if actual_schema != _expected_schema_objects():
             raise CustodyError("custody store schema objects differ from exact v1")
-        if len(integrity) != 1 or integrity[0][0] != "ok":
-            raise CustodyError("custody store integrity check failed")
-        if foreign_keys:
-            raise CustodyError("custody store foreign-key check failed")
+        if require_integrity_checks:
+            if len(integrity) != 1 or integrity[0][0] != "ok":
+                raise CustodyError("custody store integrity check failed")
+            if foreign_keys:
+                raise CustodyError("custody store foreign-key check failed")
         if foreign_keys_enabled != 1:
             raise CustodyError("custody store foreign-key enforcement is disabled")
         if require_durability_configuration and (
@@ -1045,6 +1098,8 @@ class ExecutionCustodyStore:
     def _execution_transaction(
         self, operation: str, work: Callable[[sqlite3.Connection], Any]
     ) -> Any:
+        if self._callable_active:
+            raise CustodyError("active callable cannot mutate custody state")
         if not self._acquire_execution_lock():
             raise CustodyError("attempt execution is still active")
         try:
@@ -1079,7 +1134,7 @@ class ExecutionCustodyStore:
         if not operation_id:
             raise CustodyError("operation_id is required")
         row = connection.execute(
-            "SELECT operation_kind, request_digest, result_json, result_digest FROM operations WHERE operation_id=?",
+            "SELECT operation_kind, request_digest, subject_kind, subject_id, result_json, result_digest FROM operations WHERE operation_id=?",
             (operation_id,),
         ).fetchone()
         if row is None:
@@ -1097,6 +1152,16 @@ class ExecutionCustodyStore:
             or _sha256(result_bytes) != row["result_digest"]
         ):
             raise CustodyError("committed operation result binding is invalid")
+        if "attempt_id" in result:
+            subject_kind = "attempt"
+            subject_id = result["attempt_id"]
+        elif "rejection_id" in result:
+            subject_kind = "rejection"
+            subject_id = result["rejection_id"]
+        else:
+            raise CustodyError("committed operation result has no subject identity")
+        if row["subject_kind"] != subject_kind or row["subject_id"] != subject_id:
+            raise CustodyError("committed operation subject binding is invalid")
         return result
 
     def _record_operation(
@@ -1109,10 +1174,29 @@ class ExecutionCustodyStore:
     ) -> None:
         if not operation_id:
             raise CustodyError("operation_id is required")
-        result_bytes = canonical_json_bytes(dict(result))
+        result_value = dict(result)
+        if "attempt_id" in result_value:
+            subject_kind = "attempt"
+            subject_id = result_value["attempt_id"]
+        elif "rejection_id" in result_value:
+            subject_kind = "rejection"
+            subject_id = result_value["rejection_id"]
+        else:
+            raise CustodyError("operation result has no subject identity")
+        if not isinstance(subject_id, str) or not subject_id:
+            raise CustodyError("operation subject identity is invalid")
+        result_bytes = canonical_json_bytes(result_value)
         connection.execute(
-            "INSERT INTO operations(operation_id, operation_kind, request_digest, result_json, result_digest) VALUES(?,?,?,?,?)",
-            (operation_id, kind, digest, result_bytes.decode(), _sha256(result_bytes)),
+            "INSERT INTO operations(operation_id, operation_kind, request_digest, subject_kind, subject_id, result_json, result_digest) VALUES(?,?,?,?,?,?,?)",
+            (
+                operation_id,
+                kind,
+                digest,
+                subject_kind,
+                subject_id,
+                result_bytes.decode(),
+                _sha256(result_bytes),
+            ),
         )
 
     def _event(
@@ -1245,8 +1329,19 @@ class ExecutionCustodyStore:
             key: _invalid_value_fingerprint(value)
             for key, value in request.__dict__.items()
         }
+        raw_material = (
+            None
+            if material is None
+            else {
+                key: _invalid_value_fingerprint(value)
+                for key, value in material.__dict__.items()
+            }
+        )
         payload = {
             "attempt_request_digest": _sha256(canonical_json_bytes(raw_request)),
+            "allocation_material_digest": _sha256(canonical_json_bytes(raw_material))
+            if raw_material is not None
+            else None,
             "evaluation_request_digest": request.evaluation_request_digest
             if _is_sha256(request.evaluation_request_digest)
             else None,
@@ -1806,12 +1901,16 @@ class ExecutionCustodyStore:
                     attempt_id, row["state"], row["terminal_reason"], False
                 )
             self._barrier("start_attempt", "before_callable")
-            self._barrier("start_attempt", "during_callable")
             callable_failure: Exception | None = None
+            self._callable_active = True
             try:
-                returned = callable_(snapshot)
-            except Exception as exc:
-                callable_failure = exc
+                self._barrier("start_attempt", "during_callable")
+                try:
+                    returned = callable_(snapshot)
+                except Exception as exc:
+                    callable_failure = exc
+            finally:
+                self._callable_active = False
             if callable_failure is None:
                 returned_bytes = canonical_json_bytes(returned)
                 self._observe(
@@ -1995,8 +2094,8 @@ class ExecutionCustodyStore:
             ):
                 raise CustodyError("state trace digest is invalid")
             operation_rows = connection.execute(
-                "SELECT result_json, result_digest FROM operations WHERE operation_kind=? AND request_digest=?",
-                (expected_operation, event["operation_digest"]),
+                "SELECT result_json, result_digest FROM operations WHERE operation_kind=? AND request_digest=? AND subject_kind='attempt' AND subject_id=?",
+                (expected_operation, event["operation_digest"], row["attempt_id"]),
             ).fetchall()
             bound = False
             for operation_row in operation_rows:
@@ -2088,11 +2187,17 @@ class ExecutionCustodyStore:
         connection: sqlite3.Connection,
         row: sqlite3.Row,
         error: CustodyError,
+        *,
+        terminal_recovery: bool = False,
     ) -> str:
         event_rows = connection.execute(
-            "SELECT * FROM events WHERE attempt_id=? ORDER BY sequence LIMIT 3",
+            "SELECT * FROM events WHERE attempt_id=? ORDER BY sequence",
             (row["attempt_id"],),
         ).fetchall()
+        if terminal_recovery:
+            if not event_rows:
+                raise CustodyError("unsealed recovery history is missing")
+            event_rows = event_rows[:-1]
         events: list[dict[str, Any]] = []
         operations: list[dict[str, Any]] = []
         for event_row in event_rows:
@@ -2110,8 +2215,12 @@ class ExecutionCustodyStore:
                 }
             )
             for operation_row in connection.execute(
-                "SELECT operation_id, operation_kind, request_digest, result_json, result_digest FROM operations WHERE operation_kind=? AND request_digest=? ORDER BY operation_id",
-                (event_row["operation"], event_row["operation_digest"]),
+                "SELECT operation_id, operation_kind, request_digest, result_json, result_digest FROM operations WHERE operation_kind=? AND request_digest=? AND subject_kind='attempt' AND subject_id=? ORDER BY operation_id",
+                (
+                    event_row["operation"],
+                    event_row["operation_digest"],
+                    row["attempt_id"],
+                ),
             ).fetchall():
                 operations.append(
                     {
@@ -2496,7 +2605,7 @@ class ExecutionCustodyStore:
                 )
             except CustodyError as seal_error:
                 reconstructed_failure_digest = self._seal_failure_digest(
-                    connection, attempt, seal_error
+                    connection, attempt, seal_error, terminal_recovery=True
                 )
             else:
                 raise CustodyError(
@@ -2539,8 +2648,8 @@ class ExecutionCustodyStore:
             ):
                 raise CustodyError("unsealed recovery terminal event is invalid")
             operation_rows = connection.execute(
-                "SELECT result_json, result_digest FROM operations WHERE operation_kind=? AND request_digest=?",
-                (operation, expected_operation_digest),
+                "SELECT result_json, result_digest FROM operations WHERE operation_kind=? AND request_digest=? AND subject_kind='attempt' AND subject_id=?",
+                (operation, expected_operation_digest, attempt_id),
             ).fetchall()
             expected_result = AttemptDisposition(
                 attempt_id, "indeterminate", "unsealed_outcome"
@@ -2611,6 +2720,8 @@ CREATE TABLE operations(
   operation_id TEXT PRIMARY KEY,
   operation_kind TEXT NOT NULL,
   request_digest TEXT NOT NULL,
+  subject_kind TEXT NOT NULL CHECK(subject_kind IN ('attempt','rejection')),
+  subject_id TEXT NOT NULL,
   result_json TEXT NOT NULL,
   result_digest TEXT NOT NULL
 );
