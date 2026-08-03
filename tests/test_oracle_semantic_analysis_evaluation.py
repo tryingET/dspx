@@ -345,6 +345,15 @@ def test_live_evidence_rejects_test_double_before_generate(
 ) -> None:
     module = _load_runner()
     _route_env(monkeypatch)
+    monkeypatch.setattr(
+        module,
+        "preflight_maintained_lm_auth",
+        lambda: {
+            "distribution": "tryinget-dspy-lm-auth",
+            "version": "0.1.5",
+            "module_path": "/test-only/dspy_lm_auth/__init__.py",
+        },
+    )
     backend, lm = _live_backend(_passing_analyses())
     monkeypatch.setattr(
         module, "resolve_program_oracle_semantic_backend", lambda: backend
