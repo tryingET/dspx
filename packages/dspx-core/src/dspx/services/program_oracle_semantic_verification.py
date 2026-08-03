@@ -1,6 +1,6 @@
-# summary: "Verifies dependency, source, and artifact provenance for AK-4570 semantic analysis."
+# summary: "Verifies dependency, source, and artifact provenance for AK-4571 semantic analysis."
 # read_when:
-#   - "Verifying AK-4570 dependency identity, source identity, or terminal artifacts."
+#   - "Verifying AK-4571 dependency identity, source identity, or terminal artifacts."
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ _SEMANTIC_RESULT_FIELDS = {
     "error",
 }
 SOURCE_PATHS = (
-    "benchmarks/semantic/oracle-semantic-analysis-evaluation-v4.json",
+    "benchmarks/semantic/oracle-semantic-analysis-evaluation-v5.json",
     "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
     "packages/dspx-core/src/dspx/model_roles.py",
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
@@ -245,7 +245,7 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     if (
         result.get("schema_version") != RESULT_SCHEMA
         or result.get("contract_sha256") != contract_hash
-        or result.get("ak_task_id") != 4570
+        or result.get("ak_task_id") != 4571
     ):
         raise SemanticAnalysisEvaluationError("evaluation result identity drift")
     rows = _sequence(result.get("cases"), "result.cases")
@@ -264,7 +264,7 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     if (
         attempt.get("schema_version") != ATTEMPT_SCHEMA
         or attempt.get("contract_sha256") != contract_hash
-        or attempt.get("ak_task_id") != 4570
+        or attempt.get("ak_task_id") != 4571
         or attempt.get("evaluation_processes") != 1
         or attempt.get("evidence_class") != evidence_class
         or attempt.get("source_identity") != source_identity
@@ -282,8 +282,8 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     _require_private_mode(canonical_ledger, 0o600, "attempt ledger")
     ledger, _ = _read_json(canonical_ledger, label="attempt ledger")
     if ledger != {
-        "schema_version": "dspx-oracle-semantic-analysis-evaluation-ledger-v4",
-        "ak_task_id": 4570,
+        "schema_version": "dspx-oracle-semantic-analysis-evaluation-ledger-v5",
+        "ak_task_id": 4571,
         "contract_sha256": contract_hash,
         "root": str(target),
         "status": result.get("status"),
