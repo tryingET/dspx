@@ -343,9 +343,22 @@ def run_evaluation(
                 )
             history_before = len(production_lm.history)
             generate_before = production_lm.generate_invocation_count
+            result: OracleSemanticResult | None = None
+            analyze_error: str | None = None
             try:
                 result = backend.analyze(request)
             except Exception as exc:
+                analyze_error = sanitize_diagnostic_text(str(exc))
+            generate_delta = production_lm.generate_invocation_count - generate_before
+            if result is None:
+                history_delta = len(production_lm.history) - history_before
+                history_error = (
+                    production_lm.history[-1].error if history_delta == 1 else None
+                )
+                response_observed = (
+                    generate_delta == 1 and history_delta == 1 and history_error is None
+                )
+                observed_model = str(production_lm.model) if response_observed else None
                 result = OracleSemanticResult(
                     request_sha256=request.request_sha256,
                     backend_kind="live",
@@ -353,12 +366,15 @@ def run_evaluation(
                     configured_provider=backend.provider_name,
                     configured_model=backend.configured_model,
                     executed_provider=None,
-                    executed_model=None,
-                    execution_status="failed_before_live_success",
-                    live_call_succeeded=False,
-                    error=sanitize_diagnostic_text(str(exc)),
+                    executed_model=observed_model,
+                    execution_status=(
+                        "failed_after_live_response"
+                        if response_observed
+                        else "failed_before_live_success"
+                    ),
+                    live_call_succeeded=response_observed,
+                    error=analyze_error or "semantic analysis raised without a result",
                 )
-            generate_delta = production_lm.generate_invocation_count - generate_before
             attempt["generate_call_count"] = (
                 int(attempt["generate_call_count"]) + generate_delta
             )

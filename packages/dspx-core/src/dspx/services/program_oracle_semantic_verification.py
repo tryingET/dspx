@@ -276,19 +276,40 @@ def _validate_execution_provenance(
             raise SemanticAnalysisEvaluationError(
                 "production adapter route evidence drift"
             )
-        if semantic.get("execution_status") == "succeeded":
+        execution_status = semantic.get("execution_status")
+        if execution_status == "succeeded":
             if (
                 call.get("call_error") is not None
                 or not str(call.get("resolved_model") or "").strip()
+                or semantic.get("live_call_succeeded") is not True
             ):
                 raise SemanticAnalysisEvaluationError(
                     "successful adapter call evidence drift"
                 )
-        elif semantic.get("execution_status") == "failed_before_live_success":
-            if call.get("call_error") != semantic.get("error"):
+        elif execution_status == "failed_after_live_response":
+            if (
+                call.get("call_error") is not None
+                or not str(call.get("resolved_model") or "").strip()
+                or semantic.get("live_call_succeeded") is not True
+                or not str(semantic.get("executed_model") or "").strip()
+                or not str(semantic.get("error") or "").strip()
+            ):
+                raise SemanticAnalysisEvaluationError(
+                    "failed-after-response provenance drift"
+                )
+        elif execution_status == "failed_before_live_success":
+            if (
+                semantic.get("live_call_succeeded") is not False
+                or not str(semantic.get("error") or "").strip()
+                or call.get("call_error") != semantic.get("error")
+            ):
                 raise SemanticAnalysisEvaluationError(
                     "failed adapter call error correlation drift"
                 )
+        else:
+            raise SemanticAnalysisEvaluationError(
+                "adapter execution status provenance drift"
+            )
     if (
         provenance.get("history_count_after") != expected_history_index
         or observed_generate_count != generate_call_count

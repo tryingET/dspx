@@ -25,7 +25,7 @@ CONTRACT_RELATIVE_PATH = Path(
     "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json"
 )
 EXPECTED_REVIEW_INVARIANT_SHA256 = (
-    "867c29f3108372353dcb01cce42cab890184a0e8b9318dfeb0833cd3cfe819d1"
+    "fbcb2cbe6afe2c13c7574ed7debb53817263ea86d7ec18ace1412c767f1b8d90"
 )
 RESULT_NAME = "evaluation-result.json"
 ATTEMPT_NAME = "attempt-status.json"
@@ -71,20 +71,54 @@ def _sha256_file(path: Path) -> str:
     return _sha256_bytes(path.read_bytes())
 
 
-def _review_invariant(contract: Mapping[str, Any]) -> dict[str, Any]:
-    projection = json.loads(_canonical_json(contract))
-    projection.pop("status", None)
+def _review_invariant_bytes(raw: bytes, contract: Mapping[str, Any]) -> bytes:
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise SemanticAnalysisEvaluationError(
+            "semantic-analysis contract must be UTF-8"
+        ) from exc
+    top_status = contract.get("status")
     adjudication = _mapping(
-        projection.get("offline_adjudication"), "offline_adjudication"
+        contract.get("offline_adjudication"), "offline_adjudication"
     )
     successor_review = _mapping(
         adjudication.get("successor_review"), "offline_adjudication.successor_review"
     )
-    for field in ("status", "reviewer", "review_evidence"):
-        successor_review.pop(field, None)
-    adjudication["successor_review"] = successor_review
-    projection["offline_adjudication"] = adjudication
-    return projection
+    top_line = f'  "status": {json.dumps(top_status)},'
+    if text.count(top_line) != 1:
+        raise SemanticAnalysisEvaluationError(
+            "top-level review status serialization drift"
+        )
+    text = text.replace(top_line, '  "status": "<REVIEW_STATE>",', 1)
+    block_start = text.find('    "successor_review": {\n')
+    block_end_marker = '\n    }\n  },\n  "cases":'
+    block_end = text.find(block_end_marker, block_start)
+    if block_start < 0 or block_end < 0:
+        raise SemanticAnalysisEvaluationError(
+            "successor review serialization boundary drift"
+        )
+    prefix = text[:block_start]
+    block = text[block_start:block_end]
+    suffix = text[block_end:]
+    replacements = {
+        "status": "<SUCCESSOR_REVIEW_STATE>",
+        "reviewer": "<SUCCESSOR_REVIEWER>",
+        "review_evidence": "<SUCCESSOR_REVIEW_EVIDENCE>",
+    }
+    for field, placeholder in replacements.items():
+        value = successor_review.get(field)
+        line = f'      "{field}": {json.dumps(value)},'
+        if block.count(line) != 1:
+            raise SemanticAnalysisEvaluationError(
+                f"successor review {field} serialization drift"
+            )
+        block = block.replace(
+            line,
+            f'      "{field}": "{placeholder}",',
+            1,
+        )
+    return (prefix + block + suffix).encode("utf-8")
 
 
 def _mapping(value: object, label: str) -> dict[str, Any]:
@@ -269,9 +303,7 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     contract_path = root / CONTRACT_RELATIVE_PATH
     contract, raw = _read_json(contract_path, label="semantic-analysis contract")
     observed_hash = _sha256_bytes(raw)
-    invariant_hash = _sha256_bytes(
-        _canonical_json(_review_invariant(contract)).encode("utf-8")
-    )
+    invariant_hash = _sha256_bytes(_review_invariant_bytes(raw, contract))
     if invariant_hash != EXPECTED_REVIEW_INVARIANT_SHA256:
         raise SemanticAnalysisEvaluationError(
             "semantic-analysis review invariant drift"

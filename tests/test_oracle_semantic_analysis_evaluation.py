@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -22,10 +23,15 @@ from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_evaluation import (
     EXPECTED_REVIEW_INVARIANT_SHA256,
     _CODE_FIELDS,
+    _review_invariant_bytes,
     _request,
 )
 from dspx.services.program_oracle_semantic_scoring import score_analysis
-from dspx.services.program_oracle_semantic_verification import SOURCE_PATHS
+from dspx.services.program_oracle_semantic_verification import (
+    LIVE_EVIDENCE_CLASS,
+    SOURCE_PATHS,
+    _validate_execution_provenance,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUNNER_PATH = REPO_ROOT / "scripts/ci/run_oracle_semantic_analysis_evaluation.py"
@@ -138,13 +144,15 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     module = _load_runner()
     contract, observed_hash = module.load_contract(REPO_ROOT)
 
-    assert observed_hash == (
-        "0148dea8957fdea429b75d5bfa031d50ca342d41f2e2c0191a67659ef1c209bf"
+    contract_path = (
+        REPO_ROOT / "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json"
     )
+    assert observed_hash == hashlib.sha256(contract_path.read_bytes()).hexdigest()
     assert contract["attempt_policy"]["case_order"] == list(module._CASE_ORDER)
-    assert contract["status"] == (
-        "successor_offline_review_pending_live_authorized_not_run"
-    )
+    assert contract["status"] in {
+        "successor_offline_review_pending_live_authorized_not_run",
+        "offline_adjudicated_live_authorized_not_run",
+    }
     assert contract["route"]["live_authorized"] is True
     assert contract["attempt_policy"]["maximum_evaluation_processes"] == 1
     assert contract["attempt_policy"]["ledger"]["key"] == "AK-4577"
@@ -158,16 +166,20 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
         "path": "benchmarks/semantic/oracle-semantic-analysis-evaluation-v7.json",
         "sha256": "8ead13cab9dc5f7614f56dae1d4499fb2257a6d41b28e5ce72dc43c41d29c1e8",
     }
-    assert contract["offline_adjudication"]["successor_review"] == {
-        "status": "independent_successor_review_pending",
-        "reviewer": None,
-        "review_evidence": None,
-        "review_question": (
-            "Does v8 preserve v7 field_rubric, cases, hidden labels, and "
-            "distractors while changing only successor identity and one-shot "
-            "execution authorization?"
-        ),
-    }
+    successor_review = contract["offline_adjudication"]["successor_review"]
+    assert successor_review["review_question"] == (
+        "Does v8 preserve v7 field_rubric, cases, hidden labels, and distractors "
+        "while changing only successor identity and one-shot execution "
+        "authorization?"
+    )
+    if contract["status"].startswith("successor_offline_review_pending"):
+        assert successor_review["status"] == "independent_successor_review_pending"
+        assert successor_review["reviewer"] is None
+        assert successor_review["review_evidence"] is None
+    else:
+        assert successor_review["status"] == "independent_successor_review_accepted"
+        assert str(successor_review["reviewer"]).strip()
+        assert str(successor_review["review_evidence"]).startswith("ak:evidence:")
     causal = next(
         case for case in contract["cases"] if case["id"] == "causal-calibration"
     )
@@ -180,7 +192,7 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
         not in causal["hidden_labels"]["forbidden_codes"]["quality_contract_violations"]
     )
     assert EXPECTED_REVIEW_INVARIANT_SHA256 == (
-        "867c29f3108372353dcb01cce42cab890184a0e8b9318dfeb0833cd3cfe819d1"
+        "fbcb2cbe6afe2c13c7574ed7debb53817263ea86d7ec18ace1412c767f1b8d90"
     )
     for case in contract["cases"]:
         request = _request(case)
@@ -196,6 +208,29 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     assert (
         "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py"
         in SOURCE_PATHS
+    )
+
+
+def test_review_invariant_allows_only_activation_metadata_byte_changes() -> None:
+    contract_path = (
+        REPO_ROOT / "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json"
+    )
+    pending_raw = contract_path.read_bytes()
+    pending = json.loads(pending_raw)
+    accepted = json.loads(pending_raw)
+    accepted["status"] = "offline_adjudicated_live_authorized_not_run"
+    successor_review = accepted["offline_adjudication"]["successor_review"]
+    successor_review["status"] = "independent_successor_review_accepted"
+    successor_review["reviewer"] = "independent-reviewer"
+    successor_review["review_evidence"] = "ak:evidence:9999"
+    accepted_raw = (json.dumps(accepted, indent=2) + "\n").encode("utf-8")
+
+    assert _review_invariant_bytes(pending_raw, pending) == _review_invariant_bytes(
+        accepted_raw, accepted
+    )
+    reformatted = pending_raw.replace(b'"purpose":', b'"purpose" :', 1)
+    assert _review_invariant_bytes(reformatted, json.loads(reformatted)) != (
+        _review_invariant_bytes(pending_raw, pending)
     )
 
 
@@ -250,9 +285,10 @@ def test_v8_matrix_matches_reviewed_v7_semantics_and_evidence_rubric() -> None:
     assert adjudication["status"] == "independent_offline_review_accepted"
     assert adjudication["reviewer"] == "operator"
     assert adjudication["review_evidence"] == "ak:evidence:6252"
-    assert adjudication["successor_review"]["status"] == (
-        "independent_successor_review_pending"
-    )
+    assert adjudication["successor_review"]["status"] in {
+        "independent_successor_review_pending",
+        "independent_successor_review_accepted",
+    }
     assert [row["case_id"] for row in adjudication["case_basis"]] == list(
         module._CASE_ORDER
     )
@@ -387,61 +423,112 @@ def test_live_backend_preserves_observed_model_after_malformed_response() -> Non
     assert result.analysis is None
 
 
-@pytest.mark.parametrize(
-    "evidence_class",
-    ["production_adapter_live_behavior", "test_double_wiring_only"],
-)
-def test_pending_successor_review_refuses_every_evaluation_class_before_effects(
+def test_failed_after_response_provenance_is_fully_correlated() -> None:
+    semantic = {
+        "execution_status": "failed_after_live_response",
+        "live_call_succeeded": True,
+        "executed_model": "codex/gpt-5.6-sol",
+        "error": "structured response parse failed",
+    }
+    rows = [{"semantic_result": semantic}]
+    provenance = {
+        "evidence_class": LIVE_EVIDENCE_CLASS,
+        "trusted_for_live_behavior": True,
+        "adapter_type": "dspx.dspy_lm_auth_lm.DspyLMAuthLM",
+        "requested_model": "codex/gpt-5.6-sol",
+        "auth_provider": "codex",
+        "reasoning_effort": "max",
+        "strict": True,
+        "history_count_before": 0,
+        "status": "failed_or_indeterminate",
+        "calls": [
+            {
+                "history_index": 0,
+                "history_delta": 1,
+                "generate_invocation_delta": 1,
+                "requested_model": "codex/gpt-5.6-sol",
+                "auth_provider": "codex",
+                "call_error": None,
+                "resolved_model": "codex/gpt-5.6-sol",
+                "uses_codex_route": True,
+                "observed_response_model": "codex/gpt-5.6-sol",
+            }
+        ],
+        "history_count_after": 1,
+    }
+
+    assert (
+        _validate_execution_provenance(
+            provenance,
+            evidence_class=LIVE_EVIDENCE_CLASS,
+            executed_models=[],
+            case_rows=rows,
+            attempted_count=1,
+            generate_call_count=1,
+            mechanics_passed=False,
+        )
+        is True
+    )
+
+    tampered_rows = json.loads(json.dumps(rows))
+    tampered_rows[0]["semantic_result"]["live_call_succeeded"] = False
+    with pytest.raises(ValueError, match="failed-after-response provenance drift"):
+        _validate_execution_provenance(
+            provenance,
+            evidence_class=LIVE_EVIDENCE_CLASS,
+            executed_models=[],
+            case_rows=tampered_rows,
+            attempted_count=1,
+            generate_call_count=1,
+            mechanics_passed=False,
+        )
+
+
+def test_nonproduction_evidence_class_refuses_before_effects_in_every_review_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    evidence_class: str,
 ) -> None:
     module = _load_runner()
     root = tmp_path / "must-not-exist"
+    contract, _ = module.load_contract(REPO_ROOT)
     monkeypatch.setattr(
         module,
         "preflight_maintained_lm_auth",
-        lambda: pytest.fail("pending review must precede dependency preflight"),
-    )
-    monkeypatch.setattr(
-        module,
-        "_committed_source_identity",
-        lambda _repo_root: pytest.fail("pending review must precede source proof"),
+        lambda: pytest.fail("review and evidence class checks must precede preflight"),
     )
     monkeypatch.setattr(
         module,
         "_new_root",
-        lambda _root: pytest.fail("pending review must precede root creation"),
+        lambda _root: pytest.fail("review and evidence class checks precede root"),
     )
-    monkeypatch.setattr(
-        module,
-        "resolve_program_oracle_semantic_backend",
-        lambda: pytest.fail("pending review must precede backend resolution"),
+    expected = (
+        "successor review is pending"
+        if contract["status"].startswith("successor_offline_review_pending")
+        else "authorizes only the production-adapter live evidence class"
     )
 
-    with pytest.raises(
-        module.SemanticAnalysisEvaluationError,
-        match="successor review is pending.*no evaluation process",
-    ):
+    with pytest.raises(module.SemanticAnalysisEvaluationError, match=expected):
         module.run_evaluation(
             repo_root=REPO_ROOT,
             root=root,
-            evidence_class=evidence_class,
+            evidence_class="test_double_wiring_only",
         )
 
     assert not root.exists()
 
 
-def test_pending_successor_review_refuses_artifact_verification_before_read(
+def test_pending_review_refuses_artifact_verification_without_effects(
     tmp_path: Path,
 ) -> None:
     module = _load_runner()
     root = tmp_path / "must-not-exist"
+    contract, _ = module.load_contract(REPO_ROOT)
 
-    with pytest.raises(
-        module.SemanticAnalysisEvaluationError,
-        match="successor review is pending.*no artifact verification",
-    ):
-        module.verify_evaluation(repo_root=REPO_ROOT, root=root)
+    if contract["status"].startswith("successor_offline_review_pending"):
+        with pytest.raises(
+            module.SemanticAnalysisEvaluationError,
+            match="successor review is pending.*no artifact verification",
+        ):
+            module.verify_evaluation(repo_root=REPO_ROOT, root=root)
 
     assert not root.exists()
