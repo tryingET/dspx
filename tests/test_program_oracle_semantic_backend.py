@@ -46,7 +46,7 @@ def _request() -> OracleSemanticRequest:
     )
 
 
-def test_codebook_prompt_requires_minimum_directly_entailed_code_set() -> None:
+def test_codebook_prompt_separates_literal_and_prospective_field_rules() -> None:
     request = OracleSemanticRequest(
         objective="Classify only observed behavior",
         evidence={"refs": [{"ref": "receipt:run-7"}], "status": "passed"},
@@ -54,20 +54,27 @@ def test_codebook_prompt_requires_minimum_directly_entailed_code_set() -> None:
             "analysis_codebook": {
                 "observations": ["passed", "failed"],
                 "hypotheses": ["cause_unproven"],
-            }
+            },
+            "analysis_field_rubric": {
+                "observations": {"mode": "literal"},
+                "failure_attractors": {"mode": "bounded_prospective"},
+            },
         },
     )
 
     prompt = _analysis_prompt(request)
 
-    assert "directly and unambiguously entails" in prompt
+    assert "analysis_field_rubric exactly" in prompt
+    assert "Observations are literal target-subject facts" in prompt
+    assert "same proposition, subject, and state" in prompt
+    assert "a regression alone does not prove" in prompt
+    assert "Hypotheses require explicit causal" in prompt
+    assert "prospective fields" in prompt
+    assert "risk or action need not appear verbatim" in prompt
+    assert "Never invent the subject" in prompt
     assert "Use an empty array" in prompt
     assert "minimum exact code set" in prompt
     assert "not every plausible code" in prompt
-    assert "same proposition with the same subject and state" in prompt
-    assert "do not infer an unmentioned workflow entity" in prompt
-    assert "requires explicit causal, mechanism" in prompt
-    assert "narrowest single" in prompt
 
 
 class _LiveLM:
