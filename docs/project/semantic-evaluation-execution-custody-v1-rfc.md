@@ -55,10 +55,10 @@ requested → rejected
 requested → allocated → closed                 # no attempt started
                        → attempting → indeterminate
                                     → outcome_observed → indeterminate
-                                                       → evidence_sealed → closed
+                                                       → closed  # atomic seal + terminal commit
 ```
 
-The machine has eight states and eleven transitions. `rejected`, `indeterminate`, and `closed` are terminal. No terminal state reopens.
+The machine has seven states and ten transitions. `rejected`, `indeterminate`, and `closed` are terminal. No terminal state reopens.
 
 ### Attempt identity
 
@@ -67,11 +67,12 @@ An `attempt_id` is globally unique within the DSPx owner domain and no-replace. 
 - allocation commits the ID and normalized-input binding once;
 - no second allocation may reuse it;
 - `indeterminate` consumes it permanently;
-- execution reproduction uses a distinct attempt ID with explicit lineage and never rewrites the original attempt.
+- every attempt binds `attempt_kind = original | replay` and a mandatory `source_receipt_digest` that is null exactly for `original` and non-null exactly for `replay`;
+- execution reproduction uses a distinct replay attempt ID and source-receipt lineage and never rewrites the original attempt.
 
 ### Start-before-effect rule
 
-`start_attempt` durably commits before DSPx invokes the generated-program runtime path. The marker binds the attempt ID, candidate coordinate, normalized-input digest, accepted effect budget, runtime configuration observation, and evaluation-request digest.
+`start_attempt` durably commits before DSPx invokes the generated-program runtime path. The marker binds the attempt ID, attempt kind, source-receipt lineage, candidate coordinate, normalized-input digest, accepted effect budget, runtime configuration observation, and evaluation-request digest.
 
 Marker absence permits terminal `cancelled_before_attempt` or `recovered_unstarted` only when the implementation proves that the call site cannot be reached before marker commit. Marker presence without one durable outcome is `indeterminate`, not safe non-start.
 
@@ -82,15 +83,15 @@ DSPx may record exactly one:
 - `return`: the exact normalized returned-output digest and local status observation; or
 - `failure`: the sanitized failure type/message digest and local status observation.
 
-A return is not a semantic pass. A caught failure is not proof that no provider/external effect occurred. Provider configuration is distinct from observed executed-provider/model identity; absent identity remains absent.
+A return is not a semantic pass. A caught failure is not proof that no provider/external effect occurred. Version 1 records configured runtime/provider observations only and fixes executed provider/model identity to null; it makes no executed-identity claim.
 
 ### Evidence seal
 
-`seal_evidence` is downstream of one durable outcome observation. It commits one immutable manifest over all episode-owned evidence artifacts and a receipt that describes that committed manifest. Temporary/incomplete artifacts are not evidence.
+`seal_and_close` is downstream of one durable outcome observation. One exclusive commit atomically publishes: the immutable manifest over all episode-owned evidence artifacts; the downstream receipt; the complete trace through terminal `closed`; and the terminal marker. Temporary/incomplete artifacts are not evidence, and no episode-owned write may follow this commit under the attempt ID.
 
-The implementation decision must select a no-replace commit mechanism in which the immutable seal is the only success linearization point. Decision 105 does not prescribe a database, filesystem journal, signature system, or multi-owner authority service.
+The implementation decision must select a no-replace commit mechanism in which this atomic seal-and-terminal commit is the only success linearization point. Decision 105 does not prescribe a database, filesystem journal, signature system, or multi-owner authority service.
 
-`closed` after `evidence_sealed` means no DSPx episode-owned local mutation remains pending under the attempt ID. It does not mean a provider process, network request, provider-internal retry, or caller-owned resource was cleaned up.
+`closed` on the observed-outcome branch means no DSPx episode-owned local mutation remains pending under the attempt ID. It does not mean a provider process, network request, provider-internal retry, executed provider/model identity, or caller-owned resource was cleaned up.
 
 ## Crash and recovery
 
@@ -99,8 +100,8 @@ The implementation decision must select a no-replace commit mechanism in which t
 | no allocation | Return no-attempt evidence; allocate only through a fresh request. |
 | `allocated` with no start marker | Verify marker absence and close as unstarted; never claim an invocation occurred. |
 | `attempting` with no valid outcome | Commit `indeterminate`; do not invoke again under the attempt ID. |
-| `outcome_observed` without a valid seal | Complete the seal only from the immutable observation and verified episode-owned artifacts, otherwise commit `indeterminate`; never re-invoke. |
-| `evidence_sealed` without `closed` | Verify the seal and commit `closed` without re-invocation or evidence rewrite. |
+| `outcome_observed` without a valid atomic terminal seal | Complete `seal_and_close` only from the immutable observation and verified episode-owned artifacts, otherwise commit `indeterminate`; never re-invoke. |
+| atomic seal-and-terminal commit observed | The authoritative state is already `closed`; return its immutable record without another write. |
 | terminal | Return the immutable terminal record for an exactly equal read request; perform no effect. |
 
 Transport timeout, caller cancellation, missing receipt delivery, or process crash does not prove the underlying provider effect did not occur.
@@ -112,31 +113,33 @@ Read-only validation of an existing terminal record is idempotent. Mutation comm
 There is no execution retry transition. A replay that re-executes behavior is a new, explicit attempt with:
 
 - a new attempt ID;
-- lineage to the source sealed receipt;
-- its own start/outcome/seal lifecycle;
+- `attempt_kind = replay` and one non-null `source_receipt_digest` bound at allocation and start;
+- its own start/outcome/atomic-seal-and-terminal lifecycle;
 - claims limited to the replay mechanism actually used.
 
 An `indeterminate` original cannot be converted to success by a later replay.
 
 ## Immutable Decision 106 projection
 
-Decision 106 may consume only a closed, evidence-sealed attempt whose terminal reason is `observed_return` or `observed_failure`. Cancelled/unstarted and indeterminate attempts are ineligible for deterministic evaluation.
+Decision 106 may consume only an attempt whose atomic seal-and-terminal commit produced `closed` with terminal reason `observed_return` or `observed_failure`. Cancelled/unstarted and indeterminate attempts are ineligible for deterministic evaluation.
 
 The projection contains exactly these top-level members:
 
 1. `schema_version = dspx-semantic-evaluation-evidence-projection-v1`;
 2. `episode_id`;
 3. `attempt_id`;
-4. `candidate_coordinate` — source manifest and candidate-receipt digests;
-5. `input_coordinate` — normalized input digest and disclosure posture, never an implied raw-data right;
-6. `evaluation_request_digest` — opaque binding to the owner-supplied request bytes;
-7. `effect_inventory_version`;
-8. `runtime_observation` — configured runtime/provider observations, separately nullable executed identity, start marker, and observed return/failure kind;
-9. `outcome_evidence` — returned-output or failure digest with no semantic pass/fail field;
-10. `episode_evidence_manifest_digest`;
-11. `receipt_digest`;
-12. `state_trace_digest` through terminal `closed`;
-13. `non_authority` — explicit false semantic-meaning, deterministic-verdict, publication, currentness, promotion, governance, AK-mutation, and external-authority flags.
+4. `attempt_kind` — exactly `original` or `replay`;
+5. `source_receipt_digest` — mandatory null exactly for `original`, mandatory non-null exactly for `replay`;
+6. `candidate_coordinate` — source manifest and candidate-receipt digests;
+7. `input_coordinate` — normalized input digest and disclosure posture, never an implied raw-data right;
+8. `evaluation_request_digest` — opaque binding to the owner-supplied request bytes;
+9. `effect_inventory_version`;
+10. `runtime_observation` — configured runtime/provider observations, fixed-null executed provider/model identity, start marker, and observed return/failure kind;
+11. `outcome_evidence` — returned-output or failure digest with no semantic pass/fail field;
+12. `episode_evidence_manifest_digest`;
+13. `receipt_digest`;
+14. `state_trace_digest` through terminal `closed`, covered by the same atomic commit;
+15. `non_authority` — explicit false executed-identity, semantic-meaning, deterministic-verdict, publication, currentness, promotion, governance, AK-mutation, and external-authority flags.
 
 Every member is mandatory; nullable observations remain explicit nulls. The projection contains no raw provider credential, raw protected dataset, reusable handle, publication state, ROCS verdict, or mutable-latest pointer.
 
@@ -147,7 +150,7 @@ ROCS validates the projection against an accepted Decision 106 contract. Validat
 Current DSPx source establishes useful primitives but does not implement this canonical machine:
 
 - `runtime_inputs.json` is an exclusive local allocation-like write, but there is no canonical durable attempt-start/outcome/seal/closed record sequence;
-- current evidence is written across multiple files without one normative immutable seal commit;
+- current evidence is written across multiple files without one normative atomic seal-and-terminal commit;
 - current runtime catches returns/failures but cannot prove provider transport cardinality, provider retries, executed model identity, network isolation, or external cleanup;
 - current replay is bounded and receipt-aware but is not this machine's explicit distinct-attempt lineage protocol.
 
@@ -165,7 +168,7 @@ A later plan must include generated positive/negative traces for every machine t
 - receipt-before-effect rejection;
 - same-attempt retry rejection;
 - replay with distinct lineage;
-- provider/model identity absent versus observed;
+- configured provider observation with fixed-null executed provider/model identity;
 - unsupported custody/process/network claim rejection;
 - Decision 106 projection exact-member and null handling;
 - terminal-state reopening rejection.

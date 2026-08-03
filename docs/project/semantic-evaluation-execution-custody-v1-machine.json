@@ -29,16 +29,12 @@
       "meaning": "The DSPx invocation path returned a value or caught failure, and the exact observation was durably recorded; the evidence bundle is not yet sealed.",
       "durable": true
     },
-    "evidence_sealed": {
-      "meaning": "DSPx committed one immutable evidence manifest and receipt over all episode-owned evidence bytes after the observed outcome.",
-      "durable": true
-    },
     "indeterminate": {
       "meaning": "Attempt start or observed outcome cannot be reconciled to one complete sealed episode; the attempt identity is consumed and non-retryable.",
       "durable": true
     },
     "closed": {
-      "meaning": "DSPx will perform no further mutation under the attempt identity. Closure claims only episode-owned local state, never provider or external-process cleanup.",
+      "meaning": "DSPx atomically sealed the terminal outcome branch or durably closed an allocation that never started. No further mutation is permitted under the attempt identity. Closure claims only episode-owned local state.",
       "durable": true
     }
   },
@@ -75,16 +71,12 @@
       "linearization": "durable indeterminate marker after an attempt-start marker lacks one valid outcome observation",
       "effect": "dspx_local_evidence_write"
     },
-    "seal_evidence": {
-      "linearization": "exclusive commit of immutable evidence manifest and receipt after every referenced episode-owned artifact is hash-verified",
-      "effect": "dspx_local_evidence_write"
-    },
     "recover_unsealed_outcome": {
       "linearization": "durable indeterminate marker when an observed outcome cannot be reconciled to one immutable evidence seal",
       "effect": "dspx_local_evidence_write"
     },
-    "close_episode": {
-      "linearization": "durable terminal marker after immutable seal verification",
+    "seal_and_close": {
+      "linearization": "one exclusive commit atomically publishes the immutable evidence manifest, downstream receipt, complete trace through terminal closed, and terminal marker",
       "effect": "dspx_local_evidence_write"
     }
   },
@@ -106,7 +98,8 @@
       "guards": [
         "request_valid",
         "episode_identity_absent",
-        "output_root_confined_and_disjoint"
+        "output_root_confined_and_disjoint",
+        "attempt_kind_and_source_lineage_valid"
       ]
     },
     {
@@ -167,17 +160,6 @@
       ]
     },
     {
-      "operation": "seal_evidence",
-      "from": "outcome_observed",
-      "to": "evidence_sealed",
-      "guards": [
-        "one_outcome_observation_present",
-        "all_episode_owned_artifacts_hash_verified",
-        "evidence_seal_absent",
-        "receipt_describes_observed_effect"
-      ]
-    },
-    {
       "operation": "recover_unsealed_outcome",
       "from": "outcome_observed",
       "to": "indeterminate",
@@ -187,12 +169,15 @@
       ]
     },
     {
-      "operation": "close_episode",
-      "from": "evidence_sealed",
+      "operation": "seal_and_close",
+      "from": "outcome_observed",
       "to": "closed",
       "guards": [
-        "evidence_seal_valid",
-        "terminal_reason_matches_observed_outcome",
+        "one_outcome_observation_present",
+        "all_episode_owned_artifacts_hash_verified",
+        "evidence_seal_absent",
+        "receipt_describes_observed_effect",
+        "complete_terminal_trace_bound",
         "no_episode_owned_mutation_pending"
       ]
     }
@@ -201,9 +186,10 @@
     "No transition leaves a terminal state.",
     "No operation retries or re-executes a generated program under the same attempt identity.",
     "Every potentially external generated-program invocation is preceded by the durable attempt-start marker.",
-    "A receipt is committed only by seal_evidence and only after one durable outcome observation.",
+    "The immutable evidence manifest, downstream receipt, complete state trace, and terminal closed marker are published by one seal_and_close commit after one durable outcome observation.",
     "Indeterminate consumes the attempt identity and carries no safe-non-start, success, evaluation, cleanup, or retry claim.",
-    "Closed claims no provider-call cardinality, provider-internal retry, network isolation, executed model identity, or external process cleanup.",
-    "Decision 106 consumes only the immutable sealed evidence projection; it cannot mutate this machine or infer unsupported effects."
+    "Closed claims no provider-call cardinality, provider-internal retry, network isolation, executed provider/model identity, or external process cleanup.",
+    "Replay attempts bind attempt_kind=replay and one non-null source_receipt_digest; original attempts bind attempt_kind=original and a null source_receipt_digest.",
+    "Decision 106 consumes only the immutable terminal evidence projection; it cannot mutate this machine or infer unsupported effects."
   ]
 }
