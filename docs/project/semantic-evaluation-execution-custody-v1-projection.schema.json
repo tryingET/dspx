@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dspx.local/schemas/dspx-semantic-evaluation-evidence-projection-v1.schema.json",
+  "title": "DSPx semantic evaluation evidence projection v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "episode_id",
+    "attempt_id",
+    "attempt_kind",
+    "source_receipt_digest",
+    "candidate_coordinate",
+    "input_coordinate",
+    "evaluation_request_digest",
+    "effect_inventory_version",
+    "runtime_observation",
+    "outcome_evidence",
+    "episode_evidence_manifest_digest",
+    "receipt_digest",
+    "state_trace_digest",
+    "non_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "dspx-semantic-evaluation-evidence-projection-v1"
+    },
+    "episode_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "attempt_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "attempt_kind": {
+      "enum": [
+        "original",
+        "replay"
+      ]
+    },
+    "source_receipt_digest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "candidate_coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_manifest_digest",
+        "candidate_receipt_digest"
+      ],
+      "properties": {
+        "source_manifest_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "candidate_receipt_digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "input_coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalized_input_digest",
+        "disclosure_posture"
+      ],
+      "properties": {
+        "normalized_input_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "disclosure_posture": {
+          "const": "digest_only_no_raw_access_right"
+        }
+      }
+    },
+    "evaluation_request_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "effect_inventory_version": {
+      "const": "dspx-semantic-evaluation-execution-effect-inventory-v1"
+    },
+    "runtime_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configured_runtime_digest",
+        "configured_provider",
+        "configured_model",
+        "executed_provider_identity",
+        "executed_model_identity",
+        "attempt_start_digest",
+        "outcome_kind"
+      ],
+      "properties": {
+        "configured_runtime_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "configured_provider": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/configured_label"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configured_model": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/configured_label"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "executed_provider_identity": {
+          "type": "null"
+        },
+        "executed_model_identity": {
+          "type": "null"
+        },
+        "attempt_start_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "outcome_kind": {
+          "enum": [
+            "return",
+            "failure"
+          ]
+        }
+      }
+    },
+    "outcome_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_kind",
+        "normalized_return_digest",
+        "sanitized_failure_digest"
+      ],
+      "properties": {
+        "observation_kind": {
+          "enum": [
+            "return",
+            "failure"
+          ]
+        },
+        "normalized_return_digest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sanitized_failure_digest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "observation_kind": {
+                "const": "return"
+              }
+            },
+            "required": [
+              "observation_kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "normalized_return_digest": {
+                "$ref": "#/$defs/sha256"
+              },
+              "sanitized_failure_digest": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "normalized_return_digest": {
+                "type": "null"
+              },
+              "sanitized_failure_digest": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "episode_evidence_manifest_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "receipt_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "state_trace_digest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "non_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executed_identity",
+        "semantic_meaning",
+        "deterministic_verdict",
+        "publication",
+        "currentness",
+        "promotion",
+        "governance",
+        "ak_mutation",
+        "external_authority"
+      ],
+      "properties": {
+        "executed_identity": {
+          "const": false
+        },
+        "semantic_meaning": {
+          "const": false
+        },
+        "deterministic_verdict": {
+          "const": false
+        },
+        "publication": {
+          "const": false
+        },
+        "currentness": {
+          "const": false
+        },
+        "promotion": {
+          "const": false
+        },
+        "governance": {
+          "const": false
+        },
+        "ak_mutation": {
+          "const": false
+        },
+        "external_authority": {
+          "const": false
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "attempt_kind": {
+            "const": "original"
+          }
+        },
+        "required": [
+          "attempt_kind"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source_receipt_digest": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "source_receipt_digest": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "runtime_observation": {
+            "properties": {
+              "outcome_kind": {
+                "const": "return"
+              }
+            },
+            "required": [
+              "outcome_kind"
+            ]
+          }
+        },
+        "required": [
+          "runtime_observation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "outcome_evidence": {
+            "properties": {
+              "observation_kind": {
+                "const": "return"
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "outcome_evidence": {
+            "properties": {
+              "observation_kind": {
+                "const": "failure"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "configured_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/+-]*$"
+    }
+  }
+}
