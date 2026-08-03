@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import builtins
 from collections import UserDict
 import json
 import sys
@@ -247,19 +246,22 @@ def test_dspy_lm_auth_health_probe_rejects_non_strict_error_payload(
 
 
 def test_dspy_lm_auth_wrapper_import_error_mentions_repo_helper(monkeypatch) -> None:
+    import dspx.dspy_lm_auth_lm as lm_auth_module
+
     monkeypatch.delitem(sys.modules, "dspy_lm_auth", raising=False)
-    real_import = builtins.__import__
+    real_import = lm_auth_module.importlib.import_module
 
     def fake_import(name, *args, **kwargs):
         if name == "dspy_lm_auth":
             raise ImportError("missing test dependency")
         return real_import(name, *args, **kwargs)
 
-    monkeypatch.setattr(builtins, "__import__", fake_import)
+    monkeypatch.setattr(lm_auth_module.importlib, "import_module", fake_import)
 
     lm = DspyLMAuthLM()
-    with pytest.raises(RuntimeError, match="just link-dspy-lm-auth"):
+    with pytest.raises(RuntimeError, match="just link-dspy-lm-auth") as exc_info:
         lm._import_module()
+    assert "pip install tryinget-dspy-lm-auth" in str(exc_info.value)
 
 
 def test_dspy_lm_auth_wrapper_strips_unsupported_params_and_streams_codex_route(

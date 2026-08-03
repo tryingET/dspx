@@ -1,3 +1,8 @@
+[tool.uv]
+# The maintained package was published after the workspace's rolling cutoff.
+# Pin the reviewed release while keeping the cutoff for all other packages.
+exclude-newer-package = { tryinget-dspy-lm-auth = "2026-08-04T00:00:00Z" }
+
 [tool.uv.workspace]
 members = ["packages/dspx-core", "apps/forge"]
 

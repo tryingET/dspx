@@ -27,7 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 lm-auth = [
-  "dspy-lm-auth @ https://github.com/tryingET/dspy-lm-auth/releases/download/v0.1.4/dspy_lm_auth-0.1.4-py3-none-any.whl#sha256=ea24c9534fa80c30fc3f3c95f522c36931b67a0b820e275b1de5b2db714931c6",
+  "tryinget-dspy-lm-auth==0.1.5",
 ]
 oracle-embeddings = [
   "sentence-transformers==5.1.2",

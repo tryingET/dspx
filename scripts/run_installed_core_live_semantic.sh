@@ -7,9 +7,11 @@
 set -euo pipefail
 umask 077
 
-AUTH_WHEEL_URL='https://github.com/tryingET/dspy-lm-auth/releases/download/v0.1.4/dspy_lm_auth-0.1.4-py3-none-any.whl'
-AUTH_WHEEL_SHA256='ea24c9534fa80c30fc3f3c95f522c36931b67a0b820e275b1de5b2db714931c6'
-AUTH_WHEEL_NAME='dspy_lm_auth-0.1.4-py3-none-any.whl'
+AUTH_DISTRIBUTION='tryinget-dspy-lm-auth'
+AUTH_VERSION='0.1.5'
+AUTH_WHEEL_URL='https://files.pythonhosted.org/packages/19/dc/3b1a5793978db8d9eb77789fa2746613fa3be68c7a6546c552d3e0790635/tryinget_dspy_lm_auth-0.1.5-py3-none-any.whl'
+AUTH_WHEEL_SHA256='5ec6365287b815c920c47717931e4dc387e1b6527ea13f42ac8f727639dfa6b3'
+AUTH_WHEEL_NAME='tryinget_dspy_lm_auth-0.1.5-py3-none-any.whl'
 
 usage() {
   cat >&2 <<'EOF'
@@ -139,7 +141,7 @@ current_step="create_clean_environment"
 uv venv --python 3.13 venv
 assert_root_identity
 
-current_step="fetch_hash_bound_released_auth_wheel"
+current_step="fetch_hash_bound_pypi_auth_wheel"
 install -d -m 0700 inputs
 curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error \
   "$AUTH_WHEEL_URL" --output "inputs/$AUTH_WHEEL_NAME.partial"
@@ -157,7 +159,11 @@ print(f"dspx-core[lm-auth] @ {Path(sys.argv[1]).as_uri()}#sha256={sys.argv[2]}")
 PY
 )"
 auth_wheel="$journey_root/inputs/$AUTH_WHEEL_NAME"
-uv pip install --python ./venv/bin/python "$core_requirement"
+uv --no-config pip install --python ./venv/bin/python \
+  --default-index https://pypi.org/simple \
+  --refresh-package "$AUTH_DISTRIBUTION" \
+  --exclude-newer-package "$AUTH_DISTRIBUTION=2026-08-04T00:00:00Z" \
+  "$core_requirement"
 assert_root_identity
 
 current_step="snapshot_exact_three_strata_contract"
@@ -204,7 +210,8 @@ payload = {
     "pythonpath_unset": not bool(os.environ.get("PYTHONPATH")),
     "dspx_core_version": version("dspx-core"),
     "dspx_module_path": str(pathlib.Path(dspx.__file__).resolve()),
-    "dspy_lm_auth_version": version("dspy-lm-auth"),
+    "dspy_lm_auth_distribution": "tryinget-dspy-lm-auth",
+    "dspy_lm_auth_version": version("tryinget-dspy-lm-auth"),
     "dspy_lm_auth_module_path": str(pathlib.Path(lm_auth.__file__).resolve()),
     "dspy_lm_auth_wheel_sha256": sys.argv[4],
     "dspx_stream_compatibility_retry_enabled": False,

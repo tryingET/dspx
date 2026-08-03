@@ -38,7 +38,7 @@ EXPECTED_EVALUATION_CONTRACT_FILE_SHA256 = (
     "9ff735cd4ba29cfe430c9bce12d697877fa18a91cff78bd98defedcdeed5201a"
 )
 EXPECTED_AUTH_WHEEL_SHA256 = (
-    "ea24c9534fa80c30fc3f3c95f522c36931b67a0b820e275b1de5b2db714931c6"
+    "5ec6365287b815c920c47717931e4dc387e1b6527ea13f42ac8f727639dfa6b3"
 )
 
 
@@ -312,6 +312,7 @@ def verify_journey_artifacts(
             "requested_model": requested_model,
             "resolved_model_identity": "not_proven",
             "pythonpath_unset": True,
+            "dspy_lm_auth_distribution": "tryinget-dspy-lm-auth",
             "auth_store_nonmutation_proven": False,
             "network_isolation_proven": False,
             "dspy_lm_auth_wheel_sha256": EXPECTED_AUTH_WHEEL_SHA256,

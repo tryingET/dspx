@@ -28,13 +28,15 @@ CASE_IDS = (
 )
 PROVIDER = "dspy-lm-auth"
 MODEL = "codex/gpt-5.6-sol"
-AUTH_VERSION = "0.1.4"
+AUTH_DISTRIBUTION = "tryinget-dspy-lm-auth"
+AUTH_VERSION = "0.1.5"
 AUTH_WHEEL_URL = (
-    "https://github.com/tryingET/dspy-lm-auth/releases/download/v0.1.4/"
-    "dspy_lm_auth-0.1.4-py3-none-any.whl"
+    "https://files.pythonhosted.org/packages/19/dc/"
+    "3b1a5793978db8d9eb77789fa2746613fa3be68c7a6546c552d3e0790635/"
+    "tryinget_dspy_lm_auth-0.1.5-py3-none-any.whl"
 )
-AUTH_WHEEL_SHA256 = "ea24c9534fa80c30fc3f3c95f522c36931b67a0b820e275b1de5b2db714931c6"
-AUTH_REQUIREMENT = f"dspy-lm-auth @ {AUTH_WHEEL_URL}#sha256={AUTH_WHEEL_SHA256}"
+AUTH_WHEEL_SHA256 = "5ec6365287b815c920c47717931e4dc387e1b6527ea13f42ac8f727639dfa6b3"
+AUTH_REQUIREMENT = f"{AUTH_DISTRIBUTION}=={AUTH_VERSION}"
 
 
 def _load_module(path: Path, name: str) -> ModuleType:
@@ -323,6 +325,7 @@ def _valid_journey(root: Path) -> dict[str, Any]:
             "requested_model": MODEL,
             "resolved_model_identity": "not_proven",
             "pythonpath_unset": True,
+            "dspy_lm_auth_distribution": AUTH_DISTRIBUTION,
             "auth_store_nonmutation_proven": False,
             "network_isolation_proven": False,
             "dspy_lm_auth_wheel_sha256": AUTH_WHEEL_SHA256,
@@ -674,7 +677,7 @@ def test_runtime_requested_model_must_match(tmp_path: Path) -> None:
         )
 
 
-def test_core_extra_and_live_runner_bind_the_maintained_release() -> None:
+def test_core_extra_and_live_runner_bind_the_maintained_pypi_identity() -> None:
     core_project = tomllib.loads(
         (REPO_ROOT / "packages/dspx-core/pyproject.toml").read_text(encoding="utf-8")
     )
@@ -685,18 +688,39 @@ def test_core_extra_and_live_runner_bind_the_maintained_release() -> None:
         (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     )
     assert "dspy-lm-auth" not in workspace_project["tool"]["uv"]["sources"]
+    assert AUTH_DISTRIBUTION not in workspace_project["tool"]["uv"]["sources"]
+    assert workspace_project["tool"]["uv"]["exclude-newer-package"] == {
+        AUTH_DISTRIBUTION: "2026-08-04T00:00:00Z"
+    }
+    lock = tomllib.loads((REPO_ROOT / "uv.lock").read_text(encoding="utf-8"))
+    locked_auth = next(
+        package for package in lock["package"] if package["name"] == AUTH_DISTRIBUTION
+    )
+    assert locked_auth["version"] == AUTH_VERSION
+    assert locked_auth["source"] == {"registry": "https://pypi.org/simple"}
+    assert locked_auth["wheels"][0]["url"] == AUTH_WHEEL_URL
+    assert locked_auth["wheels"][0]["hash"] == f"sha256:{AUTH_WHEEL_SHA256}"
 
     verifier = _load_verifier()
+    assert verifier.EXPECTED_AUTH_DISTRIBUTION == AUTH_DISTRIBUTION
     assert verifier.EXPECTED_AUTH_VERSION == AUTH_VERSION
     assert verifier.EXPECTED_AUTH_WHEEL_URL == AUTH_WHEEL_URL
+    verifier_source = VERIFIER_PATH.read_text(encoding="utf-8")
+    assert 'read_text("direct_url.json") is not None' in verifier_source
+    assert '"pypi_index_identity_exact": True' in verifier_source
+    assert '"direct_url_absent": True' in verifier_source
     source = RUNNER_PATH.read_text(encoding="utf-8")
+    assert f"AUTH_DISTRIBUTION='{AUTH_DISTRIBUTION}'" in source
+    assert f"AUTH_VERSION='{AUTH_VERSION}'" in source
     assert f"AUTH_WHEEL_URL='{AUTH_WHEEL_URL}'" in source
     assert f"AUTH_WHEEL_SHA256='{AUTH_WHEEL_SHA256}'" in source
-    assert "dspy_lm_auth-0.1.4-py3-none-any.whl" in source
+    assert "tryinget_dspy_lm_auth-0.1.5-py3-none-any.whl" in source
     assert 'print(f"dspx-core[lm-auth] @ ' in source
+    assert "--default-index https://pypi.org/simple" in source
+    assert '--refresh-package "$AUTH_DISTRIBUTION"' in source
+    assert "uv --no-config pip install" in source
     assert 'print(f"dspy-lm-auth @ ' not in source
     assert '"$core_requirement" "$auth_requirement"' not in source
-    assert "files.pythonhosted.org" not in source
 
 
 def test_runner_is_valid_bash_and_freezes_one_full_corpus_attempt(

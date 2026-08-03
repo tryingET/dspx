@@ -27,11 +27,12 @@ from installed_core_proof_io import (
     write_result_at,
 )
 
-EXPECTED_AUTH_DISTRIBUTION = "dspy-lm-auth"
-EXPECTED_AUTH_VERSION = "0.1.4"
+EXPECTED_AUTH_DISTRIBUTION = "tryinget-dspy-lm-auth"
+EXPECTED_AUTH_VERSION = "0.1.5"
 EXPECTED_AUTH_WHEEL_URL = (
-    "https://github.com/tryingET/dspy-lm-auth/releases/download/v0.1.4/"
-    "dspy_lm_auth-0.1.4-py3-none-any.whl"
+    "https://files.pythonhosted.org/packages/19/dc/"
+    "3b1a5793978db8d9eb77789fa2746613fa3be68c7a6546c552d3e0790635/"
+    "tryinget_dspy_lm_auth-0.1.5-py3-none-any.whl"
 )
 
 
@@ -44,11 +45,11 @@ def _verify_auth_install(
         module = import_module("dspy_lm_auth")
     except (ImportError, PackageNotFoundError) as exc:
         raise InstalledCoreGoldenPathError(
-            "released dspy-lm-auth dependency is unavailable"
+            "maintained tryinget-dspy-lm-auth dependency is unavailable"
         ) from exc
     if observed_version != EXPECTED_AUTH_VERSION:
         raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth version does not match the reviewed released pin"
+            "tryinget-dspy-lm-auth version does not match the reviewed index pin"
         )
     module_path = Path(str(module.__file__)).resolve()
     venv = venv_root.resolve()
@@ -66,28 +67,11 @@ def _verify_auth_install(
     )
     if payload["wheel_sha256"] != expected_sha256:
         raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth wheel hash does not match the reviewed release artifact"
+            "tryinget-dspy-lm-auth wheel hash does not match the reviewed PyPI artifact"
         )
-    direct_url_raw = installed.read_text("direct_url.json")
-    if direct_url_raw is None:
-        raise InstalledCoreGoldenPathError("dspy-lm-auth lacks direct_url.json")
-    try:
-        direct_url = json.loads(direct_url_raw)
-    except json.JSONDecodeError as exc:
+    if installed.read_text("direct_url.json") is not None:
         raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth direct_url.json is invalid"
-        ) from exc
-    if not isinstance(direct_url, dict) or set(direct_url) != {"url", "archive_info"}:
-        raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth direct URL fields are not exact"
-        )
-    if direct_url["url"] != EXPECTED_AUTH_WHEEL_URL:
-        raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth direct URL does not name the reviewed tryingET release"
-        )
-    if direct_url["archive_info"]:
-        raise InstalledCoreGoldenPathError(
-            "dspy-lm-auth direct URL archive_info must be empty"
+            "tryinget-dspy-lm-auth index install unexpectedly has direct_url.json"
         )
     return {
         "distribution": EXPECTED_AUTH_DISTRIBUTION,
@@ -97,7 +81,9 @@ def _verify_auth_install(
         "released_pin_exact": True,
         "wheel_filename": wheel.name,
         "wheel_sha256": expected_sha256,
-        "direct_url_bound": True,
+        "pypi_wheel_url": EXPECTED_AUTH_WHEEL_URL,
+        "pypi_index_identity_exact": True,
+        "direct_url_absent": True,
         "installed_payload_record_verified": True,
         "installed_payload_file_count": payload["record_verified_file_count"],
     }
