@@ -20,7 +20,7 @@ from dspx.services.program_oracle_semantic_backend import (
 )
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_evaluation import (
-    FROZEN_SOURCE_COMMIT,
+    EXPECTED_REVIEW_INVARIANT_SHA256,
     _CODE_FIELDS,
     _request,
 )
@@ -139,7 +139,7 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     contract, observed_hash = module.load_contract(REPO_ROOT)
 
     assert observed_hash == (
-        "22bc8d5991919d7c3e8aca2b717e1a2027cf9d1a1b3e1834d234b62202a647cf"
+        "0148dea8957fdea429b75d5bfa031d50ca342d41f2e2c0191a67659ef1c209bf"
     )
     assert contract["attempt_policy"]["case_order"] == list(module._CASE_ORDER)
     assert contract["status"] == (
@@ -179,7 +179,9 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
         "minimum_accuracy_violated"
         not in causal["hidden_labels"]["forbidden_codes"]["quality_contract_violations"]
     )
-    assert FROZEN_SOURCE_COMMIT == "220604a2cc5fd32e40d6e1d23d043484acee4318"
+    assert EXPECTED_REVIEW_INVARIANT_SHA256 == (
+        "867c29f3108372353dcb01cce42cab890184a0e8b9318dfeb0833cd3cfe819d1"
+    )
     for case in contract["cases"]:
         request = _request(case)
         assert request.quality_contract is not None

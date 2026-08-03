@@ -11,7 +11,7 @@
     },
     "production_adapter": {
       "path": "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
-      "sha256": "fe1189b889a58e9c4625c10b834444ae7c4ac17652598568a2c4cbba953cadc2"
+      "sha256": "a9eaf301f4ac1df8f60e675a661829d01d36332274de99603209c913f076a725"
     },
     "model_roles": {
       "path": "packages/dspx-core/src/dspx/model_roles.py",

@@ -208,6 +208,27 @@ def test_dspy_lm_auth_generate_rejects_non_strict_error_payload(monkeypatch) -> 
 
     assert "supersecret" not in str(captured.value)
     assert "[REDACTED]" in str(captured.value)
+    assert lm.generate_invocation_count == 1
+    assert len(lm.history) == 1
+    assert lm.history[0].error == "boom api_key=[REDACTED]"
+
+
+def test_dspy_lm_auth_records_generate_and_history_when_inner_setup_fails(
+    monkeypatch,
+) -> None:
+    lm = DspyLMAuthLM(strict=True)
+
+    def fail_inner():
+        raise RuntimeError("setup failed api_key=supersecret-value")
+
+    monkeypatch.setattr(lm, "_build_inner", fail_inner)
+
+    with pytest.raises(RuntimeError):
+        lm.generate(LMRequest(prompt="hello"))
+
+    assert lm.generate_invocation_count == 1
+    assert len(lm.history) == 1
+    assert lm.history[0].error == "setup failed api_key=[REDACTED]"
 
 
 @pytest.mark.parametrize("marker", [False, "false", 1, None])

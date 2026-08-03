@@ -127,6 +127,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         self.strict = strict
         self.kwargs = dict(kwargs or {})
         self.history: List[DspyLmAuthCall] = []
+        self.generate_invocation_count = 0
         self._inner_lock = threading.RLock()
         self._inner: Any | None = None
         self._resolved_model: str | None = None
@@ -491,21 +492,23 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         messages: Optional[Iterable[Dict[str, Any]]] = None,
         **kwargs: Any,
     ):
-        if _check_capability is not None:
-            _check_capability("network.mutate")
-        inner = self._build_inner()
         started = time.time()
         err: str | None = None
         text = ""
         usage: dict[str, Any] | None = None
         transport: dict[str, Any] | None = None
-        call_kwargs = dict(kwargs)
-        if bool(self._uses_codex_route) or self.requested_model.startswith("codex/"):
-            call_kwargs.pop("max_tokens", None)
-            call_kwargs.pop("temperature", None)
-            call_kwargs["stream"] = True
-            call_kwargs["cache"] = False
         try:
+            if _check_capability is not None:
+                _check_capability("network.mutate")
+            inner = self._build_inner()
+            call_kwargs = dict(kwargs)
+            if bool(self._uses_codex_route) or self.requested_model.startswith(
+                "codex/"
+            ):
+                call_kwargs.pop("max_tokens", None)
+                call_kwargs.pop("temperature", None)
+                call_kwargs["stream"] = True
+                call_kwargs["cache"] = False
             raw_messages = list(messages) if messages is not None else None
             if bool(self._uses_codex_route) or self.requested_model.startswith(
                 "codex/"
@@ -558,6 +561,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
             )
 
     def generate(self, request: LMRequest, **kwargs: Any) -> LMResponse:
+        self.generate_invocation_count += 1
         if request.prompt is not None:
             resp = self.forward(prompt=request.prompt, **kwargs)
         else:

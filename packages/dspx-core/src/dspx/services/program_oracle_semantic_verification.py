@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import importlib
 import stat
 import subprocess
 from collections.abc import Mapping
@@ -62,6 +63,25 @@ SOURCE_PATHS = (
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification.py",
     "scripts/ci/run_oracle_semantic_analysis_evaluation.py",
 )
+_LOADED_SOURCE_MODULES = {
+    "dspx.dspy_lm_auth_lm": "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+    "dspx.model_roles": "packages/dspx-core/src/dspx/model_roles.py",
+    "dspx.services.program_oracle_semantic_backend": (
+        "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py"
+    ),
+    "dspx.services.program_oracle_semantic_contract": (
+        "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py"
+    ),
+    "dspx.services.program_oracle_semantic_evaluation": (
+        "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py"
+    ),
+    "dspx.services.program_oracle_semantic_scoring": (
+        "packages/dspx-core/src/dspx/services/program_oracle_semantic_scoring.py"
+    ),
+    "dspx.services.program_oracle_semantic_verification": (
+        "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification.py"
+    ),
+}
 
 
 def _git(repo_root: Path, *args: str) -> str:
@@ -139,9 +159,22 @@ def committed_source_identity(
                 f"evaluation source differs from commit: {relative}"
             )
         hashes[relative] = working_hash
+    loaded_module_paths: dict[str, str] = {}
+    for module_name, relative in _LOADED_SOURCE_MODULES.items():
+        module = importlib.import_module(module_name)
+        module_file = getattr(module, "__file__", None)
+        if (
+            not isinstance(module_file, str)
+            or Path(module_file).resolve() != (root / relative).resolve()
+        ):
+            raise SemanticAnalysisEvaluationError(
+                f"loaded evaluation module origin drift: {module_name}"
+            )
+        loaded_module_paths[module_name] = relative
     return {
         "git_commit": commit,
         "path_sha256": hashes,
+        "loaded_module_paths": loaded_module_paths,
         "runner_source_path": "scripts/ci/run_oracle_semantic_analysis_evaluation.py",
     }
 
@@ -162,7 +195,9 @@ def _validate_execution_provenance(
     *,
     evidence_class: str,
     executed_models: list[str],
+    case_rows: list[Any],
     attempted_count: int,
+    generate_call_count: int,
     mechanics_passed: bool,
 ) -> bool:
     provenance = _mapping(payload, "execution_provenance")
@@ -172,6 +207,19 @@ def _validate_execution_provenance(
         if provenance.get("trusted_for_live_behavior") is not False:
             raise SemanticAnalysisEvaluationError(
                 "test-double wiring was promoted to live behavior evidence"
+            )
+        return False
+    if attempted_count == 0:
+        expected_preflight = {
+            "evidence_class": LIVE_EVIDENCE_CLASS,
+            "trusted_for_live_behavior": False,
+            "status": "failed_or_indeterminate",
+            "calls": [],
+            "history_count_after": 0,
+        }
+        if provenance != expected_preflight or case_rows:
+            raise SemanticAnalysisEvaluationError(
+                "production adapter preflight failure provenance drift"
             )
         return False
     expected_fixed = {
@@ -189,47 +237,70 @@ def _validate_execution_provenance(
         _mapping(item, "execution_provenance.call")
         for item in _sequence(provenance.get("calls"), "execution_provenance.calls")
     ]
-    if len(calls) != attempted_count:
+    if len(calls) != attempted_count or len(case_rows) != attempted_count:
         raise SemanticAnalysisEvaluationError(
             "production adapter generate-invocation evidence drift"
         )
     expected_history_index = 0
-    for call in calls:
+    observed_generate_count = 0
+    for index, (call, raw_row) in enumerate(zip(calls, case_rows, strict=True)):
+        row = _mapping(raw_row, f"result.case[{index}]")
+        semantic = _mapping(row.get("semantic_result"), "semantic_result")
         history_delta = call.get("history_delta")
+        generate_delta = call.get("generate_invocation_delta")
         if (
             call.get("history_index") != expected_history_index
             or history_delta not in {0, 1}
-            or call.get("generate_invocation_observed") is not True
+            or generate_delta not in {0, 1}
+            or history_delta != generate_delta
             or call.get("requested_model") != "codex/gpt-5.6-sol"
             or call.get("auth_provider") != "codex"
+            or call.get("observed_response_model") != semantic.get("executed_model")
         ):
             raise SemanticAnalysisEvaluationError(
                 "production adapter call evidence drift"
             )
-        if history_delta == 0:
-            if call.get("call_error") != "history_not_recorded_before_inner_setup":
+        observed_generate_count += int(generate_delta)
+        if generate_delta == 0:
+            if (
+                call.get("call_error") != "generate_not_invoked"
+                or semantic.get("execution_status") != "failed_before_live_success"
+                or semantic.get("live_call_succeeded") is not False
+            ):
                 raise SemanticAnalysisEvaluationError(
-                    "missing adapter history disposition drift"
+                    "zero-generate terminal disposition drift"
                 )
-        else:
-            expected_history_index += 1
-            if call.get("uses_codex_route") is not True:
+            continue
+        expected_history_index += 1
+        if call.get("uses_codex_route") is not True:
+            raise SemanticAnalysisEvaluationError(
+                "production adapter route evidence drift"
+            )
+        if semantic.get("execution_status") == "succeeded":
+            if (
+                call.get("call_error") is not None
+                or not str(call.get("resolved_model") or "").strip()
+            ):
                 raise SemanticAnalysisEvaluationError(
-                    "production adapter route evidence drift"
+                    "successful adapter call evidence drift"
                 )
-    if provenance.get("history_count_after") != expected_history_index:
-        raise SemanticAnalysisEvaluationError(
-            "production adapter terminal history count drift"
-        )
+        elif semantic.get("execution_status") == "failed_before_live_success":
+            if call.get("call_error") != semantic.get("error"):
+                raise SemanticAnalysisEvaluationError(
+                    "failed adapter call error correlation drift"
+                )
+    if (
+        provenance.get("history_count_after") != expected_history_index
+        or observed_generate_count != generate_call_count
+    ):
+        raise SemanticAnalysisEvaluationError("production adapter terminal count drift")
     if mechanics_passed:
         if (
             provenance.get("status") != "completed"
             or attempted_count != len(executed_models)
+            or observed_generate_count != attempted_count
             or any(
-                call.get("history_delta") != 1
-                or call.get("call_error") is not None
-                or not str(call.get("resolved_model") or "").strip()
-                or call.get("observed_response_model") != executed_model
+                call.get("observed_response_model") != executed_model
                 for call, executed_model in zip(calls, executed_models, strict=True)
             )
         ):
@@ -313,6 +384,14 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     if len(rows) > len(contract_cases):
         raise SemanticAnalysisEvaluationError("result case count widened")
     case_ids = [str(_mapping(row, "result case").get("case_id")) for row in rows]
+    generate_call_count = attempt.get("generate_call_count")
+    if (
+        isinstance(generate_call_count, bool)
+        or not isinstance(generate_call_count, int)
+        or generate_call_count < 0
+        or generate_call_count > len(rows)
+    ):
+        raise SemanticAnalysisEvaluationError("attempt generate invocation count drift")
     recorded_ledger = Path(str(attempt.get("ledger_path"))).expanduser().absolute()
     canonical_ledger = (
         _attempt_ledger_path().expanduser().absolute()
@@ -332,7 +411,6 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         or attempt.get("selective_case_rerun") is not False
         or attempt.get("cases_attempted") != case_ids
         or attempt.get("dspx_analyze_invocations") != len(rows)
-        or attempt.get("generate_call_count") != len(rows)
         or attempt.get("result_sha256") != result_hash
         or recorded_ledger != canonical_ledger
     ):
@@ -427,7 +505,9 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         result.get("execution_provenance"),
         evidence_class=evidence_class,
         executed_models=executed_models,
+        case_rows=rows,
         attempted_count=len(rows),
+        generate_call_count=generate_call_count,
         mechanics_passed=mechanics_passed,
     )
     expected_pass = (
@@ -455,7 +535,7 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         "dspx_managed_retries": 0,
         "selective_case_rerun": False,
         "dspx_analyze_invocations": len(rows),
-        "generate_call_count": len(rows),
+        "generate_call_count": generate_call_count,
     }
     if result.get("attempt") != expected_attempt:
         raise SemanticAnalysisEvaluationError("result attempt projection drift")
@@ -499,7 +579,9 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         "production_adapter_provenance_checked": production_provenance,
         "route_layers_kept_separate": True,
         "attempt_policy_independently_checked": True,
-        "failed_history_preserved": result.get("status") == "failed",
+        "failed_history_preserved": (
+            result.get("status") == "failed" and (not rows or production_provenance)
+        ),
         "terminal_history_disposition": (
             "live_passed_no_failure"
             if expected_pass

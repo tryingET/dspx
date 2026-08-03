@@ -21,6 +21,7 @@ from dspx.services.program_oracle_semantic_backend import (
     _analysis_prompt,
     resolve_program_oracle_semantic_backend,
 )
+from dspx.services.program_oracle_semantic_contract import OracleSemanticResult
 from dspx.services.program_oracle_semantic_evaluation import (
     ATTEMPT_NAME,
     ATTEMPT_SCHEMA,
@@ -164,23 +165,28 @@ def _adapter_call_evidence(
     lm: DspyLMAuthLM,
     *,
     previous_history_count: int,
+    generate_invocation_delta: int,
     execution_status: str,
     executed_model: str | None,
 ) -> dict[str, Any]:
     history_delta = len(lm.history) - previous_history_count
-    if history_delta not in {0, 1}:
+    if (
+        history_delta not in {0, 1}
+        or generate_invocation_delta not in {0, 1}
+        or history_delta != generate_invocation_delta
+    ):
         raise SemanticAnalysisEvaluationError(
-            "production adapter call history cardinality drift"
+            "production adapter generate/history cardinality drift"
         )
     metadata = lm.runtime_metadata()
     if history_delta == 0:
         return {
             "history_index": previous_history_count,
             "history_delta": 0,
-            "generate_invocation_observed": True,
+            "generate_invocation_delta": 0,
             "requested_model": lm.requested_model,
             "auth_provider": lm.auth_provider,
-            "call_error": "history_not_recorded_before_inner_setup",
+            "call_error": "generate_not_invoked",
             "resolved_model": metadata.get("resolved_model"),
             "uses_codex_route": metadata.get("uses_codex_route"),
             "observed_response_model": executed_model,
@@ -208,7 +214,7 @@ def _adapter_call_evidence(
     return {
         "history_index": previous_history_count,
         "history_delta": 1,
-        "generate_invocation_observed": True,
+        "generate_invocation_delta": 1,
         "requested_model": call.model,
         "auth_provider": call.auth_provider,
         "call_error": call.error,
@@ -330,10 +336,33 @@ def run_evaluation(
                 )
             attempt["cases_attempted"].append(case_id)
             attempt["dspx_analyze_invocations"] = len(attempt["cases_attempted"])
-            attempt["generate_call_count"] = int(attempt["generate_call_count"]) + 1
             _replace_private_atomic(target / ATTEMPT_NAME, attempt)
-            history_before = len(production_lm.history) if production_lm else 0
-            result = backend.analyze(request)
+            if production_lm is None:
+                raise SemanticAnalysisEvaluationError(
+                    "production adapter disappeared after preflight"
+                )
+            history_before = len(production_lm.history)
+            generate_before = production_lm.generate_invocation_count
+            try:
+                result = backend.analyze(request)
+            except Exception as exc:
+                result = OracleSemanticResult(
+                    request_sha256=request.request_sha256,
+                    backend_kind="live",
+                    preferred_model=backend.preferred_model,
+                    configured_provider=backend.provider_name,
+                    configured_model=backend.configured_model,
+                    executed_provider=None,
+                    executed_model=None,
+                    execution_status="failed_before_live_success",
+                    live_call_succeeded=False,
+                    error=sanitize_diagnostic_text(str(exc)),
+                )
+            generate_delta = production_lm.generate_invocation_count - generate_before
+            attempt["generate_call_count"] = (
+                int(attempt["generate_call_count"]) + generate_delta
+            )
+            _replace_private_atomic(target / ATTEMPT_NAME, attempt)
             row: dict[str, Any] = {
                 "case_id": case_id,
                 "request_sha256": request.request_sha256,
@@ -342,15 +371,15 @@ def run_evaluation(
                 "status": "failed_or_indeterminate",
             }
             case_results.append(row)
-            if production_lm is not None:
-                adapter_calls.append(
-                    _adapter_call_evidence(
-                        production_lm,
-                        previous_history_count=history_before,
-                        execution_status=result.execution_status,
-                        executed_model=result.executed_model,
-                    )
+            adapter_calls.append(
+                _adapter_call_evidence(
+                    production_lm,
+                    previous_history_count=history_before,
+                    generate_invocation_delta=generate_delta,
+                    execution_status=result.execution_status,
+                    executed_model=result.executed_model,
                 )
+            )
             if (
                 result.execution_status != "succeeded"
                 or not result.live_call_succeeded

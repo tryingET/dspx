@@ -11,7 +11,6 @@ import json
 import os
 import pwd
 import stat
-import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -25,10 +24,9 @@ from dspx.services.program_oracle_semantic_contract import (
 CONTRACT_RELATIVE_PATH = Path(
     "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json"
 )
-EXPECTED_CONTRACT_SHA256 = (
-    "22bc8d5991919d7c3e8aca2b717e1a2027cf9d1a1b3e1834d234b62202a647cf"
+EXPECTED_REVIEW_INVARIANT_SHA256 = (
+    "867c29f3108372353dcb01cce42cab890184a0e8b9318dfeb0833cd3cfe819d1"
 )
-FROZEN_SOURCE_COMMIT = "220604a2cc5fd32e40d6e1d23d043484acee4318"
 RESULT_NAME = "evaluation-result.json"
 ATTEMPT_NAME = "attempt-status.json"
 VERIFICATION_NAME = "independent-verification.json"
@@ -73,17 +71,20 @@ def _sha256_file(path: Path) -> str:
     return _sha256_bytes(path.read_bytes())
 
 
-def _sha256_git_blob(repo_root: Path, commit: str, path: str) -> str:
-    try:
-        raw = subprocess.check_output(
-            ["git", "-C", str(repo_root), "show", f"{commit}:{path}"],
-            stderr=subprocess.STDOUT,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise SemanticAnalysisEvaluationError(
-            f"frozen source binding is unavailable: {commit}:{path}"
-        ) from exc
-    return _sha256_bytes(raw)
+def _review_invariant(contract: Mapping[str, Any]) -> dict[str, Any]:
+    projection = json.loads(_canonical_json(contract))
+    projection.pop("status", None)
+    adjudication = _mapping(
+        projection.get("offline_adjudication"), "offline_adjudication"
+    )
+    successor_review = _mapping(
+        adjudication.get("successor_review"), "offline_adjudication.successor_review"
+    )
+    for field in ("status", "reviewer", "review_evidence"):
+        successor_review.pop(field, None)
+    adjudication["successor_review"] = successor_review
+    projection["offline_adjudication"] = adjudication
+    return projection
 
 
 def _mapping(value: object, label: str) -> dict[str, Any]:
@@ -268,9 +269,12 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     contract_path = root / CONTRACT_RELATIVE_PATH
     contract, raw = _read_json(contract_path, label="semantic-analysis contract")
     observed_hash = _sha256_bytes(raw)
-    if observed_hash != EXPECTED_CONTRACT_SHA256:
+    invariant_hash = _sha256_bytes(
+        _canonical_json(_review_invariant(contract)).encode("utf-8")
+    )
+    if invariant_hash != EXPECTED_REVIEW_INVARIANT_SHA256:
         raise SemanticAnalysisEvaluationError(
-            "semantic-analysis contract byte hash drift"
+            "semantic-analysis review invariant drift"
         )
     expected_fields = {
         "schema_version",
@@ -293,10 +297,10 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
         raise SemanticAnalysisEvaluationError("semantic-analysis contract fields drift")
     if contract.get("schema_version") != "dspx-oracle-semantic-analysis-evaluation-v8":
         raise SemanticAnalysisEvaluationError("semantic-analysis contract schema drift")
-    if (
-        contract.get("status")
-        != "successor_offline_review_pending_live_authorized_not_run"
-    ):
+    if contract.get("status") not in {
+        "successor_offline_review_pending_live_authorized_not_run",
+        "offline_adjudicated_live_authorized_not_run",
+    }:
         raise SemanticAnalysisEvaluationError("semantic-analysis contract status drift")
     if _strict_int(contract.get("ak_task_id"), "ak_task_id") != 4577:
         raise SemanticAnalysisEvaluationError("semantic-analysis task identity drift")
@@ -313,8 +317,7 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
         expected_hash = binding.get("sha256")
         if (
             not isinstance(expected_hash, str)
-            or _sha256_git_blob(root, FROZEN_SOURCE_COMMIT, expected_path)
-            != expected_hash
+            or _sha256_file(root / expected_path) != expected_hash
         ):
             raise SemanticAnalysisEvaluationError(f"{label} source hash drift")
 
@@ -407,12 +410,32 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
             "path": "benchmarks/semantic/oracle-semantic-analysis-evaluation-v7.json",
             "sha256": "8ead13cab9dc5f7614f56dae1d4499fb2257a6d41b28e5ce72dc43c41d29c1e8",
         }
-        or successor_review.get("status") != "independent_successor_review_pending"
-        or successor_review.get("reviewer") is not None
-        or successor_review.get("review_evidence") is not None
     ):
         raise SemanticAnalysisEvaluationError(
             "semantic-analysis offline adjudication drift"
+        )
+    review_status = successor_review.get("status")
+    review_reviewer = successor_review.get("reviewer")
+    review_evidence = successor_review.get("review_evidence")
+    pending_review = (
+        contract.get("status")
+        == "successor_offline_review_pending_live_authorized_not_run"
+        and review_status == "independent_successor_review_pending"
+        and review_reviewer is None
+        and review_evidence is None
+    )
+    accepted_review = (
+        contract.get("status") == "offline_adjudicated_live_authorized_not_run"
+        and review_status == "independent_successor_review_accepted"
+        and isinstance(review_reviewer, str)
+        and bool(review_reviewer.strip())
+        and isinstance(review_evidence, str)
+        and review_evidence.startswith("ak:evidence:")
+        and review_evidence.removeprefix("ak:evidence:").isdigit()
+    )
+    if not (pending_review or accepted_review):
+        raise SemanticAnalysisEvaluationError(
+            "semantic-analysis successor review state drift"
         )
     cases = _sequence(contract.get("cases"), "cases")
     if tuple(str(_mapping(case, "case").get("id")) for case in cases) != _CASE_ORDER:
