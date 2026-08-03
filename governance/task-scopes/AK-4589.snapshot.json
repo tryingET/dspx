@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-03T03:52:10.778820054+00:00",
+  "task_id": 4589,
+  "entity_version": 2,
+  "commit_sha": "5bacb9103860d55f212cd61cded23ccb437761ee",
+  "scope": {
+    "allowed_paths": [
+      ".github/workflows/*.yml",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "tests/test_workflow_contracts.py"
+    ],
+    "required_paths": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/core-release-evidence.yml",
+      "tests/test_workflow_contracts.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

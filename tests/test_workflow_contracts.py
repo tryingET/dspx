@@ -36,6 +36,17 @@ def _write(root: Path, relpath: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _workflow_action_refs(workflow: str) -> list[str]:
+    refs: list[str] = []
+    for line in workflow.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("uses:", "- uses:")):
+            refs.append(
+                stripped.split("uses:", maxsplit=1)[1].strip().split(maxsplit=1)[0]
+            )
+    return refs
+
+
 def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
     _write(tmp_path, ".gitignore", "__pycache__/\n*.py[cod]\n")
     _write(
@@ -717,12 +728,33 @@ def test_public_ci_provisions_portable_security_and_history_prerequisites() -> N
     repo_root = Path(__file__).resolve().parents[1]
     workflow = (repo_root / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 
-    assert "actions/checkout@v4" not in workflow
-    assert workflow.count("actions/checkout@v5") == 4
+    action_refs = _workflow_action_refs(workflow)
+    assert set(action_refs) == {
+        "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+        "actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131",
+        "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+        "astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78",
+        "cue-lang/setup-cue@dbedece1c566369854bef676ae83075f3b3c9f88",
+        "extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3",
+    }
+    assert (
+        action_refs.count("actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09")
+        == 4
+    )
+    assert (
+        action_refs.count("astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78")
+        == 4
+    )
+    assert (
+        action_refs.count(
+            "extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3"
+        )
+        == 3
+    )
+    assert len(action_refs) == 14
     assert workflow.count("fetch-depth: 0") == 2
     assert workflow.count("Prepare owner-only temporary directory") == 1
     assert 'install -d -m 700 "$RUNNER_TEMP/dspx-tmp"' in workflow
-    assert workflow.count("cue-lang/setup-cue@v1.0.1") == 1
 
 
 def test_collect_issues_passes_for_current_repo() -> None:
@@ -780,6 +812,20 @@ def test_core_release_evidence_workflow_separates_custody_from_owner_quorum() ->
     assert "actions/permissions/artifact-and-log-retention" not in workflow
     assert "environments/core-release-evidence" not in workflow
     assert "fetch-depth: 0" in workflow
+    action_refs = _workflow_action_refs(workflow)
+    assert set(action_refs) == {
+        "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+        "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+        "astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78",
+        "sigstore/cosign-installer@d7543c93d881b35a8faa02e8e3605f69b7a1ce62",
+    }
+    assert (
+        action_refs.count(
+            "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"
+        )
+        == 2
+    )
+    assert len(action_refs) == 5
     assert "trust-policy-v002.json" in workflow
     assert "policy-selector-v002.json" in workflow
     assert "--argjson policy_version 2" in workflow
