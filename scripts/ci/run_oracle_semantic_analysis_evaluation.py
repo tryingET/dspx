@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# summary: "Validates the pending AK-4574 semantic contract and refuses evaluation effects."
+# summary: "Validates the adjudicated AK-4574 semantic contract and refuses evaluation effects."
 # read_when:
-#   - "Validating the candidate field rubric or confirming that v7 authorizes no evaluation process."
+#   - "Validating the frozen field rubric or confirming that v7 authorizes no evaluation process."
 
 from __future__ import annotations
 
@@ -39,8 +39,8 @@ def run_evaluation(
     del root, evidence_class
     load_contract(repo_root)
     raise SemanticAnalysisEvaluationError(
-        "AK-4574 v7 is pending independent offline review and authorizes no "
-        "evaluation process"
+        "AK-4574 v7 authorizes no evaluation process; a separately tasked "
+        "successor is required"
     )
 
 

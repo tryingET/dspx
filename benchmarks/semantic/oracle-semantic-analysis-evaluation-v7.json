@@ -1,8 +1,8 @@
 {
   "schema_version": "dspx-oracle-semantic-analysis-evaluation-v7",
-  "status": "candidate_offline_review_pending_live_not_authorized",
+  "status": "offline_adjudicated_live_not_authorized",
   "ak_task_id": 4574,
-  "purpose": "Freeze an independently reviewable field-specific semantic rubric and four bounded labels without authorizing a live provider process.",
+  "purpose": "Freeze an independently adjudicated field-specific semantic rubric and four bounded labels without authorizing an evaluation process.",
   "claim_scope": "four_candidate_local_cases_only_not_statistically_representative",
   "source_bindings": {
     "semantic_backend": {
@@ -129,7 +129,7 @@
   },
   "offline_adjudication": {
     "schema_version": "dspx-oracle-semantic-label-adjudication-v1",
-    "status": "independent_offline_review_pending",
+    "status": "independent_offline_review_accepted",
     "method": "derive_labels_from_evidence_objective_code_semantics_and_field_rubric_without_consulting_model_outputs",
     "review_question": "Does each expected or forbidden code follow from the declared field rubric without reference to prior model output?",
     "v6_label_corrections": [],
@@ -175,8 +175,8 @@
         }
       }
     ],
-    "reviewer": null,
-    "review_evidence": null
+    "reviewer": "operator",
+    "review_evidence": "ak:evidence:6252"
   },
   "cases": [
     {

@@ -139,20 +139,18 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     contract, observed_hash = module.load_contract(REPO_ROOT)
 
     assert observed_hash == (
-        "23dafeeae90886a6ec686bd061f8c5d201cab97513080bc6a08e59f68381628e"
+        "8ead13cab9dc5f7614f56dae1d4499fb2257a6d41b28e5ce72dc43c41d29c1e8"
     )
     assert contract["attempt_policy"]["case_order"] == list(module._CASE_ORDER)
-    assert contract["status"] == (
-        "candidate_offline_review_pending_live_not_authorized"
-    )
+    assert contract["status"] == "offline_adjudicated_live_not_authorized"
     assert contract["route"]["live_authorized"] is False
     assert contract["attempt_policy"]["maximum_evaluation_processes"] == 0
     assert contract["attempt_policy"]["ledger"]["key"] == "UNASSIGNED-LIVE-SUCCESSOR"
     assert contract["offline_adjudication"]["status"] == (
-        "independent_offline_review_pending"
+        "independent_offline_review_accepted"
     )
-    assert contract["offline_adjudication"]["reviewer"] is None
-    assert contract["offline_adjudication"]["review_evidence"] is None
+    assert contract["offline_adjudication"]["reviewer"] == "operator"
+    assert contract["offline_adjudication"]["review_evidence"] == "ak:evidence:6252"
     assert contract["offline_adjudication"]["v6_label_corrections"] == []
     causal = next(
         case for case in contract["cases"] if case["id"] == "causal-calibration"
@@ -182,7 +180,7 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     )
 
 
-def test_v7_candidate_matrix_matches_evidence_rubric() -> None:
+def test_v7_adjudicated_matrix_matches_evidence_rubric() -> None:
     module = _load_runner()
     contract, _ = module.load_contract(REPO_ROOT)
     expected_matrix = {
@@ -219,9 +217,9 @@ def test_v7_candidate_matrix_matches_evidence_rubric() -> None:
         },
     }
     adjudication = contract["offline_adjudication"]
-    assert adjudication["status"] == "independent_offline_review_pending"
-    assert adjudication["reviewer"] is None
-    assert adjudication["review_evidence"] is None
+    assert adjudication["status"] == "independent_offline_review_accepted"
+    assert adjudication["reviewer"] == "operator"
+    assert adjudication["review_evidence"] == "ak:evidence:6252"
     assert [row["case_id"] for row in adjudication["case_basis"]] == list(
         module._CASE_ORDER
     )
@@ -360,7 +358,7 @@ def test_live_backend_preserves_observed_model_after_malformed_response() -> Non
     "evidence_class",
     ["production_adapter_live_behavior", "test_double_wiring_only"],
 )
-def test_pending_contract_refuses_every_evaluation_class_before_effects(
+def test_zero_process_contract_refuses_every_evaluation_class_before_effects(
     tmp_path: Path,
     evidence_class: str,
 ) -> None:
@@ -376,7 +374,7 @@ def test_pending_contract_refuses_every_evaluation_class_before_effects(
 
     with pytest.raises(
         module.SemanticAnalysisEvaluationError,
-        match="pending independent offline review.*no evaluation process",
+        match="authorizes no evaluation process.*separately tasked successor",
     ):
         module.run_evaluation(
             repo_root=REPO_ROOT,
@@ -387,7 +385,7 @@ def test_pending_contract_refuses_every_evaluation_class_before_effects(
     assert not root.exists()
 
 
-def test_pending_contract_refuses_artifact_verification_before_read(
+def test_zero_process_contract_refuses_artifact_verification_before_read(
     tmp_path: Path,
 ) -> None:
     module = _load_runner()

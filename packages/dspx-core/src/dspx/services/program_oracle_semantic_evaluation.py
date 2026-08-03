@@ -1,4 +1,4 @@
-# summary: "Validates the zero-process AK-4574 semantic-analysis contract candidate."
+# summary: "Validates the independently adjudicated zero-process AK-4574 semantic contract."
 # read_when:
 #   - "Changing AK-4574 contract validation, field labels, or prompt-isolation rules."
 
@@ -23,7 +23,7 @@ CONTRACT_RELATIVE_PATH = Path(
     "benchmarks/semantic/oracle-semantic-analysis-evaluation-v7.json"
 )
 EXPECTED_CONTRACT_SHA256 = (
-    "23dafeeae90886a6ec686bd061f8c5d201cab97513080bc6a08e59f68381628e"
+    "8ead13cab9dc5f7614f56dae1d4499fb2257a6d41b28e5ce72dc43c41d29c1e8"
 )
 FROZEN_SOURCE_COMMIT = "1decb1701af762d23d0f8d41bb00f86c08095c3f"
 _MAX_JSON_BYTES = 1_000_000
@@ -189,7 +189,7 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
         raise SemanticAnalysisEvaluationError("semantic-analysis contract fields drift")
     if contract.get("schema_version") != "dspx-oracle-semantic-analysis-evaluation-v7":
         raise SemanticAnalysisEvaluationError("semantic-analysis contract schema drift")
-    if contract.get("status") != "candidate_offline_review_pending_live_not_authorized":
+    if contract.get("status") != "offline_adjudicated_live_not_authorized":
         raise SemanticAnalysisEvaluationError("semantic-analysis contract status drift")
     if _strict_int(contract.get("ak_task_id"), "ak_task_id") != 4574:
         raise SemanticAnalysisEvaluationError("semantic-analysis task identity drift")
@@ -282,9 +282,9 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     if (
         adjudication.get("schema_version")
         != "dspx-oracle-semantic-label-adjudication-v1"
-        or adjudication.get("status") != "independent_offline_review_pending"
-        or adjudication.get("reviewer") is not None
-        or adjudication.get("review_evidence") is not None
+        or adjudication.get("status") != "independent_offline_review_accepted"
+        or adjudication.get("reviewer") != "operator"
+        or adjudication.get("review_evidence") != "ak:evidence:6252"
     ):
         raise SemanticAnalysisEvaluationError(
             "semantic-analysis offline adjudication drift"
