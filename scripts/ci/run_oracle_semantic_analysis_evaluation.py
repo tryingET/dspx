@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# summary: "Runs or verifies the dependency-preflighted AK-4569 Oracle semantic-analysis LM evaluation."
+# summary: "Runs or verifies the conservative-code AK-4570 Oracle semantic-analysis LM evaluation."
 # read_when:
 #   - "Running the frozen independent-label Oracle semantic-analysis evaluation."
 
@@ -224,7 +224,7 @@ def run_evaluation(
     _write_private_exclusive(target / CONTRACT_SNAPSHOT_NAME, contract)
     attempt: dict[str, Any] = {
         "schema_version": ATTEMPT_SCHEMA,
-        "ak_task_id": 4569,
+        "ak_task_id": 4570,
         "status": "started",
         "contract_sha256": contract_hash,
         "evaluation_processes": 1,
@@ -362,7 +362,7 @@ def run_evaluation(
     payload = {
         "schema_version": RESULT_SCHEMA,
         "status": terminal_status,
-        "ak_task_id": 4569,
+        "ak_task_id": 4570,
         "contract_sha256": contract_hash,
         "evidence_class": evidence_class,
         "source_identity": source_identity,

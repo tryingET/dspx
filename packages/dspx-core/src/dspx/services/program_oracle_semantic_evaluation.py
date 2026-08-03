@@ -1,6 +1,6 @@
 # summary: "Validates and scores the dependency-preflighted Oracle semantic-analysis evaluation contract."
 # read_when:
-#   - "Changing AK-4569 contract validation, label scoring, evidence identity, or private artifact helpers."
+#   - "Changing AK-4570 contract validation, label scoring, evidence identity, or private artifact helpers."
 
 from __future__ import annotations
 
@@ -23,19 +23,19 @@ from dspx.services.program_oracle_semantic_contract import (
 )
 
 CONTRACT_RELATIVE_PATH = Path(
-    "benchmarks/semantic/oracle-semantic-analysis-evaluation-v3.json"
+    "benchmarks/semantic/oracle-semantic-analysis-evaluation-v4.json"
 )
 EXPECTED_CONTRACT_SHA256 = (
-    "305cc8611540110e074d78fcdb46b92cf34acc33c753b50b89c1a019752edb88"
+    "19e1ac20dd5c0ccf029abb55c1d62e3ddfa4b57567d549adfd12165ed9033fa5"
 )
-FROZEN_SOURCE_COMMIT = "a67e87168efea9a4ff303acd2575dc327438077a"
+FROZEN_SOURCE_COMMIT = "94eaee3dcf830bc2a8fd540bb264815021c156ed"
 RESULT_NAME = "evaluation-result.json"
 ATTEMPT_NAME = "attempt-status.json"
 VERIFICATION_NAME = "independent-verification.json"
 CONTRACT_SNAPSHOT_NAME = "contract-snapshot.json"
-RESULT_SCHEMA = "dspx-oracle-semantic-analysis-evaluation-result-v3"
-ATTEMPT_SCHEMA = "dspx-oracle-semantic-analysis-evaluation-attempt-v3"
-VERIFICATION_SCHEMA = "dspx-oracle-semantic-analysis-independent-verification-v3"
+RESULT_SCHEMA = "dspx-oracle-semantic-analysis-evaluation-result-v4"
+ATTEMPT_SCHEMA = "dspx-oracle-semantic-analysis-evaluation-attempt-v4"
+VERIFICATION_SCHEMA = "dspx-oracle-semantic-analysis-independent-verification-v4"
 _MAX_JSON_BYTES = 1_000_000
 _CASE_ORDER = (
     "authority-boundary",
@@ -180,7 +180,7 @@ def _attempt_ledger_path() -> Path:
         / "state"
         / "dspx"
         / "oracle-semantic-analysis-evaluations"
-        / "AK-4569.json"
+        / "AK-4570.json"
     )
 
 
@@ -191,8 +191,8 @@ def _consume_attempt_ledger(
     ledger.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     os.chmod(ledger.parent, 0o700)
     payload = {
-        "schema_version": "dspx-oracle-semantic-analysis-evaluation-ledger-v3",
-        "ak_task_id": 4569,
+        "schema_version": "dspx-oracle-semantic-analysis-evaluation-ledger-v4",
+        "ak_task_id": 4570,
         "contract_sha256": contract_sha256,
         "root": str(root),
         "status": "started",
@@ -203,7 +203,7 @@ def _consume_attempt_ledger(
         _write_private_exclusive(ledger, payload)
     except FileExistsError as exc:
         raise SemanticAnalysisEvaluationError(
-            f"AK-4569 semantic-analysis evaluation ledger is already consumed: {ledger}"
+            f"AK-4570 semantic-analysis evaluation ledger is already consumed: {ledger}"
         ) from exc
     return ledger
 
@@ -289,11 +289,11 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     }
     if set(contract) != expected_fields:
         raise SemanticAnalysisEvaluationError("semantic-analysis contract fields drift")
-    if contract.get("schema_version") != "dspx-oracle-semantic-analysis-evaluation-v3":
+    if contract.get("schema_version") != "dspx-oracle-semantic-analysis-evaluation-v4":
         raise SemanticAnalysisEvaluationError("semantic-analysis contract schema drift")
     if contract.get("status") != "labels_frozen_live_not_run":
         raise SemanticAnalysisEvaluationError("semantic-analysis contract status drift")
-    if _strict_int(contract.get("ak_task_id"), "ak_task_id") != 4569:
+    if _strict_int(contract.get("ak_task_id"), "ak_task_id") != 4570:
         raise SemanticAnalysisEvaluationError("semantic-analysis task identity drift")
 
     source_bindings = _mapping(contract.get("source_bindings"), "source_bindings")
@@ -338,7 +338,7 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
         or policy.get("maximum_dspx_managed_retries") != 0
         or policy.get("selective_case_rerun_allowed") is not False
         or policy.get("stop_after_first_failed_or_indeterminate_case") is not True
-        or ledger_policy.get("key") != "AK-4569"
+        or ledger_policy.get("key") != "AK-4570"
         or tuple(_sequence(policy.get("case_order"), "case_order")) != _CASE_ORDER
     ):
         raise SemanticAnalysisEvaluationError("semantic-analysis attempt policy drift")
@@ -359,7 +359,7 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     for raw_case in cases:
         case = _mapping(raw_case, "case")
         marker = case.get("hidden_marker")
-        if not isinstance(marker, str) or not marker.startswith("HIDDEN-AK4569-"):
+        if not isinstance(marker, str) or not marker.startswith("HIDDEN-AK4570-"):
             raise SemanticAnalysisEvaluationError("hidden marker identity drift")
         labels = _mapping(case.get("hidden_labels"), "case.hidden_labels")
         request = _request(case)
