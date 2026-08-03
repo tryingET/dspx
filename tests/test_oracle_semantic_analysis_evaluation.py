@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -23,6 +24,8 @@ from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
 from dspx.services.program_oracle_semantic_evaluation import (
     EXPECTED_REVIEW_INVARIANT_SHA256,
     _CODE_FIELDS,
+    SemanticAnalysisEvaluationError,
+    _consume_attempt_ledger,
     _review_invariant_bytes,
     _request,
 )
@@ -30,7 +33,9 @@ from dspx.services.program_oracle_semantic_scoring import score_analysis
 from dspx.services.program_oracle_semantic_verification import (
     LIVE_EVIDENCE_CLASS,
     SOURCE_PATHS,
+    _preserve_independent_verification,
     _validate_execution_provenance,
+    historical_committed_source_identity,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -524,6 +529,122 @@ def test_consumed_v8_execution_refuses_current_source_drift_before_effects(
         )
 
     assert not root.exists()
+
+
+def test_historical_source_identity_hashes_git_objects_without_importing_old_code(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import dspx.services.program_oracle_semantic_verification as verification
+
+    repo = tmp_path / "history-repo"
+    repo.mkdir()
+
+    def git(*args: str) -> str:
+        completed = subprocess.run(
+            ["git", "-C", str(repo), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return completed.stdout.strip()
+
+    git("init", "-q")
+    git("config", "user.email", "history@example.invalid")
+    git("config", "user.name", "History Test")
+    (repo / "source.py").write_text("value = 'original'\n", encoding="utf-8")
+    (repo / "runner.py").write_text("print('original')\n", encoding="utf-8")
+    git("add", "source.py", "runner.py")
+    git("commit", "-q", "-m", "original")
+    commit = git("rev-parse", "HEAD")
+    expected_source_hash = hashlib.sha256(b"value = 'original'\n").hexdigest()
+    (repo / "source.py").write_text("value = 'current'\n", encoding="utf-8")
+
+    monkeypatch.setattr(verification, "SOURCE_PATHS", ("source.py", "runner.py"))
+    monkeypatch.setattr(
+        verification,
+        "_LOADED_SOURCE_MODULES",
+        {"historical.module": "source.py"},
+    )
+    monkeypatch.setattr(
+        verification.importlib,
+        "import_module",
+        lambda _name: pytest.fail("historical verification must not import old code"),
+    )
+
+    identity = historical_committed_source_identity(repo, expected_commit=commit)
+
+    assert identity["git_commit"] == commit
+    assert identity["path_sha256"]["source.py"] == expected_source_hash
+    assert identity["loaded_module_paths"] == {"historical.module": "source.py"}
+    assert hashlib.sha256((repo / "source.py").read_bytes()).hexdigest() != (
+        expected_source_hash
+    )
+    with pytest.raises(
+        SemanticAnalysisEvaluationError,
+        match="recorded source commit must be a full lowercase Git SHA",
+    ):
+        historical_committed_source_identity(repo, expected_commit="invalid")
+    with pytest.raises(
+        SemanticAnalysisEvaluationError,
+        match="source commit preflight failed",
+    ):
+        historical_committed_source_identity(repo, expected_commit="0" * 40)
+
+
+def test_retained_verification_is_idempotent_and_never_overwritten(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "independent-verification.json"
+    verification = {"schema_version": "test", "status": "rejected"}
+
+    first = _preserve_independent_verification(path, verification)
+    original_bytes = path.read_bytes()
+    original_stat = path.stat()
+    second = _preserve_independent_verification(path, verification)
+
+    assert first == second == verification
+    assert path.read_bytes() == original_bytes
+    assert path.stat().st_ino == original_stat.st_ino
+    assert path.stat().st_mtime_ns == original_stat.st_mtime_ns
+    with pytest.raises(
+        SemanticAnalysisEvaluationError,
+        match="retained independent verification drift",
+    ):
+        _preserve_independent_verification(
+            path, {"schema_version": "test", "status": "accepted"}
+        )
+    assert path.read_bytes() == original_bytes
+
+
+def test_second_ledger_consumption_fails_without_changing_original(
+    tmp_path: Path,
+) -> None:
+    ledger = tmp_path / "ledger" / "AK-4577.json"
+    first_root = tmp_path / "first-root"
+    second_root = tmp_path / "second-root"
+
+    _consume_attempt_ledger(
+        root=first_root,
+        contract_sha256="a" * 64,
+        ledger_path=ledger,
+    )
+    original_bytes = ledger.read_bytes()
+    original_stat = ledger.stat()
+
+    with pytest.raises(
+        SemanticAnalysisEvaluationError,
+        match="ledger is already consumed",
+    ):
+        _consume_attempt_ledger(
+            root=second_root,
+            contract_sha256="a" * 64,
+            ledger_path=ledger,
+        )
+
+    assert ledger.read_bytes() == original_bytes
+    assert ledger.stat().st_ino == original_stat.st_ino
+    assert ledger.stat().st_mtime_ns == original_stat.st_mtime_ns
 
 
 def test_pending_review_refuses_artifact_verification_without_effects(

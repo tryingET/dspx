@@ -224,6 +224,21 @@ def _require_private_mode(path: Path, expected: int, label: str) -> None:
         raise SemanticAnalysisEvaluationError(f"{label} mode drift")
 
 
+def _preserve_independent_verification(
+    path: Path, verification: dict[str, Any]
+) -> dict[str, Any]:
+    if path.exists():
+        _require_private_mode(path, 0o600, "independent verification")
+        retained_verification, _ = _read_json(path, label="independent verification")
+        if retained_verification != verification:
+            raise SemanticAnalysisEvaluationError(
+                "retained independent verification drift"
+            )
+        return retained_verification
+    _write_private_exclusive(path, verification)
+    return verification
+
+
 def _validate_execution_provenance(
     payload: object,
     *,
@@ -650,16 +665,4 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         "four_case_semantic_analysis_gate_passed": expected_pass,
         "shared_store_or_embedding_evidence_used": False,
     }
-    verification_path = target / VERIFICATION_NAME
-    if verification_path.exists():
-        _require_private_mode(verification_path, 0o600, "independent verification")
-        retained_verification, _ = _read_json(
-            verification_path, label="independent verification"
-        )
-        if retained_verification != verification:
-            raise SemanticAnalysisEvaluationError(
-                "retained independent verification drift"
-            )
-        return retained_verification
-    _write_private_exclusive(verification_path, verification)
-    return verification
+    return _preserve_independent_verification(target / VERIFICATION_NAME, verification)
