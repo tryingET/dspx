@@ -14,7 +14,7 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from jsonschema import validate
+from jsonschema import ValidationError, validate
 
 import dspx.services.semantic_evaluation_execution_custody as custody_module
 
@@ -186,8 +186,21 @@ def test_return_path_seals_exact_projection_after_mediated_snapshot(
             "docs/project/semantic-evaluation-execution-custody-v1-projection.schema.json"
         )
         assert _sha(schema_path.read_bytes()) == (
-            "f5a73e059331aabb948da32213eed1fa6038a773ac0dadc07081c7278064007b"
+            "d42569781d23c625627d92a9f37ea9c26211c92c403b0dcdb45b0360c386c532"
         )
+        trailing_newline_variants: list[dict[str, Any]] = []
+        for field in ("episode_id", "attempt_id", "evaluation_request_digest"):
+            variant = json.loads(json.dumps(projection))
+            variant[field] += "\n"
+            trailing_newline_variants.append(variant)
+        configured_variant = json.loads(json.dumps(projection))
+        configured_variant["runtime_observation"]["configured_provider"] = "provider\n"
+        trailing_newline_variants.append(configured_variant)
+        for variant in trailing_newline_variants:
+            with pytest.raises(ValidationError):
+                validate(variant, schema)
+            with pytest.raises(CustodyError):
+                custody_module._validate_projection(variant)
         assert set(projection) == {
             "schema_version",
             "episode_id",
@@ -580,10 +593,22 @@ def test_callable_cannot_recover_its_own_active_attempt(tmp_path: Path) -> None:
     request, material, _ = _sources(tmp_path)
     with _store(tmp_path) as store:
         attempt = store.allocate_attempt("allocate", request, material)
+        nested_attempt = store.allocate_attempt("allocate-nested", request, material)
 
         def invoke(_snapshot: SnapshotView) -> dict[str, bool]:
             with pytest.raises(CustodyError, match="active callable"):
                 store.recover_unknown_attempt("self-recovery", attempt.attempt_id)
+            with pytest.raises(CustodyError, match="active callable"):
+                store.allocate_attempt("nested-allocation", request, material)
+            with pytest.raises(CustodyError, match="active callable"):
+                store.run_attempt(
+                    "nested-run",
+                    nested_attempt.attempt_id,
+                    material,
+                    lambda _nested_snapshot: {},
+                )
+            with pytest.raises(CustodyError, match="execution is active"):
+                store.close()
             return {"ok": True}
 
         result = store.run_attempt("run", attempt.attempt_id, material, invoke)
@@ -1042,7 +1067,7 @@ def test_store_descriptor_binding_hardlink_sidecar_and_network_guards(
             descriptor_info.st_ino,
         )
     assert "mode=ro" in connect_calls[0]
-    assert "immutable=1" not in connect_calls[0]
+    assert "immutable=1" in connect_calls[0]
     assert "/fd/" in connect_calls[0]
     assert "/fd/" in connect_calls[1]
     monkeypatch.setattr(custody_module.sqlite3, "connect", real_connect)

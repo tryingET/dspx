@@ -667,7 +667,7 @@ class ExecutionCustodyStore:
             self._verify_store()
             journal_state = self._verify_preopen_sidecars()
             descriptor_path = _sqlite_descriptor_path(self._db_fd)
-            immutable_option = "&immutable=1" if journal_state == "hot" else ""
+            immutable_option = "&immutable=1"
             preflight = sqlite3.connect(
                 f"file:{descriptor_path}?mode=ro{immutable_option}",
                 timeout=10,
@@ -808,13 +808,11 @@ class ExecutionCustodyStore:
     def close(self) -> None:
         if self._closed:
             return
+        if self._callable_active or self._execution_lock_depth:
+            raise CustodyError("cannot close while attempt execution is active")
         self._closed = True
         error: CustodyError | None = None
         try:
-            if self._execution_lock_depth:
-                error = CustodyError(
-                    "cannot close while attempt execution lock is held"
-                )
             self._connection.close()
             try:
                 self._verify_quiescent_clean_close()
@@ -1308,6 +1306,8 @@ class ExecutionCustodyStore:
         *,
         rejection_id_factory: Callable[[], Any] = uuid4,
     ) -> RejectionDisposition:
+        if self._callable_active:
+            raise CustodyError("active callable cannot reject another request")
         try:
             _request_payload(request)
             if material is not None:
@@ -1398,7 +1398,7 @@ class ExecutionCustodyStore:
             )
             return result
 
-        return self._transaction("reject_request", work)
+        return self._execution_transaction("reject_request", work)
 
     def allocate_attempt(
         self,
@@ -1409,6 +1409,8 @@ class ExecutionCustodyStore:
         attempt_id_factory: Callable[[], Any] = uuid4,
     ) -> AttemptDisposition:
         payload, input_bytes, paths = self._material(request, material)
+        if self._callable_active:
+            raise CustodyError("active callable cannot allocate another attempt")
         operation_digest = _sha256(
             canonical_json_bytes({"request": payload, "paths": paths})
         )
@@ -1458,7 +1460,7 @@ class ExecutionCustodyStore:
             )
             return result
 
-        return self._transaction("allocate_episode", work)
+        return self._execution_transaction("allocate_episode", work)
 
     def _attempt(self, connection: sqlite3.Connection, attempt_id: str) -> sqlite3.Row:
         row = connection.execute(
@@ -1871,6 +1873,8 @@ class ExecutionCustodyStore:
     ) -> AttemptDisposition:
         if not operation_id:
             raise CustodyError("operation_id is required")
+        if self._callable_active:
+            raise CustodyError("active callable cannot start another attempt")
         if not self._acquire_execution_lock():
             self._verify_store()
             self._verify_schema()
