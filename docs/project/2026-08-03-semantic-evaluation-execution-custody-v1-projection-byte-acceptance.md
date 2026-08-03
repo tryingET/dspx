@@ -8,6 +8,9 @@ status: "accepted"
 decision_id: 105
 implementation_task_id: 4607
 acceptance_task_id: 4614
+accepted_at: "2026-08-03T09:28:45.180708877Z"
+accepted_by: "decision105-projection-acceptance"
+acceptance_commit: "1dfbfa138dffee810896d939e8344ae8feb00537"
 ---
 
 # Decision 105 projection-byte acceptance
@@ -17,6 +20,17 @@ acceptance_task_id: 4614
 **ACCEPTED**, limited to the exact synthetic no-network projection bytes and identities recorded below.
 
 This acceptance establishes only that Decision 105 has produced one constructible, schema-valid, immutable projection from the accepted internal DSPx custody primitive. It does not authorize Decision 106, ROCS consumption, runtime or CLI wiring, provider/model/network use, publication, adoption, promotion, governance action, or production activation. The ROCS/Decision 106 owner must separately authorize any successor work.
+
+AK task `4614` and its `accepted_and_canonical` result are the authoritative gate record. This repository file is the dated, durable projection of that result. The accepting task controller was `decision105-projection-acceptance`; acceptance completed at `2026-08-03T09:28:45.180708877Z`.
+
+The separate projection-byte gate was accepted by:
+
+| Gate concern | Review identity | Outcome |
+|---|---|---|
+| DSPx owner | `dispatch-1785749060493` | ACCEPT |
+| exact bytes and schema | `dispatch-1785749060495` | ACCEPT |
+| evidence bindings | `dispatch-1785749060496` | ACCEPT |
+| successor boundary | `dispatch-1785749060497` | ACCEPT |
 
 ## Accepted implementation identity
 
@@ -44,7 +58,8 @@ The implementation was accepted for this identity by:
 - exact projection SHA-256: `43cb523b3787726956f331ea0917fd55757cf317a13815cd6f0f97c8b9eb7206`
 - terminal seal SHA-256: `ae5879bca4aa9182f50ba6f783af2f7ea43171a5e70a27b5e2a488bcda2259b4`
 - verification manifest SHA-256: `895088932e697e4b181c1e3280cc234f4b489011f488a6310289ff3498a671b5`
-- local verification root at acceptance: `/home/tryinget/.local/state/pi-quests/tmp/dspx-d105-4607-cc6c8067.dB3a4A`
+- durable accepted verification manifest: `docs/project/2026-08-03-semantic-evaluation-execution-custody-v1-verification-manifest.json`
+- historical owner-local generation root: `/home/tryinget/.local/state/pi-quests/tmp/dspx-d105-4607-cc6c8067.dB3a4A` (non-canonical after durable capture)
 
 The following single JSON line is the exact 1810-byte UTF-8 projection preimage. The Markdown fence delimiters and surrounding newlines are not part of the accepted bytes.
 
@@ -64,7 +79,7 @@ Observed validation for the accepted implementation identity:
 - exact Draft 2020-12 schema validation and code/schema differential review: passed;
 - no provider, model, network, publication, runtime wiring, CLI wiring, Oracle publication, AK mutation, or governance effect occurred during generation.
 
-A skipped task-scope helper was not treated as scope proof. AK task 4607's frozen scope and the cumulative Git diff independently showed only the projection schema, internal custody module, and focused tests. Task 4614 is limited to this acceptance record.
+The byte-identical accepted verification manifest is now repository-durable at the path above. A skipped task-scope helper was not treated as scope proof. AK task 4607's frozen scope and the cumulative Git diff independently showed only the projection schema, internal custody module, and focused tests. Task 4614 was limited to the original gate record; task 4621 is responsible for the dated correction and the still-pending owner-side lifecycle closure.
 
 ## Boundary and nonclaims
 
@@ -74,4 +89,4 @@ Decision 98 B0 remains frozen and unrelated. Rejected Decision 105 implementatio
 
 ## Forward gate
 
-Decision 105's immutable projection-byte prerequisite is satisfied only for the exact identities in this record. Decision 106 remains blocked until its ROCS owner independently verifies this canonical record, explicitly authorizes its own scoped task, and begins its own strict lifecycle. Decision 107 remains blocked until Decisions 105 and 106 expose accepted interfaces.
+Decision 105's immutable projection-byte prerequisite is satisfied only for the exact identities in this record. This gate did not authorize Decision 106. Its ROCS owner subsequently and independently initiated task `4618`; that separate review does not change or broaden this acceptance. Decision 107 remains blocked until Decision 106 exposes an accepted interface.
