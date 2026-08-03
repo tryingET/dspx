@@ -9,6 +9,10 @@ read_when:
 
 DSPx ships a small, versioned semantic regression corpus at `benchmarks/semantic/corpus-v1.json`. It covers paraphrase preservation, bounded entailment, evidence calibration, instruction following, concept distinction, and the evidence/authority boundary.
 
+## Verdict vocabulary
+
+Despite their historical names, DSPx semantic benchmarks, semantic-analysis LM gates, and production-semantic embedding gates produce bounded **empirical-quality evidence**. They do not establish ROCS semantic conformance, semantic-release publication/currentness, package release, generated-program activation, or an AK domain verdict. Use the [verdict classification and source-owner contract](dspx-verdict-classification-and-source-owner-contract.md) for the canonical owner matrix and lawful handoffs; this file owns benchmark mechanics and empirical history only.
+
 ## Deterministic default
 
 ```bash

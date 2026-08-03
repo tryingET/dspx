@@ -12,6 +12,8 @@ DSPx can produce activation evidence packets for generated DSPy/cognition progra
 
 Related DRY maps:
 
+- [[dspx-verdict-classification-and-source-owner-contract]]
+
 - [[oracle-backend-current-status]]
 - [[generated-program-evidence-surface-boundaries]]
 - [[program-gen-walkthrough]]

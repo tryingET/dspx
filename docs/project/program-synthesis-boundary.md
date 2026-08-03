@@ -296,6 +296,8 @@ That means:
 
 ## Canonical authority by surface
 
+Verdict vocabulary and owner routing are defined once in the [DSPx verdict classification and source-owner contract](dspx-verdict-classification-and-source-owner-contract.md). This target-state boundary does not turn local evaluation, Oracle interpretation, promotion state, or documentation into ROCS conformance or external activation authority.
+
 ### Canonical in docs
 
 Docs are canonical for:

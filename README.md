@@ -255,7 +255,7 @@ just dspx oracle contract verify
 
 Mock embeddings are deterministic plumbing evidence only. A production-semantic claim requires an explicit model-backed configuration and separate empirical acceptance evidence.
 
-See [Run, replay, and explain](docs/RUN_REPLAY_EXPLAIN.md) and [Semantic benchmarks](docs/project/semantic-benchmarks.md).
+See [Run, replay, and explain](docs/RUN_REPLAY_EXPLAIN.md), [Semantic benchmarks](docs/project/semantic-benchmarks.md), and the [verdict classification and source-owner contract](docs/project/dspx-verdict-classification-and-source-owner-contract.md).
 
 ## Local artifacts and cleanup
 
@@ -360,6 +360,7 @@ just monorepo-check
 - [First local loop](docs/project/first-local-loop.md)
 - [Program generation walkthrough](docs/project/program-gen-walkthrough.md)
 - [Program synthesis boundary](docs/project/program-synthesis-boundary.md)
+- [Verdict classification and source-owner contract](docs/project/dspx-verdict-classification-and-source-owner-contract.md)
 - [Generated-program evidence boundaries](docs/project/generated-program-evidence-surface-boundaries.md)
 - [Native signature pipeline](docs/SIGNATURE_NATIVE_PIPELINE.md)
 - [Run, replay, and explain](docs/RUN_REPLAY_EXPLAIN.md)
