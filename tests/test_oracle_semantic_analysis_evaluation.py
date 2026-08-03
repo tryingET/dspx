@@ -166,6 +166,7 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     assert FROZEN_SOURCE_COMMIT == "1decb1701af762d23d0f8d41bb00f86c08095c3f"
     for case in contract["cases"]:
         request = _request(case)
+        assert request.quality_contract is not None
         assert (
             request.quality_contract["analysis_field_rubric"]
             == contract["field_rubric"]
