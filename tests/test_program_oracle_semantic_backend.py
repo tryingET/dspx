@@ -64,6 +64,10 @@ def test_codebook_prompt_requires_minimum_directly_entailed_code_set() -> None:
     assert "Use an empty array" in prompt
     assert "minimum exact code set" in prompt
     assert "not every plausible code" in prompt
+    assert "same proposition with the same subject and state" in prompt
+    assert "do not infer an unmentioned workflow entity" in prompt
+    assert "requires explicit causal, mechanism" in prompt
+    assert "narrowest single" in prompt
 
 
 class _LiveLM:
