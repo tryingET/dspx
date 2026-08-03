@@ -179,6 +179,40 @@ def committed_source_identity(
     }
 
 
+def historical_committed_source_identity(
+    repo_root: Path, *, expected_commit: str
+) -> dict[str, Any]:
+    """Rebuild source identity from immutable Git objects without loading old code."""
+    root = repo_root.expanduser().resolve()
+    if len(expected_commit) != 40 or any(
+        character not in "0123456789abcdef" for character in expected_commit
+    ):
+        raise SemanticAnalysisEvaluationError(
+            "recorded source commit must be a full lowercase Git SHA"
+        )
+    commit = _git(root, "rev-parse", f"{expected_commit}^{{commit}}")
+    if commit != expected_commit:
+        raise SemanticAnalysisEvaluationError("recorded source commit identity drift")
+    hashes: dict[str, str] = {}
+    for relative in SOURCE_PATHS:
+        committed = subprocess.run(
+            ["git", "-C", str(root), "show", f"{commit}:{relative}"],
+            check=False,
+            capture_output=True,
+        )
+        if committed.returncode != 0:
+            raise SemanticAnalysisEvaluationError(
+                f"recorded evaluation source unavailable: {relative}"
+            )
+        hashes[relative] = _sha256_bytes(committed.stdout)
+    return {
+        "git_commit": commit,
+        "path_sha256": hashes,
+        "loaded_module_paths": dict(_LOADED_SOURCE_MODULES),
+        "runner_source_path": "scripts/ci/run_oracle_semantic_analysis_evaluation.py",
+    }
+
+
 def _require_private_mode(path: Path, expected: int, label: str) -> None:
     try:
         mode = stat.S_IMODE(path.stat().st_mode)
@@ -336,7 +370,10 @@ def _validate_execution_provenance(
 
 
 def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
-    contract, contract_hash = load_contract(repo_root)
+    # Historical verification binds the artifact's recorded committed source below.
+    # Current-source equality remains mandatory for execution through load_contract's
+    # default and must not make a terminal artifact unverifiable after evolution.
+    contract, contract_hash = load_contract(repo_root, require_current_sources=False)
     adjudication = _mapping(
         contract.get("offline_adjudication"), "offline_adjudication"
     )
@@ -372,7 +409,7 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         raise SemanticAnalysisEvaluationError("evaluation evidence class drift")
     recorded_source_commit = source_identity.get("git_commit")
     expected_source_identity = (
-        committed_source_identity(
+        historical_committed_source_identity(
             repo_root,
             expected_commit=(
                 recorded_source_commit
@@ -613,5 +650,16 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         "four_case_semantic_analysis_gate_passed": expected_pass,
         "shared_store_or_embedding_evidence_used": False,
     }
-    _write_private_exclusive(target / VERIFICATION_NAME, verification)
+    verification_path = target / VERIFICATION_NAME
+    if verification_path.exists():
+        _require_private_mode(verification_path, 0o600, "independent verification")
+        retained_verification, _ = _read_json(
+            verification_path, label="independent verification"
+        )
+        if retained_verification != verification:
+            raise SemanticAnalysisEvaluationError(
+                "retained independent verification drift"
+            )
+        return retained_verification
+    _write_private_exclusive(verification_path, verification)
     return verification

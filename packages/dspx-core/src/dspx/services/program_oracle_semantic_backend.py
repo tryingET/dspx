@@ -36,11 +36,55 @@ _ALLOWED_BACKENDS = frozenset({"live", "fixture-replay"})
 _MAX_FIXTURE_BYTES = 1_000_000
 
 
-def _analysis_response_format() -> dict[str, Any]:
-    properties: dict[str, dict[str, Any]] = {
-        field: {"type": "array", "items": {"type": "string"}}
-        for field in REQUIRED_ANALYSIS_FIELDS
-    }
+def _evidence_ref_values(value: object) -> tuple[str, ...]:
+    refs: list[str] = []
+
+    def visit(item: object) -> None:
+        if isinstance(item, Mapping):
+            for key, child in item.items():
+                if (
+                    key == "ref"
+                    and isinstance(child, str)
+                    and child.strip()
+                    and child not in refs
+                ):
+                    refs.append(child)
+                visit(child)
+        elif isinstance(item, (list, tuple)):
+            for child in item:
+                visit(child)
+
+    visit(value)
+    return tuple(refs)
+
+
+def _analysis_response_format(
+    request: OracleSemanticRequest | None = None,
+) -> dict[str, Any]:
+    quality = request.quality_contract if request is not None else None
+    codebook = (
+        quality.get("analysis_codebook") if isinstance(quality, Mapping) else None
+    )
+    evidence_refs = (
+        _evidence_ref_values(request.evidence) if request is not None else ()
+    )
+    properties: dict[str, dict[str, Any]] = {}
+    for field in REQUIRED_ANALYSIS_FIELDS:
+        items: dict[str, Any] = {"type": "string"}
+        allowed = codebook.get(field) if isinstance(codebook, Mapping) else None
+        if (
+            isinstance(allowed, (list, tuple))
+            and allowed
+            and all(isinstance(code, str) and code.strip() for code in allowed)
+        ):
+            items["enum"] = list(dict.fromkeys(allowed))
+        elif field == "evidence_refs" and evidence_refs:
+            items["enum"] = list(evidence_refs)
+        properties[field] = {
+            "type": "array",
+            "items": items,
+            "uniqueItems": True,
+        }
     properties["confidence"] = {
         "type": "number",
         "minimum": 0.0,
@@ -73,22 +117,28 @@ def _analysis_prompt(request: OracleSemanticRequest) -> str:
         "hypotheses, and recommended_experiments, return only exact codes from "
         "the field-specific REQUEST.quality_contract.analysis_codebook; each "
         "array item must be one code with no prose. Follow any "
-        "REQUEST.quality_contract.analysis_field_rubric exactly. Observations are "
-        "literal target-subject facts: require the same proposition, subject, and "
-        "state in the evidence, and do not infer an unmentioned workflow entity or "
-        "status from absent effects. Quality-contract violations are literal "
-        "criterion checks: require an explicit criterion plus evidence that "
-        "establishes its breach or satisfaction; a regression alone does not prove "
-        "a minimum threshold violation. Hypotheses require explicit causal, "
-        "mechanism, association, or intervention uncertainty. Failure attractors "
-        "and recommended experiments are prospective fields: infer at most the one "
-        "narrowest risk or next evidence action supported by the objective and "
-        "explicit subject/boundary facts, even though the risk or action need not "
-        "appear verbatim. Never invent the subject of a prospective code. Use an "
-        "empty array when a field's rules support no code. Exclude merely possible, "
-        "related, generic, precautionary, alternative, opposite, or downstream "
-        "codes. Return the minimum exact code set justified by the evidence, not "
-        "every plausible code. "
+        "REQUEST.quality_contract.analysis_field_rubric exactly. When present, "
+        "REQUEST.quality_contract.analysis_code_semantics is the authoritative, "
+        "case-independent denotation of every code: apply its selection_rules and "
+        "each code's select_when and exclude_when conditions, but return only code "
+        "identifiers. Observations are literal target-subject facts: require the "
+        "same proposition, subject, and state in the evidence, and do not infer an "
+        "unmentioned workflow entity or status from absent effects. Quality-contract "
+        "violations are literal criterion outcomes despite the legacy wire name: "
+        "require an explicit criterion plus evidence that establishes its breach or "
+        "satisfaction; a regression alone does not prove a minimum threshold "
+        "violation. Hypotheses are explicit causal or mechanism epistemic states "
+        "despite the legacy wire name; never infer uncertainty merely from absence "
+        "of causal proof. Failure attractors and recommended experiments are "
+        "prospective fields: infer at most the one narrowest risk or next supported "
+        "action matching the explicit subject, workflow stage, and authority "
+        "boundary, even though the risk or action need not appear verbatim. Never "
+        "invent the subject of a prospective code. Follow any analysis_evidence_ref_rubric "
+        "and analysis_confidence_rubric exactly. Use an empty array when a field's "
+        "rules support no code. Exclude merely possible, related, generic, "
+        "precautionary, alternative, opposite, or downstream codes. Return the "
+        "minimum exact code set justified by the evidence, not every plausible "
+        "code. "
         if codebook_mode
         else "Put exactly one factual assertion in each array item; do not join "
         "separate or contrary assertions in one item. "
@@ -98,9 +148,12 @@ def _analysis_prompt(request: OracleSemanticRequest) -> str:
         "evidence supplied below. Return exactly one JSON object matching the "
         "output shape. "
         f"{item_contract}"
-        "Do not claim "
-        "deployment or transition authority. In evidence_refs, cite only exact "
-        "ref values present in the supplied evidence.\n\n"
+        "Never infer, grant, or manufacture deployment or transition authority; "
+        "select an authority-dependent action only when supplied evidence explicitly "
+        "establishes that authority. In evidence_refs, cite all and only exact ref "
+        "values from supplied records that directly support the selected codes or "
+        "the objective-specific reason for an empty field; exclude unrelated or "
+        "distractor records.\n\n"
         f"OUTPUT_SHAPE={canonical_json(schema)}\n"
         f"REQUEST={canonical_json(request.payload())}"
     )
@@ -159,7 +212,7 @@ class LiveLMOracleSemanticBackend:
         try:
             response = generate(
                 LMRequest(prompt=_analysis_prompt(request)),
-                response_format=_analysis_response_format(),
+                response_format=_analysis_response_format(request),
             )
             response_observed = True
             observed_model = getattr(response, "model", None)

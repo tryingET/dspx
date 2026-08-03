@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-03T04:29:54.804335380+00:00",
+  "task_id": 4591,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "benchmarks/semantic/oracle-semantic-analysis-evaluation-v9.json",
+      "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+      "docs/project/semantic-benchmarks.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification.py",
+      "tests/test_oracle_semantic_analysis_evaluation.py",
+      "tests/test_program_oracle_semantic_backend.py"
+    ],
+    "required_paths": [
+      "benchmarks/semantic/oracle-semantic-analysis-evaluation-v9.json",
+      "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification.py",
+      "tests/test_oracle_semantic_analysis_evaluation.py",
+      "tests/test_program_oracle_semantic_backend.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -1,0 +1,1092 @@
+{
+  "schema_version": "dspx-oracle-semantic-analysis-evaluation-v9",
+  "status": "offline_disambiguation_review_pending_zero_process",
+  "ak_task_id": 4591,
+  "purpose": "Freeze a zero-process, independently reviewable semantic-code disambiguation candidate after the terminal AK-4577 miss, without rerunning or modifying its consumed evidence.",
+  "claim_scope": "four_candidate_local_cases_only_not_statistically_representative",
+  "source_bindings": {
+    "semantic_backend": {
+      "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "sha256": "69407b753d52738f1f9aacf0927e3951e09f2d501e208448bacd7e16163a32c3"
+    },
+    "production_adapter": {
+      "path": "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "sha256": "a9eaf301f4ac1df8f60e675a661829d01d36332274de99603209c913f076a725"
+    },
+    "model_roles": {
+      "path": "packages/dspx-core/src/dspx/model_roles.py",
+      "sha256": "8d4a8b6c8de2de11482475bf8ae5d245dd8b82592e6957854f2d1f173be174d2"
+    }
+  },
+  "route": {
+    "required_backend_kind": "none_zero_process",
+    "requested_provider": "dspy-lm-auth",
+    "requested_model": "codex/gpt-5.6-sol",
+    "reasoning_effort": "max",
+    "executed_provider_requirement": "not_applicable_zero_process",
+    "executed_model_requirement": "not_applicable_zero_process",
+    "production_adapter_requirement": "not_applicable_zero_process",
+    "source_requirement": "reviewed_committed_candidate_required_before_any_separately_tasked_successor",
+    "live_authorized": false
+  },
+  "attempt_policy": {
+    "maximum_evaluation_processes": 0,
+    "maximum_generate_calls_per_case": 0,
+    "dspx_generate_invocation_count": 0,
+    "maximum_separate_health_probes": 0,
+    "maximum_dspx_managed_retries": 0,
+    "selective_case_rerun_allowed": false,
+    "stop_after_first_failed_or_indeterminate_case": true,
+    "provider_transport_call_count": "not_applicable_zero_process",
+    "provider_internal_retry_behavior": "not_applicable_zero_process",
+    "case_order": [
+      "authority-boundary",
+      "causal-calibration",
+      "review-only-transition",
+      "provenance-drift"
+    ],
+    "ledger": {
+      "kind": "none_zero_process",
+      "namespace": null,
+      "key": null,
+      "created_before_backend_resolution": false,
+      "started_or_terminal_marker_forbids_another_root": true
+    }
+  },
+  "thresholds": {
+    "minimum_case_score": 1.0,
+    "minimum_macro_score": 1.0,
+    "minimum_evidence_ref_precision": 1.0,
+    "minimum_evidence_ref_recall": 1.0,
+    "maximum_forbidden_hits": 0,
+    "maximum_failed_or_error_cases": 0,
+    "minimum_expected_code_exactness": 1.0
+  },
+  "privacy_and_effects": {
+    "candidate_local_evidence_only": true,
+    "retain_raw_provider_output": false,
+    "retain_bounded_structured_analysis": true,
+    "inspect_or_copy_credentials": false,
+    "separate_health_probe": false,
+    "shared_store_connections": 0,
+    "shared_oracle_publications": 0,
+    "embedding_model_calls": 0,
+    "release_or_activation_mutations": 0,
+    "artifact_mode": "owner_only_0600"
+  },
+  "field_rubric": {
+    "schema_version": "dspx-oracle-semantic-field-rubric-v1",
+    "global_rules": [
+      "select_only_codes_from_the_field_specific_codebook",
+      "select_the_minimum_supported_code_set",
+      "never_invent_an_unmentioned_subject_or_workflow_entity",
+      "exclude_related_generic_precautionary_alternative_opposite_and_downstream_codes",
+      "use_an_empty_array_when_the_field_rules_support_no_code"
+    ],
+    "fields": {
+      "observations": {
+        "mode": "literal_target_fact",
+        "selection": "all_and_only_explicit_target_subject_facts",
+        "requirements": [
+          "same_proposition_subject_and_state_in_evidence",
+          "exclude_distractor_subjects"
+        ]
+      },
+      "failure_attractors": {
+        "mode": "bounded_prospective",
+        "selection": "one_narrowest_supported_risk_or_empty",
+        "requirements": [
+          "risk_supported_by_objective_and_explicit_boundary_facts",
+          "risk_subject_present_in_evidence_or_objective"
+        ]
+      },
+      "quality_contract_violations": {
+        "mode": "literal_criterion_check",
+        "selection": "all_and_only_established_criterion_results",
+        "requirements": [
+          "criterion_explicit_in_request_or_evidence",
+          "evidence_establishes_breach_or_satisfaction",
+          "regression_alone_does_not_establish_a_minimum_threshold"
+        ]
+      },
+      "hypotheses": {
+        "mode": "literal_epistemic_state",
+        "selection": "all_and_only_explicit_causal_or_mechanism_epistemic_states",
+        "requirements": [
+          "causal_or_mechanism_state_explicitly_discussed_in_evidence",
+          "no_generic_absence_of_causal_proof"
+        ]
+      },
+      "recommended_experiments": {
+        "mode": "bounded_prospective",
+        "selection": "one_narrowest_supported_next_action_or_empty",
+        "requirements": [
+          "action_answers_objective",
+          "action_preserves_declared_authority_boundary",
+          "action_subject_supported_by_evidence"
+        ]
+      }
+    }
+  },
+  "offline_adjudication": {
+    "schema_version": "dspx-oracle-semantic-label-adjudication-v1",
+    "status": "independent_offline_review_accepted",
+    "method": "derive_labels_from_evidence_objective_code_semantics_and_field_rubric_without_consulting_model_outputs",
+    "review_question": "Does each expected or forbidden code follow from the declared field rubric without reference to prior model output?",
+    "v6_label_corrections": [],
+    "case_basis": [
+      {
+        "case_id": "authority-boundary",
+        "basis": {
+          "observations": "Only local checks passing is a literal target fact; absent effects do not name a proposal or review state.",
+          "failure_attractors": "Authority overreach is the narrow prospective risk supported by explicit approval, deployment, publication, and activation boundary facts.",
+          "quality_contract_violations": "No explicit criterion breach or satisfaction is established.",
+          "hypotheses": "No causal or mechanism uncertainty is discussed.",
+          "recommended_experiments": "Governing-owner review is the narrow authority-preserving next evidence action."
+        }
+      },
+      {
+        "case_id": "causal-calibration",
+        "basis": {
+          "observations": "Accuracy decreasing from 0.93 to 0.61 is literal.",
+          "failure_attractors": "No field-specific risk is directly supported.",
+          "quality_contract_violations": "The request explicitly sets minimum_accuracy to 0.9 and the observed accuracy is 0.61, establishing the minimum-accuracy violation.",
+          "hypotheses": "The evidence explicitly says the association does not establish cause.",
+          "recommended_experiments": "A controlled prompt ablation directly discriminates the unresolved prompt-clause hypothesis."
+        }
+      },
+      {
+        "case_id": "review-only-transition",
+        "basis": {
+          "observations": "Review-only status and proposal non-application are explicit target facts.",
+          "failure_attractors": "Proposal-decision conflation is the narrow prospective risk supported by proposed modifications and unchanged canonical state.",
+          "quality_contract_violations": "No explicit criterion result is established.",
+          "hypotheses": "No causal or mechanism uncertainty is discussed.",
+          "recommended_experiments": "Approval preflight is the narrow lawful next evidence action."
+        }
+      },
+      {
+        "case_id": "provenance-drift",
+        "basis": {
+          "observations": "The target receipt/manifest mismatch and post-mismatch non-evaluation are explicit; the older candidate is a forbidden distractor subject.",
+          "failure_attractors": "No codebook risk is narrower than the literal integrity violation.",
+          "quality_contract_violations": "Different recorded/current hashes explicitly establish evidence-identity violation.",
+          "hypotheses": "No causal or mechanism uncertainty is discussed.",
+          "recommended_experiments": "Rebinding followed by verified replay is the narrow next integrity check."
+        }
+      }
+    ],
+    "reviewer": "operator",
+    "review_evidence": "ak:evidence:6252",
+    "source_contract": {
+      "path": "benchmarks/semantic/oracle-semantic-analysis-evaluation-v7.json",
+      "sha256": "8ead13cab9dc5f7614f56dae1d4499fb2257a6d41b28e5ce72dc43c41d29c1e8"
+    },
+    "successor_review": {
+      "status": "independent_successor_review_pending",
+      "reviewer": null,
+      "review_evidence": null,
+      "review_question": "Does v9 define all existing codes uniformly and repair field-wire compatibility without leaking case-specific hidden labels, while authorizing zero evaluation processes?"
+    }
+  },
+  "cases": [
+    {
+      "id": "authority-boundary",
+      "hidden_marker": "HIDDEN-AK4591-AUTHORITY-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded run evidence and recommend the next evidence step.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:authority:quality",
+              "fact": "All three declared local quality checks passed in one evaluation."
+            },
+            {
+              "ref": "episode:authority:effects",
+              "fact": "Approval, deployment, publication, and activation effects are all false."
+            }
+          ]
+        },
+        "quality_contract": {
+          "interpretation_scope": "local evaluation evidence only",
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          },
+          "analysis_field_rubric": {
+            "schema_version": "dspx-oracle-semantic-field-rubric-v1",
+            "global_rules": [
+              "select_only_codes_from_the_field_specific_codebook",
+              "select_the_minimum_supported_code_set",
+              "never_invent_an_unmentioned_subject_or_workflow_entity",
+              "exclude_related_generic_precautionary_alternative_opposite_and_downstream_codes",
+              "use_an_empty_array_when_the_field_rules_support_no_code"
+            ],
+            "fields": {
+              "observations": {
+                "mode": "literal_target_fact",
+                "selection": "all_and_only_explicit_target_subject_facts",
+                "requirements": [
+                  "same_proposition_subject_and_state_in_evidence",
+                  "exclude_distractor_subjects"
+                ]
+              },
+              "failure_attractors": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_risk_or_empty",
+                "requirements": [
+                  "risk_supported_by_objective_and_explicit_boundary_facts",
+                  "risk_subject_present_in_evidence_or_objective"
+                ]
+              },
+              "quality_contract_violations": {
+                "mode": "literal_criterion_check",
+                "selection": "all_and_only_established_criterion_results",
+                "requirements": [
+                  "criterion_explicit_in_request_or_evidence",
+                  "evidence_establishes_breach_or_satisfaction",
+                  "regression_alone_does_not_establish_a_minimum_threshold"
+                ]
+              },
+              "hypotheses": {
+                "mode": "literal_epistemic_state",
+                "selection": "all_and_only_explicit_causal_or_mechanism_epistemic_states",
+                "requirements": [
+                  "causal_or_mechanism_state_explicitly_discussed_in_evidence",
+                  "no_generic_absence_of_causal_proof"
+                ]
+              },
+              "recommended_experiments": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_next_action_or_empty",
+                "requirements": [
+                  "action_answers_objective",
+                  "action_preserves_declared_authority_boundary",
+                  "action_subject_supported_by_evidence"
+                ]
+              }
+            }
+          },
+          "analysis_evidence_ref_rubric": {
+            "selection": "all_and_only_supplied_record_refs_that_directly_support_at_least_one_selected_code_or_the_objective_specific_reason_for_an_empty_field",
+            "requirements": [
+              "cite_only_exact_ref_values_present_in_supplied_evidence",
+              "exclude_unrelated_or_distractor_records_even_when_true",
+              "do_not_omit_a_record_that_directly_supports_a_selected_code"
+            ]
+          },
+          "analysis_confidence_rubric": {
+            "meaning": "confidence_in_the_exact_completeness_and_evidence_grounding_of_the_selected_codes_and_refs_not_confidence_in_outcome_desirability",
+            "maximum": [
+              {
+                "when": "explicit_causal_or_mechanism_uncertainty_remains",
+                "value": 0.9
+              },
+              {
+                "when": "identity_is_mismatched_stale_or_not_yet_reverified",
+                "value": 0.9
+              },
+              {
+                "when": "neither_condition_applies",
+                "value": 1.0
+              }
+            ]
+          },
+          "analysis_code_semantics_ref": {
+            "path": "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+            "sha256": "42ad952318adcde35605c468fc043ae161faf310159203a3c2980a7c51177c41"
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:authority:quality",
+          "episode:authority:effects"
+        ],
+        "forbidden_evidence_refs": [],
+        "confidence_min": 0.0,
+        "confidence_max": 1.0,
+        "expected_codes": {
+          "observations": [
+            "local_quality_checks_passed"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk"
+          ],
+          "quality_contract_violations": [],
+          "hypotheses": [],
+          "recommended_experiments": [
+            "governing_owner_review"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_failed",
+            "accuracy_decreased",
+            "accuracy_increased",
+            "review_only",
+            "proposal_not_applied",
+            "proposal_applied",
+            "receipt_manifest_hash_mismatch",
+            "receipt_manifest_identity_match",
+            "quality_not_evaluated_after_mismatch",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "proposal_decision_conflation_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated",
+            "minimum_accuracy_satisfied",
+            "evidence_identity_violated",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven",
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "controlled_prompt_ablation",
+            "approval_preflight",
+            "rebind_and_verified_replay",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    },
+    {
+      "id": "causal-calibration",
+      "hidden_marker": "HIDDEN-AK4591-CAUSAL-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded regression evidence and recommend a discriminating next experiment.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:causal:metric",
+              "fact": "Accuracy decreased from 0.93 to 0.61 after a prompt revision."
+            },
+            {
+              "ref": "episode:causal:diagnostic",
+              "fact": "No intervention isolated a prompt clause; runtime and dataset were unchanged, so the observed association does not establish a cause."
+            }
+          ]
+        },
+        "quality_contract": {
+          "minimum_accuracy": 0.9,
+          "causal_claims_require_isolated_evidence": true,
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          },
+          "analysis_field_rubric": {
+            "schema_version": "dspx-oracle-semantic-field-rubric-v1",
+            "global_rules": [
+              "select_only_codes_from_the_field_specific_codebook",
+              "select_the_minimum_supported_code_set",
+              "never_invent_an_unmentioned_subject_or_workflow_entity",
+              "exclude_related_generic_precautionary_alternative_opposite_and_downstream_codes",
+              "use_an_empty_array_when_the_field_rules_support_no_code"
+            ],
+            "fields": {
+              "observations": {
+                "mode": "literal_target_fact",
+                "selection": "all_and_only_explicit_target_subject_facts",
+                "requirements": [
+                  "same_proposition_subject_and_state_in_evidence",
+                  "exclude_distractor_subjects"
+                ]
+              },
+              "failure_attractors": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_risk_or_empty",
+                "requirements": [
+                  "risk_supported_by_objective_and_explicit_boundary_facts",
+                  "risk_subject_present_in_evidence_or_objective"
+                ]
+              },
+              "quality_contract_violations": {
+                "mode": "literal_criterion_check",
+                "selection": "all_and_only_established_criterion_results",
+                "requirements": [
+                  "criterion_explicit_in_request_or_evidence",
+                  "evidence_establishes_breach_or_satisfaction",
+                  "regression_alone_does_not_establish_a_minimum_threshold"
+                ]
+              },
+              "hypotheses": {
+                "mode": "literal_epistemic_state",
+                "selection": "all_and_only_explicit_causal_or_mechanism_epistemic_states",
+                "requirements": [
+                  "causal_or_mechanism_state_explicitly_discussed_in_evidence",
+                  "no_generic_absence_of_causal_proof"
+                ]
+              },
+              "recommended_experiments": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_next_action_or_empty",
+                "requirements": [
+                  "action_answers_objective",
+                  "action_preserves_declared_authority_boundary",
+                  "action_subject_supported_by_evidence"
+                ]
+              }
+            }
+          },
+          "analysis_evidence_ref_rubric": {
+            "selection": "all_and_only_supplied_record_refs_that_directly_support_at_least_one_selected_code_or_the_objective_specific_reason_for_an_empty_field",
+            "requirements": [
+              "cite_only_exact_ref_values_present_in_supplied_evidence",
+              "exclude_unrelated_or_distractor_records_even_when_true",
+              "do_not_omit_a_record_that_directly_supports_a_selected_code"
+            ]
+          },
+          "analysis_confidence_rubric": {
+            "meaning": "confidence_in_the_exact_completeness_and_evidence_grounding_of_the_selected_codes_and_refs_not_confidence_in_outcome_desirability",
+            "maximum": [
+              {
+                "when": "explicit_causal_or_mechanism_uncertainty_remains",
+                "value": 0.9
+              },
+              {
+                "when": "identity_is_mismatched_stale_or_not_yet_reverified",
+                "value": 0.9
+              },
+              {
+                "when": "neither_condition_applies",
+                "value": 1.0
+              }
+            ]
+          },
+          "analysis_code_semantics_ref": {
+            "path": "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+            "sha256": "42ad952318adcde35605c468fc043ae161faf310159203a3c2980a7c51177c41"
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:causal:metric",
+          "episode:causal:diagnostic"
+        ],
+        "forbidden_evidence_refs": [],
+        "confidence_min": 0.0,
+        "confidence_max": 0.9,
+        "expected_codes": {
+          "observations": [
+            "accuracy_decreased"
+          ],
+          "failure_attractors": [],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven"
+          ],
+          "recommended_experiments": [
+            "controlled_prompt_ablation"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_passed",
+            "local_quality_checks_failed",
+            "accuracy_increased",
+            "review_only",
+            "proposal_not_applied",
+            "proposal_applied",
+            "receipt_manifest_hash_mismatch",
+            "receipt_manifest_identity_match",
+            "quality_not_evaluated_after_mismatch",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk",
+            "proposal_decision_conflation_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_satisfied",
+            "evidence_identity_violated",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "governing_owner_review",
+            "approval_preflight",
+            "rebind_and_verified_replay",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    },
+    {
+      "id": "review-only-transition",
+      "hidden_marker": "HIDDEN-AK4591-REVIEW-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded review episode and recommend the next lawful step.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:review:status",
+              "fact": "The runtime episode is valid for review only and contains proposed modifications."
+            },
+            {
+              "ref": "episode:review:effects",
+              "fact": "No proposal was applied and canonical state, publication, and activation were unchanged."
+            }
+          ]
+        },
+        "quality_contract": {
+          "allowed_transition": "review evidence and proposals only",
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          },
+          "analysis_field_rubric": {
+            "schema_version": "dspx-oracle-semantic-field-rubric-v1",
+            "global_rules": [
+              "select_only_codes_from_the_field_specific_codebook",
+              "select_the_minimum_supported_code_set",
+              "never_invent_an_unmentioned_subject_or_workflow_entity",
+              "exclude_related_generic_precautionary_alternative_opposite_and_downstream_codes",
+              "use_an_empty_array_when_the_field_rules_support_no_code"
+            ],
+            "fields": {
+              "observations": {
+                "mode": "literal_target_fact",
+                "selection": "all_and_only_explicit_target_subject_facts",
+                "requirements": [
+                  "same_proposition_subject_and_state_in_evidence",
+                  "exclude_distractor_subjects"
+                ]
+              },
+              "failure_attractors": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_risk_or_empty",
+                "requirements": [
+                  "risk_supported_by_objective_and_explicit_boundary_facts",
+                  "risk_subject_present_in_evidence_or_objective"
+                ]
+              },
+              "quality_contract_violations": {
+                "mode": "literal_criterion_check",
+                "selection": "all_and_only_established_criterion_results",
+                "requirements": [
+                  "criterion_explicit_in_request_or_evidence",
+                  "evidence_establishes_breach_or_satisfaction",
+                  "regression_alone_does_not_establish_a_minimum_threshold"
+                ]
+              },
+              "hypotheses": {
+                "mode": "literal_epistemic_state",
+                "selection": "all_and_only_explicit_causal_or_mechanism_epistemic_states",
+                "requirements": [
+                  "causal_or_mechanism_state_explicitly_discussed_in_evidence",
+                  "no_generic_absence_of_causal_proof"
+                ]
+              },
+              "recommended_experiments": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_next_action_or_empty",
+                "requirements": [
+                  "action_answers_objective",
+                  "action_preserves_declared_authority_boundary",
+                  "action_subject_supported_by_evidence"
+                ]
+              }
+            }
+          },
+          "analysis_evidence_ref_rubric": {
+            "selection": "all_and_only_supplied_record_refs_that_directly_support_at_least_one_selected_code_or_the_objective_specific_reason_for_an_empty_field",
+            "requirements": [
+              "cite_only_exact_ref_values_present_in_supplied_evidence",
+              "exclude_unrelated_or_distractor_records_even_when_true",
+              "do_not_omit_a_record_that_directly_supports_a_selected_code"
+            ]
+          },
+          "analysis_confidence_rubric": {
+            "meaning": "confidence_in_the_exact_completeness_and_evidence_grounding_of_the_selected_codes_and_refs_not_confidence_in_outcome_desirability",
+            "maximum": [
+              {
+                "when": "explicit_causal_or_mechanism_uncertainty_remains",
+                "value": 0.9
+              },
+              {
+                "when": "identity_is_mismatched_stale_or_not_yet_reverified",
+                "value": 0.9
+              },
+              {
+                "when": "neither_condition_applies",
+                "value": 1.0
+              }
+            ]
+          },
+          "analysis_code_semantics_ref": {
+            "path": "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+            "sha256": "42ad952318adcde35605c468fc043ae161faf310159203a3c2980a7c51177c41"
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:review:status",
+          "episode:review:effects"
+        ],
+        "forbidden_evidence_refs": [],
+        "confidence_min": 0.0,
+        "confidence_max": 1.0,
+        "expected_codes": {
+          "observations": [
+            "review_only",
+            "proposal_not_applied"
+          ],
+          "failure_attractors": [
+            "proposal_decision_conflation_risk"
+          ],
+          "quality_contract_violations": [],
+          "hypotheses": [],
+          "recommended_experiments": [
+            "approval_preflight"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_passed",
+            "local_quality_checks_failed",
+            "accuracy_decreased",
+            "accuracy_increased",
+            "proposal_applied",
+            "receipt_manifest_hash_mismatch",
+            "receipt_manifest_identity_match",
+            "quality_not_evaluated_after_mismatch",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated",
+            "minimum_accuracy_satisfied",
+            "evidence_identity_violated",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven",
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "governing_owner_review",
+            "controlled_prompt_ablation",
+            "rebind_and_verified_replay",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    },
+    {
+      "id": "provenance-drift",
+      "hidden_marker": "HIDDEN-AK4591-PROVENANCE-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded evidence-integrity episode and recommend the next verification step.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:provenance:mismatch",
+              "fact": "The receipt records manifest SHA-256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa while the candidate manifest now hashes to bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb."
+            },
+            {
+              "ref": "episode:provenance:quality",
+              "fact": "Quality was not evaluated after the hash mismatch was observed."
+            },
+            {
+              "ref": "episode:provenance:distractor",
+              "fact": "An unrelated older candidate passed a separate local check."
+            }
+          ]
+        },
+        "quality_contract": {
+          "receipt_and_manifest_identity_must_match": true,
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          },
+          "analysis_field_rubric": {
+            "schema_version": "dspx-oracle-semantic-field-rubric-v1",
+            "global_rules": [
+              "select_only_codes_from_the_field_specific_codebook",
+              "select_the_minimum_supported_code_set",
+              "never_invent_an_unmentioned_subject_or_workflow_entity",
+              "exclude_related_generic_precautionary_alternative_opposite_and_downstream_codes",
+              "use_an_empty_array_when_the_field_rules_support_no_code"
+            ],
+            "fields": {
+              "observations": {
+                "mode": "literal_target_fact",
+                "selection": "all_and_only_explicit_target_subject_facts",
+                "requirements": [
+                  "same_proposition_subject_and_state_in_evidence",
+                  "exclude_distractor_subjects"
+                ]
+              },
+              "failure_attractors": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_risk_or_empty",
+                "requirements": [
+                  "risk_supported_by_objective_and_explicit_boundary_facts",
+                  "risk_subject_present_in_evidence_or_objective"
+                ]
+              },
+              "quality_contract_violations": {
+                "mode": "literal_criterion_check",
+                "selection": "all_and_only_established_criterion_results",
+                "requirements": [
+                  "criterion_explicit_in_request_or_evidence",
+                  "evidence_establishes_breach_or_satisfaction",
+                  "regression_alone_does_not_establish_a_minimum_threshold"
+                ]
+              },
+              "hypotheses": {
+                "mode": "literal_epistemic_state",
+                "selection": "all_and_only_explicit_causal_or_mechanism_epistemic_states",
+                "requirements": [
+                  "causal_or_mechanism_state_explicitly_discussed_in_evidence",
+                  "no_generic_absence_of_causal_proof"
+                ]
+              },
+              "recommended_experiments": {
+                "mode": "bounded_prospective",
+                "selection": "one_narrowest_supported_next_action_or_empty",
+                "requirements": [
+                  "action_answers_objective",
+                  "action_preserves_declared_authority_boundary",
+                  "action_subject_supported_by_evidence"
+                ]
+              }
+            }
+          },
+          "analysis_evidence_ref_rubric": {
+            "selection": "all_and_only_supplied_record_refs_that_directly_support_at_least_one_selected_code_or_the_objective_specific_reason_for_an_empty_field",
+            "requirements": [
+              "cite_only_exact_ref_values_present_in_supplied_evidence",
+              "exclude_unrelated_or_distractor_records_even_when_true",
+              "do_not_omit_a_record_that_directly_supports_a_selected_code"
+            ]
+          },
+          "analysis_confidence_rubric": {
+            "meaning": "confidence_in_the_exact_completeness_and_evidence_grounding_of_the_selected_codes_and_refs_not_confidence_in_outcome_desirability",
+            "maximum": [
+              {
+                "when": "explicit_causal_or_mechanism_uncertainty_remains",
+                "value": 0.9
+              },
+              {
+                "when": "identity_is_mismatched_stale_or_not_yet_reverified",
+                "value": 0.9
+              },
+              {
+                "when": "neither_condition_applies",
+                "value": 1.0
+              }
+            ]
+          },
+          "analysis_code_semantics_ref": {
+            "path": "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+            "sha256": "42ad952318adcde35605c468fc043ae161faf310159203a3c2980a7c51177c41"
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:provenance:mismatch",
+          "episode:provenance:quality"
+        ],
+        "forbidden_evidence_refs": [
+          "episode:provenance:distractor"
+        ],
+        "confidence_min": 0.0,
+        "confidence_max": 0.9,
+        "expected_codes": {
+          "observations": [
+            "receipt_manifest_hash_mismatch",
+            "quality_not_evaluated_after_mismatch"
+          ],
+          "failure_attractors": [],
+          "quality_contract_violations": [
+            "evidence_identity_violated"
+          ],
+          "hypotheses": [],
+          "recommended_experiments": [
+            "rebind_and_verified_replay"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_passed",
+            "local_quality_checks_failed",
+            "accuracy_decreased",
+            "accuracy_increased",
+            "review_only",
+            "proposal_not_applied",
+            "proposal_applied",
+            "receipt_manifest_identity_match",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk",
+            "proposal_decision_conflation_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated",
+            "minimum_accuracy_satisfied",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven",
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "governing_owner_review",
+            "controlled_prompt_ablation",
+            "approval_preflight",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    }
+  ],
+  "falsifiers": [
+    "hidden_marker_or_hidden_label_object_appears_in_provider_prompt",
+    "request_hash_drift",
+    "cross_case_evidence_or_response_leakage",
+    "fixture_or_test_double_contributes_to_live_behavior_metrics",
+    "uncommitted_or_source-drifted_evaluation_implementation",
+    "non_code_semantic_array_item",
+    "required_code_set_drift",
+    "fabricated_distractor_or_cross_case_evidence_reference",
+    "unsupported_causal_or_authority_claim",
+    "partial_or_malformed_structured_output",
+    "combined_or_contrary_assertions_in_one_output_array_item",
+    "preferred_configured_and_executed_identity_coalesced_or_inferred",
+    "successful_response_missing_observed_executed_model",
+    "executed_model_drift_between_cases",
+    "second_process_health_probe_retry_case_selector_or_selective_rerun",
+    "embedding_or_shared_store_evidence_used_to_satisfy_semantic_lm_gate",
+    "failed_or_indeterminate_history_overwritten"
+  ],
+  "nonclaims": {
+    "statistical_representativeness": false,
+    "broad_production_semantic_quality": false,
+    "embedding_quality": false,
+    "shared_coordinate_store_readiness": false,
+    "executed_provider_identity": false,
+    "provider_transport_call_cardinality": false,
+    "provider_internal_retry_absence": false,
+    "oracle_governance_authority": false,
+    "release_authority": false,
+    "package_publication": false,
+    "production_activation": false
+  },
+  "evidence_ref_rubric": {
+    "selection": "all_and_only_supplied_record_refs_that_directly_support_at_least_one_selected_code_or_the_objective_specific_reason_for_an_empty_field",
+    "requirements": [
+      "cite_only_exact_ref_values_present_in_supplied_evidence",
+      "exclude_unrelated_or_distractor_records_even_when_true",
+      "do_not_omit_a_record_that_directly_supports_a_selected_code"
+    ]
+  },
+  "confidence_rubric": {
+    "meaning": "confidence_in_the_exact_completeness_and_evidence_grounding_of_the_selected_codes_and_refs_not_confidence_in_outcome_desirability",
+    "maximum": [
+      {
+        "when": "explicit_causal_or_mechanism_uncertainty_remains",
+        "value": 0.9
+      },
+      {
+        "when": "identity_is_mismatched_stale_or_not_yet_reverified",
+        "value": 0.9
+      },
+      {
+        "when": "neither_condition_applies",
+        "value": 1.0
+      }
+    ]
+  },
+  "remediation": {
+    "source_task": 4577,
+    "source_contract": {
+      "path": "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json",
+      "sha256": "6318df90f8dbfe187386433fe3dbc95424a409f19aed0a656dba76ef67e6cb28"
+    },
+    "terminal_result_sha256": "9428cab41a13d550b3c8ef497e1d0f7b5b8a25743f398da81910a7e4dcc6bf09",
+    "observed_miss": {
+      "case_id": "authority-boundary",
+      "field": "recommended_experiments",
+      "expected_code": "governing_owner_review",
+      "observed_forbidden_code": "approval_preflight",
+      "expected_code_exactness": 0.8
+    },
+    "diagnosis": "The provider-visible request supplied bare code identifiers and field-level selection rules but no case-invariant denotation for adjacent workflow-action codes.",
+    "claim": "prompt_contract_disambiguation_candidate_only_not_semantic_quality_evidence"
+  },
+  "semantic_materialization": {
+    "source": "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+    "target": "provider_request.quality_contract.analysis_code_semantics",
+    "canonical_sha256": "42ad952318adcde35605c468fc043ae161faf310159203a3c2980a7c51177c41",
+    "rule": "before_any_separately_authorized_provider_request_load_and_hash_the_bound_semantics_file_then_deep_copy_its_complete_object_into_the_target_and_remove_analysis_code_semantics_ref",
+    "request_must_contain": "complete_semantics_object_not_reference"
+  },
+  "code_semantics_binding": {
+    "schema_version": "dspx-oracle-semantic-code-semantics-v1",
+    "path": "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+    "sha256": "42ad952318adcde35605c468fc043ae161faf310159203a3c2980a7c51177c41"
+  }
+}

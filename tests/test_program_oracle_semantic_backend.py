@@ -68,13 +68,61 @@ def test_codebook_prompt_separates_literal_and_prospective_field_rules() -> None
     assert "Observations are literal target-subject facts" in prompt
     assert "same proposition, subject, and state" in prompt
     assert "a regression alone does not prove" in prompt
-    assert "Hypotheses require explicit causal" in prompt
+    assert "Hypotheses are explicit causal or mechanism epistemic states" in prompt
     assert "prospective fields" in prompt
     assert "risk or action need not appear verbatim" in prompt
     assert "Never invent the subject" in prompt
     assert "Use an empty array" in prompt
     assert "minimum exact code set" in prompt
     assert "not every plausible code" in prompt
+
+
+def test_code_semantics_and_request_values_constrain_prompt_and_schema() -> None:
+    semantics = {
+        "schema_version": "dspx-oracle-semantic-code-semantics-v1",
+        "selection_rules": ["Use context-independent denotations."],
+        "fields": {
+            "observations": {
+                "passed": {
+                    "meaning": "The target explicitly passed.",
+                    "select_when": ["A target pass is explicit."],
+                    "exclude_when": ["Only absence of failure is known."],
+                }
+            }
+        },
+    }
+    request = OracleSemanticRequest(
+        objective="Classify bounded evidence",
+        evidence={
+            "records": [
+                {"ref": "receipt:target", "fact": "The target passed."},
+                {"ref": "receipt:distractor", "fact": "Another target passed."},
+            ]
+        },
+        quality_contract={
+            "analysis_codebook": {"observations": ["passed", "failed"]},
+            "analysis_code_semantics": semantics,
+            "analysis_evidence_ref_rubric": {
+                "selection": "all_and_only_direct_support"
+            },
+            "analysis_confidence_rubric": {"meaning": "classification confidence"},
+        },
+    )
+
+    prompt = _analysis_prompt(request)
+    response_format = _analysis_response_format(request)
+    properties = response_format["schema"]["properties"]
+
+    assert "analysis_code_semantics is the authoritative" in prompt
+    assert "all and only exact ref values" in prompt
+    assert json.dumps(semantics, sort_keys=True, separators=(",", ":")) in prompt
+    assert properties["observations"]["items"]["enum"] == ["passed", "failed"]
+    assert properties["observations"]["uniqueItems"] is True
+    assert properties["evidence_refs"]["items"]["enum"] == [
+        "receipt:target",
+        "receipt:distractor",
+    ]
+    assert properties["evidence_refs"]["uniqueItems"] is True
 
 
 class _LiveLM:
@@ -86,7 +134,10 @@ class _LiveLM:
 
     def generate(self, request, **kwargs):
         self.calls += 1
-        assert kwargs == {"response_format": _analysis_response_format()}
+        response_format = kwargs.get("response_format")
+        assert isinstance(response_format, dict)
+        assert response_format["name"] == "dspx_oracle_semantic_analysis"
+        assert response_format["strict"] is True
         if self.fail:
             raise RuntimeError(
                 "provider unavailable; authorization: Bearer secret-token-value"

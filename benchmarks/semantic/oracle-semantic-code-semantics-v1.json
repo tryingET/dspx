@@ -1,0 +1,156 @@
+{
+  "schema_version": "dspx-oracle-semantic-code-semantics-v1",
+  "field_compatibility": {
+    "quality_contract_violations": "Legacy wire name for explicit criterion outcomes, including both violation and satisfaction codes.",
+    "hypotheses": "Legacy wire name for explicit causal or mechanism epistemic states, including unresolved and established states.",
+    "recommended_experiments": "Legacy wire name for the narrowest supported next action, including evidence actions and already-authorized transitions."
+  },
+  "selection_rules": [
+    "Treat each code definition as its context-independent denotation, not as an example or preferred answer.",
+    "Select a code only when every select_when condition is established by the supplied request and no exclude_when condition applies.",
+    "When two codes are related, select the code whose subject, workflow stage, and immediate action match the explicit evidence most narrowly.",
+    "Return code identifiers only; never return meanings, conditions, or prose."
+  ],
+  "fields": {
+    "observations": {
+      "local_quality_checks_passed": {
+        "meaning": "The target evidence explicitly reports that its declared local quality checks passed.",
+        "select_when": ["A pass result is explicit for the target and its declared local checks."],
+        "exclude_when": ["A pass is inferred only from absence of failure.", "The pass concerns another subject.", "Approval or authority is being inferred from a local pass."]
+      },
+      "local_quality_checks_failed": {
+        "meaning": "The target evidence explicitly reports that one or more declared local quality checks failed.",
+        "select_when": ["A failed result is explicit for the target and its declared local checks."],
+        "exclude_when": ["Quality was missing, unevaluated, or merely lacked pass evidence.", "The failure concerns another subject."]
+      },
+      "accuracy_decreased": {
+        "meaning": "Comparable target measurements explicitly establish lower later accuracy.",
+        "select_when": ["The same target metric is explicitly lower at the later comparable measurement."],
+        "exclude_when": ["The measurements are unrelated or incomparable.", "A regression is asserted without an accuracy comparison."]
+      },
+      "accuracy_increased": {
+        "meaning": "Comparable target measurements explicitly establish higher later accuracy.",
+        "select_when": ["The same target metric is explicitly higher at the later comparable measurement."],
+        "exclude_when": ["The measurements are unrelated or incomparable.", "An improvement is asserted without an accuracy comparison."]
+      },
+      "review_only": {
+        "meaning": "The target episode or artifact is explicitly designated valid for review only.",
+        "select_when": ["Review-only status is explicit for the target."],
+        "exclude_when": ["Review-only status is inferred from absent deployment, publication, activation, or application effects."]
+      },
+      "proposal_not_applied": {
+        "meaning": "An identifiable proposal is explicit and evidence explicitly says it was not applied or did not alter canonical state.",
+        "select_when": ["A concrete proposal is named.", "Its non-application or unchanged canonical state is explicit."],
+        "exclude_when": ["No proposal is named and only external effects are absent."]
+      },
+      "proposal_applied": {
+        "meaning": "An identifiable proposal is explicitly recorded as applied to the target state.",
+        "select_when": ["A concrete proposal and its application are both explicit."],
+        "exclude_when": ["The proposal was only created, reviewed, recommended, or approved."]
+      },
+      "receipt_manifest_hash_mismatch": {
+        "meaning": "The target receipt's recorded manifest identity differs from the current target manifest identity.",
+        "select_when": ["Both target identities are explicit and unequal."],
+        "exclude_when": ["An identity is missing.", "The mismatch concerns another subject."]
+      },
+      "receipt_manifest_identity_match": {
+        "meaning": "Evidence explicitly verifies that the target receipt and current manifest identities match.",
+        "select_when": ["Both target identities are explicit and equal or their equality is explicitly verified."],
+        "exclude_when": ["A match is inferred only from absence of a reported mismatch."]
+      },
+      "quality_not_evaluated_after_mismatch": {
+        "meaning": "Evidence explicitly establishes that target quality was not evaluated after an identified identity mismatch.",
+        "select_when": ["The target mismatch is explicit.", "Post-mismatch non-evaluation is explicit."],
+        "exclude_when": ["Non-evaluation is generic or occurred before the mismatch."]
+      },
+      "quality_passed_after_mismatch": {
+        "meaning": "Evidence explicitly establishes that a post-mismatch target quality evaluation occurred and passed.",
+        "select_when": ["The target mismatch is explicit.", "A later target quality evaluation explicitly passed."],
+        "exclude_when": ["The pass preceded the mismatch or concerns another subject."]
+      }
+    },
+    "failure_attractors": {
+      "authority_overreach_risk": {
+        "meaning": "Risk that local or advisory evidence will be treated as authority for an externally governed effect.",
+        "select_when": ["The request explicitly distinguishes local or advisory evidence from approval, deployment, publication, activation, or another governed effect."],
+        "exclude_when": ["The only supported risk is that a named proposal or review artifact will be mistaken for a decision or applied state."]
+      },
+      "proposal_decision_conflation_risk": {
+        "meaning": "Risk that a proposal or review artifact will be treated as an approved decision, applied change, or canonical state.",
+        "select_when": ["A concrete proposal or review artifact is explicit.", "Its decision, application, or canonical status remains distinct."],
+        "exclude_when": ["No proposal, review artifact, or decision-like subject is present."]
+      },
+      "no_material_failure_risk": {
+        "meaning": "Evidence affirmatively establishes that no material prospective failure risk relevant to the objective remains.",
+        "select_when": ["The supplied evidence explicitly resolves the material risks relevant to the objective."],
+        "exclude_when": ["Risk is merely unmentioned.", "Only local checks passed.", "No other failure-attractor code can be selected."]
+      }
+    },
+    "quality_contract_violations": {
+      "minimum_accuracy_violated": {
+        "meaning": "The target result is below an explicit minimum-accuracy criterion.",
+        "select_when": ["A minimum accuracy is explicit.", "The bound target accuracy is explicitly below that minimum."],
+        "exclude_when": ["Accuracy regressed but no minimum was declared."]
+      },
+      "minimum_accuracy_satisfied": {
+        "meaning": "The target result meets or exceeds an explicit minimum-accuracy criterion.",
+        "select_when": ["A minimum accuracy is explicit.", "The bound target accuracy explicitly meets or exceeds that minimum."],
+        "exclude_when": ["Accuracy improved but no minimum was declared.", "A generic pass lacks a bound accuracy criterion."]
+      },
+      "evidence_identity_violated": {
+        "meaning": "The target violates an explicit receipt-and-manifest identity requirement.",
+        "select_when": ["Identity equality is an explicit criterion.", "The bound target receipt and manifest identities explicitly differ."],
+        "exclude_when": ["A mismatch is suspected but not established."]
+      },
+      "evidence_identity_satisfied": {
+        "meaning": "The target satisfies an explicit receipt-and-manifest identity requirement.",
+        "select_when": ["Identity equality is an explicit criterion.", "The bound target receipt and manifest identities explicitly match."],
+        "exclude_when": ["Satisfaction is inferred only from absence of mismatch evidence."]
+      }
+    },
+    "hypotheses": {
+      "causal_explanation_unproven": {
+        "meaning": "An identified causal or mechanism explanation explicitly remains unresolved.",
+        "select_when": ["Evidence explicitly states that association is not causal proof, an intervention did not isolate the mechanism, or causation remains uncertain."],
+        "exclude_when": ["Causal uncertainty is merely absent or imagined."]
+      },
+      "causal_explanation_proven": {
+        "meaning": "An identified causal or mechanism explanation was explicitly established by isolating or interventional evidence.",
+        "select_when": ["Evidence explicitly identifies the cause or mechanism and establishes its isolation."],
+        "exclude_when": ["Evidence shows only correlation, temporal succession, unchanged controls, or an unsupported causal claim."]
+      }
+    },
+    "recommended_experiments": {
+      "governing_owner_review": {
+        "meaning": "Present bounded evidence to the authority-owning party for judgment or authorization.",
+        "select_when": ["An authority boundary is explicit.", "The immediate need is owner judgment rather than readiness checking for a concrete proposal or transition."],
+        "exclude_when": ["A concrete review-only or unapplied proposal is the immediate subject and its approval prerequisites must first be checked."]
+      },
+      "controlled_prompt_ablation": {
+        "meaning": "Vary an identified prompt element while holding relevant runtime and data conditions constant.",
+        "select_when": ["A prompt-related causal explanation explicitly remains unresolved.", "A controlled ablation would discriminate that explanation."],
+        "exclude_when": ["No prompt-causality uncertainty is present."]
+      },
+      "approval_preflight": {
+        "meaning": "Check whether an explicit proposal or transition satisfies prerequisites for a later owner approval decision; this neither grants approval nor applies the proposal.",
+        "select_when": ["A concrete proposal or transition is explicit.", "It is in a review-only, proposed, or unapplied state requiring readiness checks."],
+        "exclude_when": ["No proposal or transition target exists and the immediate need is judgment from the governing authority owner."]
+      },
+      "rebind_and_verified_replay": {
+        "meaning": "Rebind evidence to the current artifact identity, then replay and verify against that binding.",
+        "select_when": ["The target receipt or artifact identity is mismatched or stale.", "Integrity must be restored before quality is interpreted."],
+        "exclude_when": ["Identity already matches.", "The objective concerns unrelated causal or authority evidence."]
+      },
+      "skip_further_experiment": {
+        "meaning": "Perform no additional evidence-generating action because the objective is already resolved.",
+        "select_when": ["Evidence positively establishes that relevant criteria, integrity, uncertainty, and authority questions are settled."],
+        "exclude_when": ["Risk is merely unmentioned.", "Only local checks passed.", "Any material uncertainty remains."]
+      },
+      "activate_now": {
+        "meaning": "Proceed with an already-authorized activation after all required gates are explicitly satisfied; the recommendation records existing authority and does not create it.",
+        "select_when": ["Authoritative activation permission is explicit in the supplied evidence.", "Required activation prerequisites are explicitly complete."],
+        "exclude_when": ["Evidence is local or advisory.", "Approval or activation effects are absent.", "Authorization must still be obtained."]
+      }
+    }
+  }
+}

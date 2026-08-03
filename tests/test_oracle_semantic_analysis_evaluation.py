@@ -120,7 +120,10 @@ class _SequenceLM:
         self.prompts: list[str] = []
 
     def generate(self, request, **kwargs):
-        assert kwargs == {"response_format": _analysis_response_format()}
+        response_format = kwargs.get("response_format")
+        assert isinstance(response_format, dict)
+        assert response_format["name"] == "dspx_oracle_semantic_analysis"
+        assert response_format["strict"] is True
         self.prompts.append(request.prompt)
         response = self.analyses[self.calls]
         self.calls += 1
@@ -142,7 +145,9 @@ def _live_backend(
 
 def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     module = _load_runner()
-    contract, observed_hash = module.load_contract(REPO_ROOT)
+    contract, observed_hash = module.load_contract(
+        REPO_ROOT, require_current_sources=False
+    )
 
     contract_path = (
         REPO_ROOT / "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json"
@@ -236,7 +241,7 @@ def test_review_invariant_allows_only_activation_metadata_byte_changes() -> None
 
 def test_v8_matrix_matches_reviewed_v7_semantics_and_evidence_rubric() -> None:
     module = _load_runner()
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
     expected_matrix = {
         "authority-boundary": {
             "observations": ["local_quality_checks_passed"],
@@ -316,7 +321,7 @@ def test_v8_matrix_matches_reviewed_v7_semantics_and_evidence_rubric() -> None:
 
 def test_every_frozen_case_can_satisfy_the_external_scorer() -> None:
     module = _load_runner()
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
 
     scores = [
         score_analysis(case, analysis)
@@ -331,7 +336,7 @@ def test_every_frozen_case_can_satisfy_the_external_scorer() -> None:
 
 def test_scorer_rejects_missing_code_unknown_prose_and_fabricated_ref() -> None:
     module = _load_runner()
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
     analysis = _passing_analyses()[1]
     analysis["hypotheses"] = []
     analysis["evidence_refs"].append("episode:other:candidate")
@@ -358,7 +363,7 @@ def test_scorer_rejects_every_allowed_contrary_code(
     field: str, forbidden_code: str
 ) -> None:
     module = _load_runner()
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
     analysis = _passing_analyses()[1]
     analysis[field] = [forbidden_code]
 
@@ -381,7 +386,7 @@ def test_scorer_rejects_every_allowed_contrary_code(
 )
 def test_scorer_rejects_unconstrained_natural_language(text: str) -> None:
     module = _load_runner()
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
     analysis = _passing_analyses()[1]
     analysis["observations"] = [text]
 
@@ -393,7 +398,7 @@ def test_scorer_rejects_unconstrained_natural_language(text: str) -> None:
 
 def test_scorer_rejects_duplicate_or_extra_allowed_codes() -> None:
     module = _load_runner()
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
     analysis = _passing_analyses()[1]
     analysis["observations"] = ["accuracy_decreased", "accuracy_decreased"]
 
@@ -484,34 +489,38 @@ def test_failed_after_response_provenance_is_fully_correlated() -> None:
         )
 
 
-def test_nonproduction_evidence_class_refuses_before_effects_in_every_review_state(
+def test_consumed_v8_execution_refuses_current_source_drift_before_effects(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _load_runner()
     root = tmp_path / "must-not-exist"
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
+    assert contract["ak_task_id"] == 4577
+    with pytest.raises(
+        module.SemanticAnalysisEvaluationError,
+        match="semantic_backend source hash drift",
+    ):
+        module.load_contract(REPO_ROOT)
     monkeypatch.setattr(
         module,
         "preflight_maintained_lm_auth",
-        lambda: pytest.fail("review and evidence class checks must precede preflight"),
+        lambda: pytest.fail("source drift must precede dependency preflight"),
     )
     monkeypatch.setattr(
         module,
         "_new_root",
-        lambda _root: pytest.fail("review and evidence class checks precede root"),
-    )
-    expected = (
-        "successor review is pending"
-        if contract["status"].startswith("successor_offline_review_pending")
-        else "authorizes only the production-adapter live evidence class"
+        lambda _root: pytest.fail("source drift must precede artifact root creation"),
     )
 
-    with pytest.raises(module.SemanticAnalysisEvaluationError, match=expected):
+    with pytest.raises(
+        module.SemanticAnalysisEvaluationError,
+        match="semantic_backend source hash drift",
+    ):
         module.run_evaluation(
             repo_root=REPO_ROOT,
             root=root,
-            evidence_class="test_double_wiring_only",
+            evidence_class="production_adapter_live_behavior",
         )
 
     assert not root.exists()
@@ -522,7 +531,7 @@ def test_pending_review_refuses_artifact_verification_without_effects(
 ) -> None:
     module = _load_runner()
     root = tmp_path / "must-not-exist"
-    contract, _ = module.load_contract(REPO_ROOT)
+    contract, _ = module.load_contract(REPO_ROOT, require_current_sources=False)
 
     if contract["status"].startswith("successor_offline_review_pending"):
         with pytest.raises(
@@ -532,3 +541,176 @@ def test_pending_review_refuses_artifact_verification_without_effects(
             module.verify_evaluation(repo_root=REPO_ROOT, root=root)
 
     assert not root.exists()
+
+
+def _v9_contract() -> dict[str, Any]:
+    return json.loads(
+        (
+            REPO_ROOT
+            / "benchmarks/semantic/oracle-semantic-analysis-evaluation-v9.json"
+        ).read_text(encoding="utf-8")
+    )
+
+
+def _v9_code_semantics() -> dict[str, Any]:
+    contract = _v9_contract()
+    binding = contract["code_semantics_binding"]
+    path = REPO_ROOT / binding["path"]
+    raw = path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == binding["sha256"]
+    return json.loads(raw)
+
+
+def _provider_request(case: dict[str, Any]) -> OracleSemanticRequest:
+    payload = case["provider_request"]
+    quality_contract = json.loads(json.dumps(payload["quality_contract"]))
+    semantics_ref = quality_contract.pop("analysis_code_semantics_ref")
+    binding = _v9_contract()["code_semantics_binding"]
+    assert semantics_ref == {
+        "path": binding["path"],
+        "sha256": binding["sha256"],
+    }
+    quality_contract["analysis_code_semantics"] = _v9_code_semantics()
+    return OracleSemanticRequest(
+        objective=payload["objective"],
+        evidence=payload["evidence"],
+        quality_contract=quality_contract,
+    )
+
+
+def test_v9_is_zero_process_and_preserves_v8_hidden_adjudication() -> None:
+    v8 = json.loads(
+        (
+            REPO_ROOT
+            / "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json"
+        ).read_text(encoding="utf-8")
+    )
+    v9 = _v9_contract()
+
+    assert v9["schema_version"] == ("dspx-oracle-semantic-analysis-evaluation-v9")
+    assert v9["status"] == "offline_disambiguation_review_pending_zero_process"
+    assert v9["ak_task_id"] == 4591
+    assert v9["route"]["live_authorized"] is False
+    assert v9["attempt_policy"]["maximum_evaluation_processes"] == 0
+    assert v9["attempt_policy"]["maximum_generate_calls_per_case"] == 0
+    assert v9["attempt_policy"]["dspx_generate_invocation_count"] == 0
+    assert v9["attempt_policy"]["ledger"]["kind"] == "none_zero_process"
+    assert v9["offline_adjudication"]["successor_review"]["status"] == (
+        "independent_successor_review_pending"
+    )
+    assert v9["remediation"]["terminal_result_sha256"] == (
+        "9428cab41a13d550b3c8ef497e1d0f7b5b8a25743f398da81910a7e4dcc6bf09"
+    )
+
+    for v9_case, v8_case in zip(v9["cases"], v8["cases"], strict=True):
+        assert v9_case["id"] == v8_case["id"]
+        assert v9_case["hidden_labels"] == v8_case["hidden_labels"]
+        assert (
+            v9_case["provider_request"]["objective"]
+            == (v8_case["provider_request"]["objective"])
+        )
+        assert (
+            v9_case["provider_request"]["evidence"]
+            == (v8_case["provider_request"]["evidence"])
+        )
+        assert (
+            v9_case["provider_request"]["quality_contract"]["analysis_codebook"]
+            == v8_case["provider_request"]["quality_contract"]["analysis_codebook"]
+        )
+
+
+def test_v9_code_semantics_are_complete_uniform_and_case_independent() -> None:
+    contract = _v9_contract()
+    semantics = _v9_code_semantics()
+    binding = contract["code_semantics_binding"]
+    serialized = json.dumps(semantics, sort_keys=True, separators=(",", ":"))
+    expected_fields = {
+        "observations",
+        "failure_attractors",
+        "quality_contract_violations",
+        "hypotheses",
+        "recommended_experiments",
+    }
+
+    assert semantics["schema_version"] == ("dspx-oracle-semantic-code-semantics-v1")
+    assert binding["schema_version"] == semantics["schema_version"]
+    assert contract["semantic_materialization"]["source"] == binding["path"]
+    assert contract["semantic_materialization"]["canonical_sha256"] == binding["sha256"]
+    assert set(semantics["fields"]) == expected_fields
+    assert sum(len(codes) for codes in semantics["fields"].values()) == 26
+    for forbidden_text in (
+        "HIDDEN-",
+        "hidden_labels",
+        "expected_codes",
+        "forbidden_codes",
+        "episode:authority:",
+        "episode:causal:",
+        "episode:review:",
+        "episode:provenance:",
+        "authority-boundary",
+        "causal-calibration",
+        "review-only-transition",
+        "provenance-drift",
+    ):
+        assert forbidden_text not in serialized
+
+    for case in contract["cases"]:
+        quality = case["provider_request"]["quality_contract"]
+        assert quality["analysis_code_semantics_ref"] == {
+            "path": binding["path"],
+            "sha256": binding["sha256"],
+        }
+        assert "analysis_code_semantics" not in quality
+        assert (
+            quality["analysis_evidence_ref_rubric"] == contract["evidence_ref_rubric"]
+        )
+        assert quality["analysis_confidence_rubric"] == contract["confidence_rubric"]
+        for field in expected_fields:
+            assert (
+                list(semantics["fields"][field]) == quality["analysis_codebook"][field]
+            )
+            for definition in semantics["fields"][field].values():
+                assert set(definition) == {"meaning", "select_when", "exclude_when"}
+                assert str(definition["meaning"]).strip()
+                assert definition["select_when"]
+                assert definition["exclude_when"]
+
+
+def test_v9_hidden_label_mutation_cannot_change_provider_prompt() -> None:
+    contract = _v9_contract()
+    for case in contract["cases"]:
+        original_prompt = _analysis_prompt(_provider_request(case))
+        mutated = json.loads(json.dumps(case))
+        mutated["hidden_marker"] = "HIDDEN-MUTATION-CANARY"
+        mutated["hidden_labels"]["expected_codes"] = {
+            field: ["hidden-answer-canary"]
+            for field in mutated["hidden_labels"]["expected_codes"]
+        }
+        mutated_prompt = _analysis_prompt(_provider_request(mutated))
+
+        assert mutated_prompt == original_prompt
+        assert case["hidden_marker"] not in original_prompt
+        assert "HIDDEN-AK4591" not in original_prompt
+        assert "hidden-answer-canary" not in mutated_prompt
+        assert json.dumps(case["hidden_labels"], sort_keys=True) not in original_prompt
+
+
+def test_v9_response_schema_uses_visible_code_and_evidence_ref_enums() -> None:
+    contract = _v9_contract()
+    authority = next(
+        case for case in contract["cases"] if case["id"] == "authority-boundary"
+    )
+    request = _provider_request(authority)
+    response_format = _analysis_response_format(request)
+    properties = response_format["schema"]["properties"]
+    quality_contract = request.quality_contract
+    assert quality_contract is not None
+
+    for field, codes in quality_contract["analysis_codebook"].items():
+        assert properties[field]["items"]["enum"] == codes
+        assert properties[field]["uniqueItems"] is True
+    assert properties["evidence_refs"]["items"]["enum"] == [
+        "episode:authority:quality",
+        "episode:authority:effects",
+    ]
+    assert properties["evidence_refs"]["uniqueItems"] is True

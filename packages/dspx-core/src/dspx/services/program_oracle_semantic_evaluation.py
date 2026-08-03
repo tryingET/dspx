@@ -298,7 +298,9 @@ def preflight_maintained_lm_auth() -> dict[str, str]:
     }
 
 
-def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
+def load_contract(
+    repo_root: Path, *, require_current_sources: bool = True
+) -> tuple[dict[str, Any], str]:
     root = repo_root.expanduser().resolve()
     contract_path = root / CONTRACT_RELATIVE_PATH
     contract, raw = _read_json(contract_path, label="semantic-analysis contract")
@@ -347,9 +349,11 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
         if binding.get("path") != expected_path:
             raise SemanticAnalysisEvaluationError(f"{label} source path drift")
         expected_hash = binding.get("sha256")
+        if not isinstance(expected_hash, str):
+            raise SemanticAnalysisEvaluationError(f"{label} source hash drift")
         if (
-            not isinstance(expected_hash, str)
-            or _sha256_file(root / expected_path) != expected_hash
+            require_current_sources
+            and _sha256_file(root / expected_path) != expected_hash
         ):
             raise SemanticAnalysisEvaluationError(f"{label} source hash drift")
 
