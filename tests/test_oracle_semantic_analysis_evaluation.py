@@ -712,15 +712,39 @@ def test_v9_is_zero_process_and_preserves_v8_hidden_adjudication() -> None:
     v9 = _v9_contract()
 
     assert v9["schema_version"] == ("dspx-oracle-semantic-analysis-evaluation-v9")
-    assert v9["status"] == "offline_disambiguation_review_pending_zero_process"
+    assert v9["status"] == "offline_disambiguation_review_accepted_zero_process"
     assert v9["ak_task_id"] == 4591
     assert v9["route"]["live_authorized"] is False
     assert v9["attempt_policy"]["maximum_evaluation_processes"] == 0
     assert v9["attempt_policy"]["maximum_generate_calls_per_case"] == 0
     assert v9["attempt_policy"]["dspx_generate_invocation_count"] == 0
     assert v9["attempt_policy"]["ledger"]["kind"] == "none_zero_process"
-    assert v9["offline_adjudication"]["successor_review"]["status"] == (
-        "independent_successor_review_pending"
+    successor_review = v9["offline_adjudication"]["successor_review"]
+    assert successor_review["status"] == "independent_successor_review_accepted"
+    assert successor_review["reviewers"] == [
+        "dispatch-1785732670998",
+        "dispatch-1785732670999",
+    ]
+    assert successor_review["reviewed_commit"] == (
+        "6089521a5a3d216f7a83e6342de92197bf4e82c9"
+    )
+    assert successor_review["review_evidence"] == "ak:evidence:6287"
+    pending = json.loads(json.dumps(v9))
+    pending["status"] = "offline_disambiguation_review_pending_zero_process"
+    pending["offline_adjudication"]["successor_review"] = {
+        "status": "independent_successor_review_pending",
+        "reviewer": None,
+        "review_evidence": None,
+        "review_question": (
+            "Does v9 define all existing codes uniformly and repair field-wire "
+            "compatibility without leaking case-specific hidden labels, while "
+            "authorizing zero evaluation processes?"
+        ),
+    }
+    pending_bytes = (json.dumps(pending, indent=2) + "\n").encode()
+    assert (
+        hashlib.sha256(pending_bytes).hexdigest()
+        == successor_review["reviewed_candidate_sha256"]
     )
     assert v9["remediation"]["terminal_result_sha256"] == (
         "9428cab41a13d550b3c8ef497e1d0f7b5b8a25743f398da81910a7e4dcc6bf09"

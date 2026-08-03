@@ -1,6 +1,6 @@
 {
   "schema_version": "dspx-oracle-semantic-analysis-evaluation-v9",
-  "status": "offline_disambiguation_review_pending_zero_process",
+  "status": "offline_disambiguation_review_accepted_zero_process",
   "ak_task_id": 4591,
   "purpose": "Freeze a zero-process, independently reviewable semantic-code disambiguation candidate after the terminal AK-4577 miss, without rerunning or modifying its consumed evidence.",
   "claim_scope": "four_candidate_local_cases_only_not_statistically_representative",
@@ -183,10 +183,16 @@
       "sha256": "8ead13cab9dc5f7614f56dae1d4499fb2257a6d41b28e5ce72dc43c41d29c1e8"
     },
     "successor_review": {
-      "status": "independent_successor_review_pending",
-      "reviewer": null,
-      "review_evidence": null,
-      "review_question": "Does v9 define all existing codes uniformly and repair field-wire compatibility without leaking case-specific hidden labels, while authorizing zero evaluation processes?"
+      "status": "independent_successor_review_accepted",
+      "reviewers": [
+        "dispatch-1785732670998",
+        "dispatch-1785732670999"
+      ],
+      "reviewed_commit": "6089521a5a3d216f7a83e6342de92197bf4e82c9",
+      "reviewed_candidate_sha256": "0fa68440c482030ed6deb76b1d12feca8ebad36c2ebf53e1bca2766c434cf461",
+      "review_evidence": "ak:evidence:6287",
+      "review_question": "Does v9 define all existing codes uniformly and repair field-wire compatibility without leaking case-specific hidden labels, while authorizing zero evaluation processes?",
+      "authorization_scope": "offline_candidate_only_no_materialization_provider_call_evaluation_release_or_activation"
     }
   },
   "cases": [
