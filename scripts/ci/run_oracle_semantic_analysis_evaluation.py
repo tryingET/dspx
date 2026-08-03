@@ -161,34 +161,58 @@ def _adapter_preflight(
 
 
 def _adapter_call_evidence(
-    lm: DspyLMAuthLM, *, previous_history_count: int, executed_model: str
+    lm: DspyLMAuthLM,
+    *,
+    previous_history_count: int,
+    execution_status: str,
+    executed_model: str | None,
 ) -> dict[str, Any]:
-    if len(lm.history) != previous_history_count + 1:
+    history_delta = len(lm.history) - previous_history_count
+    if history_delta not in {0, 1}:
         raise SemanticAnalysisEvaluationError(
             "production adapter call history cardinality drift"
         )
-    call = lm.history[-1]
     metadata = lm.runtime_metadata()
+    if history_delta == 0:
+        return {
+            "history_index": previous_history_count,
+            "history_delta": 0,
+            "generate_invocation_observed": True,
+            "requested_model": lm.requested_model,
+            "auth_provider": lm.auth_provider,
+            "call_error": "history_not_recorded_before_inner_setup",
+            "resolved_model": metadata.get("resolved_model"),
+            "uses_codex_route": metadata.get("uses_codex_route"),
+            "observed_response_model": executed_model,
+        }
+    call = lm.history[-1]
     if (
         call.model != lm.requested_model
         or call.auth_provider != "codex"
-        or call.error is not None
         or call.ended_at < call.started_at
         or metadata.get("provider_family") != "dspy-lm-auth"
         or metadata.get("requested_model") != lm.requested_model
         or metadata.get("uses_codex_route") is not True
-        or not str(metadata.get("resolved_model") or "").strip()
-        or executed_model != str(lm.model)
     ):
         raise SemanticAnalysisEvaluationError(
             "production adapter execution evidence drift"
         )
+    if execution_status == "succeeded" and (
+        call.error is not None
+        or not str(metadata.get("resolved_model") or "").strip()
+        or executed_model != str(lm.model)
+    ):
+        raise SemanticAnalysisEvaluationError(
+            "successful production adapter execution evidence drift"
+        )
     return {
         "history_index": previous_history_count,
+        "history_delta": 1,
+        "generate_invocation_observed": True,
         "requested_model": call.model,
         "auth_provider": call.auth_provider,
-        "call_error": None,
-        "resolved_model": str(metadata["resolved_model"]),
+        "call_error": call.error,
+        "resolved_model": metadata.get("resolved_model"),
         "uses_codex_route": True,
         "observed_response_model": executed_model,
     }
@@ -198,6 +222,7 @@ def run_evaluation(
     *,
     repo_root: Path,
     root: Path,
+    source_commit: str | None = None,
     evidence_class: str = _LIVE_EVIDENCE_CLASS,
 ) -> dict[str, Any]:
     contract, contract_hash = load_contract(repo_root)
@@ -215,8 +240,22 @@ def run_evaluation(
         raise SemanticAnalysisEvaluationError(
             "AK-4577 authorizes only the production-adapter live evidence class"
         )
+    if source_commit is None:
+        raise SemanticAnalysisEvaluationError(
+            "--source-commit is required for the reviewed live successor"
+        )
+    expected_runner = (
+        repo_root.expanduser().resolve()
+        / "scripts/ci/run_oracle_semantic_analysis_evaluation.py"
+    )
+    if Path(__file__).resolve() != expected_runner:
+        raise SemanticAnalysisEvaluationError(
+            "live runner did not originate from the authorized repository source"
+        )
     dependency_identity = preflight_maintained_lm_auth()
-    source_identity = _committed_source_identity(repo_root)
+    source_identity = _committed_source_identity(
+        repo_root, expected_commit=source_commit
+    )
     target = _new_root(root)
     try:
         ledger = _consume_attempt_ledger(
@@ -242,7 +281,7 @@ def run_evaluation(
         "selective_case_rerun": False,
         "cases_attempted": [],
         "dspx_analyze_invocations": 0,
-        "generate_call_count": "not_directly_observed",
+        "generate_call_count": 0,
         "provider_transport_call_count": "not_proven",
         "provider_internal_retry_behavior": "not_proven",
         "ledger_path": str(ledger),
@@ -291,6 +330,7 @@ def run_evaluation(
                 )
             attempt["cases_attempted"].append(case_id)
             attempt["dspx_analyze_invocations"] = len(attempt["cases_attempted"])
+            attempt["generate_call_count"] = int(attempt["generate_call_count"]) + 1
             _replace_private_atomic(target / ATTEMPT_NAME, attempt)
             history_before = len(production_lm.history) if production_lm else 0
             result = backend.analyze(request)
@@ -299,14 +339,23 @@ def run_evaluation(
                 "request_sha256": request.request_sha256,
                 "semantic_result": result.to_dict(),
                 "score": None,
+                "status": "failed_or_indeterminate",
             }
+            case_results.append(row)
+            if production_lm is not None:
+                adapter_calls.append(
+                    _adapter_call_evidence(
+                        production_lm,
+                        previous_history_count=history_before,
+                        execution_status=result.execution_status,
+                        executed_model=result.executed_model,
+                    )
+                )
             if (
                 result.execution_status != "succeeded"
                 or not result.live_call_succeeded
                 or result.analysis is None
             ):
-                row["status"] = "failed_or_indeterminate"
-                case_results.append(row)
                 terminal_error = result.error or result.execution_status
                 break
             if (
@@ -318,22 +367,12 @@ def run_evaluation(
                 or not result.executed_model
             ):
                 row["status"] = "identity_failed"
-                case_results.append(row)
                 terminal_error = "semantic-analysis identity gate failed"
                 break
             executed_models.append(result.executed_model)
-            if production_lm is not None:
-                adapter_calls.append(
-                    _adapter_call_evidence(
-                        production_lm,
-                        previous_history_count=history_before,
-                        executed_model=result.executed_model,
-                    )
-                )
             score = score_analysis(case, result.analysis.to_dict())
             row["score"] = score
             row["status"] = score["status"]
-            case_results.append(row)
             if score["status"] != "passed":
                 terminal_error = "semantic-analysis label gate failed"
                 break
@@ -397,7 +436,7 @@ def run_evaluation(
             "dspx_managed_retries": 0,
             "selective_case_rerun": False,
             "dspx_analyze_invocations": len(attempt["cases_attempted"]),
-            "generate_call_count": "not_directly_observed",
+            "generate_call_count": attempt["generate_call_count"],
         },
         "terminal_error": terminal_error,
         "claims": {
@@ -438,13 +477,19 @@ def _repo_root() -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "verify"):
-        command = subparsers.add_parser(name)
-        command.add_argument("--root", type=Path, required=True)
+    run_command = subparsers.add_parser("run")
+    run_command.add_argument("--root", type=Path, required=True)
+    run_command.add_argument("--source-commit", required=True)
+    verify_command = subparsers.add_parser("verify")
+    verify_command.add_argument("--root", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "run":
-            result = run_evaluation(repo_root=_repo_root(), root=args.root)
+            result = run_evaluation(
+                repo_root=_repo_root(),
+                root=args.root,
+                source_commit=args.source_commit,
+            )
             print(
                 json.dumps(
                     {

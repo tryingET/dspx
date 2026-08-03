@@ -139,7 +139,7 @@ def test_checked_in_contract_is_exact_and_labels_do_not_enter_prompts() -> None:
     contract, observed_hash = module.load_contract(REPO_ROOT)
 
     assert observed_hash == (
-        "81504079e9662206ce71861a2ad08476525cbcf4a358e7679fd54d3f2ea7d564"
+        "22bc8d5991919d7c3e8aca2b717e1a2027cf9d1a1b3e1834d234b62202a647cf"
     )
     assert contract["attempt_policy"]["case_order"] == list(module._CASE_ORDER)
     assert contract["status"] == (

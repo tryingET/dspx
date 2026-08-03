@@ -26,12 +26,13 @@
     "executed_provider_requirement": "explicit_null_not_proven",
     "executed_model_requirement": "non_empty_observed_response_identity",
     "production_adapter_requirement": "exact_dspx_dspy_lm_auth_lm_type_with_call_history",
-    "source_requirement": "all_evaluation_sources_match_one_committed_git_snapshot",
+    "source_requirement": "caller_supplied_exact_reviewed_git_commit_matches_head_and_all_evaluation_sources",
     "live_authorized": true
   },
   "attempt_policy": {
     "maximum_evaluation_processes": 1,
     "maximum_generate_calls_per_case": 1,
+    "dspx_generate_invocation_count": "recorded_before_each_analyze_and_verified_against_case_rows",
     "maximum_separate_health_probes": 0,
     "maximum_dspx_managed_retries": 0,
     "selective_case_rerun_allowed": false,

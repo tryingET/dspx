@@ -79,9 +79,21 @@ def _git(repo_root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
-def committed_source_identity(repo_root: Path) -> dict[str, Any]:
+def committed_source_identity(
+    repo_root: Path, *, expected_commit: str
+) -> dict[str, Any]:
     root = repo_root.expanduser().resolve()
+    if len(expected_commit) != 40 or any(
+        character not in "0123456789abcdef" for character in expected_commit
+    ):
+        raise SemanticAnalysisEvaluationError(
+            "authorized source commit must be a full lowercase Git SHA"
+        )
     commit = _git(root, "rev-parse", "HEAD")
+    if commit != expected_commit:
+        raise SemanticAnalysisEvaluationError(
+            "current HEAD does not match the authorized reviewed source commit"
+        )
     dirty = subprocess.run(
         ["git", "-C", str(root), "diff", "--quiet", "HEAD"],
         check=False,
@@ -127,7 +139,11 @@ def committed_source_identity(repo_root: Path) -> dict[str, Any]:
                 f"evaluation source differs from commit: {relative}"
             )
         hashes[relative] = working_hash
-    return {"git_commit": commit, "path_sha256": hashes}
+    return {
+        "git_commit": commit,
+        "path_sha256": hashes,
+        "runner_source_path": "scripts/ci/run_oracle_semantic_analysis_evaluation.py",
+    }
 
 
 def _require_private_mode(path: Path, expected: int, label: str) -> None:
@@ -146,6 +162,7 @@ def _validate_execution_provenance(
     *,
     evidence_class: str,
     executed_models: list[str],
+    attempted_count: int,
     mechanics_passed: bool,
 ) -> bool:
     provenance = _mapping(payload, "execution_provenance")
@@ -172,34 +189,57 @@ def _validate_execution_provenance(
         _mapping(item, "execution_provenance.call")
         for item in _sequence(provenance.get("calls"), "execution_provenance.calls")
     ]
+    if len(calls) != attempted_count:
+        raise SemanticAnalysisEvaluationError(
+            "production adapter generate-invocation evidence drift"
+        )
+    expected_history_index = 0
+    for call in calls:
+        history_delta = call.get("history_delta")
+        if (
+            call.get("history_index") != expected_history_index
+            or history_delta not in {0, 1}
+            or call.get("generate_invocation_observed") is not True
+            or call.get("requested_model") != "codex/gpt-5.6-sol"
+            or call.get("auth_provider") != "codex"
+        ):
+            raise SemanticAnalysisEvaluationError(
+                "production adapter call evidence drift"
+            )
+        if history_delta == 0:
+            if call.get("call_error") != "history_not_recorded_before_inner_setup":
+                raise SemanticAnalysisEvaluationError(
+                    "missing adapter history disposition drift"
+                )
+        else:
+            expected_history_index += 1
+            if call.get("uses_codex_route") is not True:
+                raise SemanticAnalysisEvaluationError(
+                    "production adapter route evidence drift"
+                )
+    if provenance.get("history_count_after") != expected_history_index:
+        raise SemanticAnalysisEvaluationError(
+            "production adapter terminal history count drift"
+        )
     if mechanics_passed:
         if (
             provenance.get("status") != "completed"
-            or provenance.get("history_count_after") != len(executed_models)
-            or len(calls) != len(executed_models)
+            or attempted_count != len(executed_models)
+            or any(
+                call.get("history_delta") != 1
+                or call.get("call_error") is not None
+                or not str(call.get("resolved_model") or "").strip()
+                or call.get("observed_response_model") != executed_model
+                for call, executed_model in zip(calls, executed_models, strict=True)
+            )
         ):
             raise SemanticAnalysisEvaluationError(
                 "production adapter completion evidence drift"
             )
-        for index, (call, executed_model) in enumerate(
-            zip(calls, executed_models, strict=True)
-        ):
-            expected_call = {
-                "history_index": index,
-                "requested_model": "codex/gpt-5.6-sol",
-                "auth_provider": "codex",
-                "call_error": None,
-                "resolved_model": call.get("resolved_model"),
-                "uses_codex_route": True,
-                "observed_response_model": executed_model,
-            }
-            if (
-                call != expected_call
-                or not str(call.get("resolved_model") or "").strip()
-            ):
-                raise SemanticAnalysisEvaluationError(
-                    "production adapter call evidence drift"
-                )
+    elif provenance.get("status") != "failed_or_indeterminate":
+        raise SemanticAnalysisEvaluationError(
+            "production adapter terminal disposition drift"
+        )
     return True
 
 
@@ -238,8 +278,16 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
     )
     if evidence_class not in {LIVE_EVIDENCE_CLASS, WIRING_EVIDENCE_CLASS}:
         raise SemanticAnalysisEvaluationError("evaluation evidence class drift")
+    recorded_source_commit = source_identity.get("git_commit")
     expected_source_identity = (
-        committed_source_identity(repo_root)
+        committed_source_identity(
+            repo_root,
+            expected_commit=(
+                recorded_source_commit
+                if isinstance(recorded_source_commit, str)
+                else ""
+            ),
+        )
         if evidence_class == LIVE_EVIDENCE_CLASS
         else {"status": "wiring_only_not_committed_source_proof"}
     )
@@ -284,7 +332,7 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         or attempt.get("selective_case_rerun") is not False
         or attempt.get("cases_attempted") != case_ids
         or attempt.get("dspx_analyze_invocations") != len(rows)
-        or attempt.get("generate_call_count") != "not_directly_observed"
+        or attempt.get("generate_call_count") != len(rows)
         or attempt.get("result_sha256") != result_hash
         or recorded_ledger != canonical_ledger
     ):
@@ -379,6 +427,7 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         result.get("execution_provenance"),
         evidence_class=evidence_class,
         executed_models=executed_models,
+        attempted_count=len(rows),
         mechanics_passed=mechanics_passed,
     )
     expected_pass = (
@@ -406,7 +455,7 @@ def verify_evaluation(*, repo_root: Path, root: Path) -> dict[str, Any]:
         "dspx_managed_retries": 0,
         "selective_case_rerun": False,
         "dspx_analyze_invocations": len(rows),
-        "generate_call_count": "not_directly_observed",
+        "generate_call_count": len(rows),
     }
     if result.get("attempt") != expected_attempt:
         raise SemanticAnalysisEvaluationError("result attempt projection drift")

@@ -26,7 +26,7 @@ CONTRACT_RELATIVE_PATH = Path(
     "benchmarks/semantic/oracle-semantic-analysis-evaluation-v8.json"
 )
 EXPECTED_CONTRACT_SHA256 = (
-    "81504079e9662206ce71861a2ad08476525cbcf4a358e7679fd54d3f2ea7d564"
+    "22bc8d5991919d7c3e8aca2b717e1a2027cf9d1a1b3e1834d234b62202a647cf"
 )
 FROZEN_SOURCE_COMMIT = "220604a2cc5fd32e40d6e1d23d043484acee4318"
 RESULT_NAME = "evaluation-result.json"
@@ -331,7 +331,8 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
             "exact_dspx_dspy_lm_auth_lm_type_with_call_history"
         ),
         "source_requirement": (
-            "all_evaluation_sources_match_one_committed_git_snapshot"
+            "caller_supplied_exact_reviewed_git_commit_matches_head_and_all_"
+            "evaluation_sources"
         ),
     }:
         raise SemanticAnalysisEvaluationError("semantic-analysis route drift")
@@ -340,6 +341,8 @@ def load_contract(repo_root: Path) -> tuple[dict[str, Any], str]:
     if (
         policy.get("maximum_evaluation_processes") != 1
         or policy.get("maximum_generate_calls_per_case") != 1
+        or policy.get("dspx_generate_invocation_count")
+        != "recorded_before_each_analyze_and_verified_against_case_rows"
         or policy.get("maximum_separate_health_probes") != 0
         or policy.get("maximum_dspx_managed_retries") != 0
         or policy.get("selective_case_rerun_allowed") is not False
