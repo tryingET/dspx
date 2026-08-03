@@ -559,6 +559,9 @@ def test_historical_source_identity_hashes_git_objects_without_importing_old_cod
     commit = git("rev-parse", "HEAD")
     expected_source_hash = hashlib.sha256(b"value = 'original'\n").hexdigest()
     (repo / "source.py").write_text("value = 'current'\n", encoding="utf-8")
+    git("add", "source.py")
+    git("commit", "-q", "-m", "current")
+    assert git("rev-parse", "HEAD") != commit
 
     monkeypatch.setattr(verification, "SOURCE_PATHS", ("source.py", "runner.py"))
     monkeypatch.setattr(
