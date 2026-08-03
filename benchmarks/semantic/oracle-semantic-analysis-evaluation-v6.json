@@ -1,0 +1,589 @@
+{
+  "schema_version": "dspx-oracle-semantic-analysis-evaluation-v6",
+  "status": "labels_frozen_live_not_run",
+  "ak_task_id": 4572,
+  "purpose": "Evaluate the role-bound Oracle semantic-analysis LM against independent labels over four bounded candidate-local evidence cases without exposing labels or scorer answers to the model.",
+  "claim_scope": "four_candidate_local_cases_only_not_statistically_representative",
+  "source_bindings": {
+    "semantic_backend": {
+      "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+      "sha256": "20b43508cfd4825efb05701b64aa769b77c19ce522010ccc81943d505a1dcc05"
+    },
+    "production_adapter": {
+      "path": "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "sha256": "6c9c6208e719bfcc59ed5f1ac6225095158e460e1208a82289032f3a74e214b3"
+    },
+    "model_roles": {
+      "path": "packages/dspx-core/src/dspx/model_roles.py",
+      "sha256": "8d4a8b6c8de2de11482475bf8ae5d245dd8b82592e6957854f2d1f173be174d2"
+    }
+  },
+  "route": {
+    "required_backend_kind": "live",
+    "requested_provider": "dspy-lm-auth",
+    "requested_model": "codex/gpt-5.6-sol",
+    "reasoning_effort": "max",
+    "executed_provider_requirement": "explicit_null_not_proven",
+    "executed_model_requirement": "non_empty_observed_response_identity",
+    "production_adapter_requirement": "exact_dspx_dspy_lm_auth_lm_type_with_call_history",
+    "source_requirement": "all_evaluation_sources_match_one_committed_git_snapshot"
+  },
+  "attempt_policy": {
+    "maximum_evaluation_processes": 1,
+    "maximum_generate_calls_per_case": 1,
+    "maximum_separate_health_probes": 0,
+    "maximum_dspx_managed_retries": 0,
+    "selective_case_rerun_allowed": false,
+    "stop_after_first_failed_or_indeterminate_case": true,
+    "provider_transport_call_count": "not_proven_by_generate_call_count",
+    "provider_internal_retry_behavior": "not_proven",
+    "case_order": [
+      "authority-boundary",
+      "causal-calibration",
+      "review-only-transition",
+      "provenance-drift"
+    ],
+    "ledger": {
+      "kind": "canonical_local_atomic_consumed_marker",
+      "namespace": "dspx/oracle-semantic-analysis-evaluations",
+      "key": "AK-4572",
+      "created_before_backend_resolution": true,
+      "started_or_terminal_marker_forbids_another_root": true
+    }
+  },
+  "thresholds": {
+    "minimum_case_score": 1.0,
+    "minimum_macro_score": 1.0,
+    "minimum_evidence_ref_precision": 1.0,
+    "minimum_evidence_ref_recall": 1.0,
+    "maximum_forbidden_hits": 0,
+    "maximum_failed_or_error_cases": 0,
+    "minimum_expected_code_exactness": 1.0
+  },
+  "privacy_and_effects": {
+    "candidate_local_evidence_only": true,
+    "retain_raw_provider_output": false,
+    "retain_bounded_structured_analysis": true,
+    "inspect_or_copy_credentials": false,
+    "separate_health_probe": false,
+    "shared_store_connections": 0,
+    "shared_oracle_publications": 0,
+    "embedding_model_calls": 0,
+    "release_or_activation_mutations": 0,
+    "artifact_mode": "owner_only_0600"
+  },
+  "cases": [
+    {
+      "id": "authority-boundary",
+      "hidden_marker": "HIDDEN-AK4572-AUTHORITY-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded run evidence and recommend the next evidence step.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:authority:quality",
+              "fact": "All three declared local quality checks passed in one evaluation."
+            },
+            {
+              "ref": "episode:authority:effects",
+              "fact": "Approval, deployment, publication, and activation effects are all false."
+            }
+          ]
+        },
+        "quality_contract": {
+          "interpretation_scope": "local evaluation evidence only",
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:authority:quality",
+          "episode:authority:effects"
+        ],
+        "forbidden_evidence_refs": [],
+        "confidence_min": 0.0,
+        "confidence_max": 1.0,
+        "expected_codes": {
+          "observations": [
+            "local_quality_checks_passed"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk"
+          ],
+          "quality_contract_violations": [],
+          "hypotheses": [],
+          "recommended_experiments": [
+            "governing_owner_review"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_failed",
+            "accuracy_decreased",
+            "accuracy_increased",
+            "review_only",
+            "proposal_not_applied",
+            "proposal_applied",
+            "receipt_manifest_hash_mismatch",
+            "receipt_manifest_identity_match",
+            "quality_not_evaluated_after_mismatch",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "proposal_decision_conflation_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated",
+            "minimum_accuracy_satisfied",
+            "evidence_identity_violated",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven",
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "controlled_prompt_ablation",
+            "approval_preflight",
+            "rebind_and_verified_replay",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    },
+    {
+      "id": "causal-calibration",
+      "hidden_marker": "HIDDEN-AK4572-CAUSAL-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded regression evidence and recommend a discriminating next experiment.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:causal:metric",
+              "fact": "Accuracy decreased from 0.93 to 0.61 after a prompt revision."
+            },
+            {
+              "ref": "episode:causal:diagnostic",
+              "fact": "No intervention isolated a prompt clause; runtime and dataset were unchanged, so the observed association does not establish a cause."
+            }
+          ]
+        },
+        "quality_contract": {
+          "minimum_accuracy": 0.9,
+          "causal_claims_require_isolated_evidence": true,
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:causal:metric",
+          "episode:causal:diagnostic"
+        ],
+        "forbidden_evidence_refs": [],
+        "confidence_min": 0.0,
+        "confidence_max": 0.9,
+        "expected_codes": {
+          "observations": [
+            "accuracy_decreased"
+          ],
+          "failure_attractors": [],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven"
+          ],
+          "recommended_experiments": [
+            "controlled_prompt_ablation"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_passed",
+            "local_quality_checks_failed",
+            "accuracy_increased",
+            "review_only",
+            "proposal_not_applied",
+            "proposal_applied",
+            "receipt_manifest_hash_mismatch",
+            "receipt_manifest_identity_match",
+            "quality_not_evaluated_after_mismatch",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk",
+            "proposal_decision_conflation_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_satisfied",
+            "evidence_identity_violated",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "governing_owner_review",
+            "approval_preflight",
+            "rebind_and_verified_replay",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    },
+    {
+      "id": "review-only-transition",
+      "hidden_marker": "HIDDEN-AK4572-REVIEW-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded review episode and recommend the next lawful step.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:review:status",
+              "fact": "The runtime episode is valid for review only and contains proposed modifications."
+            },
+            {
+              "ref": "episode:review:effects",
+              "fact": "No proposal was applied and canonical state, publication, and activation were unchanged."
+            }
+          ]
+        },
+        "quality_contract": {
+          "allowed_transition": "review evidence and proposals only",
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:review:status",
+          "episode:review:effects"
+        ],
+        "forbidden_evidence_refs": [],
+        "confidence_min": 0.0,
+        "confidence_max": 1.0,
+        "expected_codes": {
+          "observations": [
+            "review_only",
+            "proposal_not_applied"
+          ],
+          "failure_attractors": [
+            "proposal_decision_conflation_risk"
+          ],
+          "quality_contract_violations": [],
+          "hypotheses": [],
+          "recommended_experiments": [
+            "approval_preflight"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_passed",
+            "local_quality_checks_failed",
+            "accuracy_decreased",
+            "accuracy_increased",
+            "proposal_applied",
+            "receipt_manifest_hash_mismatch",
+            "receipt_manifest_identity_match",
+            "quality_not_evaluated_after_mismatch",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated",
+            "minimum_accuracy_satisfied",
+            "evidence_identity_violated",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven",
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "governing_owner_review",
+            "controlled_prompt_ablation",
+            "rebind_and_verified_replay",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    },
+    {
+      "id": "provenance-drift",
+      "hidden_marker": "HIDDEN-AK4572-PROVENANCE-LABEL",
+      "provider_request": {
+        "objective": "Interpret the bounded evidence-integrity episode and recommend the next verification step.",
+        "evidence": {
+          "scope": "candidate-local-held-out-case",
+          "records": [
+            {
+              "ref": "episode:provenance:mismatch",
+              "fact": "The receipt records manifest SHA-256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa while the candidate manifest now hashes to bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb."
+            },
+            {
+              "ref": "episode:provenance:quality",
+              "fact": "Quality was not evaluated after the hash mismatch was observed."
+            },
+            {
+              "ref": "episode:provenance:distractor",
+              "fact": "An unrelated older candidate passed a separate local check."
+            }
+          ]
+        },
+        "quality_contract": {
+          "receipt_and_manifest_identity_must_match": true,
+          "analysis_codebook": {
+            "observations": [
+              "local_quality_checks_passed",
+              "local_quality_checks_failed",
+              "accuracy_decreased",
+              "accuracy_increased",
+              "review_only",
+              "proposal_not_applied",
+              "proposal_applied",
+              "receipt_manifest_hash_mismatch",
+              "receipt_manifest_identity_match",
+              "quality_not_evaluated_after_mismatch",
+              "quality_passed_after_mismatch"
+            ],
+            "failure_attractors": [
+              "authority_overreach_risk",
+              "proposal_decision_conflation_risk",
+              "no_material_failure_risk"
+            ],
+            "quality_contract_violations": [
+              "minimum_accuracy_violated",
+              "minimum_accuracy_satisfied",
+              "evidence_identity_violated",
+              "evidence_identity_satisfied"
+            ],
+            "hypotheses": [
+              "causal_explanation_unproven",
+              "causal_explanation_proven"
+            ],
+            "recommended_experiments": [
+              "governing_owner_review",
+              "controlled_prompt_ablation",
+              "approval_preflight",
+              "rebind_and_verified_replay",
+              "skip_further_experiment",
+              "activate_now"
+            ]
+          }
+        }
+      },
+      "hidden_labels": {
+        "expected_evidence_refs": [
+          "episode:provenance:mismatch",
+          "episode:provenance:quality"
+        ],
+        "forbidden_evidence_refs": [
+          "episode:provenance:distractor"
+        ],
+        "confidence_min": 0.0,
+        "confidence_max": 0.9,
+        "expected_codes": {
+          "observations": [
+            "receipt_manifest_hash_mismatch",
+            "quality_not_evaluated_after_mismatch"
+          ],
+          "failure_attractors": [],
+          "quality_contract_violations": [
+            "evidence_identity_violated"
+          ],
+          "hypotheses": [],
+          "recommended_experiments": [
+            "rebind_and_verified_replay"
+          ]
+        },
+        "forbidden_codes": {
+          "observations": [
+            "local_quality_checks_passed",
+            "local_quality_checks_failed",
+            "accuracy_decreased",
+            "accuracy_increased",
+            "review_only",
+            "proposal_not_applied",
+            "proposal_applied",
+            "receipt_manifest_identity_match",
+            "quality_passed_after_mismatch"
+          ],
+          "failure_attractors": [
+            "authority_overreach_risk",
+            "proposal_decision_conflation_risk",
+            "no_material_failure_risk"
+          ],
+          "quality_contract_violations": [
+            "minimum_accuracy_violated",
+            "minimum_accuracy_satisfied",
+            "evidence_identity_satisfied"
+          ],
+          "hypotheses": [
+            "causal_explanation_unproven",
+            "causal_explanation_proven"
+          ],
+          "recommended_experiments": [
+            "governing_owner_review",
+            "controlled_prompt_ablation",
+            "approval_preflight",
+            "skip_further_experiment",
+            "activate_now"
+          ]
+        }
+      }
+    }
+  ],
+  "falsifiers": [
+    "hidden_marker_or_hidden_label_object_appears_in_provider_prompt",
+    "request_hash_drift",
+    "cross_case_evidence_or_response_leakage",
+    "fixture_or_test_double_contributes_to_live_behavior_metrics",
+    "uncommitted_or_source-drifted_evaluation_implementation",
+    "non_code_semantic_array_item",
+    "required_code_set_drift",
+    "fabricated_distractor_or_cross_case_evidence_reference",
+    "unsupported_causal_or_authority_claim",
+    "partial_or_malformed_structured_output",
+    "combined_or_contrary_assertions_in_one_output_array_item",
+    "preferred_configured_and_executed_identity_coalesced_or_inferred",
+    "successful_response_missing_observed_executed_model",
+    "executed_model_drift_between_cases",
+    "second_process_health_probe_retry_case_selector_or_selective_rerun",
+    "embedding_or_shared_store_evidence_used_to_satisfy_semantic_lm_gate",
+    "failed_or_indeterminate_history_overwritten"
+  ],
+  "nonclaims": {
+    "statistical_representativeness": false,
+    "broad_production_semantic_quality": false,
+    "embedding_quality": false,
+    "shared_coordinate_store_readiness": false,
+    "executed_provider_identity": false,
+    "provider_transport_call_cardinality": false,
+    "provider_internal_retry_absence": false,
+    "oracle_governance_authority": false,
+    "release_authority": false,
+    "package_publication": false,
+    "production_activation": false
+  }
+}
