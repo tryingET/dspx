@@ -96,9 +96,9 @@ A permanent pause is premature because a bounded provider-free design question r
 
 ## Legal next transition
 
-The next execution leaf should be a **no-provider design/review task** for the typed provider-call outcome receipt and DSPx consumption contract. It may produce a cross-repo handoff to the `tryinget-dspy-lm-auth` owner. It must not materialize a v11 benchmark, mutate v10 artifacts, or grant live authority.
+The selected provider-free route has now completed its prerequisite sequence: AK-4661 designed the receipt, provider-owner AK-4672 accepted the exact implementation, and DSPx AK-4678 accepted the exact-source-bound private sink, journal, dependency verifier, and fail-closed fixture reducer. No provider operation or v11 was created.
 
-Only after that design is accepted as `successor_designable` may a separate task propose v11. Such a task would require a fresh contract, task-fixed ledger and artifact root, exact candidate review, separate operator/live gate, one-process/no-retry custody, and provider-free verification. V10 remains immutable terminal history.
+The AK-4681 decision candidate selects **`propose_unique_v11_contract`** under the [v11 admission decision](oracle-semantic-analysis-v11-admission-decision.md); only AK-4681 evidence/result can make that selection lifecycle truth. If recorded, the only admitted next leaf is a fresh provider-free task that may propose a unique contract and task-fixed ledger/artifact root. Candidate materialization, exact review, explicit operator/live execution, and independent provider-free verification remain separate later tasks and gates. V10 remains immutable terminal history.
 
 ## Maximum claim
 

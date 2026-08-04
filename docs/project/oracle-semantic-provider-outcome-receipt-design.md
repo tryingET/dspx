@@ -26,7 +26,7 @@ The provider-free prerequisite is now implemented on both owner surfaces:
 - DSPx AK-4678 adds the exact source/runtime verifier, paired owner-receipt factory, owner-private mode-`0700`/`0600` no-replace journal, durable pre-write inflight marker, closed identity/event validation, and fail-closed reducer under `packages/dspx-core/src/dspx/services/provider_outcome_receipt_*.py`;
 - the DSPx fixture lane uses the exact accepted owner event and receipt classes, pins the four locked dependency payload and `RECORD` digests, rejects fixture journals from accepted reduction, and passes independent review with `ACCEPT_PROVIDER_OUTCOME_RECEIPT_CONSUMER`.
 
-The technical disposition is **`successor_technically_admissible`**: the missing lower-layer attribution prerequisite is materially implemented and provider-free falsified. This is not an empirical result or live authority. It creates no v11 contract, runner, ledger, candidate, gate, or verifier and does not authorize a provider, model, backend, network, auth, shared-store, release, publication, or activation operation. A separate decision task is still required before any unique v11 proposal.
+The technical disposition is **`successor_technically_admissible`**: the missing lower-layer attribution prerequisite is materially implemented and provider-free falsified. The AK-4681 decision candidate selects **`propose_unique_v11_contract`**, which would admit only a fresh provider-free contract-proposal task under the [v11 admission decision](oracle-semantic-analysis-v11-admission-decision.md); only AK-4681 evidence/result can make that selection lifecycle truth. This is not an empirical result or live authority. It creates no v11 contract, runner, ledger, candidate, gate, or verifier and does not authorize a provider, model, backend, network, auth, shared-store, release, publication, or activation operation.
 
 ## Proposition and authority ceiling
 
@@ -320,9 +320,9 @@ Select or revert to `pause_unattributable` if the owner rejects the seam, any ro
 
 ## Legal next transitions
 
-If AK-4661 records `successor_designable`, the next leaf is the fresh provider-owner implementation/review task above. It is **not** v11. After that implementation is accepted, a fresh DSPx fixture-only consumer task is required. Only after both owner slices pass may a separate decision task propose a unique v11 contract, ledger, candidate review, operator/live gate, and provider-free verifier.
+AK-4661 recorded `successor_designable`; provider-owner AK-4672 and DSPx consumer AK-4678 then passed exact fixture-only implementation and independent review. The AK-4681 decision candidate selects **`propose_unique_v11_contract`**; only an AK-4681 result with that disposition would admit a fresh provider-free task that may propose a unique v11 contract and task-fixed ledger/root while leaving candidate materialization, exact review, operator/live execution, and provider-free verification as separate later gates.
 
-If either owner slice fails, record `pause_unattributable`; do not weaken the receipt, broaden diagnostics, or repeat v10.
+If that proposal cannot preserve the exact accepted owner/consumer identities, fresh uniqueness, bounded retention, fail-closed attribution, and gate separation, record `pause_empirical_line`; do not weaken the receipt, broaden diagnostics, or repeat v10.
 
 ## Nonclaims and immutable history
 
@@ -331,7 +331,7 @@ This design:
 - invokes no provider, model, backend, health probe, network, auth refresh, or shared store;
 - creates no v11 benchmark, runner, ledger, artifact root, or live authority;
 - changes no source, benchmark, generated artifact, package, script, semantic label, or decision;
-- does not prove the proposed interface has been implemented, accepted by its owner, released, or installed;
+- records the cited exact fixture-only owner implementation and DSPx consumer acceptances but does not prove owner-main integration, release, installation, or live behavior;
 - does not prove provider transport-call cardinality, provider-internal retries, exact wire bytes, executed model identity, process-wide network isolation, semantic quality, ROCS conformance, publication, release, or activation;
 - preserves AK-4643/v10 as immutable, consumed, non-retryable `effect_indeterminate` history and preserves AK-4653 artifact verification separately.
 
