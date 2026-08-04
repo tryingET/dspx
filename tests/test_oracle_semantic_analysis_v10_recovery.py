@@ -56,6 +56,7 @@ from dspx.services.program_oracle_semantic_verification_v10 import (
 )
 from dspx.services.program_oracle_semantic_verifier_projection_v10 import (
     result_error_projection,
+    rowless_case_error_is_consistent,
 )
 
 REPO = Path(__file__).resolve().parents[1]
@@ -158,6 +159,30 @@ def test_result_error_projection_distinguishes_normal_case_errors(
 ) -> None:
     events = [({"kind": kind, "classification": classification}, "a" * 64)]
     assert result_error_projection(events) == expected
+
+
+@pytest.mark.parametrize(
+    ("classification", "effect_open", "expected"),
+    [
+        ("effect_outcome_unresolved", True, True),
+        ("effect_outcome_unresolved", False, False),
+        ("typed_response_error", True, False),
+        ("typed_response_error", False, False),
+        ("interrupted_effect_unresolved", True, True),
+        ("interrupted_effect_unresolved", False, False),
+        ("interrupted_case_incomplete", True, False),
+        ("interrupted_case_incomplete", False, True),
+        ("case_processing_error", True, False),
+        ("case_processing_error", False, True),
+    ],
+)
+def test_rowless_case_error_must_match_effect_state(
+    classification: str, effect_open: bool, expected: bool
+) -> None:
+    assert (
+        rowless_case_error_is_consistent(classification, effect_open=effect_open)
+        is expected
+    )
 
 
 @pytest.mark.parametrize("after", ["effect_observed", "case_started"])
@@ -615,7 +640,7 @@ def test_verifier_rejects_result_classification_not_derived_from_events(
     result["preflight_error"] = "arbitrary_result_relabel"
     result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     os.chmod(result_path, 0o600)
-    terminal_path = sorted((attempt / EVENT_DIR).iterdir())[-1]
+    terminal_path = max((attempt / EVENT_DIR).iterdir())
     terminal = json.loads(terminal_path.read_text())
     terminal["result_sha256"] = sha256(result_path.read_bytes())
     terminal_path.write_text(json.dumps(terminal, indent=2, sort_keys=True) + "\n")

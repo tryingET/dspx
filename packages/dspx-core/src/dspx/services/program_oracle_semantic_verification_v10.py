@@ -48,6 +48,7 @@ from dspx.services.program_oracle_semantic_identity_v10 import (
 from dspx.services.program_oracle_semantic_verifier_projection_v10 import (
     result_error_projection,
     route_fields_are_live,
+    rowless_case_error_is_consistent,
 )
 
 
@@ -316,7 +317,15 @@ def _validate_events(
         elif kind == "case_error":
             case_id = str(event.get("case_id") or "")
             event_row = event.get("row")
-            if active != case_id or not str(event.get("classification") or ""):
+            if (
+                active != case_id
+                or not str(event.get("classification") or "")
+                or event_row is None
+                and not rowless_case_error_is_consistent(
+                    event.get("classification"),
+                    effect_open=case_id in effects and case_id not in observed,
+                )
+            ):
                 raise SemanticV10Error("case-error event drift")
             if event_row is not None:
                 row = mapping(event_row, "case-error row")

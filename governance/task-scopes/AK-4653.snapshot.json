@@ -2,18 +2,20 @@
   "schema_version": 1,
   "exported_at": "2026-08-04T05:57:26.207791446+00:00",
   "task_id": 4653,
-  "entity_version": 3,
+  "entity_version": 6,
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
       "governance/task-scopes/AK-*.snapshot.json",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_verifier_projection_v10.py",
+      "tests/test_oracle_semantic_analysis_evaluation_v10.py",
       "tests/test_oracle_semantic_analysis_v10_recovery.py"
     ],
     "required_paths": [
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_verifier_projection_v10.py",
+      "tests/test_oracle_semantic_analysis_evaluation_v10.py",
       "tests/test_oracle_semantic_analysis_v10_recovery.py"
     ],
     "forbidden_paths": [

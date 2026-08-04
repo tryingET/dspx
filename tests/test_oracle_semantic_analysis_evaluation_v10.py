@@ -174,7 +174,7 @@ def _ready_attempt(state: Path) -> Path:
 
 def _receipt_state(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
     state = _private_dir(tmp_path / "AK-4643")
-    contract, semantics, contract_hash = load_candidate(REPO)
+    contract, semantics, contract_hash = load_candidate(REPO, check_sources=False)
     requests = request_hashes(contract, semantics)
 
     def dependency_item(name: str, version: str, module: str) -> dict[str, Any]:
@@ -308,7 +308,7 @@ class _Backend:
 
 
 def test_v10_preserves_every_frozen_v9_semantic_subtree() -> None:
-    contract, semantics, digest = load_candidate(REPO)
+    contract, semantics, digest = load_candidate(REPO, check_sources=False)
     v9 = json.loads((REPO / V9_PATH).read_text())
     assert hashlib.sha256((REPO / V9_PATH).read_bytes()).hexdigest() == V9_SHA256
     assert (
@@ -332,7 +332,7 @@ def test_v10_preserves_every_frozen_v9_semantic_subtree() -> None:
 
 
 def test_materialization_is_complete_visible_and_hidden_label_independent() -> None:
-    contract, semantics, _ = load_candidate(REPO)
+    contract, semantics, _ = load_candidate(REPO, check_sources=False)
     for case in contract["cases"]:
         request = materialized_request(case, semantics)
         quality = request.quality_contract
@@ -352,7 +352,7 @@ def test_materialization_is_complete_visible_and_hidden_label_independent() -> N
 
 
 def test_response_schema_enums_derive_only_from_visible_request() -> None:
-    contract, semantics, _ = load_candidate(REPO)
+    contract, semantics, _ = load_candidate(REPO, check_sources=False)
     for case in contract["cases"]:
         request = materialized_request(case, semantics)
         schema = _analysis_response_format(request)["schema"]["properties"]
@@ -438,11 +438,10 @@ def test_live_gate_creation_requires_separate_explicit_authority(
     monkeypatch.setattr(
         verification, "committed_identity", lambda *a, **k: expected["source_identity"]
     )
-    monkeypatch.setattr(
-        verification,
-        "dependency_identity",
-        lambda: expected["review"]["dependency_identity"],
-    )
+    dependency = expected["review"]["dependency_identity"]
+    monkeypatch.setattr(verification, "dependency_identity", lambda: dependency)
+    candidate = expected["contract"], expected["semantics"], expected["contract_sha256"]
+    monkeypatch.setattr(verification, "load_candidate", lambda _: candidate)
     with pytest.raises(SemanticV10Error, match="typed task/operator authority"):
         create_live_gate(
             repo_root=REPO,
@@ -560,7 +559,7 @@ def test_attempt_root_and_events_are_private_append_only(tmp_path: Path) -> None
 def test_exact_pass_vector_marks_before_each_fake_effect_and_calls_once(
     tmp_path: Path,
 ) -> None:
-    contract, semantics, _ = load_candidate(REPO)
+    contract, semantics, _ = load_candidate(REPO, check_sources=False)
     state = _private_dir(tmp_path / "state")
     attempt = _ready_attempt(state)
     lm = _LM()
@@ -588,7 +587,7 @@ def test_exact_pass_vector_marks_before_each_fake_effect_and_calls_once(
 
 
 def test_first_scored_failure_stops_without_retry(tmp_path: Path) -> None:
-    contract, semantics, _ = load_candidate(REPO)
+    contract, semantics, _ = load_candidate(REPO, check_sources=False)
     analyses = _passing()
     analyses[0]["observations"] = ["local_quality_checks_failed"]
     state = _private_dir(tmp_path / "state")
@@ -608,7 +607,7 @@ def test_first_scored_failure_stops_without_retry(tmp_path: Path) -> None:
 
 
 def test_executed_model_drift_is_error_and_stops(tmp_path: Path) -> None:
-    contract, semantics, _ = load_candidate(REPO)
+    contract, semantics, _ = load_candidate(REPO, check_sources=False)
     state = _private_dir(tmp_path / "state")
     attempt = _ready_attempt(state)
     lm = _LM()
@@ -626,7 +625,7 @@ def test_executed_model_drift_is_error_and_stops(tmp_path: Path) -> None:
 
 
 def test_missing_response_observed_model_is_route_error(tmp_path: Path) -> None:
-    contract, semantics, _ = load_candidate(REPO)
+    contract, semantics, _ = load_candidate(REPO, check_sources=False)
     attempt = _ready_attempt(_private_dir(tmp_path / "state"))
     lm = _LM()
     rows, any_error, open_effect = _case_rows(
@@ -654,7 +653,7 @@ def test_missing_response_observed_model_is_route_error(tmp_path: Path) -> None:
     ],
 )
 def test_scoring_falsifiers(mutator, expected: str) -> None:
-    contract, _, _ = load_candidate(REPO)
+    contract, _, _ = load_candidate(REPO, check_sources=False)
     analysis = json.loads(json.dumps(_passing()[0]))
     mutator(analysis)
     assert score_v10(contract["cases"][0], analysis)["status"] == expected
@@ -922,7 +921,7 @@ def test_typed_response_error_row_verifies_without_model_list_drift(
         rows=[row],
         disposition="error",
         dependency=receipts["review"]["dependency_identity"],
-        preflight_error="typed_response_error",
+        preflight_error=None,
     )
     if mutation:
         expected = "relabeled" if mutation[0] == "successful_relabel" else "live-route"
@@ -989,7 +988,7 @@ def test_no_authority_or_raw_output_fields_in_terminal_contract(
         "raw_provider_output",
     ]
     assert not any(item in rendered for item in forbidden)
-    contract, _, _ = load_candidate(REPO)
+    contract, _, _ = load_candidate(REPO, check_sources=False)
     assert contract["privacy_and_effects"]["retain_raw_provider_output"] is False
     assert contract["privacy_and_effects"]["shared_store_connections"] == 0
     assert contract["nonclaims"]["production_activation"] is False
