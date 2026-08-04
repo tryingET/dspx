@@ -2,73 +2,57 @@
 from __future__ import annotations
 
 import inspect
-import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
 
-from dspx.redaction import sanitize_diagnostic_text
 from dspx.services.program_oracle_semantic_artifacts_v10 import (
-    ATTEMPT_PROJECTION,
-    EFFECT_PROJECTION,
-    RESULT_SCHEMA,
     active_case,
+    require_mode,
+    append_case_error as _case_error,
     append_event,
+    case_row as _row,
+    derive_disposition,
+    disposition as _disposition,
     ensure_private_directory,
+    load_events,
+    retained_rows,
+    result_payload,
+    verify_snapshot,
 )
 from dspx.services.program_oracle_semantic_artifacts_v10 import (
     has_open_effect as _has_open_effect,
 )
-from dspx.services.program_oracle_semantic_artifacts_v10 import (
-    history_hashes as _history_hashes,
-)
 from dspx.services.program_oracle_semantic_contract_v10 import (
     ATTEMPT_DIR,
+    LEDGER_NAME,
     CASE_ORDER,
     RESULT_NAME,
-    TASK_ID,
     SemanticV10Error,
     canonical,
     mapping,
+    read_json,
+    require_recorded_process_inactive,
+    retained_json,
     materialized_request,
     score_v10,
     sequence,
+    terminal_error_classification,
+    validate_attempt_ledger,
+    validate_route_environment,
     sha256,
     write_exclusive,
 )
-from dspx.services.program_oracle_semantic_identity_v10 import ROUTE, validate_receipts
+from dspx.services.program_oracle_semantic_identity_v10 import (
+    ROUTE,
+    loaded_source_identity,
+    validate_dependency_imports,
+    validate_receipts,
+)
 
 CONTRACT_SNAPSHOT = "contract-snapshot.json"
 REVIEW_SNAPSHOT = "candidate-review-snapshot.json"
 GATE_SNAPSHOT = "live-gate-snapshot.json"
-NONCLAIMS = {
-    "statistical_representativeness": False,
-    "broad_production_semantic_quality": False,
-    "embedding_quality": False,
-    "shared_coordinate_store_readiness": False,
-    "executed_provider_identity": False,
-    "provider_transport_call_cardinality": False,
-    "provider_internal_retry_absence": False,
-    "oracle_governance_authority": False,
-    "release_authority": False,
-    "package_publication": False,
-    "production_activation": False,
-    "rocs_conformance": False,
-    "shared_oracle_publication": False,
-}
-
-
-def _environment_route() -> None:
-    expected = {
-        "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
-        "DSPX_ORACLE_SEMANTIC_PROVIDER": ROUTE["provider"],
-        "DSPX_ORACLE_SEMANTIC_MODEL": ROUTE["model"],
-        "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT": ROUTE["reasoning_effort"],
-    }
-    if {key: os.getenv(key) for key in expected} != expected:
-        raise SemanticV10Error("exact live route environment drift")
-    if os.getenv("DSPX_ORACLE_SEMANTIC_FIXTURE_PATH"):
-        raise SemanticV10Error("fixture route is forbidden")
 
 
 def _production_backend() -> tuple[Any, Any]:
@@ -125,8 +109,7 @@ def _case_rows(
     rows_out: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], bool, bool]:
     rows = rows_out if rows_out is not None else []
-    any_error = False
-    open_effect = False
+    any_error = open_effect = False
     for raw_case in sequence(contract.get("cases"), "cases"):
         case = mapping(raw_case, "case")
         case_id = str(case.get("id"))
@@ -139,8 +122,10 @@ def _case_rows(
             case_id=case_id,
             request_sha256=request.request_sha256,
         )
-        generate_before = int(getattr(lm, "generate_invocation_count", 0))
-        history_before = len(getattr(lm, "history", []))
+        before = (
+            int(getattr(lm, "generate_invocation_count", 0)),
+            len(getattr(lm, "history", [])),
+        )
         token = f"{case_id}:generate:1"
         append_event(
             attempt,
@@ -153,155 +138,109 @@ def _case_rows(
         open_effect = True
         try:
             semantic_result = backend.analyze(request)
-        except Exception:  # noqa: BLE001 - provider boundary must classify arbitrary failures
-            append_event(
-                attempt,
-                "case_error",
-                case_id=case_id,
-                classification="backend_call_incomplete",
-            )
+        except Exception:  # noqa: BLE001 - provider boundary remains effect-indeterminate
+            _case_error(attempt, case_id, "backend_call_incomplete")
             any_error = True
             break
-        generate_delta = (
-            int(getattr(lm, "generate_invocation_count", 0)) - generate_before
+        delta = (
+            int(getattr(lm, "generate_invocation_count", 0)) - before[0],
+            len(getattr(lm, "history", [])) - before[1],
         )
-        history_delta = len(getattr(lm, "history", [])) - history_before
-        if (
-            generate_delta not in {0, 1}
-            or history_delta not in {0, 1}
-            or generate_delta != history_delta
-        ):
-            append_event(
-                attempt,
-                "case_error",
-                case_id=case_id,
-                classification="adapter_cardinality_drift",
-            )
+        if delta[0] not in {0, 1} or delta[1] not in {0, 1} or delta[0] != delta[1]:
+            _case_error(attempt, case_id, "adapter_cardinality_drift")
             any_error = True
             break
         result_dict = semantic_result.to_dict()
+        if len(canonical(result_dict)) > 180_000:
+            result_dict = {
+                **{key: result_dict.get(key) for key in result_dict},
+                "execution_status": "failed_after_live_response",
+                "live_call_succeeded": True,
+                "analysis": None,
+                "error": "bounded_response_retention_error",
+            }
         status = result_dict.get("execution_status")
-        response_attributable = (
+        attributable = (
             status in {"succeeded", "failed_after_live_response"}
             and result_dict.get("live_call_succeeded") is True
         )
-        no_call = generate_delta == 0 and history_delta == 0
-        if response_attributable or no_call:
+        if attributable or delta == (0, 0):
             append_event(
                 attempt,
                 "effect_observed",
                 case_id=case_id,
                 effect_token=token,
-                generate_invocation_delta=generate_delta,
-                history_delta=history_delta,
-                response_attributable=response_attributable,
+                generate_invocation_delta=delta[0],
+                history_delta=delta[1],
+                response_attributable=attributable,
             )
             open_effect = False
-        if (
-            not response_attributable
+        error_row = _row(case_id, request.request_sha256, result_dict, None, "error")
+        route_ok = (
+            result_dict.get("backend_kind") == "live"
+            and result_dict.get("preferred_model") == ROUTE["model"]
+            and result_dict.get("configured_provider") == ROUTE["provider"]
+            and result_dict.get("configured_model") == ROUTE["model"]
+            and result_dict.get("executed_provider") is None
+            and result_dict.get("fixture_sha256") is None
+            and bool(str(result_dict.get("executed_model") or "").strip())
+        )
+        classification: str | None = None
+        if open_effect:
+            _case_error(attempt, case_id, "effect_outcome_unresolved")
+            any_error = True
+            break
+        if not route_ok:
+            classification = "route_identity_error"
+        elif result_dict.get("error") == "bounded_response_retention_error":
+            classification = "response_retention_error"
+        elif (
+            not attributable
             or status != "succeeded"
             or result_dict.get("analysis") is None
         ):
-            append_event(
-                attempt,
-                "case_error",
-                case_id=case_id,
-                classification="typed_response_error"
-                if not open_effect
-                else "effect_outcome_unresolved",
-            )
-            rows.append(
-                {
-                    "case_id": case_id,
-                    "request_sha256": request.request_sha256,
-                    "semantic_result": result_dict,
-                    "score": None,
-                    "status": "error",
-                }
-            )
-            any_error = True
-            break
-        if (
-            result_dict.get("backend_kind") != "live"
-            or result_dict.get("preferred_model") != ROUTE["model"]
-            or result_dict.get("configured_provider") != ROUTE["provider"]
-            or result_dict.get("configured_model") != ROUTE["model"]
-            or result_dict.get("executed_provider") is not None
-            or not str(result_dict.get("executed_model") or "").strip()
-        ):
-            append_event(
-                attempt,
-                "case_error",
-                case_id=case_id,
-                classification="route_identity_error",
-            )
-            rows.append(
-                {
-                    "case_id": case_id,
-                    "request_sha256": request.request_sha256,
-                    "semantic_result": result_dict,
-                    "score": None,
-                    "status": "error",
-                }
-            )
-            any_error = True
-            break
-        prior_models = {
-            str(
-                mapping(row.get("semantic_result"), "semantic_result").get(
-                    "executed_model"
-                )
-            )
-            for row in rows
-            if row.get("status") == "passed"
-        }
-        if prior_models and str(result_dict.get("executed_model")) not in prior_models:
-            append_event(
-                attempt,
-                "case_error",
-                case_id=case_id,
-                classification="executed_model_drift",
-            )
-            rows.append(
-                {
-                    "case_id": case_id,
-                    "request_sha256": request.request_sha256,
-                    "semantic_result": result_dict,
-                    "score": None,
-                    "status": "error",
-                }
-            )
+            classification = "typed_response_error"
+        else:
+            prior = {
+                str(row["semantic_result"].get("executed_model"))
+                for row in rows
+                if row.get("status") == "passed"
+            }
+            if prior and str(result_dict.get("executed_model")) not in prior:
+                classification = "executed_model_drift"
+        if classification:
+            _case_error(attempt, case_id, classification, error_row)
+            rows.append(error_row)
             any_error = True
             break
         try:
             score = score_v10(case, cast(Mapping[str, Any], result_dict["analysis"]))
-        except Exception:  # noqa: BLE001 - provider boundary must classify arbitrary failures
-            append_event(
-                attempt,
-                "case_error",
-                case_id=case_id,
-                classification="response_schema_error",
-            )
-            rows.append(
-                {
-                    "case_id": case_id,
-                    "request_sha256": request.request_sha256,
-                    "semantic_result": result_dict,
-                    "score": None,
-                    "status": "error",
-                }
-            )
+        except Exception:  # noqa: BLE001 - malformed typed response
+            _case_error(attempt, case_id, "response_schema_error", error_row)
+            rows.append(error_row)
             any_error = True
             break
         row_status = str(score.get("status"))
-        rows.append(
-            {
-                "case_id": case_id,
-                "request_sha256": request.request_sha256,
-                "semantic_result": result_dict,
-                "score": score,
-                "status": row_status,
+        scored = _row(case_id, request.request_sha256, result_dict, score, row_status)
+        if len(canonical(scored)) > 220_000:
+            bounded = dict(error_row)
+            bounded["semantic_result"] = {
+                **result_dict,
+                "analysis": None,
+                "execution_status": "failed_after_live_response",
+                "error": "bounded_response_retention_error",
             }
+            _case_error(attempt, case_id, "response_retention_error", bounded)
+            rows.append(bounded)
+            any_error = True
+            break
+        rows.append(scored)
+        append_event(
+            attempt,
+            "case_result",
+            case_id=case_id,
+            row_sha256=sha256(canonical(scored)),
+            row=scored,
         )
         append_event(
             attempt,
@@ -315,76 +254,27 @@ def _case_rows(
     return rows, any_error, open_effect
 
 
-def _disposition(
-    rows: list[dict[str, Any]], *, any_error: bool, open_effect: bool
-) -> str:
-    if open_effect:
-        return "effect_indeterminate"
-    if any_error:
-        return "error"
-    if any(row.get("status") != "passed" for row in rows):
-        return "failed"
-    return (
-        "passed" if tuple(row.get("case_id") for row in rows) == CASE_ORDER else "error"
-    )
-
-
 def _terminal_result(
     *,
     attempt: Path,
     receipts: Mapping[str, Any],
     rows: list[dict[str, Any]],
     disposition: str,
-    dependency: Mapping[str, str] | None,
+    dependency: Mapping[str, Any] | None,
     preflight_error: str | None,
 ) -> dict[str, Any]:
-    scores = [row["score"] for row in rows if isinstance(row.get("score"), Mapping)]
-    result = {
-        "schema_version": RESULT_SCHEMA,
-        "ak_task_id": TASK_ID,
-        "artifact_integrity_review": "pending_independent_verification",
-        "empirical_gate": disposition,
-        "contract_sha256": receipts.get("contract_sha256"),
-        "candidate_review_sha256": receipts.get("review_sha256"),
-        "live_gate_sha256": receipts.get("gate_sha256"),
-        "source_identity": receipts.get("source_identity"),
-        "request_hashes": receipts.get("request_hashes"),
-        "route": {
-            "requested": ROUTE,
-            "configured_provider": ROUTE["provider"] if rows else None,
-            "configured_model": ROUTE["model"] if rows else None,
-            "observed_models": [
-                str(row["semantic_result"].get("executed_model"))
-                for row in rows
-                if isinstance(row.get("semantic_result"), Mapping)
-                and str(row["semantic_result"].get("executed_model") or "").strip()
-            ],
-        },
-        "dependency_identity": dependency,
-        "cases": rows,
-        "summary": {
-            "expected_case_count": len(CASE_ORDER),
-            "reached_case_count": len(rows),
-            "passed_case_count": sum(row.get("status") == "passed" for row in rows),
-            "macro_score": sum(float(score.get("score", 0.0)) for score in scores)
-            / len(CASE_ORDER),
-        },
-        "attempt": dict(ATTEMPT_PROJECTION),
-        "preflight_error": preflight_error,
-        "event_history_sha256": _history_hashes(attempt),
-        "effects": dict(EFFECT_PROJECTION),
-        "claims": {
-            "exact_four_case_empirical_gate_passed": disposition == "passed",
-            **NONCLAIMS,
-        },
-    }
-    write_exclusive(attempt / RESULT_NAME, result)
-    append_event(
-        attempt,
-        "terminal",
+    result = result_payload(
+        attempt=attempt,
+        receipts=receipts,
+        rows=rows,
         disposition=disposition,
-        result_sha256=sha256((attempt / RESULT_NAME).read_bytes()),
+        dependency=dependency,
+        preflight_error=preflight_error,
+        route=ROUTE,
     )
+    result_sha = sha256(retained_json(result))
+    append_event(attempt, "terminal", disposition=disposition, result_sha256=result_sha)
+    write_exclusive(attempt / RESULT_NAME, result)
     return result
 
 
@@ -427,9 +317,18 @@ def evaluate_consumed(
             require_current_commit=True,
             _test_owner_home=_test_owner_home,
         )
-        _environment_route()
         if _test_owner_home is not None:
             raise SemanticV10Error("test state roots are permanently effect-disabled")
+        receipts["source_identity"] = {
+            **mapping(receipts["source_identity"], "source identity"),
+            "loaded_modules": loaded_source_identity(
+                repo_root, mapping(receipts["contract"]["source_bindings"], "sources")
+            ),
+        }
+        validate_dependency_imports(
+            mapping(receipts["gate"]["dependency_identity"], "dependency identity")
+        )
+        validate_route_environment(ROUTE)
         append_event(
             attempt,
             "preflight_passed",
@@ -447,18 +346,26 @@ def evaluate_consumed(
             lm=lm,
             rows_out=rows,
         )
-    except Exception as exc:  # noqa: BLE001 - consumed attempt must terminalize
-        preflight_error = sanitize_diagnostic_text(type(exc).__name__)[:160]
+    except Exception:  # noqa: BLE001 - consumed attempt must terminalize
         current_case = active_case(attempt)
+        preflight_passed = any(
+            event.get("kind") == "preflight_passed" for event, _ in load_events(attempt)
+        )
+        preflight_error = (
+            "case_processing_error"
+            if current_case
+            else "post_preflight_error"
+            if preflight_passed
+            else "post_entry_preflight_error"
+        )
         if current_case:
+            _case_error(attempt, current_case, preflight_error)
+        else:
             append_event(
                 attempt,
-                "case_error",
-                case_id=current_case,
+                "attempt_error" if preflight_passed else "preflight_error",
                 classification=preflight_error,
             )
-        else:
-            append_event(attempt, "preflight_error", classification=preflight_error)
         any_error = True
     open_effect = open_effect or _has_open_effect(attempt)
     disposition = _disposition(rows, any_error=any_error, open_effect=open_effect)
@@ -470,3 +377,123 @@ def evaluate_consumed(
         dependency=dependency,
         preflight_error=preflight_error,
     )
+
+
+def finalize_interrupted(
+    *, repo_root: Path, state_root: Path, _test_owner_home: Path | None = None
+) -> dict[str, Any]:
+    """Provider-free recovery after the runner proves the recorded process is dead."""
+    state = ensure_private_directory(
+        state_root, create=False, _test_owner_home=_test_owner_home
+    )
+    attempt = state / ATTEMPT_DIR
+    require_mode(attempt / LEDGER_NAME, 0o600, "ledger")
+    ledger, _ = read_json(attempt / LEDGER_NAME, "ledger")
+    validate_attempt_ledger(ledger, attempt)
+    require_recorded_process_inactive(
+        mapping(ledger["process_identity"], "process identity")
+    )
+    receipts = validate_receipts(
+        repo_root=repo_root,
+        state_root=state,
+        require_current_commit=False,
+        _test_owner_home=_test_owner_home,
+    )
+    receipts["source_identity"] = {
+        **mapping(receipts["source_identity"], "source identity"),
+        "loaded_modules": loaded_source_identity(
+            repo_root,
+            mapping(receipts["contract"]["source_bindings"], "sources"),
+            reject_unexpected=False,
+        ),
+    }
+    for name, payload, label in (
+        (CONTRACT_SNAPSHOT, receipts["contract"], "contract snapshot"),
+        (REVIEW_SNAPSHOT, receipts["review"], "candidate-review snapshot"),
+        (GATE_SNAPSHOT, receipts["gate"], "live-gate snapshot"),
+    ):
+        path = attempt / name
+        if path.exists():
+            verify_snapshot(attempt, name, cast(Mapping[str, Any], payload), label)
+        else:
+            write_exclusive(path, cast(Mapping[str, Any], payload))
+    events = load_events(attempt)
+    terminal = [event for event, _ in events if event.get("kind") == "terminal"]
+    if not terminal:
+        if events[-1][0].get("kind") == "case_result":
+            row = mapping(events[-1][0].get("row"), "case result")
+            append_event(
+                attempt,
+                "case_scored",
+                case_id=str(row.get("case_id")),
+                status=str(row.get("status")),
+                score_sha256=sha256(canonical(row.get("score"))),
+            )
+        events = load_events(attempt)
+        last = events[-1][0]
+        stopped = last.get("kind") in {
+            "preflight_error",
+            "attempt_error",
+            "case_error",
+        } or (last.get("kind") == "case_scored" and last.get("status") == "failed")
+        if not stopped:
+            current = active_case(attempt)
+            if current:
+                _case_error(
+                    attempt,
+                    current,
+                    "interrupted_effect_unresolved"
+                    if _has_open_effect(attempt)
+                    else "interrupted_case_incomplete",
+                )
+            else:
+                scored = [
+                    event for event, _ in events if event.get("kind") == "case_scored"
+                ]
+                if not (
+                    len(scored) == len(CASE_ORDER)
+                    and all(event.get("status") == "passed" for event in scored)
+                ):
+                    append_event(
+                        attempt,
+                        "attempt_error"
+                        if any(
+                            event.get("kind") == "preflight_passed"
+                            for event, _ in events
+                        )
+                        else "preflight_error",
+                        classification="interrupted_process_terminated",
+                    )
+        events = load_events(attempt)
+        rows = retained_rows(events)
+        disposition = derive_disposition(events, None)
+        classification = terminal_error_classification(events)
+        return _terminal_result(
+            attempt=attempt,
+            receipts=receipts,
+            rows=rows,
+            disposition=disposition,
+            dependency=mapping(receipts["gate"]["dependency_identity"], "dependency"),
+            preflight_error=classification,
+        )
+    if len(terminal) != 1:
+        raise SemanticV10Error("terminal event cardinality drift")
+    rows = retained_rows(events)
+    disposition = str(terminal[0].get("disposition"))
+    classification = terminal_error_classification(events)
+    result = result_payload(
+        attempt=attempt,
+        receipts=receipts,
+        rows=rows,
+        disposition=disposition,
+        dependency=mapping(receipts["gate"]["dependency_identity"], "dependency"),
+        preflight_error=classification,
+        route=ROUTE,
+    )
+    if terminal[0].get("result_sha256") != sha256(retained_json(result)):
+        raise SemanticV10Error("terminal recovery result binding drift")
+    path = attempt / RESULT_NAME
+    if path.exists() or path.is_symlink():
+        raise SemanticV10Error("terminal result already exists")
+    write_exclusive(path, result)
+    return result

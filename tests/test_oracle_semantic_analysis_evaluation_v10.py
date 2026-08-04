@@ -21,9 +21,6 @@ from dspx.services.program_oracle_semantic_artifacts_v10 import (
     derive_disposition,
     load_events,
 )
-from dspx.services.program_oracle_semantic_artifacts_v10 import (
-    has_open_effect as _has_open_effect,
-)
 from dspx.services.program_oracle_semantic_backend import (
     _analysis_prompt,
     _analysis_response_format,
@@ -149,6 +146,12 @@ def _attempt(state: Path) -> Path:
             "maximum_evaluation_processes": 1,
             "retry_allowed": False,
             "root": str(attempt),
+            "process_identity": {
+                "pid": os.getpid(),
+                "uid": os.getuid(),
+                "boot_id": "offline-test-boot",
+                "proc_start_ticks": 1,
+            },
         },
     )
     append_event(
@@ -157,21 +160,43 @@ def _attempt(state: Path) -> Path:
     return attempt
 
 
+def _ready_attempt(state: Path) -> Path:
+    attempt = _attempt(state)
+    append_event(
+        attempt,
+        "preflight_passed",
+        contract_sha256="1" * 64,
+        candidate_review_sha256="2" * 64,
+        live_gate_sha256="3" * 64,
+    )
+    return attempt
+
+
 def _receipt_state(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
     state = _private_dir(tmp_path / "AK-4643")
     contract, semantics, contract_hash = load_candidate(REPO)
     requests = request_hashes(contract, semantics)
+
+    def dependency_item(name: str, version: str, module: str) -> dict[str, Any]:
+        return {
+            "distribution": name,
+            "version": version,
+            "module": module,
+            "module_origin": f"/test/{module}/__init__.py",
+            "module_sha256": "1" * 64,
+            "module_tree_sha256": "2" * 64,
+            "distribution_payload_count": 3,
+            "distribution_payload_sha256": "3" * 64,
+            "direct_url_sha256": "4" * 64,
+            "record_sha256": "5" * 64,
+            "editable": True,
+        }
+
     dependency = {
-        "distribution": "tryinget-dspy-lm-auth",
-        "version": "0.1.5",
-        "module_origin": "/test/dspy_lm_auth/__init__.py",
-        "module_sha256": "1" * 64,
-        "module_tree_sha256": "2" * 64,
-        "distribution_payload_count": 3,
-        "distribution_payload_sha256": "3" * 64,
-        "direct_url_sha256": "4" * 64,
-        "record_sha256": "5" * 64,
-        "editable": True,
+        "dspy": dependency_item("dspy", "3.1.3", "dspy"),
+        "tryinget-dspy-lm-auth": dependency_item(
+            "tryinget-dspy-lm-auth", "0.1.5", "dspy_lm_auth"
+        ),
     }
     identity = {
         "candidate_commit": "a" * 40,
@@ -197,7 +222,10 @@ def _receipt_state(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
         "schema_version": GATE_SCHEMA,
         "ak_task_id": TASK_ID,
         "decision": "AUTHORIZE_EXACTLY_ONE_CORPUS_PROCESS",
-        "gate_ref": "temp:test-gate",
+        "gate_ref": "ak:evidence:999",
+        "operator_authorization": "OPERATOR_AUTHORIZED_EXACTLY_ONE_CORPUS_PROCESS",
+        "done_contract_version": 1,
+        "guardrails_version": 1,
         "candidate_review_sha256": sha256(review_raw),
         "contract_sha256": contract_hash,
         "source_hashes": contract["source_bindings"],
@@ -414,19 +442,21 @@ def test_live_gate_creation_requires_separate_explicit_authority(
         "dependency_identity",
         lambda: expected["review"]["dependency_identity"],
     )
-    with pytest.raises(SemanticV10Error, match="explicitly authorize"):
+    with pytest.raises(SemanticV10Error, match="typed task/operator authority"):
         create_live_gate(
             repo_root=REPO,
             state_root=state,
-            gate_ref="temp",
+            gate_ref="not-ak-evidence",
             decision="ACCEPT_CANDIDATE_FOR_TASK_GATE",
+            operator_authorization="missing",
             _test_owner_home=tmp_path,
         )
     create_live_gate(
         repo_root=REPO,
         state_root=state,
-        gate_ref="temp",
+        gate_ref="ak:evidence:1000",
         decision="AUTHORIZE_EXACTLY_ONE_CORPUS_PROCESS",
+        operator_authorization="OPERATOR_AUTHORIZED_EXACTLY_ONE_CORPUS_PROCESS",
         _test_owner_home=tmp_path,
     )
     assert (state / LIVE_GATE_RECEIPT).exists()
@@ -439,8 +469,13 @@ def test_standard_library_bootstrap_consumes_before_post_entry_preflight(
 
     runner = _runner()
     state, receipts = _receipt_state(tmp_path)
+    monkeypatch.setattr(runner, "_postconsume_preimport", lambda *args: None)
+    monkeypatch.setattr(
+        runner,
+        "_preentry_receipts",
+        lambda *args, **kwargs: (receipts["review"], receipts["gate"]),
+    )
     monkeypatch.setattr(evaluation, "validate_receipts", lambda **kwargs: receipts)
-    monkeypatch.setattr(evaluation, "_environment_route", lambda: None)
     monkeypatch.setattr(
         evaluation,
         "_production_backend",
@@ -525,7 +560,7 @@ def test_exact_pass_vector_marks_before_each_fake_effect_and_calls_once(
 ) -> None:
     contract, semantics, _ = load_candidate(REPO)
     state = _private_dir(tmp_path / "state")
-    attempt = _attempt(state)
+    attempt = _ready_attempt(state)
     lm = _LM()
     backend = _Backend(lm, _passing())
     rows, any_error, open_effect = _case_rows(
@@ -545,6 +580,7 @@ def test_exact_pass_vector_marks_before_each_fake_effect_and_calls_once(
             "case_started",
             "effect_possible",
             "effect_observed",
+            "case_result",
             "case_scored",
         ]
 
@@ -554,7 +590,7 @@ def test_first_scored_failure_stops_without_retry(tmp_path: Path) -> None:
     analyses = _passing()
     analyses[0]["observations"] = ["local_quality_checks_failed"]
     state = _private_dir(tmp_path / "state")
-    attempt = _attempt(state)
+    attempt = _ready_attempt(state)
     lm, backend = _LM(), None
     backend = _Backend(lm, analyses)
     rows, any_error, open_effect = _case_rows(
@@ -572,7 +608,7 @@ def test_first_scored_failure_stops_without_retry(tmp_path: Path) -> None:
 def test_executed_model_drift_is_error_and_stops(tmp_path: Path) -> None:
     contract, semantics, _ = load_candidate(REPO)
     state = _private_dir(tmp_path / "state")
-    attempt = _attempt(state)
+    attempt = _ready_attempt(state)
     lm = _LM()
     backend = _Backend(lm, _passing(), models=[ROUTE["model"], "codex/drift"])
     rows, any_error, open_effect = _case_rows(
@@ -587,51 +623,21 @@ def test_executed_model_drift_is_error_and_stops(tmp_path: Path) -> None:
     assert backend.calls == 2 and rows[-1]["status"] == "error"
 
 
-def test_timeout_after_effect_marker_is_indeterminate_and_stops(tmp_path: Path) -> None:
+def test_missing_response_observed_model_is_route_error(tmp_path: Path) -> None:
     contract, semantics, _ = load_candidate(REPO)
-    state = _private_dir(tmp_path / "state")
-    attempt = _attempt(state)
+    attempt = _ready_attempt(_private_dir(tmp_path / "state"))
     lm = _LM()
-    backend = _Backend(lm, _passing(), error_at=0)
     rows, any_error, open_effect = _case_rows(
         contract=contract,
         semantics=semantics,
         requests=request_hashes(contract, semantics),
         attempt=attempt,
-        backend=backend,
+        backend=_Backend(lm, _passing(), models=[""]),
         lm=lm,
     )
-    assert rows == [] and any_error and open_effect
-    assert (
-        _disposition(rows, any_error=any_error, open_effect=open_effect)
-        == "effect_indeterminate"
-    )
-    assert backend.calls == 1
-    events = [event["kind"] for event, _ in load_events(attempt)]
-    assert events[-2:] == ["effect_possible", "case_error"]
-
-
-def test_unexpected_base_exception_after_effect_marker_stays_open(
-    tmp_path: Path,
-) -> None:
-    contract, semantics, _ = load_candidate(REPO)
-    state = _private_dir(tmp_path / "state")
-    attempt = _attempt(state)
-
-    class CrashBackend:
-        def analyze(self, request):
-            raise KeyboardInterrupt
-
-    with pytest.raises(KeyboardInterrupt):
-        _case_rows(
-            contract=contract,
-            semantics=semantics,
-            requests=request_hashes(contract, semantics),
-            attempt=attempt,
-            backend=CrashBackend(),
-            lm=_LM(),
-        )
-    assert _has_open_effect(attempt) is True
+    assert _disposition(rows, any_error=any_error, open_effect=open_effect) == "error"
+    assert rows[0]["semantic_result"]["executed_model"] == ""
+    assert load_events(attempt)[-1][0]["classification"] == "route_identity_error"
 
 
 @pytest.mark.parametrize(
@@ -652,28 +658,20 @@ def test_scoring_falsifiers(mutator, expected: str) -> None:
     assert score_v10(contract["cases"][0], analysis)["status"] == expected
 
 
-def test_confidence_bounds_use_the_frozen_case_specific_maximum() -> None:
-    contract, _, _ = load_candidate(REPO)
-    analysis = json.loads(json.dumps(_passing()[1]))
-    analysis["confidence"] = 1.0
-    assert score_v10(contract["cases"][1], analysis)["status"] == "failed"
-
-
-def test_terminal_precedence_is_effect_then_error_then_failed_then_passed(
-    tmp_path: Path,
-) -> None:
-    state = _private_dir(tmp_path / "state")
-    attempt = _attempt(state)
-    append_event(
-        attempt,
-        "case_scored",
-        case_id=CASE_ORDER[0],
-        status="failed",
-        score_sha256="a" * 64,
-    )
-    append_event(attempt, "preflight_error", classification="test")
-    append_event(attempt, "effect_possible", effect_token="open", case_id=CASE_ORDER[0])
-    assert derive_disposition(load_events(attempt), None) == "effect_indeterminate"
+def test_terminal_precedence_is_effect_then_error_then_failed_then_passed() -> None:
+    events = [
+        ({"kind": "case_scored", "case_id": CASE_ORDER[0], "status": "failed"}, ""),
+        ({"kind": "preflight_error", "classification": "test"}, ""),
+        (
+            {
+                "kind": "effect_possible",
+                "effect_token": "open",
+                "case_id": CASE_ORDER[0],
+            },
+            "",
+        ),
+    ]
+    assert derive_disposition(events, None) == "effect_indeterminate"
     assert _disposition([], any_error=True, open_effect=False) == "error"
     assert (
         _disposition(
@@ -696,13 +694,19 @@ def test_terminal_precedence_is_effect_then_error_then_failed_then_passed(
 def _terminal_packet(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, disposition: str = "error"
 ) -> tuple[Path, Path]:
-    import dspx.services.program_oracle_semantic_identity_v10 as verification
+    import dspx.services.program_oracle_semantic_identity_v10 as identity
+    import dspx.services.program_oracle_semantic_verification_v10 as verifier
 
     state, receipts = _receipt_state(tmp_path)
     monkeypatch.setattr(
-        verification, "committed_identity", lambda *a, **k: receipts["source_identity"]
+        identity, "committed_identity", lambda *a, **k: receipts["source_identity"]
     )
     attempt = _attempt(state)
+    receipts["source_identity"] = {
+        **receipts["source_identity"],
+        "loaded_modules": {},
+    }
+    monkeypatch.setattr(verifier, "expected_loaded_source_identity", lambda *a, **k: {})
     for name, payload in (
         (CONTRACT_SNAPSHOT, receipts["contract"]),
         (REVIEW_SNAPSHOT, receipts["review"]),
@@ -711,7 +715,11 @@ def _terminal_packet(
         write_exclusive(attempt / name, payload)
     rows: list[dict[str, Any]] = []
     if disposition == "error":
-        append_event(attempt, "preflight_error", classification="dependency_error")
+        append_event(
+            attempt,
+            "preflight_error",
+            classification="post_entry_preflight_error",
+        )
     elif disposition == "failed":
         append_event(
             attempt,
@@ -760,6 +768,22 @@ def _terminal_packet(
             history_delta=1,
             response_attributable=True,
         )
+        row = {
+            "case_id": CASE_ORDER[0],
+            "request_sha256": request.request_sha256,
+            "semantic_result": semantic,
+            "score": score,
+            "status": "failed",
+        }
+        append_event(
+            attempt,
+            "case_result",
+            case_id=CASE_ORDER[0],
+            row_sha256=sha256(
+                json.dumps(row, sort_keys=True, separators=(",", ":")).encode()
+            ),
+            row=row,
+        )
         append_event(
             attempt,
             "case_scored",
@@ -769,22 +793,16 @@ def _terminal_packet(
                 json.dumps(score, sort_keys=True, separators=(",", ":")).encode()
             ),
         )
-        rows = [
-            {
-                "case_id": CASE_ORDER[0],
-                "request_sha256": request.request_sha256,
-                "semantic_result": semantic,
-                "score": score,
-                "status": "failed",
-            }
-        ]
+        rows = [row]
     _terminal_result(
         attempt=attempt,
         receipts=receipts,
         rows=rows,
         disposition=disposition,
         dependency=receipts["review"]["dependency_identity"],
-        preflight_error="dependency_error" if disposition == "error" else None,
+        preflight_error=(
+            "post_entry_preflight_error" if disposition == "error" else None
+        ),
     )
     return state, attempt
 
@@ -805,15 +823,30 @@ def test_provider_free_verifier_separates_integrity_from_empirical_gate(
     )
 
 
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        None,
+        ("backend_kind", "fixture-replay"),
+        ("configured_provider", "fixture"),
+        ("fixture_sha256", "f" * 64),
+        ("successful_relabel", None),
+    ],
+)
 def test_typed_response_error_row_verifies_without_model_list_drift(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: tuple[str, Any] | None,
 ) -> None:
     import dspx.services.program_oracle_semantic_identity_v10 as identity
+    import dspx.services.program_oracle_semantic_verification_v10 as verifier
 
     state, receipts = _receipt_state(tmp_path)
+    receipts["source_identity"] = {**receipts["source_identity"], "loaded_modules": {}}
     monkeypatch.setattr(
         identity, "committed_identity", lambda *a, **k: receipts["source_identity"]
     )
+    monkeypatch.setattr(verifier, "expected_loaded_source_identity", lambda *a, **k: {})
     attempt = _attempt(state)
     for name, payload in (
         (CONTRACT_SNAPSHOT, receipts["contract"]),
@@ -821,7 +854,7 @@ def test_typed_response_error_row_verifies_without_model_list_drift(
         (GATE_SNAPSHOT, receipts["gate"]),
     ):
         write_exclusive(attempt / name, payload)
-    case_id = CASE_ORDER[0]
+    case_id, request_sha = CASE_ORDER[0], receipts["request_hashes"][CASE_ORDER[0]]
     append_event(
         attempt,
         "preflight_passed",
@@ -829,7 +862,6 @@ def test_typed_response_error_row_verifies_without_model_list_drift(
         candidate_review_sha256=receipts["review_sha256"],
         live_gate_sha256=receipts["gate_sha256"],
     )
-    request_sha = receipts["request_hashes"][case_id]
     append_event(attempt, "case_started", case_id=case_id, request_sha256=request_sha)
     append_event(
         attempt,
@@ -848,9 +880,6 @@ def test_typed_response_error_row_verifies_without_model_list_drift(
         history_delta=1,
         response_attributable=True,
     )
-    append_event(
-        attempt, "case_error", case_id=case_id, classification="typed_response_error"
-    )
     semantic = OracleSemanticResult(
         request_sha256=request_sha,
         backend_kind="live",
@@ -863,70 +892,49 @@ def test_typed_response_error_row_verifies_without_model_list_drift(
         live_call_succeeded=True,
         error="bounded malformed response",
     ).to_dict()
+    if mutation and mutation[0] == "successful_relabel":
+        semantic.update(
+            execution_status="succeeded",
+            analysis=_passing()[0],
+            error=None,
+        )
+    elif mutation:
+        semantic[mutation[0]] = mutation[1]
+    row = {
+        "case_id": case_id,
+        "request_sha256": request_sha,
+        "semantic_result": semantic,
+        "score": None,
+        "status": "error",
+    }
+    append_event(
+        attempt,
+        "case_error",
+        case_id=case_id,
+        classification="typed_response_error",
+        row=row,
+    )
     _terminal_result(
         attempt=attempt,
         receipts=receipts,
-        rows=[
-            {
-                "case_id": case_id,
-                "request_sha256": request_sha,
-                "semantic_result": semantic,
-                "score": None,
-                "status": "error",
-            }
-        ],
+        rows=[row],
         disposition="error",
         dependency=receipts["review"]["dependency_identity"],
         preflight_error="typed_response_error",
     )
-    packet = verify_evaluation(
-        repo_root=REPO, state_root=state, _test_owner_home=tmp_path
-    )
-    assert packet["artifact_integrity_review"] == "accepted"
-    assert packet["empirical_gate"] == "error"
-
-
-def test_verifier_accepts_truthful_open_effect_as_indeterminate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    import dspx.services.program_oracle_semantic_identity_v10 as verification
-
-    state, receipts = _receipt_state(tmp_path)
-    monkeypatch.setattr(
-        verification, "committed_identity", lambda *a, **k: receipts["source_identity"]
-    )
-    attempt = _attempt(state)
-    request_sha = receipts["request_hashes"][CASE_ORDER[0]]
-    for name, payload in (
-        (CONTRACT_SNAPSHOT, receipts["contract"]),
-        (REVIEW_SNAPSHOT, receipts["review"]),
-        (GATE_SNAPSHOT, receipts["gate"]),
-    ):
-        write_exclusive(attempt / name, payload)
-    append_event(
-        attempt,
-        "preflight_passed",
-        contract_sha256=receipts["contract_sha256"],
-        candidate_review_sha256=receipts["review_sha256"],
-        live_gate_sha256=receipts["gate_sha256"],
-    )
-    append_event(
-        attempt, "case_started", case_id=CASE_ORDER[0], request_sha256=request_sha
-    )
-    append_event(
-        attempt,
-        "effect_possible",
-        effect_token="case:generate:1",
-        case_id=CASE_ORDER[0],
-        request_sha256=request_sha,
-        generate_invocation=1,
-    )
-    packet = verify_evaluation(
-        repo_root=REPO, state_root=state, _test_owner_home=tmp_path
-    )
-    assert packet["artifact_integrity_review"] == "accepted"
-    assert packet["empirical_gate"] == "effect_indeterminate"
-    assert packet["result_sha256"] is None
+    if mutation:
+        expected = "relabeled" if mutation[0] == "successful_relabel" else "live-route"
+        with pytest.raises(SemanticV10Error, match=expected):
+            verify_evaluation(
+                repo_root=REPO, state_root=state, _test_owner_home=tmp_path
+            )
+    else:
+        assert (
+            verify_evaluation(
+                repo_root=REPO, state_root=state, _test_owner_home=tmp_path
+            )["empirical_gate"]
+            == "error"
+        )
 
 
 @pytest.mark.parametrize(

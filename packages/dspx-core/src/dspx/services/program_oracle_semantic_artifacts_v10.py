@@ -11,8 +11,10 @@ from typing import Any
 
 from dspx.services.program_oracle_semantic_contract_v10 import (
     CASE_ORDER,
+    EVENT_CLASSIFICATIONS,
     EVENT_DIR,
     LEDGER_NAME,
+    MAX_EVENT_BYTES,
     RESULT_NAME,
     TASK_ID,
     VERIFICATION_NAME,
@@ -20,6 +22,7 @@ from dspx.services.program_oracle_semantic_contract_v10 import (
     canonical,
     mapping,
     read_json,
+    retained_json,
     sha256,
     write_exclusive,
 )
@@ -74,6 +77,7 @@ EVENT_FACT_KEYS = {
         "live_gate_sha256",
     },
     "preflight_error": {"classification"},
+    "attempt_error": {"classification"},
     "case_started": {"case_id", "request_sha256"},
     "effect_possible": {
         "case_id",
@@ -88,7 +92,8 @@ EVENT_FACT_KEYS = {
         "history_delta",
         "response_attributable",
     },
-    "case_error": {"case_id", "classification"},
+    "case_result": {"case_id", "row_sha256", "row"},
+    "case_error": {"case_id", "classification", "row"},
     "case_scored": {"case_id", "status", "score_sha256"},
     "terminal": {"disposition", "result_sha256"},
 }
@@ -193,11 +198,56 @@ def verify_snapshot(
         raise SemanticV10Error(f"{label} drift")
 
 
+def _admit_event(
+    events: list[dict[str, Any]], kind: str, facts: Mapping[str, Any]
+) -> None:
+    if kind not in EVENT_FACT_KEYS or set(facts) != EVENT_FACT_KEYS[kind]:
+        raise SemanticV10Error("closed event schema drift")
+    if (
+        kind in EVENT_CLASSIFICATIONS
+        and facts.get("classification") not in EVENT_CLASSIFICATIONS[kind]
+    ):
+        raise SemanticV10Error("event classification is not in the closed vocabulary")
+    if not events:
+        if kind != "attempt_consumed":
+            raise SemanticV10Error("attempt-consumed event must be first")
+        return
+    prior = str(events[-1].get("kind") or "")
+    if prior == "terminal":
+        raise SemanticV10Error("terminal history is immutable")
+    if prior in {"preflight_error", "attempt_error", "case_error"} or (
+        prior == "case_scored" and events[-1].get("status") == "failed"
+    ):
+        if kind != "terminal":
+            raise SemanticV10Error("activity after stopping event is forbidden")
+        return
+    allowed = {
+        "attempt_consumed": {"preflight_passed", "preflight_error"},
+        "preflight_passed": {"case_started", "attempt_error"},
+        "case_started": {"effect_possible", "case_error"},
+        "effect_possible": {"effect_observed", "case_error"},
+        "effect_observed": {"case_result", "case_error"},
+        "case_result": {"case_scored"},
+        "case_scored": {"case_started", "attempt_error", "terminal"},
+    }
+    if kind not in allowed.get(prior, set()):
+        raise SemanticV10Error(f"illegal event transition: {prior}->{kind}")
+    if kind == "terminal" and not (
+        prior == "case_scored"
+        and events[-1].get("status") == "passed"
+        and sum(event.get("kind") == "case_scored" for event in events)
+        == len(CASE_ORDER)
+    ):
+        raise SemanticV10Error("terminal event lacks a stopping predecessor")
+
+
 def append_event(attempt: Path, kind: str, **facts: Any) -> dict[str, Any]:
     event_dir = attempt / EVENT_DIR
     names = sorted(path.name for path in event_dir.iterdir())
     if names != [f"{index:06d}.json" for index in range(len(names))]:
         raise SemanticV10Error("event history is not append-only and contiguous")
+    existing = [payload for payload, _ in load_events(attempt)]
+    _admit_event(existing, kind, facts)
     payload = {
         "schema_version": EVENT_SCHEMA,
         "ak_task_id": TASK_ID,
@@ -205,7 +255,7 @@ def append_event(attempt: Path, kind: str, **facts: Any) -> dict[str, Any]:
         "kind": kind,
         **facts,
     }
-    if len(canonical(payload)) > 250_000:
+    if len(retained_json(payload)) > MAX_EVENT_BYTES:
         raise SemanticV10Error("event exceeds bounded retention size")
     write_exclusive(event_dir / f"{len(names):06d}.json", payload)
     return payload
@@ -246,6 +296,8 @@ def load_events(attempt: Path) -> list[tuple[dict[str, Any], str]]:
         path = event_dir / name
         require_mode(path, 0o600, f"event {index}")
         payload, raw = read_json(path, f"event {index}")
+        if len(raw) > MAX_EVENT_BYTES:
+            raise SemanticV10Error("event exceeds bounded retention size")
         if (
             payload.get("schema_version") != EVENT_SCHEMA
             or payload.get("ak_task_id") != TASK_ID
@@ -265,6 +317,138 @@ def active_case(attempt: Path) -> str | None:
         elif kind in {"case_scored", "case_error"}:
             active = None
     return active
+
+
+def retained_rows(events: list[tuple[dict[str, Any], str]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for event, _ in events:
+        row: object = None
+        if event.get("kind") == "case_result":
+            row = event.get("row")
+        elif event.get("kind") == "case_error":
+            row = event.get("row")
+        if row is not None:
+            parsed = mapping(row, "retained case row")
+            if event.get("kind") == "case_result" and sha256(
+                canonical(parsed)
+            ) != event.get("row_sha256"):
+                raise SemanticV10Error("retained case-row digest drift")
+            rows.append(parsed)
+    return rows
+
+
+def started_cases(events: list[tuple[dict[str, Any], str]]) -> list[str]:
+    return [
+        str(event.get("case_id") or "")
+        for event, _ in events
+        if event.get("kind") == "case_started"
+    ]
+
+
+def case_row(
+    case_id: str,
+    request_sha: str,
+    semantic: Mapping[str, Any],
+    score: object,
+    status: str,
+) -> dict[str, Any]:
+    return {
+        "case_id": case_id,
+        "request_sha256": request_sha,
+        "semantic_result": dict(semantic),
+        "score": score,
+        "status": status,
+    }
+
+
+def append_case_error(
+    attempt: Path,
+    case_id: str,
+    classification: str,
+    row: Mapping[str, Any] | None = None,
+) -> None:
+    append_event(
+        attempt,
+        "case_error",
+        case_id=case_id,
+        classification=classification,
+        row=dict(row) if row is not None else None,
+    )
+
+
+def disposition(
+    rows: list[dict[str, Any]], *, any_error: bool, open_effect: bool
+) -> str:
+    if open_effect:
+        return "effect_indeterminate"
+    if any_error:
+        return "error"
+    if any(row.get("status") != "passed" for row in rows):
+        return "failed"
+    return (
+        "passed" if tuple(row.get("case_id") for row in rows) == CASE_ORDER else "error"
+    )
+
+
+def result_payload(
+    *,
+    attempt: Path,
+    receipts: Mapping[str, Any],
+    rows: list[dict[str, Any]],
+    disposition: str,
+    dependency: Mapping[str, Any] | None,
+    preflight_error: str | None,
+    route: Mapping[str, str],
+) -> dict[str, Any]:
+    events = load_events(attempt)
+    if retained_rows(events) != rows:
+        raise SemanticV10Error("in-memory and retained case rows differ")
+    scores = [row["score"] for row in rows if isinstance(row.get("score"), Mapping)]
+    hashes = history_hashes(attempt)
+    if events[-1][0].get("kind") == "terminal":
+        hashes.pop(f"{len(events) - 1:06d}.json")
+    contract = mapping(receipts.get("contract"), "contract")
+    return {
+        "schema_version": RESULT_SCHEMA,
+        "ak_task_id": TASK_ID,
+        "artifact_integrity_review": "pending_independent_verification",
+        "empirical_gate": disposition,
+        "contract_sha256": receipts.get("contract_sha256"),
+        "candidate_review_sha256": receipts.get("review_sha256"),
+        "live_gate_sha256": receipts.get("gate_sha256"),
+        "source_identity": receipts.get("source_identity"),
+        "request_hashes": receipts.get("request_hashes"),
+        "route": {
+            "requested": dict(route),
+            "configured_provider": route["provider"] if rows else None,
+            "configured_model": route["model"] if rows else None,
+            "observed_models": [
+                str(row["semantic_result"].get("executed_model"))
+                for row in rows
+                if isinstance(row.get("semantic_result"), Mapping)
+                and str(row["semantic_result"].get("executed_model") or "").strip()
+            ],
+        },
+        "dependency_identity": dependency,
+        "cases": rows,
+        "summary": {
+            "expected_case_count": len(CASE_ORDER),
+            "reached_case_count": len(started_cases(events)),
+            "passed_case_count": sum(row.get("status") == "passed" for row in rows),
+            "macro_score": sum(float(score.get("score", 0.0)) for score in scores)
+            / len(CASE_ORDER),
+        },
+        "attempt": dict(ATTEMPT_PROJECTION),
+        "preflight_error": preflight_error,
+        "event_history_sha256": hashes,
+        "effects": dict(EFFECT_PROJECTION),
+        "claims": {
+            "exact_four_case_empirical_gate_passed": disposition == "passed",
+            **mapping(contract.get("nonclaims"), "nonclaims"),
+            "rocs_conformance": False,
+            "shared_oracle_publication": False,
+        },
+    }
 
 
 def derive_disposition(
@@ -287,7 +471,7 @@ def derive_disposition(
             if token not in open_effects:
                 raise SemanticV10Error("effect observation without marker")
             open_effects.remove(token)
-        elif kind in {"preflight_error", "case_error"}:
+        elif kind in {"preflight_error", "attempt_error", "case_error"}:
             has_error = True
         elif kind == "case_scored":
             if event.get("status") == "passed":
@@ -300,7 +484,7 @@ def derive_disposition(
         "effect_indeterminate"
         if open_effects
         else "error"
-        if result is None or has_error
+        if has_error
         else "failed"
         if failed
         else "passed"

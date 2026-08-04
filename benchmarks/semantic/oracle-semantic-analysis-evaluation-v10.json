@@ -9,13 +9,69 @@
     "accepted_commit": "d188328c6eb226baf596a8949774056bb86ff895"
   },
   "source_bindings": {
+    "packages/dspx-core/src/dspx/__init__.py": {
+      "path": "packages/dspx-core/src/dspx/__init__.py",
+      "sha256": "27665428187d58e4422e82d9f738b52c0d4f39801a645e8259b5193c9d7ae1da"
+    },
+    "packages/dspx-core/src/dspx/capabilities.py": {
+      "path": "packages/dspx-core/src/dspx/capabilities.py",
+      "sha256": "538c32d38035687f14fb3b2a5d7fceccd43d6bfb3071d1768f78b4c313b0b300"
+    },
+    "packages/dspx-core/src/dspx/claude_cli_lm.py": {
+      "path": "packages/dspx-core/src/dspx/claude_cli_lm.py",
+      "sha256": "e11e30bc18881bc14d7c77b0bf6e79cd0b78bb92266510894c3b956044fbf623"
+    },
+    "packages/dspx-core/src/dspx/codex_exec_lm.py": {
+      "path": "packages/dspx-core/src/dspx/codex_exec_lm.py",
+      "sha256": "909d6319221362247a1872b705d31259322807424de8dd814579251dcecde24f"
+    },
     "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py": {
       "path": "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
-      "sha256": "a9eaf301f4ac1df8f60e675a661829d01d36332274de99603209c913f076a725"
+      "sha256": "f3bdbdcebf185977abcaead9cfa167b60bd7aa4569964aeb6dd60e29be68402a"
+    },
+    "packages/dspx-core/src/dspx/dtos.py": {
+      "path": "packages/dspx-core/src/dspx/dtos.py",
+      "sha256": "dde1887044b1862a9e6d15f9595760466c0d008a1b880663c46267d5e9ba76a7"
+    },
+    "packages/dspx-core/src/dspx/gemini_cli_lm.py": {
+      "path": "packages/dspx-core/src/dspx/gemini_cli_lm.py",
+      "sha256": "dffc2a8eb71d3f62be9dda464dc302d2ed6cb0aefbf194189e4decb16c1687b9"
+    },
+    "packages/dspx-core/src/dspx/lm_base.py": {
+      "path": "packages/dspx-core/src/dspx/lm_base.py",
+      "sha256": "68e552a2d69a2572d48cbb6e986970f4c43bdcdd7f4b4b92f9c466ef1d403852"
     },
     "packages/dspx-core/src/dspx/model_roles.py": {
       "path": "packages/dspx-core/src/dspx/model_roles.py",
       "sha256": "8d4a8b6c8de2de11482475bf8ae5d245dd8b82592e6957854f2d1f173be174d2"
+    },
+    "packages/dspx-core/src/dspx/multi_provider_lm.py": {
+      "path": "packages/dspx-core/src/dspx/multi_provider_lm.py",
+      "sha256": "d033787d2455423c08c3d00c7afa53da85ce3957b8a6ed7c0ff6de63b4d35a30"
+    },
+    "packages/dspx-core/src/dspx/pi_rpc_client.py": {
+      "path": "packages/dspx-core/src/dspx/pi_rpc_client.py",
+      "sha256": "937f1d7ddf3e539c459874123aebc8ab7b42330a5549e43be5f37a05af451f62"
+    },
+    "packages/dspx-core/src/dspx/pi_rpc_lm.py": {
+      "path": "packages/dspx-core/src/dspx/pi_rpc_lm.py",
+      "sha256": "03feb5c6f69b60b587ad8019c03723afd6619c3d58f4722e6d7ffc4a54048958"
+    },
+    "packages/dspx-core/src/dspx/policy.py": {
+      "path": "packages/dspx-core/src/dspx/policy.py",
+      "sha256": "cf7ba7d0919d3e5f15ce4c2a40b59a4bc535eb0eea1851aefe82ccc25057cdbe"
+    },
+    "packages/dspx-core/src/dspx/redaction.py": {
+      "path": "packages/dspx-core/src/dspx/redaction.py",
+      "sha256": "fb9750d8e802c1625400e7819b4a899a0203bff98d9f864c0178bac1e5573058"
+    },
+    "packages/dspx-core/src/dspx/services/__init__.py": {
+      "path": "packages/dspx-core/src/dspx/services/__init__.py",
+      "sha256": "afcc32ac4e9a017e5fb025cd04ef23435e4adb07460be3d166fce0c66de9946f"
+    },
+    "packages/dspx-core/src/dspx/services/program_oracle_secret_policy.py": {
+      "path": "packages/dspx-core/src/dspx/services/program_oracle_secret_policy.py",
+      "sha256": "222e09710780269746a870f85053f47fa0ecd4d81c59df8d46892d9eabd0767a"
     },
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py": {
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
@@ -25,33 +81,41 @@
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py",
       "sha256": "099ee0a8f208df4e0d6ee3e4295c9dc4459ea00079572661588b9749ace3d8f4"
     },
+    "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py": {
+      "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py",
+      "sha256": "a3d01f533f21fafd437b681d9cc82b6e0515e1068d680b5ae7c3848f0cd8a6d2"
+    },
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_scoring.py": {
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_scoring.py",
       "sha256": "bea8382b431bcf10de5df2854765f48299ae3c63e74a2b0cff04a88c36307e9f"
     },
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_artifacts_v10.py": {
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_artifacts_v10.py",
-      "sha256": "091ca75ebaba941e637158c12792bab73cfd08223fea6912d23d3ce2db21e95a"
+      "sha256": "0d059e6933681c56e1eda9dbe881733a696e8073d3cc1ade2339362febb426ee"
     },
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v10.py": {
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v10.py",
-      "sha256": "062b1a68824a85807c22fbdd63910d884ba3fdb92cc936ebe34d412a7f1006d8"
+      "sha256": "a563ec97b6f4864affd290882a3e7aa1d6fd082df5b545422820e6a46bc7f065"
     },
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py": {
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py",
-      "sha256": "f646ec2544bfc3e0269964695a503811eddcbfa557638280ad09ebadf42fd6bf"
+      "sha256": "7a471001cf4ad09dfe52e6de32d5be6c51e6b6caa91c228b63bf1707600ea15e"
     },
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_identity_v10.py": {
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_identity_v10.py",
-      "sha256": "22ec6f179f6b7c87929e6dd31ccbda0f9caf30e1329b537aa71615251302170d"
+      "sha256": "e251bc66d41284f6a1e2caa8b724963963d466f9c3197afb0d617fa0dafebd84"
     },
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py": {
       "path": "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py",
-      "sha256": "beab5abcad47b3670c72e0858b278ae781338aa0b17636e9817278ba69781df9"
+      "sha256": "8ed38d1956765019017beb1e091eb9331764e4cda524f1e497dec793f97aaae9"
+    },
+    "packages/dspx-core/src/dspx/validators.py": {
+      "path": "packages/dspx-core/src/dspx/validators.py",
+      "sha256": "c26ef8318152b07f12edfe082e52663173bace546456be8762b6e9ef2c736737"
     },
     "scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py": {
       "path": "scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py",
-      "sha256": "b2cc1814b4e54942494777710f30ae9edaeded2f4ca6a090a4456485fd89177c"
+      "sha256": "4b3c44e787539d13dd8e275cf7dd1c0f8410fb665837d5568b97c7374bc0466f"
     }
   },
   "route": {
@@ -96,9 +160,18 @@
     "verification": "independent-verification.json"
   },
   "dependency_policy": {
-    "distribution": "tryinget-dspy-lm-auth",
-    "version": "0.1.5",
-    "module": "dspy_lm_auth",
+    "distributions": [
+      {
+        "distribution": "dspy",
+        "version": "3.1.3",
+        "module": "dspy"
+      },
+      {
+        "distribution": "tryinget-dspy-lm-auth",
+        "version": "0.1.5",
+        "module": "dspy_lm_auth"
+      }
+    ],
     "bind_live_gate_to_observed_identity": true
   },
   "claim_scope": "four_candidate_local_cases_only_not_statistically_representative",

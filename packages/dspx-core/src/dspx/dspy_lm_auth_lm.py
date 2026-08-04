@@ -56,7 +56,7 @@ class DspyLMAuthOutputMessage:
 
 @dataclass
 class DspyLMAuthMinimalResponse:
-    model: str
+    model: str | None
     choices: list[dict[str, Any]]
     usage: dict[str, Any] | None
     raw: Any | None = None
@@ -95,6 +95,8 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
     This keeps auth-backed DSPy routing explicit inside the DSPx provider registry
     instead of monkeypatching `dspy.LM` process-wide.
     """
+
+    MAX_RESPONSE_TEXT_BYTES = 200_000
 
     def __init__(
         self,
@@ -321,6 +323,20 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         return None
 
     @staticmethod
+    def _extract_response_model(resp: Any) -> str | None:
+        """Return only a non-empty model identity observed on this response."""
+        try:
+            raw = (
+                resp.get("model")
+                if isinstance(resp, Mapping)
+                else getattr(resp, "model", None)
+            )
+        except Exception:
+            return None
+        observed = str(raw).strip() if raw is not None else ""
+        return observed or None
+
+    @staticmethod
     def _normalize_transport_metadata(raw: Any) -> dict[str, Any] | None:
         if not isinstance(raw, dict):
             return None
@@ -520,13 +536,14 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
                 **call_kwargs,
             )
             text = self._extract_text(resp)
+            if len(text.encode("utf-8")) > self.MAX_RESPONSE_TEXT_BYTES:
+                raise DspyLMAuthResponseError("provider response exceeds bounded size")
             usage = self._extract_usage(resp)
             reader = self._stream_metadata_reader
             raw_transport = reader(resp) if callable(reader) else None
             transport = self._normalize_transport_metadata(raw_transport)
             return DspyLMAuthMinimalResponse(
-                model=getattr(self, "model", None)
-                or f"dspy-lm-auth/{self.requested_model}",
+                model=self._extract_response_model(resp),
                 choices=[{"text": text}],
                 usage=usage,
                 raw=resp,
@@ -572,7 +589,7 @@ class DspyLMAuthLM(DSPyBaseLM, LMBase):
         self._raise_on_error_payload(resp)
         return LMResponse(
             outputs=[self._extract_text(resp)],
-            model=getattr(self, "model", None),
+            model=self._extract_response_model(resp),
             usage=self._extract_usage(resp),
             raw=None,
         )

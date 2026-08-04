@@ -25,9 +25,14 @@ SEMANTICS_PATH = Path("benchmarks/semantic/oracle-semantic-code-semantics-v1.jso
 V9_SHA256 = "d346c4703df46348478ca4d272b766c23eabe6b72ba1ff168bbe911fd3387944"
 SEMANTICS_SHA256 = "42ad952318adcde35605c468fc043ae161faf310159203a3c2980a7c51177c41"
 DEPENDENCY_POLICY = {
-    "distribution": "tryinget-dspy-lm-auth",
-    "version": "0.1.5",
-    "module": "dspy_lm_auth",
+    "distributions": [
+        {"distribution": "dspy", "version": "3.1.3", "module": "dspy"},
+        {
+            "distribution": "tryinget-dspy-lm-auth",
+            "version": "0.1.5",
+            "module": "dspy_lm_auth",
+        },
+    ],
     "bind_live_gate_to_observed_identity": True,
 }
 CANDIDATE_RECEIPT = "candidate-review.json"
@@ -37,7 +42,8 @@ LEDGER_NAME = "ledger.json"
 EVENT_DIR = "events"
 RESULT_NAME = "evaluation-result.json"
 VERIFICATION_NAME = "independent-verification.json"
-_MAX_BYTES = 1_500_000
+MAX_ARTIFACT_BYTES = 1_500_000
+MAX_EVENT_BYTES = 250_000
 INHERITED_KEYS = (
     "claim_scope",
     "thresholds",
@@ -53,23 +59,144 @@ INHERITED_KEYS = (
     "semantic_materialization",
     "code_semantics_binding",
 )
+SOURCE_MODULE_PATHS = {
+    "dspx": "packages/dspx-core/src/dspx/__init__.py",
+    "dspx.capabilities": "packages/dspx-core/src/dspx/capabilities.py",
+    "dspx.claude_cli_lm": "packages/dspx-core/src/dspx/claude_cli_lm.py",
+    "dspx.codex_exec_lm": "packages/dspx-core/src/dspx/codex_exec_lm.py",
+    "dspx.dspy_lm_auth_lm": "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+    "dspx.dtos": "packages/dspx-core/src/dspx/dtos.py",
+    "dspx.gemini_cli_lm": "packages/dspx-core/src/dspx/gemini_cli_lm.py",
+    "dspx.lm_base": "packages/dspx-core/src/dspx/lm_base.py",
+    "dspx.model_roles": "packages/dspx-core/src/dspx/model_roles.py",
+    "dspx.multi_provider_lm": "packages/dspx-core/src/dspx/multi_provider_lm.py",
+    "dspx.pi_rpc_client": "packages/dspx-core/src/dspx/pi_rpc_client.py",
+    "dspx.pi_rpc_lm": "packages/dspx-core/src/dspx/pi_rpc_lm.py",
+    "dspx.policy": "packages/dspx-core/src/dspx/policy.py",
+    "dspx.redaction": "packages/dspx-core/src/dspx/redaction.py",
+    "dspx.services": "packages/dspx-core/src/dspx/services/__init__.py",
+    "dspx.services.program_oracle_secret_policy": "packages/dspx-core/src/dspx/services/program_oracle_secret_policy.py",
+    "dspx.services.program_oracle_semantic_backend": "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
+    "dspx.services.program_oracle_semantic_contract": "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py",
+    "dspx.services.program_oracle_semantic_evaluation": "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py",
+    "dspx.services.program_oracle_semantic_scoring": "packages/dspx-core/src/dspx/services/program_oracle_semantic_scoring.py",
+    "dspx.services.program_oracle_semantic_artifacts_v10": "packages/dspx-core/src/dspx/services/program_oracle_semantic_artifacts_v10.py",
+    "dspx.services.program_oracle_semantic_contract_v10": "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v10.py",
+    "dspx.services.program_oracle_semantic_evaluation_v10": "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py",
+    "dspx.services.program_oracle_semantic_identity_v10": "packages/dspx-core/src/dspx/services/program_oracle_semantic_identity_v10.py",
+    "dspx.services.program_oracle_semantic_verification_v10": "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py",
+    "dspx.validators": "packages/dspx-core/src/dspx/validators.py",
+}
 EXPECTED_SOURCE_PATHS = (
-    "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
-    "packages/dspx-core/src/dspx/model_roles.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_scoring.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_artifacts_v10.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v10.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_identity_v10.py",
-    "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py",
+    *SOURCE_MODULE_PATHS.values(),
     "scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py",
 )
+RUNTIME_SOURCE_MODULES = frozenset(SOURCE_MODULE_PATHS) - {
+    "dspx.services.program_oracle_semantic_verification_v10"
+}
 
 
 class SemanticV10Error(ValueError):
     """Raised when task-4643 candidate or retained evidence fails closed."""
+
+
+EVENT_CLASSIFICATIONS = {
+    "preflight_error": frozenset(
+        {"post_entry_preflight_error", "interrupted_process_terminated"}
+    ),
+    "attempt_error": frozenset(
+        {"post_preflight_error", "interrupted_process_terminated"}
+    ),
+    "case_error": frozenset(
+        {
+            "backend_call_incomplete",
+            "adapter_cardinality_drift",
+            "effect_outcome_unresolved",
+            "route_identity_error",
+            "response_retention_error",
+            "typed_response_error",
+            "executed_model_drift",
+            "response_schema_error",
+            "case_processing_error",
+            "interrupted_effect_unresolved",
+            "interrupted_case_incomplete",
+        }
+    ),
+}
+
+
+def validate_route_environment(route: Mapping[str, str]) -> None:
+    expected = {
+        "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
+        "DSPX_ORACLE_SEMANTIC_PROVIDER": route["provider"],
+        "DSPX_ORACLE_SEMANTIC_MODEL": route["model"],
+        "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT": route["reasoning_effort"],
+    }
+    if {key: os.getenv(key) for key in expected} != expected:
+        raise SemanticV10Error("exact live route environment drift")
+    if os.getenv("DSPX_ORACLE_SEMANTIC_FIXTURE_PATH"):
+        raise SemanticV10Error("fixture route is forbidden")
+
+
+def validate_attempt_ledger(ledger: Mapping[str, Any], attempt: Path) -> None:
+    process = ledger.get("process_identity")
+    valid = (
+        ledger
+        == {
+            "schema_version": "dspx-oracle-semantic-v10-ledger-v1",
+            "ak_task_id": TASK_ID,
+            "status": "consumed",
+            "maximum_evaluation_processes": 1,
+            "retry_allowed": False,
+            "root": str(attempt),
+            "process_identity": process,
+        }
+        and isinstance(process, Mapping)
+        and set(process) == {"pid", "uid", "boot_id", "proc_start_ticks"}
+        and isinstance(process.get("pid"), int)
+        and process.get("pid", 0) > 0
+        and process.get("uid") == os.getuid()
+        and isinstance(process.get("boot_id"), str)
+        and bool(process.get("boot_id"))
+        and isinstance(process.get("proc_start_ticks"), int)
+        and process.get("proc_start_ticks", 0) > 0
+    )
+    if not valid:
+        raise SemanticV10Error("attempt ledger drift")
+
+
+def require_recorded_process_inactive(process: Mapping[str, Any]) -> None:
+    if process.get("uid") != os.getuid():
+        raise SemanticV10Error("recorded process owner drift")
+    boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    if boot != process.get("boot_id"):
+        return
+    pid = process.get("pid")
+    if not isinstance(pid, int) or pid <= 0:
+        raise SemanticV10Error("recorded process pid drift")
+    try:
+        raw = Path(f"/proc/{pid}/stat").read_text()
+    except FileNotFoundError:
+        return
+    tail = raw[raw.rfind(")") + 2 :].split()
+    if len(tail) <= 19:
+        raise SemanticV10Error("recorded process status ambiguous")
+    if int(tail[19]) != process.get("proc_start_ticks") or tail[0] == "Z":
+        return
+    raise SemanticV10Error("recorded evaluation process is still active")
+
+
+def terminal_error_classification(
+    events: Sequence[tuple[Mapping[str, Any], str]],
+) -> str | None:
+    return next(
+        (
+            str(event.get("classification"))
+            for event, _ in reversed(events)
+            if event.get("kind") in EVENT_CLASSIFICATIONS
+        ),
+        None,
+    )
 
 
 def canonical(value: object) -> bytes:
@@ -83,6 +210,19 @@ def canonical(value: object) -> bytes:
         ).encode()
     except (TypeError, ValueError) as exc:
         raise SemanticV10Error(f"value is not canonical JSON: {exc}") from exc
+
+
+def retained_json(value: object) -> bytes:
+    try:
+        raw = (
+            json.dumps(value, indent=2, sort_keys=True, allow_nan=False).encode()
+            + b"\n"
+        )
+    except (TypeError, ValueError) as exc:
+        raise SemanticV10Error(f"value is not retained JSON: {exc}") from exc
+    if len(raw) > MAX_ARTIFACT_BYTES:
+        raise SemanticV10Error("retained artifact exceeds bounded size")
+    return raw
 
 
 def sha256(raw: bytes) -> str:
@@ -118,9 +258,9 @@ def read_json(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
             raise SemanticV10Error(f"{label} must be a regular file")
         with os.fdopen(fd, "rb") as stream:
             fd = -1
-            raw = stream.read(_MAX_BYTES + 1)
+            raw = stream.read(MAX_ARTIFACT_BYTES + 1)
             after = os.fstat(stream.fileno())
-        if len(raw) > _MAX_BYTES:
+        if len(raw) > MAX_ARTIFACT_BYTES:
             raise SemanticV10Error(f"{label} exceeds bounded size")
         if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
             after.st_dev,
@@ -141,6 +281,7 @@ def read_json(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
 
 def write_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
     target = path.expanduser().absolute()
+    raw = retained_json(payload)
     parent = target.parent.lstat()
     if (
         not stat.S_ISDIR(parent.st_mode)
@@ -165,10 +306,7 @@ def write_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
         os.fchmod(fd, 0o600)
         with os.fdopen(fd, "wb") as stream:
             fd = -1
-            stream.write(
-                json.dumps(payload, indent=2, sort_keys=True, allow_nan=False).encode()
-                + b"\n"
-            )
+            stream.write(raw)
             stream.flush()
             os.fsync(stream.fileno())
     finally:

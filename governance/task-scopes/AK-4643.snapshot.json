@@ -2,7 +2,7 @@
   "schema_version": 1,
   "exported_at": "2026-08-04T01:41:28.939274563+00:00",
   "task_id": 4643,
-  "entity_version": 3,
+  "entity_version": 5,
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
@@ -11,23 +11,29 @@
       "docs/project/product-posture.md",
       "docs/project/semantic-benchmarks.md",
       "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_artifacts_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_identity_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py",
       "scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py",
-      "tests/test_oracle_semantic_analysis_evaluation_v10.py"
+      "tests/test_dspy_lm_auth_response_identity.py",
+      "tests/test_oracle_semantic_analysis_evaluation_v10.py",
+      "tests/test_oracle_semantic_analysis_v10_recovery.py"
     ],
     "required_paths": [
       "benchmarks/semantic/oracle-semantic-analysis-evaluation-v10.json",
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_artifacts_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_identity_v10.py",
       "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v10.py",
       "scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py",
-      "tests/test_oracle_semantic_analysis_evaluation_v10.py"
+      "tests/test_dspy_lm_auth_response_identity.py",
+      "tests/test_oracle_semantic_analysis_evaluation_v10.py",
+      "tests/test_oracle_semantic_analysis_v10_recovery.py"
     ],
     "forbidden_paths": [
       ".ontology/**",
