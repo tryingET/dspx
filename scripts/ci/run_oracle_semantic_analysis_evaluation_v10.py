@@ -183,8 +183,8 @@ def _preentry_receipts(state_root: Path, *, _test_owner_home: Path | None = None
     gate, _ = _read(state / "live-gate.json", "live gate")
     sources, requests, dependency = review.get("source_hashes"), review.get("request_hashes"), review.get("dependency_identity")
     review_keys = {"schema_version", "ak_task_id", "decision", "reviewer", "review_ref", "contract_sha256", "source_hashes", "request_hashes", "dependency_identity", "candidate_commit", "candidate_tree"}
-    sources_ok = isinstance(sources, dict) and tuple(sources) == _SOURCE_PATHS and all(sources[path] == {"path": path, "sha256": sources[path].get("sha256")} and _hex(sources[path].get("sha256")) for path in _SOURCE_PATHS)
-    requests_ok = isinstance(requests, dict) and tuple(requests) == _CASE_ORDER and all(_hex(requests[case]) for case in _CASE_ORDER)
+    sources_ok = isinstance(sources, dict) and set(sources) == set(_SOURCE_PATHS) and all(sources[path] == {"path": path, "sha256": sources[path].get("sha256")} and _hex(sources[path].get("sha256")) for path in _SOURCE_PATHS)
+    requests_ok = isinstance(requests, dict) and set(requests) == set(_CASE_ORDER) and all(_hex(requests[case]) for case in _CASE_ORDER)
     expected_gate = {"schema_version": "dspx-oracle-semantic-v10-live-gate-v1", "ak_task_id": _TASK_ID, "decision": "AUTHORIZE_EXACTLY_ONE_CORPUS_PROCESS", "gate_ref": gate.get("gate_ref"), "operator_authorization": "OPERATOR_AUTHORIZED_EXACTLY_ONE_CORPUS_PROCESS", "done_contract_version": 1, "guardrails_version": 1, "candidate_review_sha256": hashlib.sha256(review_raw).hexdigest(), "contract_sha256": review.get("contract_sha256"), "source_hashes": sources, "request_hashes": requests, "candidate_commit": review.get("candidate_commit"), "candidate_tree": review.get("candidate_tree"), "route": _ROUTE, "dependency_identity": dependency, "maximum_corpus_processes": 1, "fallback_allowed": False, "retry_allowed": False}
     if set(review) != review_keys or review.get("schema_version") != "dspx-oracle-semantic-v10-candidate-review-v1" or review.get("ak_task_id") != _TASK_ID or review.get("decision") != "ACCEPT_CANDIDATE_FOR_TASK_GATE" or not str(review.get("reviewer") or "").strip() or not str(review.get("review_ref") or "").strip() or not _hex(review.get("contract_sha256")) or not _hex(review.get("candidate_commit"), 40) or not _hex(review.get("candidate_tree"), 40) or not sources_ok or not requests_ok or not _dependency_shape(dependency) or gate != expected_gate or not re.fullmatch(r"ak:evidence:[0-9]+", str(gate.get("gate_ref") or "")):
         raise RuntimeError("pre-entry receipts do not authorize this one process")
@@ -309,6 +309,94 @@ def _recorded_process_inactive(attempt: Path) -> None:
     raise RuntimeError("recorded evaluation process is still active")
 
 
+_EVALUATION_MODULE = "dspx.services.program_oracle_semantic_evaluation_v10"
+
+
+def _load_reviewed_evaluator(repo_root: Path, review: dict[str, Any]) -> Any:
+    if any(name == "dspx" or name.startswith("dspx.") for name in sys.modules):
+        raise RuntimeError("DSPx modules were preloaded before source lock")
+    root = repo_root.expanduser().resolve()
+    source_root = (root / "packages/dspx-core/src").resolve()
+    if not source_root.is_dir() or source_root.is_symlink():
+        raise RuntimeError("reviewed DSPx source root drift")
+    retained_paths: list[str] = []
+    for entry in sys.path:
+        try:
+            candidate = Path(entry or os.getcwd()).expanduser().resolve()
+        except (OSError, RuntimeError):
+            continue
+        if candidate != source_root and not (candidate / "dspx").exists():
+            retained_paths.append(entry)
+    sys.path[:] = [str(source_root), *retained_paths]
+    importlib.invalidate_caches()
+    module = importlib.import_module(_EVALUATION_MODULE)
+    if not sys.path or Path(sys.path[0]).resolve() != source_root:
+        raise RuntimeError("reviewed DSPx source path lock drift")
+    sources = review.get("source_hashes")
+    if not isinstance(sources, dict):
+        raise RuntimeError("reviewed source binding missing")
+    loaded = {
+        name: loaded_module
+        for name, loaded_module in sys.modules.items()
+        if name == "dspx" or name.startswith("dspx.")
+    }
+    required = {"dspx", "dspx.services", _EVALUATION_MODULE}
+    if not required.issubset(loaded):
+        raise RuntimeError("reviewed DSPx package import incomplete")
+    for name, loaded_module in loaded.items():
+        origin_text = getattr(loaded_module, "__file__", None)
+        spec_text = getattr(getattr(loaded_module, "__spec__", None), "origin", None)
+        if not isinstance(origin_text, str) or not isinstance(spec_text, str):
+            raise RuntimeError(f"loaded DSPx module origin missing: {name}")
+        origin = Path(origin_text).resolve()
+        if origin != Path(spec_text).resolve():
+            raise RuntimeError(f"loaded DSPx module origin drift: {name}")
+        try:
+            relative = origin.relative_to(root).as_posix()
+        except ValueError as exc:
+            raise RuntimeError(f"loaded DSPx module escaped reviewed root: {name}") from exc
+        binding = sources.get(relative)
+        if binding != {"path": relative, "sha256": hashlib.sha256(origin.read_bytes()).hexdigest()}:
+            raise RuntimeError(f"loaded DSPx module is not reviewed: {name}")
+    expected_packages = {
+        "dspx": source_root / "dspx",
+        "dspx.services": source_root / "dspx/services",
+    }
+    for name, expected in expected_packages.items():
+        package_path = getattr(loaded[name], "__path__", None)
+        if package_path is None or [Path(item).resolve() for item in package_path] != [expected]:
+            raise RuntimeError(f"loaded DSPx package path drift: {name}")
+    return module
+
+
+def _require_retained_pass(attempt: Path, result: dict[str, Any]) -> None:
+    retained, retained_raw = _read(attempt / "evaluation-result.json", "evaluation result")
+    events = attempt / "events"
+    info = events.lstat()
+    if not stat.S_ISDIR(info.st_mode) or stat.S_ISLNK(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+        raise RuntimeError("event directory identity/mode drift")
+    names = sorted(path.name for path in events.iterdir())
+    if not names or names != [f"{index:06d}.json" for index in range(len(names))]:
+        raise RuntimeError("attempt event history drift")
+    terminal = []
+    for index, name in enumerate(names):
+        event, _ = _read(events / name, "attempt event")
+        if event.get("sequence") != index:
+            raise RuntimeError("attempt event sequence drift")
+        if event.get("kind") == "terminal":
+            terminal.append((index, event))
+    expected = {
+        "schema_version": _EVENT_SCHEMA,
+        "ak_task_id": _TASK_ID,
+        "sequence": len(names) - 1,
+        "kind": "terminal",
+        "disposition": "passed",
+        "result_sha256": hashlib.sha256(retained_raw).hexdigest(),
+    }
+    if retained != result or retained.get("empirical_gate") != "passed" or terminal != [(len(names) - 1, expected)]:
+        raise RuntimeError("returned pass lacks exact retained terminal evidence")
+
+
 def _run(repo_root: Path, state_root: Path, *, _test_owner_home: Path | None = None) -> int:
     try:
         review, _ = _preentry_receipts(state_root, _test_owner_home=_test_owner_home)
@@ -318,8 +406,15 @@ def _run(repo_root: Path, state_root: Path, *, _test_owner_home: Path | None = N
         return 2
     try:
         _postconsume_preimport(repo_root, review)
-        from dspx.services.program_oracle_semantic_evaluation_v10 import evaluate_consumed
+        evaluation = _load_reviewed_evaluator(repo_root, review)
+        evaluate_consumed = getattr(evaluation, "evaluate_consumed", None)
+        if not callable(evaluate_consumed):
+            raise RuntimeError("reviewed evaluator entry point missing")
         result = evaluate_consumed(repo_root=repo_root, state_root=state_root, _test_owner_home=_test_owner_home)
+        if not isinstance(result, dict) or not isinstance(result.get("empirical_gate"), str):
+            raise RuntimeError("reviewed evaluator returned an invalid result")
+        if result["empirical_gate"] == "passed":
+            _require_retained_pass(attempt, result)
         print(json.dumps({"artifact_root": str(attempt), "empirical_gate": result["empirical_gate"]}, sort_keys=True))
         return 0 if result["empirical_gate"] == "passed" else 1
     except BaseException as exc:  # noqa: BLE001

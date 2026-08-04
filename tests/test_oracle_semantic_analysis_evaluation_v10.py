@@ -401,6 +401,8 @@ def test_receipts_are_distinct_exact_and_no_replace(
     import dspx.services.program_oracle_semantic_identity_v10 as verification
 
     state, expected = _receipt_state(tmp_path)
+    preentry = _runner()._preentry_receipts(state, _test_owner_home=tmp_path)
+    assert preentry == (expected["review"], expected["gate"])
     monkeypatch.setattr(
         verification, "committed_identity", lambda *a, **k: expected["source_identity"]
     )
@@ -411,7 +413,6 @@ def test_receipts_are_distinct_exact_and_no_replace(
         _test_owner_home=tmp_path,
     )
     assert observed["review_sha256"] != observed["gate_sha256"]
-    assert observed["review"]["decision"] == "ACCEPT_CANDIDATE_FOR_TASK_GATE"
     assert observed["gate"]["decision"] == "AUTHORIZE_EXACTLY_ONE_CORPUS_PROCESS"
     with pytest.raises(FileExistsError):
         write_exclusive(state / LIVE_GATE_RECEIPT, expected["gate"])
@@ -470,6 +471,7 @@ def test_standard_library_bootstrap_consumes_before_post_entry_preflight(
     runner = _runner()
     state, receipts = _receipt_state(tmp_path)
     monkeypatch.setattr(runner, "_postconsume_preimport", lambda *args: None)
+    monkeypatch.setattr(runner, "_load_reviewed_evaluator", lambda *args: evaluation)
     monkeypatch.setattr(
         runner,
         "_preentry_receipts",

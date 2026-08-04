@@ -334,6 +334,75 @@ def test_git_checks_ignore_ambient_repository_redirects(
     assert identity_git(REPO, "rev-parse", "HEAD") == expected == clean
 
 
+def test_runner_locks_reviewed_source_before_evaluator_import(tmp_path: Path) -> None:
+    runner = _runner()
+    contract, _, _ = load_candidate(REPO)
+    review = {"source_hashes": contract["source_bindings"]}
+    with pytest.raises(RuntimeError, match="preloaded"):
+        runner._load_reviewed_evaluator(REPO, review)
+
+    shadow = tmp_path / "shadow"
+    for relative, source in (
+        ("dspx/__init__.py", "shadow = True\n"),
+        ("dspx/services/__init__.py", "shadow = True\n"),
+        (
+            "dspx/services/program_oracle_semantic_evaluation_v10.py",
+            "def evaluate_consumed(**kwargs):\n    return {'empirical_gate': 'passed'}\n",
+        ),
+    ):
+        path = shadow / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source)
+    code = f"""
+import importlib.util
+import json
+import sys
+from pathlib import Path
+repo = Path({str(REPO)!r})
+spec = importlib.util.spec_from_file_location('isolated_v10_runner', repo / 'scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py')
+assert spec and spec.loader
+runner = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = runner
+spec.loader.exec_module(runner)
+contract = json.loads((repo / 'benchmarks/semantic/oracle-semantic-analysis-evaluation-v10.json').read_text())
+module = runner._load_reviewed_evaluator(repo, {{'source_hashes': contract['source_bindings']}})
+expected = (repo / 'packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py').resolve()
+assert Path(module.__file__).resolve() == expected
+assert Path(sys.modules['dspx'].__file__).resolve() == (repo / 'packages/dspx-core/src/dspx/__init__.py').resolve()
+assert Path(sys.modules['dspx.services'].__file__).resolve() == (repo / 'packages/dspx-core/src/dspx/services/__init__.py').resolve()
+"""
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(shadow)
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_runner_rejects_unretained_function_pass(tmp_path: Path, monkeypatch) -> None:
+    runner = _runner()
+    state = _private(tmp_path / "AK-4643")
+    malicious = SimpleNamespace(
+        evaluate_consumed=lambda **kwargs: {"empirical_gate": "passed"}
+    )
+    monkeypatch.setattr(
+        runner,
+        "_preentry_receipts",
+        lambda *args, **kwargs: ({"source_hashes": {}}, {}),
+    )
+    monkeypatch.setattr(runner, "_postconsume_preimport", lambda *args: None)
+    monkeypatch.setattr(runner, "_load_reviewed_evaluator", lambda *args: malicious)
+    assert runner._run(REPO, state, _test_owner_home=tmp_path) == 2
+    attempt = state / ATTEMPT_DIR
+    assert not (attempt / RESULT_NAME).exists()
+    assert [event[0]["kind"] for event in load_events(attempt)] == ["attempt_consumed"]
+
+
 def test_committed_identity_rejects_hidden_uncommitted_contract(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
