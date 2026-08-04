@@ -11,10 +11,9 @@ from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
-
 from dspx.services.program_oracle_semantic_artifacts_v10 import (
-    LEDGER_SCHEMA,
     EVENT_SCHEMA,
+    LEDGER_SCHEMA,
     append_event,
     has_open_effect,
     load_events,
@@ -46,12 +45,17 @@ from dspx.services.program_oracle_semantic_evaluation_v10 import (
 )
 from dspx.services.program_oracle_semantic_identity_v10 import (
     ROUTE,
-    _git as identity_git,
     loaded_source_identity,
+)
+from dspx.services.program_oracle_semantic_identity_v10 import (
+    _git as identity_git,
 )
 from dspx.services.program_oracle_semantic_verification_v10 import (
     _validate_events,
     verify_evaluation,
+)
+from dspx.services.program_oracle_semantic_verifier_projection_v10 import (
+    result_error_projection,
 )
 
 REPO = Path(__file__).resolve().parents[1]
@@ -112,7 +116,9 @@ def _preflight(attempt: Path, bindings: dict[str, Any] | None = None) -> None:
 
 
 def _receipts() -> dict[str, Any]:
-    contract, semantics, digest = load_candidate(REPO)
+    # Retained verification intentionally reuses the reviewed source bindings while
+    # allowing this provider-free verifier repair to differ from the run candidate.
+    contract, semantics, digest = load_candidate(REPO, check_sources=False)
     requests = request_hashes(contract, semantics)
     dependency = {"dspy": {}, "tryinget-dspy-lm-auth": {}}
     return {
@@ -130,6 +136,28 @@ def _receipts() -> dict[str, Any]:
             "source_hashes": contract["source_bindings"],
         },
     }
+
+
+@pytest.mark.parametrize(
+    ("kind", "classification", "expected"),
+    [
+        ("case_error", "effect_outcome_unresolved", None),
+        ("case_error", "typed_response_error", None),
+        ("case_error", "case_processing_error", "case_processing_error"),
+        (
+            "case_error",
+            "interrupted_effect_unresolved",
+            "interrupted_effect_unresolved",
+        ),
+        ("preflight_error", "post_entry_preflight_error", "post_entry_preflight_error"),
+        ("attempt_error", "post_preflight_error", "post_preflight_error"),
+    ],
+)
+def test_result_error_projection_distinguishes_normal_case_errors(
+    kind: str, classification: str, expected: str | None
+) -> None:
+    events = [({"kind": kind, "classification": classification}, "a" * 64)]
+    assert result_error_projection(events) == expected
 
 
 @pytest.mark.parametrize("after", ["effect_observed", "case_started"])
@@ -336,7 +364,7 @@ def test_git_checks_ignore_ambient_repository_redirects(
 
 def test_runner_locks_reviewed_source_before_evaluator_import(tmp_path: Path) -> None:
     runner = _runner()
-    contract, _, _ = load_candidate(REPO)
+    contract, _, _ = load_candidate(REPO, check_sources=False)
     review = {"source_hashes": contract["source_bindings"]}
     with pytest.raises(RuntimeError, match="preloaded"):
         runner._load_reviewed_evaluator(REPO, review)
@@ -453,9 +481,10 @@ def test_dependency_identity_rejects_wrong_name_and_shadow_import(
     (shadow / "__init__.py").write_text("shadow = True\n")
 
     class Distribution:
-        version = "0.1.5"
-        files = [Path("dspy_lm_auth/__init__.py")]
-        metadata = {"Name": "tryinget-dspy-lm-auth"}
+        def __init__(self) -> None:
+            self.version = "0.1.5"
+            self.files = [Path("dspy_lm_auth/__init__.py")]
+            self.metadata = {"Name": "tryinget-dspy-lm-auth"}
 
         def read_text(self, _name: str) -> str:
             return ""
@@ -490,7 +519,7 @@ def test_dependency_identity_rejects_wrong_name_and_shadow_import(
 
 
 def test_runtime_source_closure_includes_required_transitive_modules() -> None:
-    contract, _, _ = load_candidate(REPO)
+    contract, _, _ = load_candidate(REPO, check_sources=False)
     minimum = {
         "packages/dspx-core/src/dspx/capabilities.py",
         "packages/dspx-core/src/dspx/dtos.py",
@@ -509,7 +538,7 @@ def test_runtime_source_closure_includes_required_transitive_modules() -> None:
 
 
 def test_confidence_above_frozen_case_bound_fails() -> None:
-    contract, _, _ = load_candidate(REPO)
+    contract, _, _ = load_candidate(REPO, check_sources=False)
     analysis = {
         "observations": ["accuracy_decreased"],
         "failure_attractors": [],

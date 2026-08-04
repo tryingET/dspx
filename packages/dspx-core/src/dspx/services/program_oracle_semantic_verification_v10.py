@@ -36,9 +36,8 @@ from dspx.services.program_oracle_semantic_contract_v10 import (
     read_json,
     score_v10,
     sequence,
-    terminal_error_classification,
-    validate_attempt_ledger,
     sha256,
+    validate_attempt_ledger,
     write_exclusive,
 )
 from dspx.services.program_oracle_semantic_identity_v10 import (
@@ -46,17 +45,10 @@ from dspx.services.program_oracle_semantic_identity_v10 import (
     expected_loaded_source_identity,
     validate_receipts,
 )
-
-
-def _route_fields_are_live(semantic: Mapping[str, Any]) -> bool:
-    return (
-        semantic.get("backend_kind") == "live"
-        and semantic.get("preferred_model") == ROUTE["model"]
-        and semantic.get("configured_provider") == ROUTE["provider"]
-        and semantic.get("configured_model") == ROUTE["model"]
-        and semantic.get("executed_provider") is None
-        and semantic.get("fixture_sha256") is None
-    )
+from dspx.services.program_oracle_semantic_verifier_projection_v10 import (
+    result_error_projection,
+    route_fields_are_live,
+)
 
 
 def _validate_result(
@@ -116,7 +108,7 @@ def _validate_result(
             or semantic.get("schema_version")
             != "dspx-program-oracle-semantic-result-v1"
             or semantic.get("authority") != "local_empirical_advisory_only"
-            or not _route_fields_are_live(semantic)
+            or not route_fields_are_live(semantic, ROUTE)
         ):
             raise SemanticV10Error("semantic live-route/authority drift")
         status = str(row.get("status"))
@@ -444,7 +436,7 @@ def verify_evaluation(
     }
     if result.get("event_history_sha256") != history or result.get(
         "preflight_error"
-    ) != terminal_error_classification(events):
+    ) != result_error_projection(events):
         raise SemanticV10Error("result event-history/classification binding drift")
     empirical = derive_disposition(events, result)
     reasons = _validate_result(
