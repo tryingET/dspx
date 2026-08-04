@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-04T10:08:27.201197753+00:00",
+  "task_id": 4659,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/oracle-semantic-truth-next-move.md",
+      "docs/project/product-posture.md",
+      "docs/project/semantic-benchmarks.md",
+      "governance/task-scopes/AK-*.snapshot.json"
+    ],
+    "required_paths": [],
+    "forbidden_paths": [
+      ".ontology/**",
+      "benchmarks/**",
+      "generated/**",
+      "packages/**",
+      "scripts/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
