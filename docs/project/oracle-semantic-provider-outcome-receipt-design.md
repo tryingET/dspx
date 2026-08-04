@@ -18,6 +18,16 @@ This design proposes the AK-4661 result **`successor_designable`**. Static, prov
 
 If exact owner implementation cannot preserve this design through sync, async, cancellation, retry, redirect, cache, exception, and receipt-persistence paths, the result falls back to **`pause_unattributable`** and no empirical successor may be created.
 
+## Observed prerequisite implementation
+
+The provider-free prerequisite is now implemented on both owner surfaces:
+
+- provider-owner AK-4672 accepted exact `tryinget-dspy-lm-auth` commit `40dd8c0be1bdd48d1b296297c89613931c033239` / tree `5d980c2849685d24166d5f6924f82b9defaf1393` with verdict `ACCEPT_PROVIDER_OUTCOME_RECEIPT_IMPLEMENTATION`;
+- DSPx AK-4678 adds the exact source/runtime verifier, paired owner-receipt factory, owner-private mode-`0700`/`0600` no-replace journal, durable pre-write inflight marker, closed identity/event validation, and fail-closed reducer under `packages/dspx-core/src/dspx/services/provider_outcome_receipt_*.py`;
+- the DSPx fixture lane uses the exact accepted owner event and receipt classes, pins the four locked dependency payload and `RECORD` digests, rejects fixture journals from accepted reduction, and passes independent review with `ACCEPT_PROVIDER_OUTCOME_RECEIPT_CONSUMER`.
+
+The technical disposition is **`successor_technically_admissible`**: the missing lower-layer attribution prerequisite is materially implemented and provider-free falsified. This is not an empirical result or live authority. It creates no v11 contract, runner, ledger, candidate, gate, or verifier and does not authorize a provider, model, backend, network, auth, shared-store, release, publication, or activation operation. A separate decision task is still required before any unique v11 proposal.
+
 ## Proposition and authority ceiling
 
 The proposition is:
