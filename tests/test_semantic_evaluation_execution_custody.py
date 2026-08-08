@@ -318,8 +318,8 @@ def test_original_rejects_source_receipt_and_rejection_allocates_no_attempt(
         assert count == 0
         with pytest.raises(CustodyError, match="requires a DSPx-observed"):
             store.reject_request("reject-valid", request, material)
-        invalid_number = replace(request, episode_id=1)  # type: ignore[arg-type]
-        invalid_list = replace(request, episode_id=[])  # type: ignore[arg-type]
+        invalid_number = replace(request, episode_id=1)
+        invalid_list = replace(request, episode_id=[])
         first_rejection = store.reject_request("typed-rejection", invalid_number)
         assert (
             store.reject_request("typed-rejection", invalid_number) == first_rejection
