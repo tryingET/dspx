@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "d731f5eb064019885288c132224cc44635972a9b"
+created_at: "2026-08-08T22:15:50Z"
+intent: "Establish the AK-4692 implementation frame for DSPy 3.3 compatibility and a bounded trusted-artifact local Core production target"
+files:
+  - "docs/project/dspy-3-3-trusted-local-core-production-frame.md"
+  - "governance/task-scopes/AK-4692.snapshot.json"
+validation:
+  fast_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs docs/project --strict && git diff --check -- docs/project/dspy-3-3-trusted-local-core-production-frame.md governance/task-scopes/AK-4692.snapshot.json"
+    status: "pass"
+  full_gate:
+    command: "isolated same-HEAD working-tree task scope check for AK-4692"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "Planning-only frame; no dependency, source, runtime, or release mutation."
+links:
+  task_ids:
+    - 4692
