@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "fa7daca51df28443a5c956501f6e6a1b154e6127"
+created_at: "2026-08-08T23:04:19Z"
+intent: "Record the credential-free DSPy 3.3 compatibility probe and select cap_current_range_pending_repairs"
+files:
+  - "docs/project/dspy-3-3-compatibility-probe.md"
+  - "governance/task-scopes/AK-4693.snapshot.json"
+validation:
+  fast_gate:
+    command: "node ~/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs docs/project --strict && git diff --check -- docs/project/dspy-3-3-compatibility-probe.md governance/task-scopes/AK-4693.snapshot.json"
+    status: "pass"
+  full_gate:
+    command: "isolated same-HEAD working-tree task-scope check for AK-4693 plus independent ACCEPT/PASS"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "Evidence-only compatibility probe; canonical dependencies, source, tests, runtime, and release state unchanged."
+links:
+  task_ids:
+    - 4693
