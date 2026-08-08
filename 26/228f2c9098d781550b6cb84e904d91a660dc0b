@@ -1,0 +1,21 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "26228f2c9098d781550b6cb84e904d91a660dc0b"
+created_at: "2026-08-08T21:33:42Z"
+intent: "Preserve base program code in the GEPA loader (drop lru_cache) and write replay-valid manifest meta so check_run_receipt passes"
+files:
+  - "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate.py"
+  - "tests/test_program_refinement_gepa_candidate.py"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 3
+  total: 3
+  rationale: "Distinct from runtime trace capture; makes GEPA candidate artifacts receipt-replayable."
