@@ -1,0 +1,20 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "50f84cdeff30e0d89136bcf76caea5bdbc47e21c"
+created_at: "2026-08-08T21:31:27Z"
+intent: "Drop unused type: ignore[arg-type] suppressions flagged by ty to unblock the repo-wide static gate"
+files:
+  - "tests/test_semantic_evaluation_execution_custody.py"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 3
+  rationale: "Pre-existing committed validation debt (Decision 105 custody test) blocked ci-quality; repaired separately from feature changes."
