@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-08T22:18:17.671902191+00:00",
+  "task_id": 4694,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/2026-08-09--bounded-reactv2-declared-corpus-tool-decision-gate.md",
+      "docs/project/2026-08-09-bounded-reactv2-declared-corpus-tool-evidence.md",
+      "docs/project/2026-08-09-bounded-reactv2-declared-corpus-tool-rfc.md",
+      "docs/project/2026-08-09-bounded-reactv2-declared-corpus-tool-trigger.md",
+      "governance/task-scopes/AK-4694.snapshot.json"
+    ],
+    "required_paths": [
+      "diary/2026-08-09--bounded-reactv2-declared-corpus-tool-decision-gate.md",
+      "docs/project/2026-08-09-bounded-reactv2-declared-corpus-tool-evidence.md",
+      "docs/project/2026-08-09-bounded-reactv2-declared-corpus-tool-rfc.md",
+      "docs/project/2026-08-09-bounded-reactv2-declared-corpus-tool-trigger.md"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
