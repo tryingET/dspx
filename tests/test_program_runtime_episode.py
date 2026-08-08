@@ -215,6 +215,17 @@ def test_program_runtime_episode_round_trips_explicit_pipeline_candidate(
     )
     assert behavior["summary"]["status"] == "executed"
     assert behavior["examples"][0]["observed_outputs"]["response"]
+    traces = json.loads(
+        (
+            tmp_path / "pipeline-runtime-episode" / "program_runtime_traces.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert traces["status"] == "runtime_traces_captured"
+    assert [call["module_id"] for call in traces["module_calls"]] == [
+        "classify_ticket",
+        "draft_response",
+    ]
+    assert traces["coverage"]["status"] == "complete"
 
 
 def test_pdf_review_runtime_cannot_hide_declared_quality_failure(

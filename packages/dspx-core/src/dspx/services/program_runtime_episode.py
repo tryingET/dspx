@@ -1811,6 +1811,7 @@ def run_program_runtime_episode(
     observed: dict[str, object] = {}
     notes: list[str] = []
     error: dict[str, str] | None = None
+    runtime_trace: dict[str, object] | None = None
     status = "error"
     input_fields = [str(item) for item in _safe_list(manifest_intent.get("inputs"))]
     output_fields = [str(item) for item in _safe_list(manifest_intent.get("outputs"))]
@@ -1840,6 +1841,11 @@ def run_program_runtime_episode(
             prediction = program(
                 **{name: materialized_runtime_inputs[name] for name in input_fields}
             )
+            captured_trace = getattr(program, "_last_runtime_trace", None)
+            if isinstance(captured_trace, Mapping):
+                runtime_trace = {
+                    str(key): _jsonable(value) for key, value in captured_trace.items()
+                }
             mapped = _prediction_mapping(prediction)
             for name in output_fields:
                 if name in mapped:
@@ -1889,6 +1895,8 @@ def run_program_runtime_episode(
     }
     if error is not None:
         record["error"] = error
+    if runtime_trace is not None:
+        record["runtime_trace"] = runtime_trace
     status_counts = {status: 1}
     behavior_results: dict[str, Any] = {
         "schema_version": PROGRAM_BEHAVIOR_RESULTS_SCHEMA,
