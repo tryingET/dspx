@@ -32,17 +32,16 @@ from dspx.services.program_refinement_gepa_candidate_contracts import (
 )
 
 
-def _render_gepa_program_code(intent: Mapping[str, Any]) -> str:
+def _render_gepa_program_code(
+    intent: Mapping[str, Any], *, base_program_code: str | None = None
+) -> str:
     name = str(intent.get("name") or "IntentProgram")
     objective = str(intent.get("objective") or "")
     constraints = list(intent.get("constraints") or [])
     metric = str(intent.get("metric") or "unspecified")
-    return "\n".join(
+    loader_code = "\n".join(
         [
-            "from __future__ import annotations",
-            "",
             "import json",
-            "from functools import lru_cache",
             "from pathlib import Path",
             "from typing import Any",
             "",
@@ -259,7 +258,6 @@ def _render_gepa_program_code(intent: Mapping[str, Any]) -> str:
             "        raise RuntimeError('GEPA optimizer payload tree hash changed before load')",
             "",
             "",
-            "@lru_cache(maxsize=1)",
             "def build_program() -> dspy.Module:",
             "    verify_optimizer_output()",
             "    return dspy.load(str(optimizer_output_path()), allow_pickle=True)",
@@ -300,6 +298,9 @@ def _render_gepa_program_code(intent: Mapping[str, Any]) -> str:
             "",
         ]
     )
+    if base_program_code is None:
+        return loader_code
+    return base_program_code.rstrip() + "\n\n" + loader_code
 
 
 def _update_manifest_for_gepa_candidate(
@@ -317,7 +318,11 @@ def _update_manifest_for_gepa_candidate(
     manifest = _load_json_object(manifest_path, label="GEPA candidate manifest")
     intent = _safe_mapping(manifest.get("intent"))
     program_path = candidate_root / "program.py"
-    program_path.write_text(_render_gepa_program_code(intent), encoding="utf-8")
+    base_program_code = program_path.read_text(encoding="utf-8")
+    program_path.write_text(
+        _render_gepa_program_code(intent, base_program_code=base_program_code),
+        encoding="utf-8",
+    )
     lineage_path = candidate_root / "gepa_candidate_lineage.json"
     lineage = {
         "schema_version": "program-gepa-candidate-lineage-v1",
@@ -728,8 +733,48 @@ def _refresh_gepa_candidate_behavior_evidence(candidate_root: Path) -> dict[str,
         meta_payload = _load_json_object(
             meta_path, label="GEPA candidate manifest meta"
         )
-        meta_payload["hash"] = manifest_hash
-        meta_payload["output_hash"] = manifest_hash
+        run_summary = _safe_mapping(meta_payload.get("run_summary"))
+        run_summary.update(
+            {
+                "behavior_episode_path": "behavior_episode.json",
+                "behavior_episode_hash": behavior_episode_hash,
+                "behavior_results_hash": behavior_results_hash,
+                "behavior_summary": episode_summary,
+                "oracle_evidence_hash": None,
+                "generated_files": sorted(generated_files),
+            }
+        )
+        replay_inputs = _safe_mapping(meta_payload.get("replay_inputs"))
+        replay_inputs["intent"] = _safe_mapping(manifest.get("intent"))
+        execution_replay = _safe_mapping(meta_payload.get("execution_replay"))
+        output_identity = _safe_mapping(execution_replay.get("output_identity"))
+        output_identity["algorithm"] = "sha256"
+        output_identity["hash"] = manifest_hash
+        execution_replay["output_identity"] = output_identity
+        meta_payload.update(
+            {
+                "hash": manifest_hash,
+                "output_hash": manifest_hash,
+                "output_path": str(manifest_path),
+                "cache_enabled": False,
+                "replay_inputs": replay_inputs,
+                "run_summary": run_summary,
+                "execution_replay": execution_replay,
+                "program_intent": _safe_mapping(manifest.get("intent")),
+                "program_candidate_assembly": candidate_assembly,
+                "program_execution_episode": execution_episode,
+                "program_behavior_episode": behavior_episode_payload,
+                "program_behavior_episode_artifact": _safe_mapping(
+                    manifest.get("behavior_episode_artifact")
+                ),
+                "program_behavior_results": behavior_results_payload,
+                "program_oracle_evidence": None,
+                "program_oracle_readability": _safe_mapping(
+                    manifest.get("oracle_readability")
+                ),
+                "program_receipt_bundle": receipt_bundle,
+            }
+        )
         meta_path.write_text(_json_text(meta_payload), encoding="utf-8")
 
     return {

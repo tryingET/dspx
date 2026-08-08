@@ -23,6 +23,7 @@ from dspx.services.program_refinement_workflow import (
     write_program_refinement_workflow_result,
 )
 from dspx.services.program_service import materialize_program_from_intent
+from dspx.services.run_replay_service import check_run_receipt
 
 runner = CliRunner()
 
@@ -267,6 +268,9 @@ def test_program_refine_materialize_gepa_candidate_creates_local_non_authoritati
     program_code = (outdir / "program.py").read_text(encoding="utf-8")
     assert "dspy.load" in program_code
     assert "GEPA_OPTIMIZER_OUTPUT_DIR" in program_code
+    assert "dspy.Module" in program_code
+    assert "lru_cache" not in program_code
+    assert "functools" not in program_code
     assert "def configure_observability" in program_code
     assert "def end_observability_run" in program_code
     candidate_manifest = json.loads(
@@ -303,6 +307,8 @@ def test_program_refine_materialize_gepa_candidate_creates_local_non_authoritati
     )
     assert _hash_tree(program_root) == before
     assert _hash_tree(tmp_path / "program-gepa") == optimizer_before
+    replay = check_run_receipt(outdir / "manifest.json.meta.json")
+    assert replay["status"] == "ok", replay.get("errors")
 
 
 def test_program_refine_materialize_and_compare_gepa_candidate_writes_local_workflow(
