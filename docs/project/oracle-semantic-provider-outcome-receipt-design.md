@@ -320,7 +320,7 @@ Select or revert to `pause_unattributable` if the owner rejects the seam, any ro
 
 ## Legal next transitions
 
-AK-4661 recorded `successor_designable`; provider-owner AK-4672 and DSPx consumer AK-4678 then passed exact fixture-only implementation and independent review. The AK-4681 decision candidate selects **`propose_unique_v11_contract`**; only an AK-4681 result with that disposition would admit a fresh provider-free task that may propose a unique v11 contract and task-fixed ledger/root while leaving candidate materialization, exact review, operator/live execution, and provider-free verification as separate later gates.
+AK-4661 recorded `successor_designable`; provider-owner AK-4672 and DSPx consumer AK-4678 then passed exact fixture-only implementation and independent review, and AK-4681 recorded **`propose_unique_v11_contract`**. The AK-4689 Gate 1 candidate now proposes the closed [v11 contract](oracle-semantic-analysis-v11-contract-proposal.md) and selects `v11_candidate_designable`; only an AK-4689 result with that disposition would admit a fresh provider-free candidate-materialization task while leaving exact review, operator/live execution, and provider-free verification as separate later gates.
 
 If that proposal cannot preserve the exact accepted owner/consumer identities, fresh uniqueness, bounded retention, fail-closed attribution, and gate separation, record `pause_empirical_line`; do not weaken the receipt, broaden diagnostics, or repeat v10.
 

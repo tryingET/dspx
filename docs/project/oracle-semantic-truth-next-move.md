@@ -98,7 +98,7 @@ A permanent pause is premature because a bounded provider-free design question r
 
 The selected provider-free route has now completed its prerequisite sequence: AK-4661 designed the receipt, provider-owner AK-4672 accepted the exact implementation, and DSPx AK-4678 accepted the exact-source-bound private sink, journal, dependency verifier, and fail-closed fixture reducer. No provider operation or v11 was created.
 
-The AK-4681 decision candidate selects **`propose_unique_v11_contract`** under the [v11 admission decision](oracle-semantic-analysis-v11-admission-decision.md); only AK-4681 evidence/result can make that selection lifecycle truth. If recorded, the only admitted next leaf is a fresh provider-free task that may propose a unique contract and task-fixed ledger/artifact root. Candidate materialization, exact review, explicit operator/live execution, and independent provider-free verification remain separate later tasks and gates. V10 remains immutable terminal history.
+AK-4681 recorded **`propose_unique_v11_contract`** under the [v11 admission decision](oracle-semantic-analysis-v11-admission-decision.md). The AK-4689 Gate 1 candidate now proposes the closed [v11 contract](oracle-semantic-analysis-v11-contract-proposal.md) and selects `v11_candidate_designable`; only AK-4689 evidence/result can make that selection lifecycle truth. If recorded, the only admitted next leaf is a fresh provider-free candidate-materialization task. Exact review, explicit operator/live execution, and independent provider-free verification remain separate later tasks and gates. V10 remains immutable terminal history.
 
 ## Maximum claim
 

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-08T21:27:35.552801213+00:00",
+  "task_id": 4689,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/oracle-semantic-analysis-v11-admission-decision.md",
+      "docs/project/oracle-semantic-analysis-v11-contract-proposal.md",
+      "docs/project/oracle-semantic-provider-outcome-receipt-design.md",
+      "docs/project/oracle-semantic-truth-next-move.md",
+      "docs/project/product-posture.md",
+      "governance/task-scopes/AK-*.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/oracle-semantic-analysis-v11-contract-proposal.md"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "benchmarks/semantic/**",
+      "packages/**",
+      "pyproject.toml",
+      "scripts/**",
+      "tests/**",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

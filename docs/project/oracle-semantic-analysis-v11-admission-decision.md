@@ -118,7 +118,7 @@ The maximum claim is:
 
 This decision does not prove or authorize:
 
-- a v11 contract, candidate, runner, ledger, artifact root, live gate, verifier, or empirical result;
+- materialized v11 contract bytes, a candidate, runner, ledger, artifact root, live gate, verifier, or empirical result;
 - provider connectivity, request completion, semantic quality, transport-call cardinality, provider-internal retry count, exact wire bytes, executed-model identity, or network isolation;
 - owner-main integration, package release, installation, publication, promotion, or activation;
 - shared-store durability, ROCS conformance, semantic-owner acceptance, or reversal of Decisions 106/107;
@@ -126,6 +126,6 @@ This decision does not prove or authorize:
 
 ## Legal next transition
 
-After AK-4681 records `propose_unique_v11_contract`, the only admitted next leaf is **Gate 1: a fresh provider-free task to propose the unique v11 contract**. Gates 2–5 remain uncreated and unauthorized. If Gate 1 cannot satisfy every bound identity, uniqueness, privacy, custody, validation, and separation requirement, it must return `pause_empirical_line` and create no candidate or live task.
+AK-4681 recorded `propose_unique_v11_contract`. The AK-4689 Gate 1 candidate now proposes the closed [v11 contract](oracle-semantic-analysis-v11-contract-proposal.md) and selects `v11_candidate_designable`; only AK-4689 evidence/result can make that selection lifecycle truth. If recorded, the only admitted next leaf is **Gate 2: a fresh provider-free candidate-materialization task**. Gates 3–5 remain uncreated and unauthorized. If Gate 2 cannot preserve every exact identity, semantic byte, receipt rule, task-bound state rule, privacy boundary, validation requirement, and gate separation, it must return `pause_empirical_line` and create no review or live task.
 
 Use [Oracle semantic provider outcome receipt design](oracle-semantic-provider-outcome-receipt-design.md) for the accepted prerequisite contract, [Oracle semantic truth next move](oracle-semantic-truth-next-move.md) for the v10 route selection, [Product posture](product-posture.md) for the current frontier, and [Semantic benchmarks](semantic-benchmarks.md) for immutable empirical history.
