@@ -1,0 +1,21 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "d04a36a5dc59c4c7b071c4640a196f0f61d27b9a"
+created_at: "2026-08-08T21:31:57Z"
+intent: "Capture module-level runtime traces (last_runtime_trace) into program runtime episode behavior records"
+files:
+  - "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
+  - "tests/test_program_runtime_episode.py"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 2
+  total: 3
+  rationale: "Distinct from GEPA candidate replay enrichment; standalone runtime execution-trace capability."
