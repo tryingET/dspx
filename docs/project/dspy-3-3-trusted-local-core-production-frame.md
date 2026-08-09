@@ -15,7 +15,7 @@ Status: active implementation frame for AK-native work wave `IW-CPR-06-DSPY33-TR
 
 This is a planning artifact, not live direction, release authority, or a second product-posture store. AK owns direction/task/decision/evidence truth. [Vision](vision.md) owns the durable product promise, [Product posture](product-posture.md) owns the current shipped-vs-target projection, [Developer workflow](developer_workflow.md) owns validation commands, and [Architecture](../ARCHITECTURE.md) owns package/runtime boundaries.
 
-AK-4692 authors only this frame and its task-scope snapshot. It does not change dependencies, lockfiles, source, tests, runtime behavior, provider state, release state, or publication authority.
+AK-4692 authored only this frame and its task-scope snapshot. AK-4693 subsequently accepted Gate A's `cap_current_range_pending_repairs` disposition. AK-4702 adopts only the narrow S0 scheduling variance defined below; it does not itself change dependencies, lockfiles, source, tests, runtime behavior, provider state, release state, or publication authority.
 
 ## Decision in one sentence
 
@@ -87,7 +87,7 @@ A future hosted, shared-store, untrusted-code, or autonomous-foundry target requ
 ## Execution principles
 
 1. **Compatibility before feature adoption.** A dependency migration may expose ReActV2 and Flex, but exposure is not integration or authorization.
-2. **One compatibility variable at a time.** Preserve a 3.1.3 baseline, probe 3.3 in an isolated environment, then mutate the canonical dependency surface only from reviewed evidence.
+2. **One compatibility variable at a time.** Preserve an exact 3.1.3 baseline, apply the accepted S0 consumer-safety cap only through its separately scoped proof, probe and repair 3.3 in an isolated environment, then migrate the canonical dependency surface to 3.3 only from reviewed S1-S4 evidence.
 3. **Legacy bridge before typed rewrite.** Stabilize existing provider behavior on DSPy's supported compatibility bridge before migrating providers to the typed LM contract.
 4. **Characterize before enabling ReActV2.** Gate B may run native no-user-tool ReActV2 only in an isolated compatibility probe. Installing DSPy 3.3 or detecting `dspy.ReActV2` must not make the canonical materialization path available. A separate Gate C adoption decision and proof must precede enablement; external tool binding remains outside this wave.
 5. **Trusted artifacts before sandbox claims.** The first production target explicitly limits artifact trust; Python-level guards are not an OS sandbox.
@@ -137,14 +137,57 @@ Delete the isolated probe environment and retain the compatibility report. The c
 
 DSPx owns the isolated probe, compatibility matrix, and non-secret report. AK owns the support-window/adoption decision and successor-task authorization. Security, dependency/provenance, and release owners receive exact evidence for their own gates only; Gate A cannot delegate or satisfy their acceptance authority.
 
+## Accepted S0 variance — exact 3.1.3 consumer-safety cap
+
+Gate A's accepted `cap_current_range_pending_repairs` disposition exposed one immediate consumer-safety defect: the open `dspy-ai>=3.1.3` declaration permits wheel consumers to resolve DSPy versions outside the only currently passing baseline. S0 may therefore precede S1-S4 solely to replace that open range with exact direct `dspy==3.1.3` and `dspy-ai==3.1.3` bounds and to retain the matching lock/environment as the rollback baseline for later migration work.
+
+This is a scheduling variance, not DSPy 3.3 adoption. AK-4702 authorizes only the frame amendment and snapshot that define it. A separate accepted implementation task must own any dependency or lock mutation.
+
+### Entry
+
+- AK-4693's reviewed compatibility probe and `cap_current_range_pending_repairs` disposition remain accepted and unchanged;
+- the implementation task binds the exact pre-S0 open declaration identity plus the exact current 3.1.3 lock, built-wheel, installed-environment, and focused-baseline identities retained by AK-4693;
+- its scope is limited to the Core dependency declaration, matching lock changes, exact consumer/package proof, and the retained S0 rollback receipt;
+- peer-owned source, generated policy, providers, tests unrelated to dependency proof, release state, and runtime state remain outside scope.
+
+### Exact S0 work and proof
+
+- declare both DSPy distribution identities directly and exactly at `3.1.3`; do not use a compatible-release, lower-bound-only, wildcard, or alias-only constraint;
+- update the canonical lock only as required to represent those exact current versions; GEPA remains at the current `0.0.26` baseline and unrelated transitive versions must not refresh by convenience;
+- prove the declaration, lock, built Core wheel metadata, a clean wheel-consumer resolution, and the installed runtime all report `dspy==3.1.3` and `dspy-ai==3.1.3` with no source-checkout leakage;
+- rerun the accepted current-baseline compatibility commands and package/import/CLI journey needed to show that the cap preserves current behavior;
+- retain the exact declaration, lock, resolved environment, wheel hashes, commands, exits, and downgrade/reinstall commands as the S0 baseline used by S1-S5.
+
+S0 does not authorize DSPy/DSPy-AI `3.3.x`, GEPA `0.1.1`, Python support-window changes, `ProgramOfThought` repair, generated-smoke repair, custom-LM changes, ReActV2, typed LM, Flex, providers, tools, release, publication, or activation. Dependency availability cannot satisfy any later feature or owner gate.
+
+### Falsifiers
+
+Stop and leave the canonical dependency/lock transaction unapplied or reverted when:
+
+- the wheel declaration, lock, resolver output, installed distributions, or retained environment disagree on either exact 3.1.3 identity;
+- the lock operation refreshes unrelated dependencies or changes GEPA;
+- the baseline, build, installed-wheel, import, or CLI proof regresses;
+- the proof requires source leakage, credentials, provider effects, generated-code policy weakening, or any 3.3/feature enablement;
+- the pre-S0 state and exact accepted S0 state cannot both be reconstructed for audit and rollback.
+
+### Rollback and successor dependency
+
+Apply S0 as one declaration/lock/proof transaction. If its proof fails, revert only that transaction, retain the failed evidence, prohibit package release under the reopened range, and create no compatibility claim. Once accepted, the exact 3.1.3 declaration, lock, resolved environment, and installed proof become the retained rollback target for S5; they are not permission to discard the earlier audit baseline.
+
+S1-S4 may proceed only against the exact isolated 3.3 target selected by AK-4693 while preserving accepted S0. S5, the canonical 3.3 dependency/source/lock transaction, depends on accepted evidence from S0, S1, S2, S3, and all required S4 slices. No S0 result can waive or satisfy those repair gates.
+
+### Owner and handoff
+
+DSPx owns the separately scoped S0 declaration/lock implementation and local consumer proof. AK owns its task contract, evidence, and acceptance. Dependency/provenance and release owners retain their own judgments; S0 establishes neither release readiness nor publication authority.
+
 ## Gate B — canonical DSPy 3.3 compatibility migration
 
 ### Entry
 
 - Gate A has an accepted compatibility decision bound to exact DSPy/DSPy-AI/GEPA artifacts and one immutable isolated-environment identity;
 - successor tasks have disjoint exact scopes and explicit dependencies on that decision;
-- the previous exact 3.1.3 wheel, lock, resolved environment, installed proof, and rollback commands are retained;
-- no canonical dependency or availability predicate changes until the ProgramOfThought, custom-LM bridge, and GEPA compatibility proofs all pass against the same target environment.
+- accepted S0 exact 3.1.3 direct bounds, wheel, lock, resolved environment, installed proof, and rollback commands are retained;
+- no further canonical dependency or availability predicate changes beyond accepted S0 until the ProgramOfThought, generated-smoke, custom-LM bridge, and GEPA compatibility proofs all pass against the same target environment.
 
 ### Required work
 
@@ -348,20 +391,20 @@ The work wave is complete only when:
 
 ## Successor-task decomposition
 
-Successor dependencies are explicit:
+AK-4693 completed the compatibility probe and accepted `cap_current_range_pending_repairs`. Its successor dependencies are explicit:
 
-1. **Compatibility probe and decision packet** — isolated 3.3 environment, complete compatibility matrix, exact support-window decision.
-2. After task 1, three proof slices may run in parallel only when their scopes are disjoint and all bind the same exact isolated target environment:
-   - **Interpreter/generated-policy compatibility proof** — `ProgramOfThought` factory, static/negative policy tests, and explicit production exclusion;
-   - **Custom-LM legacy-bridge proof** — capabilities, errors, state/history/copy/stream tests;
-   - **GEPA compatibility proof** — exact compile/save/load/materialization/replay behavior, with pickle paths classified as compatibility-only.
-3. **Canonical dependency/source/lock transaction** — depends on accepted results from all three task-2 proofs; installs exact direct bounds and a retained hash-bound resolved environment as one rollback unit.
-4. **Native no-user-tool ReActV2 adoption decision/proof** — depends on task 3's immutable candidate; canonical materialization remains disabled until this task accepts it. Tools remain blocked.
-5. **Trusted-local Core evidence candidate** — depends on tasks 3 and 4; package, installed environment, supported/unsupported matrix, downgrade, live compatibility, security inputs, and current full evidence.
-6. **Typed-LM pilot** — depends on task 5; one provider, parity evidence, no tool enablement.
-7. **Flex design and pilot** — separate decision/task only after task 5 and its containment prerequisites; it does not depend on typed-LM completion unless its exact design requires it.
+0. **S0 — exact 3.1.3 consumer-safety cap** — a separately scoped declaration/lock transaction and consumer proof under the variance above. It establishes the retained current-version rollback baseline and authorizes nothing from 3.3.
+1. **S1 — interpreter/generated-policy compatibility proof** — migrate and prove the `ProgramOfThought` interpreter-factory constructor and static/negative policy together while preserving explicit production exclusion.
+2. **S2 — generated-smoke failure attribution and repair** — explain and repair the isolated target's `forward_error:PermissionError` without weakening `generated_code_guard.py`, enabling effects, or broadening generated imports.
+3. **S3 — full custom-LM legacy-bridge proof** — prove capabilities, errors, state/history/copy, sync/async and stream behavior, callbacks, cancellation, and secret exclusion against the exact isolated target.
+4. **S4 — GEPA 0.1.1 compatibility proof** — use separately attributable S4a/S4b slices when needed for compile/save/load versus materialization/receipt/replay behavior; pickle paths remain compatibility-only and outside the first production target.
+5. **S5 — canonical DSPy 3.3 dependency/source/lock transaction** — depends on accepted S0, S1, S2, S3, and all required S4 evidence bound to the same target. It installs exact direct bounds and the retained hash-bound resolved environment as one rollback unit.
+6. **S6 — native no-user-tool ReActV2 adoption decision/proof** — depends on S5's immutable candidate; canonical materialization remains disabled until this task accepts it. Tools remain blocked.
+7. **Trusted-local Core evidence candidate** — depends on S5 and S6; package, installed environment, supported/unsupported matrix, downgrade, live compatibility, security inputs, and current full evidence.
+8. **Typed-LM pilot** — depends on the trusted-local Core candidate; one provider, parity evidence, no tool enablement.
+9. **Flex design and pilot** — separate decision/task only after the trusted-local Core candidate and its containment prerequisites; it does not depend on typed-LM completion unless its exact design requires it.
 
-No task may move the canonical lock before all task-2 proofs are accepted. Parallel work must use disjoint files/worktrees, the same exact target identity, and separate evidence. Tasks must not be combined merely to reduce task count when doing so hides failure attribution, ownership, or rollback.
+No task may move the canonical lock to DSPy/DSPy-AI 3.3 or GEPA 0.1.1 before S1-S4 are accepted. S0 is the only earlier lock exception, and only for the exact currently proven DSPy/DSPy-AI 3.1.3 cap with GEPA retained at 0.0.26. Parallel work must use disjoint files/worktrees, the same exact target identity, and separate evidence. Tasks must not be combined merely to reduce task count when doing so hides failure attribution, ownership, or rollback.
 
 ## Relationship to existing work
 
@@ -372,7 +415,7 @@ No task may move the canonical lock before all task-2 proofs are accepted. Paral
 
 ## Validation for this frame
 
-AK-4692 closes only after:
+AK-4692's original frame-authoring evidence remains unchanged. AK-4702 closes only after:
 
 - strict docs validation passes for `docs/project`;
 - the exact task scope passes with runtime-owned `.ontology` excluded from Git status discovery;
