@@ -19,6 +19,7 @@ This example set contains six **separate** DSPy programs for the batch hardware 
 - `candidates/<mode>/optimized/manifest.json` — materialized GEPA candidate.
 - `refinement/<mode>/` — GEPA result, optimizer output, and materialization result.
 - `manifest-index.json` — portable relative-path index for all original and optimized manifests.
+- `ai-control-brains.json` — exact six-mode optimized-manifest binding consumed by the LACP `DspxBrain` adapter.
 
 A runtime adapter should receive this example directory through configuration and prefer the indexed optimized manifest. Falling back to the original manifest is allowed only when the optimized path is absent and the caller's contract explicitly permits that fallback. Do not hardcode this repository's workstation path in another package.
 
@@ -42,6 +43,19 @@ just dspx program-run \
 ```
 
 Honor `TMPDIR` and use a fresh output directory for every run.
+
+The LACP CLI accepts the repository and binding as explicit configuration rather than embedding a workstation path:
+
+```bash
+ai-control voice-turn \
+  --transcript-from-clipboard \
+  --brain dspx \
+  --answering-mode socratic \
+  --dspx-repo "$PWD" \
+  --dspx-config examples/voice_turn_brains/ai-control-brains.json \
+  --persona-intent "A patient Socratic teacher." \
+  --play
+```
 
 ## Grounding boundary
 

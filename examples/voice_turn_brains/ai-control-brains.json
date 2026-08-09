@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "model": "baseline-text",
+  "programs": {
+    "simple": {
+      "manifest": "examples/voice_turn_brains/candidates/simple/optimized/manifest.json",
+      "program_id": "prog-cand-e438445a0777"
+    },
+    "elaborate": {
+      "manifest": "examples/voice_turn_brains/candidates/elaborate/optimized/manifest.json",
+      "program_id": "prog-cand-ba306ddd55ae"
+    },
+    "researched": {
+      "manifest": "examples/voice_turn_brains/candidates/researched/optimized/manifest.json",
+      "program_id": "prog-cand-e1ba5de2283e",
+      "corpus_sha256": "9e9a3f126a4b8236a17d5e10a8861243ebf39b03b86b9ebba9ea7c25237f6ca6"
+    },
+    "deep-research": {
+      "manifest": "examples/voice_turn_brains/candidates/deep-research/optimized/manifest.json",
+      "program_id": "prog-cand-33fc1bf1aa66",
+      "corpus_sha256": "9e9a3f126a4b8236a17d5e10a8861243ebf39b03b86b9ebba9ea7c25237f6ca6"
+    },
+    "socratic": {
+      "manifest": "examples/voice_turn_brains/candidates/socratic/optimized/manifest.json",
+      "program_id": "prog-cand-4bb4699b222d"
+    },
+    "bloom": {
+      "manifest": "examples/voice_turn_brains/candidates/bloom/optimized/manifest.json",
+      "program_id": "prog-cand-ed43279f7e7d"
+    }
+  }
+}

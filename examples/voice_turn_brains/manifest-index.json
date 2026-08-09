@@ -1,6 +1,7 @@
 {
   "schema_version": "voice-turn-brain-manifest-index-v1",
   "candidate_preference": "optimized_then_original",
+  "ai_control_config": "ai-control-brains.json",
   "modes": {
     "simple": {
       "intent": "intents/simple.yaml",
