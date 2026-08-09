@@ -1,0 +1,54 @@
+schema_version: program-intent-v2
+name: VoiceTurnElaborateBrain
+objective: Define the requested persona, then develop a complete, nuanced spoken answer to the transcription.
+inputs:
+  - transcription
+  - persona_intent
+outputs:
+  - response
+metric: f1
+constraints:
+  - Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.
+  - Define a concrete persona from persona_intent before answering.
+  - Develop the answer with context, reasoning, implications, and useful caveats.
+  - Prefer coherent spoken prose over terse bullets.
+  - Do not echo the transcription or persona intent.
+  - Return only the response field.
+options:
+  module_inference: false
+topology:
+  kind: pipeline
+  execution_status: declared_not_materialized
+  modules:
+    - id: define_persona
+      primitive: Predict
+      role: define_persona
+      signature:
+        name: DefinePersona
+        inputs: [persona_intent]
+        outputs: [persona]
+    - id: answer_elaborate
+      primitive: ChainOfThought
+      role: developed_answer
+      signature:
+        name: AnswerElaborate
+        inputs: [transcription, persona]
+        outputs: [response]
+  edges:
+    - from: input
+      to: define_persona
+    - from: define_persona
+      to: answer_elaborate
+    - from: answer_elaborate
+      to: output
+examples:
+  - inputs:
+      transcription: Why do seasons change?
+      persona_intent: A patient science explainer.
+    outputs:
+      response: Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year.
+  - inputs:
+      transcription: Why is sleep important for learning?
+      persona_intent: A thoughtful study coach.
+    outputs:
+      response: Sleep supports learning by stabilizing new memories, restoring attention, and helping the brain connect new material with prior knowledge; regular sleep therefore improves both recall and flexible understanding.

@@ -1,0 +1,59 @@
+{
+  "authority": "rubric_contract_only_non_authoritative",
+  "constraints_under_review": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before responding.",
+    "Ask one or two focused questions that expose the next useful reasoning step.",
+    "Offer only the minimum scaffold needed to make the question answerable.",
+    "Do not echo the transcription or persona intent.",
+    "Return only the response field."
+  ],
+  "intent_name": "VoiceTurnSocraticBrain",
+  "juror_rubrics": [
+    {
+      "adversarial_questions": [
+        "Where could the produced answer be simply wrong?",
+        "Does the output satisfy every declared output field?"
+      ],
+      "criteria": [
+        "answer_correctness",
+        "objective_satisfaction"
+      ],
+      "juror_id": "inferred_correctness",
+      "perspective": "correctness"
+    },
+    {
+      "adversarial_questions": [
+        "Which edge case would break this program first?",
+        "Are failure modes explicit enough to debug?"
+      ],
+      "criteria": [
+        "edge_case_resilience",
+        "failure_mode_visibility"
+      ],
+      "juror_id": "inferred_robustness",
+      "perspective": "robustness"
+    },
+    {
+      "adversarial_questions": [
+        "Does the output drift from the stated objective?",
+        "Does the output honor the requested field contract?"
+      ],
+      "criteria": [
+        "objective_adherence",
+        "format_and_field_adherence"
+      ],
+      "juror_id": "inferred_instruction_following",
+      "perspective": "instruction_following"
+    }
+  ],
+  "notes": [
+    "Rubrics are deterministic prompts for future jury execution binding.",
+    "No juror model is called during deterministic materialization.",
+    "Rubric results cannot rank, prune, promote, or grant Oracle authority."
+  ],
+  "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+  "schema_version": "program-jury-rubric-v1",
+  "selected_juror_count": 3,
+  "selection_status": "selected"
+}

@@ -1,0 +1,258 @@
+{
+  "authority": "behavior_evidence_only_non_authoritative",
+  "examples": [
+    {
+      "expected_outputs": {
+        "response": "Workstation owns capture, local-ai-control-plane owns turn composition and its receipt, and DSPx owns the six separate brains and GEPA evidence [voice-turn-owner-split]."
+      },
+      "index": 0,
+      "inputs": {
+        "persona_intent": "A precise systems researcher.",
+        "transcription": "Who owns capture, turn composition, and the six brains?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "Based on the retrieved corpus:\n- **Capture** is owned by softwareco/infra/workstation (which also owns physical OpenDeck actions, dictation activation lease, and clipboard transcript delivery)\n- **Turn composition** is owned by softwareco/owned/local-ai-control-plane (which also owns brain and TTS invocation)\n- **The six brains** are owned by softwareco/owned/dspx (which also owns their GEPA optimization evidence)"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "Based on the retrieved corpus:\n- **Capture** is owned by softwareco/infra/workstation (which also owns physical OpenDeck actions, dictation activation lease, and clipboard transcript delivery)\n- **Turn composition** is owned by softwareco/owned/local-ai-control-plane (which also owns brain and TTS invocation)\n- **The six brains** are owned by softwareco/owned/dspx (which also owns their GEPA optimization evidence)"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A precise systems researcher."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "No supporting sources were found in the declared corpus."
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "transcription": "Who owns capture, turn composition, and the six brains?"
+            },
+            "module_id": "retrieve_corpus",
+            "outputs": {
+              "passages": "[{\"id\": \"voice-turn-owner-split\", \"score\": 7, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-batch-scope\", \"score\": 4, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}]"
+            },
+            "primitive": "Retriever",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "passages": "[{\"id\": \"voice-turn-owner-split\", \"score\": 7, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-batch-scope\", \"score\": 4, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}]",
+              "persona": "No supporting sources were found in the declared corpus.",
+              "transcription": "Who owns capture, turn composition, and the six brains?"
+            },
+            "module_id": "answer_researched",
+            "outputs": {
+              "response": "Based on the retrieved corpus:\n- **Capture** is owned by softwareco/infra/workstation (which also owns physical OpenDeck actions, dictation activation lease, and clipboard transcript delivery)\n- **Turn composition** is owned by softwareco/owned/local-ai-control-plane (which also owns brain and TTS invocation)\n- **The six brains** are owned by softwareco/owned/dspx (which also owns their GEPA optimization evidence)"
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    },
+    {
+      "expected_outputs": {
+        "response": "V1 is a batch, one-time turn; streaming, a continuing loop, and Pipecat are deferred to a later real-time phase [voice-turn-batch-scope]."
+      },
+      "index": 1,
+      "inputs": {
+        "persona_intent": "A concise technical analyst.",
+        "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "No. This is batch processing, not streaming. Pipecat is not part of v1; it belongs to a later real-time phase. [[voice-turn-batch-scope]]"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "No. This is batch processing, not streaming. Pipecat is not part of v1; it belongs to a later real-time phase. [[voice-turn-batch-scope]]"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A concise technical analyst."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "A concise technical analyst is a specialized professional who delivers precise, efficient technical analyses with minimal verbosity. They prioritize clarity, technical accuracy, and actionable insights while avoiding unnecessary complexity or wordiness in problem-solving and reporting tasks."
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+            },
+            "module_id": "retrieve_corpus",
+            "outputs": {
+              "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 9, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 4, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}]"
+            },
+            "primitive": "Retriever",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 9, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 4, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}]",
+              "persona": "A concise technical analyst is a specialized professional who delivers precise, efficient technical analyses with minimal verbosity. They prioritize clarity, technical accuracy, and actionable insights while avoiding unnecessary complexity or wordiness in problem-solving and reporting tasks.",
+              "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+            },
+            "module_id": "answer_researched",
+            "outputs": {
+              "response": "No. This is batch processing, not streaming. Pipecat is not part of v1; it belongs to a later real-time phase. [[voice-turn-batch-scope]]"
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    }
+  ],
+  "input_fields": [
+    "transcription",
+    "persona_intent"
+  ],
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Use only facts supported by passages whose lexical score is greater than zero.",
+      "Cite every material claim with the exact retrieved document id in square brackets.",
+      "Never invent a citation id, source, quote, or external fact.",
+      "If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.",
+      "Return only the response field.",
+      "load local GEPA optimizer output as the candidate program implementation"
+    ],
+    "io": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "outputs": [
+        "response"
+      ]
+    },
+    "materialization_scope": {
+      "current_renderer": "gepa_optimizer_output_loader",
+      "topology_materialized": true
+    },
+    "metric": "f1",
+    "name": "VoiceTurnResearchedBrain",
+    "objective": "Define the requested persona, retrieve bounded local evidence, and answer with corpus-grounded citations."
+  },
+  "intent_name": "VoiceTurnResearchedBrain",
+  "non_authority": {
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "optimization_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "output_fields": [
+    "response"
+  ],
+  "provider": {
+    "provider": "openai-compatible/baseline-text",
+    "status": "configured"
+  },
+  "quality_evaluation": {
+    "criteria_declared": false,
+    "evaluations_failed": 0,
+    "evaluations_passed": 0,
+    "evaluations_total": 0,
+    "quality_approved": false,
+    "status": "not_declared"
+  },
+  "schema_version": "program-behavior-results-v1",
+  "summary": {
+    "degraded": 0,
+    "error": 0,
+    "failed": 2,
+    "passed": 0,
+    "status": "failed",
+    "status_counts": {
+      "failed": 2
+    },
+    "total": 2
+  }
+}

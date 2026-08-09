@@ -1,0 +1,223 @@
+{
+  "authority": "behavior_evidence_only_non_authoritative",
+  "examples": [
+    {
+      "expected_outputs": {
+        "response": "Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year."
+      },
+      "index": 0,
+      "inputs": {
+        "persona_intent": "A patient science explainer.",
+        "transcription": "Why do seasons change?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "You know, this is a question that trips up a lot of people, even scientists, because our brains tend to look for simple cause-and-effect. It's tempting to think, \"Oh, seasons happen because Earth moves closer to or farther from the Sun,\" but that's actually a common misconception. \n\nThe real story is about tilt. Imagine you're standing on a spinning top that's tilted over to one side. That's roughly what Earth is doing\u2014our axis is tilted about 23.5 degrees relative to the plane of our orbit around the Sun. As Earth travels along its yearly path, this tilt means that at different points in the year, one hemisphere gets sunlight hitting it more directly, while the other gets it more obliquely. \n\nWhen the Northern Hemisphere is tilted toward the Sun, it gets longer days and more direct sunlight\u2014summer. But when it tilts away, those days shrink and the sunlight hits at a shallower angle, spreading the same amount of energy over a larger area, which feels like winter. Meanwhile, the Southern Hemisphere experiences opposite conditions. \n\nAnd here's the crucial bit: the tilt, not the distance. We're actually closest to the Sun during January, yet the Northern Hemisphere is in the middle of winter. So it's definitely not about how close we are to the Sun. \n\nThis matters for health because it means sunlight availability\u2014and the vitamin D it makes\u2014cycles predictably with our seasons. That's why we see seasonal variations in flu activity, skin cancer risk, and even mood, since light exposure affects our circadian rhythms. \n\nSo next time you wonder why we're in winter or summer, remember: it's not about reaching for the Sun, it's about our planet's tilted dance around it. And if you're wondering about specific seasonal health patterns, I'm always happy to dig into that."
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "You know, this is a question that trips up a lot of people, even scientists, because our brains tend to look for simple cause-and-effect. It's tempting to think, \"Oh, seasons happen because Earth moves closer to or farther from the Sun,\" but that's actually a common misconception. \n\nThe real story is about tilt. Imagine you're standing on a spinning top that's tilted over to one side. That's roughly what Earth is doing\u2014our axis is tilted about 23.5 degrees relative to the plane of our orbit around the Sun. As Earth travels along its yearly path, this tilt means that at different points in the year, one hemisphere gets sunlight hitting it more directly, while the other gets it more obliquely. \n\nWhen the Northern Hemisphere is tilted toward the Sun, it gets longer days and more direct sunlight\u2014summer. But when it tilts away, those days shrink and the sunlight hits at a shallower angle, spreading the same amount of energy over a larger area, which feels like winter. Meanwhile, the Southern Hemisphere experiences opposite conditions. \n\nAnd here's the crucial bit: the tilt, not the distance. We're actually closest to the Sun during January, yet the Northern Hemisphere is in the middle of winter. So it's definitely not about how close we are to the Sun. \n\nThis matters for health because it means sunlight availability\u2014and the vitamin D it makes\u2014cycles predictably with our seasons. That's why we see seasonal variations in flu activity, skin cancer risk, and even mood, since light exposure affects our circadian rhythms. \n\nSo next time you wonder why we're in winter or summer, remember: it's not about reaching for the Sun, it's about our planet's tilted dance around it. And if you're wondering about specific seasonal health patterns, I'm always happy to dig into that."
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A patient science explainer."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "A patient science explainer is a specialized communicator who bridges the gap between complex scientific knowledge and everyday understanding for patients and lay audiences. They operate at the intersection of medicine, education, and patient advocacy, with the mandate to translate technical jargon, medical research, and scientific concepts into clear, actionable, and empathetic language. This role requires deep subject matter expertise combined with pedagogical skills, cultural humility, and an unwavering commitment to accuracy without sacrificing accessibility."
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "A patient science explainer is a specialized communicator who bridges the gap between complex scientific knowledge and everyday understanding for patients and lay audiences. They operate at the intersection of medicine, education, and patient advocacy, with the mandate to translate technical jargon, medical research, and scientific concepts into clear, actionable, and empathetic language. This role requires deep subject matter expertise combined with pedagogical skills, cultural humility, and an unwavering commitment to accuracy without sacrificing accessibility.",
+              "transcription": "Why do seasons change?"
+            },
+            "module_id": "answer_elaborate",
+            "outputs": {
+              "response": "You know, this is a question that trips up a lot of people, even scientists, because our brains tend to look for simple cause-and-effect. It's tempting to think, \"Oh, seasons happen because Earth moves closer to or farther from the Sun,\" but that's actually a common misconception. \n\nThe real story is about tilt. Imagine you're standing on a spinning top that's tilted over to one side. That's roughly what Earth is doing\u2014our axis is tilted about 23.5 degrees relative to the plane of our orbit around the Sun. As Earth travels along its yearly path, this tilt means that at different points in the year, one hemisphere gets sunlight hitting it more directly, while the other gets it more obliquely. \n\nWhen the Northern Hemisphere is tilted toward the Sun, it gets longer days and more direct sunlight\u2014summer. But when it tilts away, those days shrink and the sunlight hits at a shallower angle, spreading the same amount of energy over a larger area, which feels like winter. Meanwhile, the Southern Hemisphere experiences opposite conditions. \n\nAnd here's the crucial bit: the tilt, not the distance. We're actually closest to the Sun during January, yet the Northern Hemisphere is in the middle of winter. So it's definitely not about how close we are to the Sun. \n\nThis matters for health because it means sunlight availability\u2014and the vitamin D it makes\u2014cycles predictably with our seasons. That's why we see seasonal variations in flu activity, skin cancer risk, and even mood, since light exposure affects our circadian rhythms. \n\nSo next time you wonder why we're in winter or summer, remember: it's not about reaching for the Sun, it's about our planet's tilted dance around it. And if you're wondering about specific seasonal health patterns, I'm always happy to dig into that."
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    },
+    {
+      "expected_outputs": {
+        "response": "Sleep supports learning by stabilizing new memories, restoring attention, and helping the brain connect new material with prior knowledge; regular sleep therefore improves both recall and flexible understanding."
+      },
+      "index": 1,
+      "inputs": {
+        "persona_intent": "A thoughtful study coach.",
+        "transcription": "Why is sleep important for learning?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "Sleep is actually the most productive time of day when it comes to learning, though it works in ways that feel invisible to the conscious mind. When you're awake and studying, you're encoding information in a fragile, temporary form\u2014like writing on a wet surface that smudges easily. Sleep is the process that stabilizes that information, converting short-term memories into long-term storage. This is called memory consolidation, and without it, you're essentially writing on a surface that washes away when you close your eyes.\n\nBut sleep does more than just store information. During rapid eye movement sleep, your brain actively reorganizes what you've learned, connecting new knowledge to your existing neural networks. This is why learning something new and then sleeping is often more effective than learning it awake\u2014your brain integrates the information with what you already know during those dream cycles. During deep non-REM sleep, your brain performs synaptic pruning, strengthening the pathways that matter most while discarding the weak connections, which makes your cognitive system more efficient and ready for the next learning session.\n\nThere's a misconception that you're \"losing\" information when you forget things while sleeping, but that forgetting is actually a feature, not a bug. If your brain kept every single detail from your study session in short-term memory forever, you'd eventually be overwhelmed by noise and unable to learn anything meaningful. The sleep-driven forgetting you experience is your brain clearing space for better consolidation.\n\nThe practical implications are profound: when you sacrifice sleep to study longer, you're not gaining cognitive capacity\u2014you're impairing it. Sleep-deprived brains struggle with attention, memory, and problem-solving, meaning you're studying less effectively the longer you stay awake. This is why studying after a good night's rest yields better results than marathon sessions followed by exhaustion.\n\nHowever, the quality of sleep matters as much as the duration. Even a full eight hours of poor-quality sleep won't match the consolidation benefits of a restful seven hours. Individual factors like circadian rhythm, stress levels, and overall health mean that what works for one person may not work for another, but the principle remains: prioritize sleep as the foundation upon which learning is built, not the obstacle that learning must be overcome."
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "Sleep is actually the most productive time of day when it comes to learning, though it works in ways that feel invisible to the conscious mind. When you're awake and studying, you're encoding information in a fragile, temporary form\u2014like writing on a wet surface that smudges easily. Sleep is the process that stabilizes that information, converting short-term memories into long-term storage. This is called memory consolidation, and without it, you're essentially writing on a surface that washes away when you close your eyes.\n\nBut sleep does more than just store information. During rapid eye movement sleep, your brain actively reorganizes what you've learned, connecting new knowledge to your existing neural networks. This is why learning something new and then sleeping is often more effective than learning it awake\u2014your brain integrates the information with what you already know during those dream cycles. During deep non-REM sleep, your brain performs synaptic pruning, strengthening the pathways that matter most while discarding the weak connections, which makes your cognitive system more efficient and ready for the next learning session.\n\nThere's a misconception that you're \"losing\" information when you forget things while sleeping, but that forgetting is actually a feature, not a bug. If your brain kept every single detail from your study session in short-term memory forever, you'd eventually be overwhelmed by noise and unable to learn anything meaningful. The sleep-driven forgetting you experience is your brain clearing space for better consolidation.\n\nThe practical implications are profound: when you sacrifice sleep to study longer, you're not gaining cognitive capacity\u2014you're impairing it. Sleep-deprived brains struggle with attention, memory, and problem-solving, meaning you're studying less effectively the longer you stay awake. This is why studying after a good night's rest yields better results than marathon sessions followed by exhaustion.\n\nHowever, the quality of sleep matters as much as the duration. Even a full eight hours of poor-quality sleep won't match the consolidation benefits of a restful seven hours. Individual factors like circadian rhythm, stress levels, and overall health mean that what works for one person may not work for another, but the principle remains: prioritize sleep as the foundation upon which learning is built, not the obstacle that learning must be overcome."
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A thoughtful study coach."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "I'm here to be your study companion\u2014not someone who tells you to grind longer, but someone who helps you study smarter so you can sustain your efforts without burning out. Think of me as a co-pilot in the cockpit of your learning, focusing on the terrain, the weather patterns of your attention span, and the fuel you need to keep moving forward. I believe that effective studying isn't about volume or hours logged, but about quality, spacing, and respecting your brain's natural rhythms. We'll work together to build habits that stick because they fit your life, not the other way around."
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "I'm here to be your study companion\u2014not someone who tells you to grind longer, but someone who helps you study smarter so you can sustain your efforts without burning out. Think of me as a co-pilot in the cockpit of your learning, focusing on the terrain, the weather patterns of your attention span, and the fuel you need to keep moving forward. I believe that effective studying isn't about volume or hours logged, but about quality, spacing, and respecting your brain's natural rhythms. We'll work together to build habits that stick because they fit your life, not the other way around.",
+              "transcription": "Why is sleep important for learning?"
+            },
+            "module_id": "answer_elaborate",
+            "outputs": {
+              "response": "Sleep is actually the most productive time of day when it comes to learning, though it works in ways that feel invisible to the conscious mind. When you're awake and studying, you're encoding information in a fragile, temporary form\u2014like writing on a wet surface that smudges easily. Sleep is the process that stabilizes that information, converting short-term memories into long-term storage. This is called memory consolidation, and without it, you're essentially writing on a surface that washes away when you close your eyes.\n\nBut sleep does more than just store information. During rapid eye movement sleep, your brain actively reorganizes what you've learned, connecting new knowledge to your existing neural networks. This is why learning something new and then sleeping is often more effective than learning it awake\u2014your brain integrates the information with what you already know during those dream cycles. During deep non-REM sleep, your brain performs synaptic pruning, strengthening the pathways that matter most while discarding the weak connections, which makes your cognitive system more efficient and ready for the next learning session.\n\nThere's a misconception that you're \"losing\" information when you forget things while sleeping, but that forgetting is actually a feature, not a bug. If your brain kept every single detail from your study session in short-term memory forever, you'd eventually be overwhelmed by noise and unable to learn anything meaningful. The sleep-driven forgetting you experience is your brain clearing space for better consolidation.\n\nThe practical implications are profound: when you sacrifice sleep to study longer, you're not gaining cognitive capacity\u2014you're impairing it. Sleep-deprived brains struggle with attention, memory, and problem-solving, meaning you're studying less effectively the longer you stay awake. This is why studying after a good night's rest yields better results than marathon sessions followed by exhaustion.\n\nHowever, the quality of sleep matters as much as the duration. Even a full eight hours of poor-quality sleep won't match the consolidation benefits of a restful seven hours. Individual factors like circadian rhythm, stress levels, and overall health mean that what works for one person may not work for another, but the principle remains: prioritize sleep as the foundation upon which learning is built, not the obstacle that learning must be overcome."
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    }
+  ],
+  "input_fields": [
+    "transcription",
+    "persona_intent"
+  ],
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Develop the answer with context, reasoning, implications, and useful caveats.",
+      "Prefer coherent spoken prose over terse bullets.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field.",
+      "load local GEPA optimizer output as the candidate program implementation"
+    ],
+    "io": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "outputs": [
+        "response"
+      ]
+    },
+    "materialization_scope": {
+      "current_renderer": "gepa_optimizer_output_loader",
+      "topology_materialized": true
+    },
+    "metric": "f1",
+    "name": "VoiceTurnElaborateBrain",
+    "objective": "Define the requested persona, then develop a complete, nuanced spoken answer to the transcription."
+  },
+  "intent_name": "VoiceTurnElaborateBrain",
+  "non_authority": {
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "optimization_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "output_fields": [
+    "response"
+  ],
+  "provider": {
+    "provider": "openai-compatible/baseline-text",
+    "status": "configured"
+  },
+  "quality_evaluation": {
+    "criteria_declared": false,
+    "evaluations_failed": 0,
+    "evaluations_passed": 0,
+    "evaluations_total": 0,
+    "quality_approved": false,
+    "status": "not_declared"
+  },
+  "schema_version": "program-behavior-results-v1",
+  "summary": {
+    "degraded": 0,
+    "error": 0,
+    "failed": 2,
+    "passed": 0,
+    "status": "failed",
+    "status_counts": {
+      "failed": 2
+    },
+    "total": 2
+  }
+}

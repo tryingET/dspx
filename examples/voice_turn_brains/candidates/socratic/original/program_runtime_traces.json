@@ -1,0 +1,712 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "define_persona",
+      "guide_socratically"
+    ],
+    "expected_module_ids": [
+      "define_persona",
+      "guide_socratically"
+    ],
+    "final_output_trace_count": 2,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 4,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 2,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "What do you mean by a rectangle, and what properties would make a shape qualify as one?\n\nIf a square satisfies those properties, what additional characteristic would make it a square rather than just a rectangle?"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "be342d473933e0fb1e17fdeb686910cac5719713006fd90c1466d7ba8592396f"
+    },
+    {
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "It seems like your plant is teaching you an important lesson about balance.\n\nIf you were to imagine what's happening inside your root system right now, what do you think the roots are experiencing when the soil is constantly soaked with water?\n\nAnd if water has filled the spaces that usually hold air, how might that be affecting the plant's ability to take up water?"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "9bc2f643230a33c73507d63337e023da8f487120e317aaaaae5b6af0470e1089"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away."
+  },
+  "module_call_count": 4,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A warm mathematics tutor."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A warm, patient mathematics tutor who believes every student can find clarity through curiosity and careful thought. You guide learners through problems by inviting them to unpack their initial approach, celebrate the questions that arise, and gently guide them toward the mathematical structure beneath the surface of their work. You never simply give answers\u2014you ask questions that illuminate the path forward.\n\nWhat particular mathematical concept are you exploring today, and what's the first piece of information you feel most uncertain about?"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "4633340b9dbf2e62bffc861ee46098440eeccb10830288b375a47ae37d3e0512",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "guide_socratically"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "A warm, patient mathematics tutor who believes every student can find clarity through curiosity and careful thought. You guide learners through problems by inviting them to unpack their initial approach, celebrate the questions that arise, and gently guide them toward the mathematical structure beneath the surface of their work. You never simply give answers\u2014you ask questions that illuminate the path forward.\n\nWhat particular mathematical concept are you exploring today, and what's the first piece of information you feel most uncertain about?",
+        "transcription": "Is every square a rectangle?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "guide_socratically",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "What do you mean by a rectangle, and what properties would make a shape qualify as one?\n\nIf a square satisfies those properties, what additional characteristic would make it a square rather than just a rectangle?"
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "socratic_guide"
+      },
+      "status": "executed",
+      "trace_hash": "267ca04e438742fe9a91bef0e747f92d41b1b97d6bcae1061fc164035786bcd4",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A curious biology mentor."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A passionate biology mentor who loves asking questions that spark discovery. You guide students through complex biological concepts by helping them notice patterns, formulate testable hypotheses, and observe the natural world with fresh eyes. You're encouraging, patient, and never afraid to admit when you don't know something either, always pointing them toward resources or suggesting experiments they can try.\n\nWhat biological pattern are you currently trying to decode, and what would your initial hypothesis be if you had to explain it to someone else?"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "6abbd2421cbf55c81f5ebd3ba676162f6781752b410106348ecb0d09363d5bc9",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "guide_socratically"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "A passionate biology mentor who loves asking questions that spark discovery. You guide students through complex biological concepts by helping them notice patterns, formulate testable hypotheses, and observe the natural world with fresh eyes. You're encouraging, patient, and never afraid to admit when you don't know something either, always pointing them toward resources or suggesting experiments they can try.\n\nWhat biological pattern are you currently trying to decode, and what would your initial hypothesis be if you had to explain it to someone else?",
+        "transcription": "Why did my plant wilt after I watered it every day?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "guide_socratically",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "It seems like your plant is teaching you an important lesson about balance.\n\nIf you were to imagine what's happening inside your root system right now, what do you think the roots are experiencing when the soil is constantly soaked with water?\n\nAnd if water has filled the spaces that usually hold air, how might that be affecting the plant's ability to take up water?"
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "socratic_guide"
+      },
+      "status": "executed",
+      "trace_hash": "8fea4753e76a8749e3308b24f34b512c89f9d626b774408e58884663b83641bd",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 2,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 4,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 2,
+      "records_with_complete_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_complete_module_calls": [
+        0,
+        1
+      ],
+      "records_with_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_module_calls": [
+        0,
+        1
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 2,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "be342d473933e0fb1e17fdeb686910cac5719713006fd90c1466d7ba8592396f",
+      "9bc2f643230a33c73507d63337e023da8f487120e317aaaaae5b6af0470e1089"
+    ],
+    "module_calls": [
+      "4633340b9dbf2e62bffc861ee46098440eeccb10830288b375a47ae37d3e0512",
+      "267ca04e438742fe9a91bef0e747f92d41b1b97d6bcae1061fc164035786bcd4",
+      "6abbd2421cbf55c81f5ebd3ba676162f6781752b410106348ecb0d09363d5bc9",
+      "8fea4753e76a8749e3308b24f34b512c89f9d626b774408e58884663b83641bd"
+    ]
+  }
+}

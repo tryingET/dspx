@@ -1,0 +1,49 @@
+{
+  "schema_version": "voice-turn-brain-manifest-index-v1",
+  "candidate_preference": "optimized_then_original",
+  "modes": {
+    "simple": {
+      "intent": "intents/simple.yaml",
+      "original_manifest": "candidates/simple/original/manifest.json",
+      "optimized_manifest": "candidates/simple/optimized/manifest.json",
+      "gepa_result": "refinement/simple/gepa-result.json",
+      "materialization_result": "refinement/simple/candidate-result.json"
+    },
+    "elaborate": {
+      "intent": "intents/elaborate.yaml",
+      "original_manifest": "candidates/elaborate/original/manifest.json",
+      "optimized_manifest": "candidates/elaborate/optimized/manifest.json",
+      "gepa_result": "refinement/elaborate/gepa-result.json",
+      "materialization_result": "refinement/elaborate/candidate-result.json"
+    },
+    "researched": {
+      "intent": "intents/researched.yaml",
+      "original_manifest": "candidates/researched/original/manifest.json",
+      "optimized_manifest": "candidates/researched/optimized/manifest.json",
+      "gepa_result": "refinement/researched/gepa-result.json",
+      "materialization_result": "refinement/researched/candidate-result.json"
+    },
+    "deep-research": {
+      "intent": "intents/deep-research.yaml",
+      "original_manifest": "candidates/deep-research/original/manifest.json",
+      "optimized_manifest": "candidates/deep-research/optimized/manifest.json",
+      "gepa_result": "refinement/deep-research/gepa-result.json",
+      "materialization_result": "refinement/deep-research/candidate-result.json"
+    },
+    "socratic": {
+      "intent": "intents/socratic.yaml",
+      "original_manifest": "candidates/socratic/original/manifest.json",
+      "optimized_manifest": "candidates/socratic/optimized/manifest.json",
+      "gepa_result": "refinement/socratic/gepa-result.json",
+      "materialization_result": "refinement/socratic/candidate-result.json"
+    },
+    "bloom": {
+      "intent": "intents/bloom.yaml",
+      "original_manifest": "candidates/bloom/original/manifest.json",
+      "optimized_manifest": "candidates/bloom/optimized/manifest.json",
+      "gepa_result": "refinement/bloom/gepa-result.json",
+      "materialization_result": "refinement/bloom/candidate-result.json"
+    }
+  },
+  "research_corpus": "intents/corpus/voice_turn_corpus.jsonl"
+}

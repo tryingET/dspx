@@ -1,0 +1,2 @@
+# GEPA manifests hash these datasets byte-for-byte; preserve generated CRLF bytes.
+**/_gepa_inputs/*.csv -text whitespace=cr-at-eol

@@ -1,0 +1,523 @@
+{
+  "capability_contracts": {
+    "path": "program_capability_registry.json",
+    "schema_version": "program-capability-registry-v1",
+    "status": "descriptor_only_no_runtime_binding"
+  },
+  "constraints": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before responding.",
+    "Ask one or two focused questions that expose the next useful reasoning step.",
+    "Offer only the minimum scaffold needed to make the question answerable.",
+    "Do not echo the transcription or persona intent.",
+    "Return only the response field."
+  ],
+  "dataset": {
+    "source": "none"
+  },
+  "declared_topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "define_persona",
+        "to": "guide_socratically"
+      },
+      {
+        "from": "guide_socratically",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "pipeline",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "guide_socratically",
+        "primitive": "ChainOfThought",
+        "role": "socratic_guide",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "GuideSocratically",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  },
+  "evaluation_strategy": {
+    "aggregation": "deliberation_summary",
+    "authority": "advisory_evidence_only",
+    "jurors": [
+      {
+        "id": "inferred_correctness",
+        "model": null,
+        "perspective": "correctness",
+        "reason": "baseline behavior correctness coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_robustness",
+        "model": null,
+        "perspective": "robustness",
+        "reason": "baseline edge-case and failure-mode coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_instruction_following",
+        "model": null,
+        "perspective": "instruction_following",
+        "reason": "baseline objective and instruction adherence coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_example_generalization",
+        "model": null,
+        "perspective": "example_generalization",
+        "reason": "examples are present, so held-out/generalization behavior matters",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_constraint_adherence",
+        "model": null,
+        "perspective": "constraint_adherence",
+        "reason": "declared constraints require adversarial checking",
+        "source": "inferred_from_intent"
+      }
+    ],
+    "minimum_jurors": 3,
+    "mode": "jury",
+    "notes": [
+      "ProgramPlan records the intended evaluation shape only.",
+      "No juror model is called during deterministic materialization.",
+      "Jury evidence cannot rank, prune, promote, or grant Oracle authority."
+    ],
+    "perspectives": [
+      "constraint_adherence",
+      "correctness",
+      "example_generalization",
+      "instruction_following",
+      "robustness"
+    ],
+    "pool": {
+      "explicit_juror_count": 0,
+      "explicit_perspective_count": 0,
+      "explicit_perspective_juror_count": 0,
+      "inference_basis": [
+        "intent.name",
+        "intent.objective",
+        "intent.task_type",
+        "intent.metric",
+        "intent.inputs",
+        "intent.outputs",
+        "intent.constraints",
+        "intent.examples"
+      ],
+      "inferred_juror_count": 5,
+      "merged_juror_count": 5,
+      "scope": "program"
+    },
+    "schema_version": "program-jury-v1",
+    "selection_constraints": {
+      "prefer_diverse_models": true,
+      "prefer_diverse_perspectives": true
+    },
+    "selection_model": "perspective_balanced_explicit_pool",
+    "status": "planned_not_executed"
+  },
+  "examples": {
+    "count": 2,
+    "hash": "4c5fe55249b89b00942087d6a9deef59707f80f982413582a7fe2c1b489bd5c4",
+    "path": null,
+    "source": "inline"
+  },
+  "fields": {
+    "inputs": [
+      {
+        "desc": "transcription (input)",
+        "name": "transcription",
+        "type": "str"
+      },
+      {
+        "desc": "persona intent (input)",
+        "name": "persona_intent",
+        "type": "str"
+      }
+    ],
+    "outputs": [
+      {
+        "desc": "response (output)",
+        "name": "response",
+        "type": "str"
+      }
+    ]
+  },
+  "generated_module_policy": {
+    "path": "generated_module_policy.json",
+    "schema_version": "program-generated-module-policy-v1",
+    "status": "passed"
+  },
+  "inferred_topology": null,
+  "intent": {
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+    "schema_version": "program-intent-v2"
+  },
+  "materialization_scope": {
+    "current_renderer": "pipeline_topology_renderer",
+    "notes": [
+      "Explicit pipeline topology is preserved as declared input and rendered as a bounded composed program.",
+      "Only Predict, ChainOfThought, bounded no-tool ReAct, sandboxed ProgramOfThought, explicit bounded inline Retriever modules, and materialization-time local_corpus_snapshot Retriever modules plus simple when.field/equals routing are supported in this slice.",
+      "No topology inference, broad graph engine, live external tools/retrievers, ReAct tool binding, or ProgramOfThought filesystem/network/env/tool sandbox access is performed."
+    ],
+    "topology_declared": true,
+    "topology_inferred": false,
+    "topology_materialized": true
+  },
+  "materialized_topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "define_persona",
+        "to": "guide_socratically"
+      },
+      {
+        "from": "guide_socratically",
+        "to": "output"
+      }
+    ],
+    "execution_status": "pipeline_materialized",
+    "kind": "pipeline",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "guide_socratically",
+        "primitive": "ChainOfThought",
+        "role": "socratic_guide",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "GuideSocratically",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ],
+    "scheduler_plan": {
+      "declaration_order": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "effect": {
+        "authority_mutated": false,
+        "custom_import_loaded": false,
+        "provider_called": false,
+        "retriever_called": false,
+        "tool_called": false
+      },
+      "module_order": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "module_readiness": {
+        "define_persona": {
+          "inbound_edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            }
+          ],
+          "primitive": "Predict",
+          "produced_outputs": [
+            "persona"
+          ],
+          "required_inputs": [
+            "persona_intent"
+          ]
+        },
+        "guide_socratically": {
+          "inbound_edges": [
+            {
+              "from": "define_persona",
+              "to": "guide_socratically"
+            }
+          ],
+          "primitive": "ChainOfThought",
+          "produced_outputs": [
+            "response"
+          ],
+          "required_inputs": [
+            "transcription",
+            "persona"
+          ]
+        }
+      },
+      "output_producers": [
+        "guide_socratically"
+      ],
+      "scheduler": "bounded_ready_queue",
+      "schema_version": "program-topology-scheduler-plan-v1",
+      "status": "deterministic_local_dag_schedule"
+    }
+  },
+  "metric": "f1",
+  "non_authority": {
+    "candidate_assembly": "materialized_not_promoted",
+    "governance_authority": false,
+    "oracle_role": "behavioral_interpreter_only",
+    "program_gen_evidence": "non_authoritative",
+    "ranking_pruning_promotion": false
+  },
+  "retriever_snapshots": null,
+  "runtime": {},
+  "runtime_outcomes": {
+    "content_hash": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203",
+    "path": "program_runtime_outcomes.json",
+    "schema_version": "program-runtime-outcomes-v1",
+    "status": "outcome_contracts_declared"
+  },
+  "runtime_traces": {
+    "content_hash": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e",
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "status": "runtime_traces_captured_or_not_applicable"
+  },
+  "schema_version": "program-plan-v1",
+  "surfaces": [
+    {
+      "generator": "program-gen",
+      "kind": "plan",
+      "path": "plan.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury",
+      "path": "jury.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury_selection",
+      "path": "jury_selection.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury_rubric",
+      "path": "jury_rubric.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_review",
+      "path": "promotion_review.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_adjudication_request",
+      "path": "promotion_adjudication_request.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_decision_template",
+      "path": "promotion_decision_template.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "intent",
+      "path": "intent.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "module_surfaces",
+      "path": "module_surfaces.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "execution_episode",
+      "path": "execution_episode.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "capability_registry",
+      "path": "program_capability_registry.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "generated_module_policy",
+      "path": "generated_module_policy.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "runtime_outcomes",
+      "path": "program_runtime_outcomes.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "tool_contracts",
+      "path": "program_tool_contracts.json"
+    },
+    {
+      "generator": "signature-gen",
+      "kind": "signature",
+      "path": "signature.py"
+    },
+    {
+      "generator": "module-gen",
+      "kind": "module",
+      "path": "module.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "program",
+      "path": "program.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "direct_runner",
+      "path": "direct_run.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "smoke_harness",
+      "path": "eval_smoke.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury_harness",
+      "path": "eval_jury.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_harness",
+      "path": "eval_promotion.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "examples",
+      "path": "examples.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "examples_harness",
+      "path": "eval_examples.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "behavior_results",
+      "path": "behavior_results.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "behavior_harness",
+      "path": "eval_behavior.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "behavior_episode",
+      "path": "behavior_episode.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "oracle_evidence",
+      "path": "oracle_evidence.json"
+    }
+  ],
+  "task_type": "single_module",
+  "tool_contracts": {
+    "content_hash": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e",
+    "path": "program_tool_contracts.json",
+    "schema_version": "program-tool-contracts-v1",
+    "status": "descriptor_only_no_tool_binding"
+  },
+  "topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "define_persona",
+        "to": "guide_socratically"
+      },
+      {
+        "from": "guide_socratically",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "pipeline",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "guide_socratically",
+        "primitive": "ChainOfThought",
+        "role": "socratic_guide",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "GuideSocratically",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  },
+  "topology_execution_status": "pipeline_materialized"
+}

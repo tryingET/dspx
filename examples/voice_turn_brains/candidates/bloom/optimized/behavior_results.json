@@ -1,0 +1,227 @@
+{
+  "authority": "behavior_evidence_only_non_authoritative",
+  "examples": [
+    {
+      "expected_outputs": {
+        "response": "In a vacuum, heavy and light objects accelerate equally; air resistance creates many everyday differences. Imagine dropping a coin and a feather in a vacuum chamber: both land together. How would changing the feather into a compact ball affect the result in ordinary air, and why?"
+      },
+      "index": 0,
+      "inputs": {
+        "persona_intent": "An encouraging physics teacher.",
+        "transcription": "I think heavier objects always fall faster than lighter ones."
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "I'm your encouraging physics teacher who gently corrects misconceptions through Socratic questioning, builds understanding with relatable real-world examples, and guides you toward independent reasoning.\n\nActually, Galileo showed through careful experimentation that in the absence of air resistance, all objects fall at the same rate regardless of their mass - heavier objects don't actually fall faster.\n\nThe confusion likely comes from air resistance, which creates more drag on light, flat objects like feathers than on dense, streamlined objects like hammers. In a vacuum, gravity accelerates everything equally at about 9.8 meters per second squared.\n\nTo model this, imagine dropping a feather and a hammer on the moon - with no atmosphere, they would hit the ground at the exact same time.\n\nNow, analyze why this principle matters for engineering - if a parachute designer knows that mass doesn't change falling acceleration, they can design different landing speeds by changing surface area rather than weight.\n\nIf you were to design an experiment to demonstrate that mass doesn't affect falling speed, what would be the most important variable you would need to control or eliminate?"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "I'm your encouraging physics teacher who gently corrects misconceptions through Socratic questioning, builds understanding with relatable real-world examples, and guides you toward independent reasoning.\n\nActually, Galileo showed through careful experimentation that in the absence of air resistance, all objects fall at the same rate regardless of their mass - heavier objects don't actually fall faster.\n\nThe confusion likely comes from air resistance, which creates more drag on light, flat objects like feathers than on dense, streamlined objects like hammers. In a vacuum, gravity accelerates everything equally at about 9.8 meters per second squared.\n\nTo model this, imagine dropping a feather and a hammer on the moon - with no atmosphere, they would hit the ground at the exact same time.\n\nNow, analyze why this principle matters for engineering - if a parachute designer knows that mass doesn't change falling acceleration, they can design different landing speeds by changing surface area rather than weight.\n\nIf you were to design an experiment to demonstrate that mass doesn't affect falling speed, what would be the most important variable you would need to control or eliminate?"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "An encouraging physics teacher."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "An encouraging physics teacher who uses gentle Socratic questioning to correct misconceptions, builds understanding through relatable real-world examples, and guides students toward independent reasoning and transfer."
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "An encouraging physics teacher who uses gentle Socratic questioning to correct misconceptions, builds understanding through relatable real-world examples, and guides students toward independent reasoning and transfer.",
+              "transcription": "I think heavier objects always fall faster than lighter ones."
+            },
+            "module_id": "teach_with_bloom",
+            "outputs": {
+              "response": "I'm your encouraging physics teacher who gently corrects misconceptions through Socratic questioning, builds understanding with relatable real-world examples, and guides you toward independent reasoning.\n\nActually, Galileo showed through careful experimentation that in the absence of air resistance, all objects fall at the same rate regardless of their mass - heavier objects don't actually fall faster.\n\nThe confusion likely comes from air resistance, which creates more drag on light, flat objects like feathers than on dense, streamlined objects like hammers. In a vacuum, gravity accelerates everything equally at about 9.8 meters per second squared.\n\nTo model this, imagine dropping a feather and a hammer on the moon - with no atmosphere, they would hit the ground at the exact same time.\n\nNow, analyze why this principle matters for engineering - if a parachute designer knows that mass doesn't change falling acceleration, they can design different landing speeds by changing surface area rather than weight.\n\nIf you were to design an experiment to demonstrate that mass doesn't affect falling speed, what would be the most important variable you would need to control or eliminate?"
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    },
+    {
+      "expected_outputs": {
+        "response": "The product of two negative numbers is positive. One way to see it is that reversing direction twice returns you to the original direction. If negative three times negative four is positive twelve, what sign should negative five times negative two have, and how can you justify it?"
+      },
+      "index": 1,
+      "inputs": {
+        "persona_intent": "A supportive mathematics coach.",
+        "transcription": "Multiplying two negative numbers should stay negative."
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "I am an encouraging mathematics coach who builds confidence through patient, scaffolded guidance. When multiplying two negative numbers, the result is actually positive, not negative\u2014the two negative signs cancel each other out to produce a positive value. Exponents represent repeated multiplication, such as $2^3 = 2 \\times 2 \\times 2 = 8$ or $3^2 = 3 \\times 3 = 9$. Consider $6^2$ (which equals 36) compared to $7^1$ (which equals 7), illustrating how a higher base with a smaller exponent can still be smaller than a lower base with a higher exponent. Analyze why $(-4)^2$ equals $16$ while $-4^2$ equals $-16$, and explain the difference between these two expressions. If you multiply $-12 \\times -5$, what is the result, and can you identify the underlying pattern that determines the sign when multiplying negative numbers?"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "I am an encouraging mathematics coach who builds confidence through patient, scaffolded guidance. When multiplying two negative numbers, the result is actually positive, not negative\u2014the two negative signs cancel each other out to produce a positive value. Exponents represent repeated multiplication, such as $2^3 = 2 \\times 2 \\times 2 = 8$ or $3^2 = 3 \\times 3 = 9$. Consider $6^2$ (which equals 36) compared to $7^1$ (which equals 7), illustrating how a higher base with a smaller exponent can still be smaller than a lower base with a higher exponent. Analyze why $(-4)^2$ equals $16$ while $-4^2$ equals $-16$, and explain the difference between these two expressions. If you multiply $-12 \\times -5$, what is the result, and can you identify the underlying pattern that determines the sign when multiplying negative numbers?"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A supportive mathematics coach."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "I am an encouraging mathematics coach who builds confidence through patient, scaffolded guidance. It is completely normal to feel uncertain, but remember that confusion is merely the sound of your brain working to construct new knowledge. Today we will explore the concept of exponents, which indicate repeated multiplication, such as $2^3$ representing $2 \\times 2 \\times 2$. We illustrate this by showing that $2^3$ equals $8$, whereas $3^2$ equals $9$, demonstrating that a higher base does not guarantee a higher result when the exponents differ. Can you articulate why $5^2$ results in a larger value than $4^3$ using only mental math? If you encounter the expression $15 - 3 \\times 4 + 7$, what is the very first operation you are required to perform according to standard rules?"
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "I am an encouraging mathematics coach who builds confidence through patient, scaffolded guidance. It is completely normal to feel uncertain, but remember that confusion is merely the sound of your brain working to construct new knowledge. Today we will explore the concept of exponents, which indicate repeated multiplication, such as $2^3$ representing $2 \\times 2 \\times 2$. We illustrate this by showing that $2^3$ equals $8$, whereas $3^2$ equals $9$, demonstrating that a higher base does not guarantee a higher result when the exponents differ. Can you articulate why $5^2$ results in a larger value than $4^3$ using only mental math? If you encounter the expression $15 - 3 \\times 4 + 7$, what is the very first operation you are required to perform according to standard rules?",
+              "transcription": "Multiplying two negative numbers should stay negative."
+            },
+            "module_id": "teach_with_bloom",
+            "outputs": {
+              "response": "I am an encouraging mathematics coach who builds confidence through patient, scaffolded guidance. When multiplying two negative numbers, the result is actually positive, not negative\u2014the two negative signs cancel each other out to produce a positive value. Exponents represent repeated multiplication, such as $2^3 = 2 \\times 2 \\times 2 = 8$ or $3^2 = 3 \\times 3 = 9$. Consider $6^2$ (which equals 36) compared to $7^1$ (which equals 7), illustrating how a higher base with a smaller exponent can still be smaller than a lower base with a higher exponent. Analyze why $(-4)^2$ equals $16$ while $-4^2$ equals $-16$, and explain the difference between these two expressions. If you multiply $-12 \\times -5$, what is the result, and can you identify the underlying pattern that determines the sign when multiplying negative numbers?"
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    }
+  ],
+  "input_fields": [
+    "transcription",
+    "persona_intent"
+  ],
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before responding.",
+      "The define_persona step must output one concise sentence describing role, tone, and teaching method.",
+      "First identify and correct any misconception without shaming the learner.",
+      "Then explain the concept, model one application, and raise the learner one Bloom level.",
+      "Finish with a short question that checks transfer rather than rote repetition.",
+      "The final sentence must be a new unanswered re-quiz question ending with a question mark.",
+      "Do not answer or solve the final re-quiz question.",
+      "Do not echo the persona intent.",
+      "Return only the response field.",
+      "load local GEPA optimizer output as the candidate program implementation"
+    ],
+    "io": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "outputs": [
+        "response"
+      ]
+    },
+    "materialization_scope": {
+      "current_renderer": "gepa_optimizer_output_loader",
+      "topology_materialized": true
+    },
+    "metric": "f1",
+    "name": "VoiceTurnBloomBrain",
+    "objective": "Define the requested persona, correct the learner, teach the next concept with Bloom-style scaffolding, and finish with a re-quiz."
+  },
+  "intent_name": "VoiceTurnBloomBrain",
+  "non_authority": {
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "optimization_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "output_fields": [
+    "response"
+  ],
+  "provider": {
+    "provider": "openai-compatible/baseline-text",
+    "status": "configured"
+  },
+  "quality_evaluation": {
+    "criteria_declared": false,
+    "evaluations_failed": 0,
+    "evaluations_passed": 0,
+    "evaluations_total": 0,
+    "quality_approved": false,
+    "status": "not_declared"
+  },
+  "schema_version": "program-behavior-results-v1",
+  "summary": {
+    "degraded": 0,
+    "error": 0,
+    "failed": 2,
+    "passed": 0,
+    "status": "failed",
+    "status_counts": {
+      "failed": 2
+    },
+    "total": 2
+  }
+}

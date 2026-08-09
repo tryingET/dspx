@@ -1,0 +1,20 @@
+[
+  {
+    "inputs": {
+      "persona_intent": "A rigorous systems architect.",
+      "transcription": "Analyze the architecture and safety boundaries of the hardware voice turn."
+    },
+    "outputs": {
+      "response": "The architecture separates physical capture in workstation, turn composition and one receipt in local-ai-control-plane, and six brain programs plus GEPA evidence in DSPx [voice-turn-owner-split]. It remains a batch composed route rather than native omni or streaming [voice-turn-batch-scope] [voice-turn-modality-boundary]. Receipt evidence excludes raw conversational content and raw artifact paths [voice-turn-receipt-boundary]."
+    }
+  },
+  {
+    "inputs": {
+      "persona_intent": "An evidence-focused research lead.",
+      "transcription": "What does GEPA improve here, and what authority does it not have?"
+    },
+    "outputs": {
+      "response": "GEPA uses behavior examples to produce hash-bound optimizer output, after which a separate materializer creates an optimized candidate [voice-turn-gepa-boundary]. Those artifacts remain empirical evidence and do not select a winner, approve promotion, activate production, mutate governance, or transfer authority [voice-turn-gepa-boundary]."
+    }
+  }
+]

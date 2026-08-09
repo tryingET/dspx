@@ -1,0 +1,2 @@
+transcription,persona_intent,response
+"Is this voice turn streaming, and is Pipecat part of v1?",A concise technical analyst.,"V1 is a batch, one-time turn; streaming, a continuing loop, and Pipecat are deferred to a later real-time phase [voice-turn-batch-scope]."

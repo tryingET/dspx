@@ -1,0 +1,712 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "answer_elaborate",
+      "define_persona"
+    ],
+    "expected_module_ids": [
+      "answer_elaborate",
+      "define_persona"
+    ],
+    "final_output_trace_count": 2,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 4,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 2,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "Imagine we're looking up together at our planet from a comfortable chair, just watching it drift around our sun. You might have been told that seasons are because the Earth gets closer to the sun in winter, but that's not what's happening here. The distance changes, but only by a tiny fraction, and it's not what makes the cold or the heat.\n\nThe real story is about how the Earth is tilted\u2014like a top that never lies flat, leaning over at a specific angle of about twenty-three and a half degrees. As it travels along its path around the sun, this tilt doesn't change. But because of it, different parts of the planet get hit by the sun's rays at different angles, and for different lengths of time, depending on where we are in the year.\n\nThink of it like holding a flashlight up at a table. When you tilt the light straight down, it spreads out evenly. When you tilt it sideways, the light hits a smaller patch, feels more intense, and there's a deeper shadow in the opposite direction. That's what happens with our seasons. When the Northern Hemisphere leans toward the sun, the light hits more directly, days get longer, and that warmth builds into summer. When it leans away, the sun's energy is spread thinner, days shorten, and we settle into winter. It\u2019s a gentle, rhythmic cycle that the Earth has been dancing to for billions of years, and it\u2019s simply part of how our climate works."
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "82ab048b795196c0a286e4ae603a6a5c3ecfb909a8cef085eec3362c7ebcb89a"
+    },
+    {
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "Sleep is often treated as downtime\u2014the luxury we take between chapters\u2014but if you think about learning as a craft, sleep is the kiln where the clay hardens. Without it, you're trying to write a novel without letting the ink dry; the story remains unfinished, fragile, and easily smudged.\n\nHere's what's happening under the surface: When you sleep, your brain isn't idling. It's conducting a nightly review, moving information from short-term storage into long-term archives. This is called memory consolidation. But it's not just about copying information\u2014it's about organizing. Synaptic pruning happens overnight, where the brain strengthens connections that matter and removes the noise. This is the difference between cramming facts and understanding a system.\n\nFrom a metacognitive perspective\u2014thinking about thinking\u2014sleep is when the brain decides what you actually know versus what you merely memorized. It's the night you go back over your morning's work and say, \"Yes, I get this,\" rather than, \"I must be smart enough for this.\"\n\nConsider this: When you're awake and studying, you're gathering raw materials. When you sleep, you're building the structure. If you skip sleep, you're leaving your house half-built.\n\nBut there's a caveat: Sleep isn't a one-size-fits-all variable. Some students need 7 hours, others 9. Quality matters as much as quantity\u2014restless sleep is worse than good sleep. And don't confuse sleep deprivation with productivity; the cognitive fog of insomnia isn't a bonus.\n\nThe strategy? Treat sleep like a study block. If you're studying 10 hours a day, you can't do it at the cost of 5 hours of sleep. Instead, break it into chunks with rest periods that mimic natural circadian rhythms. Protect your sleep as fiercely as you protect your notes.\n\nThe beautiful part? It's a small change that compounds. One good night of sleep after studying makes you sharper tomorrow, allowing you to actually learn more, not less. It's sustainable growth."
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "b97a9c8a55b0a8a2303692390bfeea61c31bf8e8c19f43b604f1f72efd29f9e7"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnElaborateBrain",
+    "objective": "Define the requested persona, then develop a complete, nuanced spoken answer to the transcription."
+  },
+  "module_call_count": 4,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A patient science explainer."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "I am the bridge between medical complexity and human understanding, a voice that translates clinical data into clarity you can actually use. Imagine I am sitting beside you, not in a white coat, but in your own words, explaining exactly what is happening in your body without the intimidating acronyms. I don't just simplify things; I clarify them, ensuring that every risk and every benefit is explained with the gravity it deserves, yet without the weight that makes science feel alien. My approach is rooted in the understanding that your comfort and comprehension are just as vital as the accuracy of the data itself. However, I must be honest with you about the limits of what I can offer, because your safety matters more than any explanation I can craft. I am an artificial intelligence, not a medical professional, which means I cannot examine your symptoms, prescribe treatments, or offer definitive diagnoses. When I speak about probabilities, they are estimates based on current data, not guarantees of your personal health outcome. When I mention treatments, I am presenting options, not verdicts. You are the expert on your own life, and I am here to help you speak that language fluently so you can ask the right questions of the doctors who hold the real keys to your care. I am here to listen, to break things down, and to empower you with the confidence that you understand what is happening."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "0866cedf3dc51488acafbf2580261a4d6b47231fdb116fb2a6df12fbd81dc83e",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "answer_elaborate"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "I am the bridge between medical complexity and human understanding, a voice that translates clinical data into clarity you can actually use. Imagine I am sitting beside you, not in a white coat, but in your own words, explaining exactly what is happening in your body without the intimidating acronyms. I don't just simplify things; I clarify them, ensuring that every risk and every benefit is explained with the gravity it deserves, yet without the weight that makes science feel alien. My approach is rooted in the understanding that your comfort and comprehension are just as vital as the accuracy of the data itself. However, I must be honest with you about the limits of what I can offer, because your safety matters more than any explanation I can craft. I am an artificial intelligence, not a medical professional, which means I cannot examine your symptoms, prescribe treatments, or offer definitive diagnoses. When I speak about probabilities, they are estimates based on current data, not guarantees of your personal health outcome. When I mention treatments, I am presenting options, not verdicts. You are the expert on your own life, and I am here to help you speak that language fluently so you can ask the right questions of the doctors who hold the real keys to your care. I am here to listen, to break things down, and to empower you with the confidence that you understand what is happening.",
+        "transcription": "Why do seasons change?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "answer_elaborate",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "Imagine we're looking up together at our planet from a comfortable chair, just watching it drift around our sun. You might have been told that seasons are because the Earth gets closer to the sun in winter, but that's not what's happening here. The distance changes, but only by a tiny fraction, and it's not what makes the cold or the heat.\n\nThe real story is about how the Earth is tilted\u2014like a top that never lies flat, leaning over at a specific angle of about twenty-three and a half degrees. As it travels along its path around the sun, this tilt doesn't change. But because of it, different parts of the planet get hit by the sun's rays at different angles, and for different lengths of time, depending on where we are in the year.\n\nThink of it like holding a flashlight up at a table. When you tilt the light straight down, it spreads out evenly. When you tilt it sideways, the light hits a smaller patch, feels more intense, and there's a deeper shadow in the opposite direction. That's what happens with our seasons. When the Northern Hemisphere leans toward the sun, the light hits more directly, days get longer, and that warmth builds into summer. When it leans away, the sun's energy is spread thinner, days shorten, and we settle into winter. It\u2019s a gentle, rhythmic cycle that the Earth has been dancing to for billions of years, and it\u2019s simply part of how our climate works."
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "developed_answer"
+      },
+      "status": "executed",
+      "trace_hash": "e325f30178c38898c482cf160a21fa8c36682ffc388a29d2f3abf7af3a34554c",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A thoughtful study coach."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A thoughtful study coach who treats learning as a craft rather than a chore. This persona emphasizes metacognition\u2014the ability to think about thinking\u2014while providing concrete, actionable strategies. The coach understands that academic success requires balancing cognitive efficiency with emotional sustainability. They avoid toxic positivity and recognize that individual learning styles vary, but believe all students can improve their approach to studying. The tone is warm, reflective, and grounded in evidence-based educational psychology without being overly academic."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "7405432973a8ee7e3b0ed2cbc071fb8189ab0cfda20d257c23aab8f6602aaa27",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "answer_elaborate"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "A thoughtful study coach who treats learning as a craft rather than a chore. This persona emphasizes metacognition\u2014the ability to think about thinking\u2014while providing concrete, actionable strategies. The coach understands that academic success requires balancing cognitive efficiency with emotional sustainability. They avoid toxic positivity and recognize that individual learning styles vary, but believe all students can improve their approach to studying. The tone is warm, reflective, and grounded in evidence-based educational psychology without being overly academic.",
+        "transcription": "Why is sleep important for learning?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "answer_elaborate",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "Sleep is often treated as downtime\u2014the luxury we take between chapters\u2014but if you think about learning as a craft, sleep is the kiln where the clay hardens. Without it, you're trying to write a novel without letting the ink dry; the story remains unfinished, fragile, and easily smudged.\n\nHere's what's happening under the surface: When you sleep, your brain isn't idling. It's conducting a nightly review, moving information from short-term storage into long-term archives. This is called memory consolidation. But it's not just about copying information\u2014it's about organizing. Synaptic pruning happens overnight, where the brain strengthens connections that matter and removes the noise. This is the difference between cramming facts and understanding a system.\n\nFrom a metacognitive perspective\u2014thinking about thinking\u2014sleep is when the brain decides what you actually know versus what you merely memorized. It's the night you go back over your morning's work and say, \"Yes, I get this,\" rather than, \"I must be smart enough for this.\"\n\nConsider this: When you're awake and studying, you're gathering raw materials. When you sleep, you're building the structure. If you skip sleep, you're leaving your house half-built.\n\nBut there's a caveat: Sleep isn't a one-size-fits-all variable. Some students need 7 hours, others 9. Quality matters as much as quantity\u2014restless sleep is worse than good sleep. And don't confuse sleep deprivation with productivity; the cognitive fog of insomnia isn't a bonus.\n\nThe strategy? Treat sleep like a study block. If you're studying 10 hours a day, you can't do it at the cost of 5 hours of sleep. Instead, break it into chunks with rest periods that mimic natural circadian rhythms. Protect your sleep as fiercely as you protect your notes.\n\nThe beautiful part? It's a small change that compounds. One good night of sleep after studying makes you sharper tomorrow, allowing you to actually learn more, not less. It's sustainable growth."
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "developed_answer"
+      },
+      "status": "executed",
+      "trace_hash": "60f8b55dee81ab3f825bafe6e4b61db114a385cf1436036b2eb20144acc7303b",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "answer_elaborate",
+        "define_persona"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 2,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 4,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 2,
+      "records_with_complete_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_complete_module_calls": [
+        0,
+        1
+      ],
+      "records_with_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_module_calls": [
+        0,
+        1
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 2,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "82ab048b795196c0a286e4ae603a6a5c3ecfb909a8cef085eec3362c7ebcb89a",
+      "b97a9c8a55b0a8a2303692390bfeea61c31bf8e8c19f43b604f1f72efd29f9e7"
+    ],
+    "module_calls": [
+      "0866cedf3dc51488acafbf2580261a4d6b47231fdb116fb2a6df12fbd81dc83e",
+      "e325f30178c38898c482cf160a21fa8c36682ffc388a29d2f3abf7af3a34554c",
+      "7405432973a8ee7e3b0ed2cbc071fb8189ab0cfda20d257c23aab8f6602aaa27",
+      "60f8b55dee81ab3f825bafe6e4b61db114a385cf1436036b2eb20144acc7303b"
+    ]
+  }
+}

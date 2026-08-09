@@ -1,0 +1,944 @@
+{
+  "assembly_id": "prog-asm-a4329751dd30",
+  "authority": "execution_episode_evidence_only_non_authoritative",
+  "behavior_evidence_summary": {
+    "degraded": 0,
+    "error": 0,
+    "executed_source_count": 1,
+    "failed": 2,
+    "no_examples_source_count": 0,
+    "passed": 0,
+    "source_count": 1,
+    "source_statuses": [
+      {
+        "behavior_results_path": "behavior_results.json",
+        "count": 2,
+        "kind": "examples",
+        "source_kind": "inline_examples",
+        "split": null,
+        "status": "failed"
+      }
+    ],
+    "status": "failed",
+    "status_counts": {
+      "failed": 1
+    },
+    "total": 2
+  },
+  "behavior_orchestration": {
+    "harness": "eval_behavior.py",
+    "result_artifact": "behavior_episode.json",
+    "result_hash": "01b07141bf75288e9c78503aeebf49d7ca0b2f99f58a0d51001e0b889ed11f49",
+    "returncode": 0,
+    "status": "passed",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "source_count": 1,
+      "status": "failed",
+      "status_counts": {
+        "failed": 1
+      },
+      "total": 2
+    }
+  },
+  "behavior_results": {
+    "content_hash": "2c1cd583f6c1c183920d1b4847c210280400d37c014dd9208f70df077f362d5d",
+    "path": "behavior_results.json",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "status": "failed",
+      "status_counts": {
+        "failed": 2
+      },
+      "total": 2
+    }
+  },
+  "behavior_status": "failed",
+  "behavioral_evaluation": {
+    "examples_count": 2,
+    "result_artifact": "behavior_results.json",
+    "result_hash": "2c1cd583f6c1c183920d1b4847c210280400d37c014dd9208f70df077f362d5d",
+    "status": "failed",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "status": "failed",
+      "status_counts": {
+        "failed": 2
+      },
+      "total": 2
+    }
+  },
+  "candidate_id": "prog-cand-9a22407aa649",
+  "checks": {
+    "compile": {
+      "files": [
+        "direct_run.py",
+        "eval_behavior.py",
+        "eval_examples.py",
+        "eval_jury.py",
+        "eval_promotion.py",
+        "eval_smoke.py",
+        "module.py",
+        "program.py",
+        "signature.py"
+      ],
+      "status": "passed"
+    },
+    "dataset_binding": {
+      "dataset_manifest": null,
+      "split_artifacts": {},
+      "status": "not_applicable"
+    },
+    "examples_binding": {
+      "artifact_refs": [
+        "examples.json",
+        "eval_examples.py"
+      ],
+      "examples_count": 2,
+      "status": "passed"
+    },
+    "jury_binding": {
+      "artifact_refs": [
+        "jury.json",
+        "jury_selection.json",
+        "jury_rubric.json",
+        "eval_jury.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    },
+    "promotion_binding": {
+      "artifact_refs": [
+        "promotion_review.json",
+        "promotion_adjudication_request.json",
+        "promotion_decision_template.json",
+        "eval_promotion.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    },
+    "smoke": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_smoke.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    }
+  },
+  "dataset_evaluation": {
+    "dataset_manifest": null,
+    "split_results": {
+      "test": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      },
+      "train": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      },
+      "validation": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      }
+    },
+    "status": "not_applicable"
+  },
+  "episode_id": "prog-ep-1ad3a21148de",
+  "evaluation_sources": [
+    {
+      "behavior_results_hash": "2c1cd583f6c1c183920d1b4847c210280400d37c014dd9208f70df077f362d5d",
+      "behavior_results_path": "behavior_results.json",
+      "count": 2,
+      "harness": {
+        "path": "eval_examples.py",
+        "returncode": 0,
+        "status": "passed"
+      },
+      "input_artifact_hash": "9eba08e492b4af566ba4e54850507bce472ddf93921b16b9bc64871b6908e1d8",
+      "input_artifact_path": "examples.json",
+      "kind": "examples",
+      "metric": "f1",
+      "provider": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      },
+      "source_kind": "inline_examples",
+      "source_path": null,
+      "status": "failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "evaluator": "deterministic_program_bundle_smoke",
+  "materialization": {
+    "generated_file_count": 30,
+    "generated_files": [
+      "behavior_episode.json",
+      "behavior_results.json",
+      "direct_run.py",
+      "eval_behavior.py",
+      "eval_examples.py",
+      "eval_jury.py",
+      "eval_promotion.py",
+      "eval_smoke.py",
+      "examples.json",
+      "execution_episode.json",
+      "generated_module_policy.json",
+      "intent.json",
+      "intent_normalization.json",
+      "jury.json",
+      "jury_rubric.json",
+      "jury_selection.json",
+      "manifest.json",
+      "module.py",
+      "module_surfaces.json",
+      "oracle_evidence.json",
+      "plan.json",
+      "program.py",
+      "program_capability_registry.json",
+      "program_runtime_outcomes.json",
+      "program_runtime_traces.json",
+      "program_tool_contracts.json",
+      "promotion_adjudication_request.json",
+      "promotion_decision_template.json",
+      "promotion_review.json",
+      "signature.py"
+    ],
+    "status": "passed"
+  },
+  "metadata": {
+    "behavior_episode": {
+      "authority": "behavior_evidence_only_non_authoritative",
+      "non_authority": {
+        "external_authority_mutated": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "optimization_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false,
+        "winner_selection": false
+      },
+      "quality_evaluation": {
+        "criteria_declared": false,
+        "evaluations_failed": 0,
+        "evaluations_passed": 0,
+        "evaluations_total": 0,
+        "quality_approved": false,
+        "status": "not_declared"
+      },
+      "schema_version": "program-behavior-episode-v1",
+      "sources": [
+        {
+          "behavior_results_hash": "2c1cd583f6c1c183920d1b4847c210280400d37c014dd9208f70df077f362d5d",
+          "behavior_results_path": "behavior_results.json",
+          "behavior_status": "failed",
+          "command": [
+            "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+            "eval_examples.py"
+          ],
+          "count": 2,
+          "harness_path": "eval_examples.py",
+          "kind": "examples",
+          "provider": {
+            "provider": "openai-compatible/baseline-text",
+            "status": "configured"
+          },
+          "quality_evaluation": {
+            "criteria_declared": false,
+            "evaluations_failed": 0,
+            "evaluations_passed": 0,
+            "evaluations_total": 0,
+            "quality_approved": false,
+            "status": "not_declared"
+          },
+          "returncode": 0,
+          "source_kind": "inline_examples",
+          "split": null,
+          "status": "passed",
+          "stderr": "",
+          "stdout": "program examples ok: 2 example(s); behavior status: failed",
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 2,
+            "passed": 0,
+            "status": "failed",
+            "status_counts": {
+              "failed": 2
+            },
+            "total": 2
+          }
+        }
+      ],
+      "status": "failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "source_count": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1
+        },
+        "total": 2
+      }
+    },
+    "behavior_results": {
+      "authority": "behavior_evidence_only_non_authoritative",
+      "examples": [
+        {
+          "expected_outputs": {
+            "response": "Four."
+          },
+          "index": 0,
+          "inputs": {
+            "persona_intent": "A calm, precise teacher.",
+            "transcription": "What is two plus two?"
+          },
+          "notes": [
+            "output mismatch: ['response']"
+          ],
+          "observed_outputs": {
+            "response": "Two plus two equals exactly four."
+          },
+          "quality_evaluation": {
+            "criteria": [],
+            "criteria_failed": 0,
+            "criteria_passed": 0,
+            "criteria_total": 0,
+            "quality_approved": false,
+            "schema_version": "program-quality-evaluation-v1",
+            "status": "not_declared"
+          },
+          "runtime_trace": {
+            "final_outputs": {
+              "response": "Two plus two equals exactly four."
+            },
+            "module_calls": [
+              {
+                "inputs": {
+                  "persona_intent": "A calm, precise teacher."
+                },
+                "module_id": "define_persona",
+                "outputs": {
+                  "persona": "Persona: Dr. Eleanor Vance, a mathematics educator with over 20 years of experience. She speaks with measured clarity and emphasizes rigorous accuracy in every explanation. Her presence is steady and reassuring, creating a structured learning environment where precision is valued.\n\nI am ready to assist with your question."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "persona": "Persona: Dr. Eleanor Vance, a mathematics educator with over 20 years of experience. She speaks with measured clarity and emphasizes rigorous accuracy in every explanation. Her presence is steady and reassuring, creating a structured learning environment where precision is valued.\n\nI am ready to assist with your question.",
+                  "transcription": "What is two plus two?"
+                },
+                "module_id": "answer_simple",
+                "outputs": {
+                  "response": "Two plus two equals exactly four."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              }
+            ],
+            "scheduler_events": [
+              {
+                "missing_outputs": [],
+                "pending": [],
+                "status": "completed"
+              }
+            ],
+            "schema_version": "program-runtime-trace-fragment-v1"
+          },
+          "status": "failed"
+        },
+        {
+          "expected_outputs": {
+            "response": "Blue."
+          },
+          "index": 1,
+          "inputs": {
+            "persona_intent": "A concise science guide.",
+            "transcription": "What color is a clear daytime sky?"
+          },
+          "notes": [
+            "output mismatch: ['response']"
+          ],
+          "observed_outputs": {
+            "response": "Blue, due to Rayleigh scattering of sunlight by atmospheric molecules."
+          },
+          "quality_evaluation": {
+            "criteria": [],
+            "criteria_failed": 0,
+            "criteria_passed": 0,
+            "criteria_total": 0,
+            "quality_approved": false,
+            "schema_version": "program-quality-evaluation-v1",
+            "status": "not_declared"
+          },
+          "runtime_trace": {
+            "final_outputs": {
+              "response": "Blue, due to Rayleigh scattering of sunlight by atmospheric molecules."
+            },
+            "module_calls": [
+              {
+                "inputs": {
+                  "persona_intent": "A concise science guide."
+                },
+                "module_id": "define_persona",
+                "outputs": {
+                  "persona": "A concise science guide."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "persona": "A concise science guide.",
+                  "transcription": "What color is a clear daytime sky?"
+                },
+                "module_id": "answer_simple",
+                "outputs": {
+                  "response": "Blue, due to Rayleigh scattering of sunlight by atmospheric molecules."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              }
+            ],
+            "scheduler_events": [
+              {
+                "missing_outputs": [],
+                "pending": [],
+                "status": "completed"
+              }
+            ],
+            "schema_version": "program-runtime-trace-fragment-v1"
+          },
+          "status": "failed"
+        }
+      ],
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "intent": {
+        "constraints": [
+          "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+          "Define a concrete persona from persona_intent before answering.",
+          "Give a direct, concise, factual answer.",
+          "Do not echo the transcription or persona intent.",
+          "Return only the response field."
+        ],
+        "declared_topology": {
+          "edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            },
+            {
+              "from": "define_persona",
+              "to": "answer_simple"
+            },
+            {
+              "from": "answer_simple",
+              "to": "output"
+            }
+          ],
+          "execution_status": "declared_not_materialized",
+          "kind": "pipeline",
+          "modules": [
+            {
+              "id": "define_persona",
+              "primitive": "Predict",
+              "role": "define_persona",
+              "signature": {
+                "inputs": [
+                  "persona_intent"
+                ],
+                "name": "DefinePersona",
+                "outputs": [
+                  "persona"
+                ]
+              }
+            },
+            {
+              "id": "answer_simple",
+              "primitive": "Predict",
+              "role": "direct_answer",
+              "signature": {
+                "inputs": [
+                  "transcription",
+                  "persona"
+                ],
+                "name": "AnswerSimple",
+                "outputs": [
+                  "response"
+                ]
+              }
+            }
+          ]
+        },
+        "inferred_topology": {},
+        "io": {
+          "inputs": [
+            "transcription",
+            "persona_intent"
+          ],
+          "outputs": [
+            "response"
+          ]
+        },
+        "materialization_scope": {
+          "current_renderer": "pipeline_topology_renderer",
+          "topology_declared": true,
+          "topology_inferred": false,
+          "topology_materialized": true
+        },
+        "materialized_topology": {
+          "edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            },
+            {
+              "from": "define_persona",
+              "to": "answer_simple"
+            },
+            {
+              "from": "answer_simple",
+              "to": "output"
+            }
+          ],
+          "execution_status": "pipeline_materialized",
+          "kind": "pipeline",
+          "modules": [
+            {
+              "id": "define_persona",
+              "primitive": "Predict",
+              "role": "define_persona",
+              "signature": {
+                "inputs": [
+                  "persona_intent"
+                ],
+                "name": "DefinePersona",
+                "outputs": [
+                  "persona"
+                ]
+              }
+            },
+            {
+              "id": "answer_simple",
+              "primitive": "Predict",
+              "role": "direct_answer",
+              "signature": {
+                "inputs": [
+                  "transcription",
+                  "persona"
+                ],
+                "name": "AnswerSimple",
+                "outputs": [
+                  "response"
+                ]
+              }
+            }
+          ],
+          "scheduler_plan": {
+            "declaration_order": [
+              "define_persona",
+              "answer_simple"
+            ],
+            "effect": {
+              "authority_mutated": false,
+              "custom_import_loaded": false,
+              "provider_called": false,
+              "retriever_called": false,
+              "tool_called": false
+            },
+            "module_order": [
+              "define_persona",
+              "answer_simple"
+            ],
+            "module_readiness": {
+              "answer_simple": {
+                "inbound_edges": [
+                  {
+                    "from": "define_persona",
+                    "to": "answer_simple"
+                  }
+                ],
+                "primitive": "Predict",
+                "produced_outputs": [
+                  "response"
+                ],
+                "required_inputs": [
+                  "transcription",
+                  "persona"
+                ]
+              },
+              "define_persona": {
+                "inbound_edges": [
+                  {
+                    "from": "input",
+                    "to": "define_persona"
+                  }
+                ],
+                "primitive": "Predict",
+                "produced_outputs": [
+                  "persona"
+                ],
+                "required_inputs": [
+                  "persona_intent"
+                ]
+              }
+            },
+            "output_producers": [
+              "answer_simple"
+            ],
+            "scheduler": "bounded_ready_queue",
+            "schema_version": "program-topology-scheduler-plan-v1",
+            "status": "deterministic_local_dag_schedule"
+          }
+        },
+        "metric": "f1",
+        "module_order": [
+          "define_persona",
+          "answer_simple"
+        ],
+        "name": "VoiceTurnSimpleBrain",
+        "objective": "Define the requested persona, then answer the spoken transcription directly and concisely.",
+        "program_class": "VoiceTurnSimpleBrainPipelineProgram",
+        "quality_criteria": [],
+        "scheduler_plan": {
+          "declaration_order": [
+            "define_persona",
+            "answer_simple"
+          ],
+          "effect": {
+            "authority_mutated": false,
+            "custom_import_loaded": false,
+            "provider_called": false,
+            "retriever_called": false,
+            "tool_called": false
+          },
+          "module_order": [
+            "define_persona",
+            "answer_simple"
+          ],
+          "module_readiness": {
+            "answer_simple": {
+              "inbound_edges": [
+                {
+                  "from": "define_persona",
+                  "to": "answer_simple"
+                }
+              ],
+              "primitive": "Predict",
+              "produced_outputs": [
+                "response"
+              ],
+              "required_inputs": [
+                "transcription",
+                "persona"
+              ]
+            },
+            "define_persona": {
+              "inbound_edges": [
+                {
+                  "from": "input",
+                  "to": "define_persona"
+                }
+              ],
+              "primitive": "Predict",
+              "produced_outputs": [
+                "persona"
+              ],
+              "required_inputs": [
+                "persona_intent"
+              ]
+            }
+          },
+          "output_producers": [
+            "answer_simple"
+          ],
+          "scheduler": "bounded_ready_queue",
+          "schema_version": "program-topology-scheduler-plan-v1",
+          "status": "deterministic_local_dag_schedule"
+        },
+        "topology_execution_status": "pipeline_materialized"
+      },
+      "intent_name": "VoiceTurnSimpleBrain",
+      "non_authority": {
+        "external_authority_mutated": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "optimization_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false,
+        "winner_selection": false
+      },
+      "output_fields": [
+        "response"
+      ],
+      "provider": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      },
+      "quality_evaluation": {
+        "criteria_declared": false,
+        "evaluations_failed": 0,
+        "evaluations_passed": 0,
+        "evaluations_total": 0,
+        "quality_approved": false,
+        "status": "not_declared"
+      },
+      "schema_version": "program-behavior-results-v1",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    },
+    "examples": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_examples.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program examples ok: 2 example(s); behavior status: failed"
+    },
+    "jury": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_jury.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program jury artifacts ok: 3 selected juror(s)"
+    },
+    "promotion": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_promotion.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program promotion artifacts ok: not_ready_blocked"
+    },
+    "smoke": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_smoke.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program smoke ok: VoiceTurnSimpleBrain"
+    }
+  },
+  "non_authority": {
+    "ak_mutation": false,
+    "automatic_promotion": false,
+    "evidence_only": true,
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "governance_mutation": false,
+    "oracle_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "oracle_role": "not_invoked",
+    "promotion_authority": false,
+    "ranking_pruning_promotion": false,
+    "winner_selection": false
+  },
+  "notes": [
+    "Materialization, binding checks, behavioral evaluation, and Oracle readability are separate episode sections.",
+    "eval_examples.py is the example-backed behavior harness when examples exist.",
+    "Oracle readability is captured without invoking Oracle or mutating an index.",
+    "This artifact is evidence only and cannot rank, prune, promote, export, or mutate governance authority."
+  ],
+  "oracle_evidence": {
+    "content_hash": "a4e0e869a7290fa7c8108d57d49c6753bb923ec1233cf610c4fa3826a7c4e44e",
+    "facets": {
+      "behavior_source_kinds": [
+        "inline_examples"
+      ],
+      "behavior_status": "failed",
+      "dataset_split_count": 0,
+      "evidence_source_count": 1,
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_dataset_splits": false,
+      "has_examples": true,
+      "has_failures": true,
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "metric": "f1",
+      "output_fields": [
+        "response"
+      ],
+      "runtime_trace_coverage_status": "complete",
+      "runtime_trace_final_output_trace_count": 2,
+      "runtime_trace_module_call_count": 4,
+      "runtime_trace_source_record_coverage_status": "complete",
+      "runtime_trace_status": "runtime_traces_captured",
+      "status_counts": {
+        "failed": 1
+      },
+      "task_type": "single_module",
+      "total_evaluation_count": 2
+    },
+    "path": "oracle_evidence.json",
+    "summary": {
+      "authority": "oracle_readability_only_non_authoritative",
+      "behavior_status": "failed",
+      "content_hash": "a4e0e869a7290fa7c8108d57d49c6753bb923ec1233cf610c4fa3826a7c4e44e",
+      "evidence_kind": "program_execution_episode",
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_failures": true,
+      "oracle_text_hash": "b1342d7590c1c51975e867657ff65e1e94b593eaf93922c1bdacf6578f282022",
+      "path": "oracle_evidence.json",
+      "schema_version": "program-oracle-evidence-v1",
+      "status_counts": {
+        "failed": 1
+      }
+    }
+  },
+  "oracle_readability": {
+    "facets": {
+      "behavior_source_kinds": [
+        "inline_examples"
+      ],
+      "behavior_status": "failed",
+      "dataset_split_count": 0,
+      "evidence_source_count": 1,
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_dataset_splits": false,
+      "has_examples": true,
+      "has_failures": true,
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "metric": "f1",
+      "output_fields": [
+        "response"
+      ],
+      "runtime_trace_coverage_status": "complete",
+      "runtime_trace_final_output_trace_count": 2,
+      "runtime_trace_module_call_count": 4,
+      "runtime_trace_source_record_coverage_status": "complete",
+      "runtime_trace_status": "runtime_traces_captured",
+      "status_counts": {
+        "failed": 1
+      },
+      "task_type": "single_module",
+      "total_evaluation_count": 2
+    },
+    "oracle_invoked": false,
+    "result_artifact": "oracle_evidence.json",
+    "result_hash": "a4e0e869a7290fa7c8108d57d49c6753bb923ec1233cf610c4fa3826a7c4e44e",
+    "status": "captured",
+    "summary": {
+      "authority": "oracle_readability_only_non_authoritative",
+      "behavior_status": "failed",
+      "content_hash": "a4e0e869a7290fa7c8108d57d49c6753bb923ec1233cf610c4fa3826a7c4e44e",
+      "evidence_kind": "program_execution_episode",
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_failures": true,
+      "oracle_text_hash": "b1342d7590c1c51975e867657ff65e1e94b593eaf93922c1bdacf6578f282022",
+      "path": "oracle_evidence.json",
+      "schema_version": "program-oracle-evidence-v1",
+      "status_counts": {
+        "failed": 1
+      }
+    }
+  },
+  "phase": "materialize",
+  "request_id": "prog-req-c6660c9b1470",
+  "runtime_conditions": {
+    "metric": "f1",
+    "providers": {
+      "examples": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      }
+    },
+    "runtime": {}
+  },
+  "schema_version": "program-execution-episode-v1",
+  "status": "passed",
+  "status_scope": "materialization_and_binding_checks",
+  "topology_execution": {
+    "current_renderer": "pipeline_topology_renderer",
+    "declared_topology_kind": "pipeline",
+    "declared_topology_present": true,
+    "materialized": true,
+    "materialized_topology_kind": "pipeline",
+    "notes": [
+      "Explicit pipeline topology was rendered into signature.py, module.py, and program.py.",
+      "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated."
+    ],
+    "status": "pipeline_materialized"
+  }
+}

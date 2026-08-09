@@ -1,0 +1,68 @@
+{
+  "notes": [
+    "local_corpus_snapshot retrievers are read once during materialization and normalized into generated bounded inline retriever adapters.",
+    "The generated program embeds the normalized documents and does not read the source corpus, bind a live retriever, call a provider, or access the network at runtime."
+  ],
+  "runtime_policy": {
+    "generated_runtime_reads_source_corpus": false,
+    "live_external_retriever_bound": false,
+    "network_allowed": false,
+    "provider_call_allowed": false,
+    "tool_binding_allowed": false
+  },
+  "schema_version": "program-retriever-snapshots-v1",
+  "snapshot_count": 1,
+  "snapshots": [
+    {
+      "document_count": 7,
+      "documents": [
+        {
+          "id": "voice-turn-owner-split",
+          "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+        },
+        {
+          "id": "voice-turn-capture-contract",
+          "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+        },
+        {
+          "id": "voice-turn-batch-scope",
+          "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+        },
+        {
+          "id": "voice-turn-research-boundary",
+          "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+        },
+        {
+          "id": "voice-turn-receipt-boundary",
+          "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+        },
+        {
+          "id": "voice-turn-modality-boundary",
+          "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+        },
+        {
+          "id": "voice-turn-gepa-boundary",
+          "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+        }
+      ],
+      "effects": {
+        "external_authority": false,
+        "materialization_filesystem_read": true,
+        "network": false,
+        "provider_called": false,
+        "runtime_filesystem_read": false,
+        "tool_called": false
+      },
+      "id_field": "id",
+      "k": 5,
+      "mode": "local_corpus_snapshot",
+      "module_id": "retrieve_corpus",
+      "runtime_binding": "generated_bounded_snapshot_retriever_adapter",
+      "source_hash": "997536a6f78bb3ef9be403dbc568929d55715efc9b3ff9fe5b8ca8b7c84c4156",
+      "source_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/intents/corpus/voice_turn_corpus.jsonl",
+      "text_field": "text",
+      "total_text_chars": 2314
+    }
+  ],
+  "status": "materialized_to_bounded_inline_adapters"
+}

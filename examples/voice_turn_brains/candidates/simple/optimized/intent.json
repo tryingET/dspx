@@ -1,0 +1,116 @@
+{
+  "capabilities": {},
+  "constraints": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before answering.",
+    "Give a direct, concise, factual answer.",
+    "Do not echo the transcription or persona intent.",
+    "Return only the response field.",
+    "load local GEPA optimizer output as the candidate program implementation"
+  ],
+  "dataset": {},
+  "datasets": {},
+  "examples": [
+    {
+      "inputs": {
+        "persona_intent": "A calm, precise teacher.",
+        "transcription": "What is two plus two?"
+      },
+      "outputs": {
+        "response": "Four."
+      }
+    },
+    {
+      "inputs": {
+        "persona_intent": "A concise science guide.",
+        "transcription": "What color is a clear daytime sky?"
+      },
+      "outputs": {
+        "response": "Blue."
+      }
+    }
+  ],
+  "input_fields": [],
+  "inputs": [
+    "transcription",
+    "persona_intent"
+  ],
+  "jury": {},
+  "metric": "f1",
+  "name": "VoiceTurnSimpleBrain",
+  "objective": "Define the requested persona, then answer the spoken transcription directly and concisely.",
+  "options": {
+    "gepa_candidate_lineage": {
+      "authority": "local_gepa_refinement_candidate_only_non_authoritative",
+      "gepa_refinement_result_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/simple/gepa-result.json",
+      "schema_version": "program-gepa-candidate-lineage-v1",
+      "source_identity": {
+        "assembly_id": "prog-asm-a4329751dd30",
+        "candidate_id": "prog-cand-9a22407aa649",
+        "episode_id": "prog-ep-1ad3a21148de",
+        "receipt_bundle_id": "prog-rb-1503e0d3f320",
+        "request_id": "prog-req-c6660c9b1470"
+      },
+      "source_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/simple/original/manifest.json"
+    },
+    "module_inference": false
+  },
+  "output_fields": [],
+  "outputs": [
+    "response"
+  ],
+  "promotion": {},
+  "quality_criteria": [],
+  "runtime": {},
+  "schema_version": "program-intent-v2",
+  "task_type": "single_module",
+  "topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "define_persona",
+        "to": "answer_simple"
+      },
+      {
+        "from": "answer_simple",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "pipeline",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "answer_simple",
+        "primitive": "Predict",
+        "role": "direct_answer",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "AnswerSimple",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  }
+}

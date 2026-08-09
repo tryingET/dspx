@@ -1,0 +1,115 @@
+{
+  "candidate": null,
+  "created_from": {
+    "behavior_results_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/researched/original/behavior_results.json",
+    "dataset_manifest_path": null,
+    "manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/researched/original/manifest.json",
+    "source_manifest_schema_version": "program-candidate-assembly-v1",
+    "train_behavior_results_path": null,
+    "train_dataset_path": null,
+    "validation_behavior_results_path": null,
+    "validation_dataset_path": null
+  },
+  "effect": {
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "local_gepa_candidate_generated": false,
+    "source_dataset_artifacts_mutated": false,
+    "source_program_files_mutated": false
+  },
+  "evidence_inputs": {
+    "held_out_validation": true,
+    "limitations": [
+      "Inline examples are not a deterministic held-out dataset split."
+    ],
+    "source": "inline_examples",
+    "train_examples_count": 1,
+    "validation_examples_count": 1
+  },
+  "gepa": {
+    "attempted": true,
+    "chosen_output_keys": [
+      "response"
+    ],
+    "input_keys": [
+      "transcription",
+      "persona_intent"
+    ],
+    "max_metric_calls": 2,
+    "metric": "f1",
+    "notes": [
+      "GEPA completed and wrote a local DSPy optimizer output.",
+      "The existing optimizer output is not a program-candidate-assembly-v1 manifest, so no refinement candidate is claimed."
+    ],
+    "optimizer_metric": "f1",
+    "output_keys": [
+      "response"
+    ],
+    "output_weights": {
+      "response": 1.0
+    },
+    "prepared_inputs": {
+      "train_csv_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/researched/optimizer-output/_gepa_inputs/train.csv",
+      "train_csv_sha256": "1c137e6ab639e8c3d071180494d2bbca8f30c334fc96e7c6eaaf266d10262c17",
+      "validation_csv_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/researched/optimizer-output/_gepa_inputs/validation.csv",
+      "validation_csv_sha256": "65ac8fbd485617df0d1f4b07e11fc4749f2470b29434377fb0efedabcf19b7b2"
+    },
+    "reflection_provider": "openai-compatible",
+    "status": "completed",
+    "student_provider": "openai-compatible"
+  },
+  "gepa_output": {
+    "candidate_assembly_manifest": false,
+    "manifest_kind": "dspy_gepa_optimizer_output_manifest",
+    "manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/researched/optimizer-output/manifest.json",
+    "manifest_present": true,
+    "manifest_schema_version": null,
+    "manifest_sha256": "cb41e4d6a2de45b193f985bd7a1b076e90ee3d239388f41059f5a479f2fbe109",
+    "manifest_valid": true,
+    "readiness": {
+      "blockers": [
+        "no_program_candidate_assembly_materializer_in_this_command",
+        "candidate_field_remains_null_until_explicit_materializer_lands"
+      ],
+      "ready_for_future_candidate_materializer": true,
+      "status": "optimizer_output_hash_bound_not_candidate"
+    },
+    "root_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/researched/optimizer-output"
+  },
+  "lineage": {
+    "authority": "local_gepa_refinement_lineage_only_non_authoritative",
+    "refinement_kind": "gepa",
+    "source_identity": {
+      "assembly_id": "prog-asm-63a51dcb28e6",
+      "candidate_id": "prog-cand-3978945ae925",
+      "episode_id": "prog-ep-15f16153dfa2",
+      "receipt_bundle_id": "prog-rb-126fb7159d19",
+      "request_id": "prog-req-a3fc606f1561"
+    }
+  },
+  "non_authority": {
+    "automatic_promotion": false,
+    "external_authority_export": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "local_refinement_only": true,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "winner_selection": false
+  },
+  "notes": [
+    "This is a local GEPA refinement attempt sidecar only.",
+    "It does not rank, select a winner, promote, export authority, or mutate governance.",
+    "Source manifest was read from /home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/researched/original/manifest.json."
+  ],
+  "schema_version": "program-refinement-gepa-result-v1",
+  "source_identity": {
+    "assembly_id": "prog-asm-63a51dcb28e6",
+    "candidate_id": "prog-cand-3978945ae925",
+    "episode_id": "prog-ep-15f16153dfa2",
+    "receipt_bundle_id": "prog-rb-126fb7159d19",
+    "request_id": "prog-req-a3fc606f1561"
+  },
+  "status": "degraded"
+}

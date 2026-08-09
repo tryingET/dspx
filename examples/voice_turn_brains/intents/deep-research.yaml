@@ -1,0 +1,74 @@
+schema_version: program-intent-v2
+name: VoiceTurnDeepResearchBrain
+objective: Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations.
+inputs:
+  - transcription
+  - persona_intent
+outputs:
+  - response
+metric: f1
+constraints:
+  - Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.
+  - Define a concrete persona from persona_intent before answering.
+  - Use only facts supported by passages whose lexical score is greater than zero.
+  - Synthesize at least two relevant perspectives such as ownership, execution scope, evidence safety, optimization, or residual limitations when the corpus supports them.
+  - Cite every material claim with the exact retrieved document id in square brackets.
+  - Never invent a citation id, source, quote, or external fact.
+  - State conflicts or missing evidence explicitly.
+  - 'If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.'
+  - Return only the response field.
+options:
+  module_inference: false
+topology:
+  kind: retrieve_then_answer
+  execution_status: declared_not_materialized
+  modules:
+    - id: define_persona
+      primitive: Predict
+      role: define_persona
+      signature:
+        name: DefinePersona
+        inputs: [persona_intent]
+        outputs: [persona]
+    - id: retrieve_corpus
+      primitive: Retriever
+      role: retrieve_multi_perspective_grounding
+      signature:
+        name: RetrieveVoiceTurnResearchCorpus
+        inputs: [transcription]
+        outputs: [passages]
+      retriever:
+        mode: local_corpus_snapshot
+        path: corpus/voice_turn_corpus.jsonl
+        id_field: id
+        text_field: text
+        k: 5
+    - id: synthesize_deep_research
+      primitive: ChainOfThought
+      role: multi_perspective_cited_synthesis
+      signature:
+        name: SynthesizeDeepResearch
+        inputs: [transcription, persona, passages]
+        outputs: [response]
+  edges:
+    - from: input
+      to: define_persona
+    - from: input
+      to: retrieve_corpus
+    - from: define_persona
+      to: synthesize_deep_research
+    - from: retrieve_corpus
+      to: synthesize_deep_research
+    - from: synthesize_deep_research
+      to: output
+examples:
+  - inputs:
+      transcription: Analyze the architecture and safety boundaries of the hardware voice turn.
+      persona_intent: A rigorous systems architect.
+    outputs:
+      response: The architecture separates physical capture in workstation, turn composition and one receipt in local-ai-control-plane, and six brain programs plus GEPA evidence in DSPx [voice-turn-owner-split]. It remains a batch composed route rather than native omni or streaming [voice-turn-batch-scope] [voice-turn-modality-boundary]. Receipt evidence excludes raw conversational content and raw artifact paths [voice-turn-receipt-boundary].
+  - inputs:
+      transcription: What does GEPA improve here, and what authority does it not have?
+      persona_intent: An evidence-focused research lead.
+    outputs:
+      response: GEPA uses behavior examples to produce hash-bound optimizer output, after which a separate materializer creates an optimized candidate [voice-turn-gepa-boundary]. Those artifacts remain empirical evidence and do not select a winner, approve promotion, activate production, mutate governance, or transfer authority [voice-turn-gepa-boundary].

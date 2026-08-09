@@ -1,0 +1,133 @@
+{
+  "created_at": "2026-08-08T21:59:21.268455+00:00",
+  "dataset": {
+    "train": {
+      "nrows_cap": null,
+      "nrows_loaded": 1,
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/simple/optimizer-output/_gepa_inputs/train.csv",
+      "sha256": "f5547467e8f5b178b1f125f8cf21177082782dee04422c73e2eda7cb364fb68f"
+    },
+    "val": {
+      "nrows_cap": null,
+      "nrows_loaded": 1,
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/simple/optimizer-output/_gepa_inputs/validation.csv",
+      "sha256": "7df2c430e5f56419efaede183114e88f524e593f0d7da793e2e9c3c60dd174c3"
+    }
+  },
+  "dspx_version": null,
+  "dspy_version": "3.1.3",
+  "gepa": {
+    "auto": null,
+    "max_full_evals": null,
+    "max_metric_calls": 2,
+    "metric": "f1",
+    "output_weights": {
+      "response": 1.0
+    },
+    "seed": 0
+  },
+  "io": {
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "outputs": [
+      "response"
+    ]
+  },
+  "output_payload": {
+    "excludes": [
+      "manifest.json"
+    ],
+    "files": [
+      {
+        "path": "_gepa_inputs/train.csv",
+        "sha256": "f5547467e8f5b178b1f125f8cf21177082782dee04422c73e2eda7cb364fb68f",
+        "size_bytes": 95
+      },
+      {
+        "path": "_gepa_inputs/validation.csv",
+        "sha256": "7df2c430e5f56419efaede183114e88f524e593f0d7da793e2e9c3c60dd174c3",
+        "size_bytes": 106
+      },
+      {
+        "path": "metadata.json",
+        "sha256": "dbb229cc9da4ed43daf42034b9b9c6af5430f6aeb753ae6687403ff9edce53aa",
+        "size_bytes": 103
+      },
+      {
+        "path": "program.pkl",
+        "sha256": "1c86e9b206bf309e88d5797b189cc15c09747e785362dea405922e46b76357c5",
+        "size_bytes": 13416
+      },
+      {
+        "path": "source/program.py",
+        "sha256": "dffab28a6b3f437d2d529c35d094e2c3c4fd2881365610662cc06b318ce549fd",
+        "size_bytes": 16034
+      }
+    ],
+    "hash_algorithm": "sha256",
+    "tree_hash": "41cc7a8584948cbdc061b13370c0084c6695799bf056a59c2d5f9f947743bc68"
+  },
+  "program": {
+    "copied_to": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/simple/optimizer-output/source/program.py",
+    "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/simple/original/program.py",
+    "sha256": "dffab28a6b3f437d2d529c35d094e2c3c4fd2881365610662cc06b318ce549fd"
+  },
+  "providers": {
+    "reflection": {
+      "capabilities": {
+        "code_exec": false,
+        "json_mode": false,
+        "multi_turn": true,
+        "structured_output_format": "none",
+        "supports_audio": false,
+        "supports_tools": false,
+        "supports_vision": false
+      },
+      "model": "openai-compatible/baseline-text",
+      "model_type": "text",
+      "provider": "openai-compatible",
+      "runtime": {
+        "base_url": "http://127.0.0.1:1234/v1",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "loopback": true,
+        "model": "baseline-text",
+        "provider_family": "openai-compatible",
+        "timeout": 180.0
+      }
+    },
+    "student": {
+      "capabilities": {
+        "code_exec": false,
+        "json_mode": false,
+        "multi_turn": true,
+        "structured_output_format": "none",
+        "supports_audio": false,
+        "supports_tools": false,
+        "supports_vision": false
+      },
+      "model": "openai-compatible/baseline-text",
+      "model_type": "text",
+      "provider": "openai-compatible",
+      "runtime": {
+        "base_url": "http://127.0.0.1:1234/v1",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "loopback": true,
+        "model": "baseline-text",
+        "provider_family": "openai-compatible",
+        "timeout": 180.0
+      }
+    }
+  },
+  "python": {
+    "executable": "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.8-arch1-1-x86_64-with-glibc2.43",
+    "version": "3.13.12 (main, Mar  3 2026, 15:01:51) [Clang 21.1.4 ]"
+  }
+}
