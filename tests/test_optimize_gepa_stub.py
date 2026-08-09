@@ -71,6 +71,20 @@ def test_gepa_optimize_saves_loadable_program(
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("DSPX_TRUSTED_PROGRAM_ROOTS", str(tmp_path))
 
+    from dspy.teleprompt.gepa.gepa import GEPA as RealGEPA
+
+    gepa_kwargs: dict[str, object] = {}
+
+    class RecordingGEPA:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            gepa_kwargs.update(kwargs)
+            self._delegate = RealGEPA(*args, **kwargs)
+
+        def compile(self, **kwargs: object) -> object:
+            return self._delegate.compile(**kwargs)
+
+    monkeypatch.setattr("dspy.teleprompt.gepa.gepa.GEPA", RecordingGEPA)
+
     program = tmp_path / "prog.py"
     program.write_text(
         "\n".join(
@@ -109,6 +123,8 @@ def test_gepa_optimize_saves_loadable_program(
         max_metric_calls=2,
         seed=0,
     )
+
+    assert gepa_kwargs["num_threads"] == 1
 
     assert res.out_dir.exists() and res.out_dir.is_dir()
     manifest = json.loads((res.out_dir / "manifest.json").read_text(encoding="utf-8"))

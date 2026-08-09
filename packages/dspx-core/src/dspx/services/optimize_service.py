@@ -358,6 +358,7 @@ def run_gepa_optimize(
     output_weights: Optional[Dict[str, float]] = None,
     seed: int = 0,
     nrows: Optional[int] = None,
+    num_threads: int = 1,
 ) -> GEPAResult:
     """
     Optimize a DSPy program/module via GEPA and save it as a loadable program dir.
@@ -382,6 +383,8 @@ def run_gepa_optimize(
     from dspx.provider_runtime import provider_metadata_from_instance
 
     ensure_default_providers()
+    if not 1 <= num_threads <= 32:
+        raise ValueError("num_threads must be between 1 and 32")
 
     student_lm = (
         create(student_provider)
@@ -464,6 +467,7 @@ def run_gepa_optimize(
         max_metric_calls=max_metric_calls,
         reflection_lm=cast(Any, reflection_lm),
         seed=seed,
+        num_threads=num_threads,
     )
 
     compiled: Any = gepa.compile(
