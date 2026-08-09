@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-09T21:02:49.107790419+00:00",
+  "task_id": 4712,
+  "entity_version": 4,
+  "commit_sha": "52f6fe7a6d019f5e7b608552dd83ebe5f35431dd",
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-4712.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_generated_policy.py",
+      "packages/dspx-core/src/dspx/services/program_topology.py",
+      "tests/test_program_generated_policy.py",
+      "tests/test_program_topology_intent_pipeline.py"
+    ],
+    "required_paths": [
+      "governance/task-scopes/AK-4712.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_generated_policy.py",
+      "packages/dspx-core/src/dspx/services/program_topology.py",
+      "tests/test_program_generated_policy.py",
+      "tests/test_program_topology_intent_pipeline.py"
+    ],
+    "forbidden_paths": [
+      "**/generated_code_guard.py",
+      ".ontology/**",
+      "examples/voice_turn_brains/**",
+      "governance/release-signing/**",
+      "packages/dspx-core/pyproject.toml",
+      "pyproject.toml",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

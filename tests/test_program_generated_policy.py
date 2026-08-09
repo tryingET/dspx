@@ -158,6 +158,18 @@ def _configure_local(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
             "import json\nimport dspy\nfrom signature import X\ninterpreter = None\ndspy.ProgramOfThought(X, max_iters=1, interpreter=interpreter)\n",
         ),
         (
+            "unsafe_program_of_thought_factory_network",
+            "import json\nimport dspy\nfrom signature import X\ndspy.ProgramOfThought(X, max_iters=1, interpreter_factory=lambda: dspy.PythonInterpreter(enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=['example.com'], tools={}, sync_files=False))\n",
+        ),
+        (
+            "unsafe_program_of_thought_factory_requires_argument",
+            "import json\nimport dspy\nfrom signature import X\ndspy.ProgramOfThought(X, max_iters=1, interpreter_factory=lambda path: dspy.PythonInterpreter(enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False))\n",
+        ),
+        (
+            "unsafe_program_of_thought_dual_lifecycle_binding",
+            "import json\nimport dspy\nfrom signature import X\ndspy.ProgramOfThought(X, max_iters=1, interpreter=dspy.PythonInterpreter(enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False), interpreter_factory=lambda: dspy.PythonInterpreter(enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False))\n",
+        ),
+        (
             "default_aliased_react",
             "import json\nimport dspy\nfrom signature import X\ndef make(RA=dspy.ReAct):\n    return RA(X, tools=['unsafe'], max_iters=99)\n",
         ),
@@ -185,6 +197,62 @@ def test_generated_module_policy_allows_declared_no_tool_react_v2_shape() -> Non
     )
 
     assert policy["status"] == "passed"
+
+
+@pytest.mark.parametrize(
+    "binding",
+    [
+        "interpreter=dspy.PythonInterpreter(enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False)",
+        "interpreter_factory=lambda: dspy.PythonInterpreter(enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False)",
+    ],
+)
+def test_generated_module_policy_allows_exact_program_of_thought_lifecycles(
+    binding: str,
+) -> None:
+    surfaces = json.loads(json.dumps(MODULE_SURFACES))
+    surfaces["module_surfaces"][0]["primitive"] = "ProgramOfThought"
+
+    policy = build_program_generated_module_policy(
+        f"import json\nimport dspy\nfrom signature import X\ndspy.ProgramOfThought(X, max_iters=1, {binding})\n",
+        module_surfaces=surfaces,
+    )
+
+    assert policy["status"] == "passed"
+
+
+@pytest.mark.parametrize(
+    ("case", "binding"),
+    [
+        (
+            "mixed_safe_legacy_and_unknown_factory",
+            "interpreter=dspy.PythonInterpreter(enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False), interpreter_factory=lambda: X()",
+        ),
+        (
+            "legacy_interpreter_positional_command",
+            "interpreter=dspy.PythonInterpreter(['deno'], enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False)",
+        ),
+        (
+            "factory_interpreter_positional_command",
+            "interpreter_factory=lambda: dspy.PythonInterpreter(['deno'], enable_read_paths=[], enable_write_paths=[], enable_env_vars=[], enable_network_access=[], tools={}, sync_files=False)",
+        ),
+    ],
+)
+def test_generated_module_policy_rejects_unreviewed_program_of_thought_lifecycles(
+    case: str, binding: str
+) -> None:
+    surfaces = json.loads(json.dumps(MODULE_SURFACES))
+    surfaces["module_surfaces"][0]["primitive"] = "ProgramOfThought"
+
+    policy = build_program_generated_module_policy(
+        f"import json\nimport dspy\nfrom signature import X\ndspy.ProgramOfThought(X, max_iters=1, {binding})\n",
+        module_surfaces=surfaces,
+    )
+
+    assert policy["status"] == "failed", case
+    assert any(
+        violation["code"] == "unsafe_program_of_thought_call"
+        for violation in policy["violations"]
+    )
 
 
 def test_generated_module_policy_requires_module_surfaces() -> None:

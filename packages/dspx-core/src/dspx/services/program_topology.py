@@ -4,9 +4,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from importlib.metadata import PackageNotFoundError, version
 import os
 import re
+from typing import Any, Mapping
 
 from dspx.services.program_capabilities import (
     is_pipeline_module_materializable,
@@ -56,6 +57,30 @@ _VALIDATE_CUES = {"check", "validate", "verify"}
 
 class ProgramTopologyMaterializationError(ValueError):
     """Raised when a declared topology cannot be safely materialized."""
+
+
+_PROGRAM_OF_THOUGHT_INTERPRETER_KEYWORDS = {
+    "3.1.3": "interpreter",
+    "3.3.0": "interpreter_factory",
+}
+
+
+def _program_of_thought_interpreter_keyword() -> str:
+    """Select the reviewed constructor lifecycle for the exact DSPy runtime."""
+
+    try:
+        dspy_version = version("dspy")
+    except PackageNotFoundError as exc:
+        raise ProgramTopologyMaterializationError(
+            "ProgramOfThought materialization requires an installed dspy distribution"
+        ) from exc
+    try:
+        return _PROGRAM_OF_THOUGHT_INTERPRETER_KEYWORDS[dspy_version]
+    except KeyError as exc:
+        supported = ", ".join(sorted(_PROGRAM_OF_THOUGHT_INTERPRETER_KEYWORDS))
+        raise ProgramTopologyMaterializationError(
+            f"ProgramOfThought materialization has no reviewed interpreter lifecycle for dspy {dspy_version!r}; supported exact versions: {supported}"
+        ) from exc
 
 
 def declared_pipeline_topology(intent: Any) -> dict[str, Any]:
@@ -1125,19 +1150,25 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
         elif primitive == "ProgramOfThought":
             config = dict(module.get("program_of_thought") or {})
             max_iters = int(config.get("max_iters") or 1)
+            interpreter_keyword = _program_of_thought_interpreter_keyword()
+            interpreter_factory_prefix = (
+                "lambda: " if interpreter_keyword == "interpreter_factory" else ""
+            )
+            interpreter_binding = f"{interpreter_keyword}={interpreter_factory_prefix}dspy.PythonInterpreter("
             lines.extend(
                 [
                     f"class {class_name}(dspy.Module):",
                     f"    {doc!r}",
                     "",
                     f"    _MAX_ITERS = {max_iters!r}",
+                    "    _TRUSTED_LOCAL_CORE_PRODUCTION_STATUS = 'excluded_lm_generated_runtime_code'",
                     "",
                     "    def __init__(self, use_cot: bool = False) -> None:",
                     "        super().__init__()",
                     "        self.predict = dspy.ProgramOfThought(",
                     f"            {signature_name},",
                     f"            max_iters={max_iters!r},",
-                    "            interpreter=dspy.PythonInterpreter(",
+                    f"            {interpreter_binding}",
                     "                enable_read_paths=[],",
                     "                enable_write_paths=[],",
                     "                enable_env_vars=[],",

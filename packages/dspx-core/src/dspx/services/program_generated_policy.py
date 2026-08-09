@@ -180,6 +180,7 @@ def _is_false(node: ast.AST | None) -> bool:
 def _is_safe_python_interpreter_call(node: ast.AST | None) -> bool:
     if (
         not isinstance(node, ast.Call)
+        or node.args
         or _call_name(node.func) != "dspy.PythonInterpreter"
     ):
         return False
@@ -195,6 +196,23 @@ def _is_safe_python_interpreter_call(node: ast.AST | None) -> bool:
     if seen != set(allowed):
         return False
     return all(allowed[str(keyword.arg)](keyword.value) for keyword in node.keywords)
+
+
+def _is_safe_python_interpreter_factory(node: ast.AST | None) -> bool:
+    if not isinstance(node, ast.Lambda):
+        return False
+    arguments = node.args
+    if (
+        arguments.posonlyargs
+        or arguments.args
+        or arguments.vararg is not None
+        or arguments.kwonlyargs
+        or arguments.kwarg is not None
+        or arguments.defaults
+        or arguments.kw_defaults
+    ):
+        return False
+    return _is_safe_python_interpreter_call(node.body)
 
 
 _SENSITIVE_DSPY_CONSTRUCTORS = {
@@ -321,6 +339,20 @@ def _validate_special_dspy_call(
                 detail=name,
             )
             return
+        keyword_names = [keyword.arg for keyword in node.keywords]
+        allowed_keywords = {"max_iters", "interpreter", "interpreter_factory"}
+        if (
+            len(node.args) != 1
+            or any(name is None for name in keyword_names)
+            or len(keyword_names) != len(set(keyword_names))
+            or not set(keyword_names).issubset(allowed_keywords)
+        ):
+            _add_violation(
+                violations,
+                code="unsafe_program_of_thought_call",
+                node=node,
+                detail="ProgramOfThought requires one signature and only the reviewed lifecycle keywords",
+            )
         max_iters = _int_constant(_keyword(node, "max_iters"))
         if max_iters is None or max_iters < 1 or max_iters > 3:
             _add_violation(
@@ -330,12 +362,35 @@ def _validate_special_dspy_call(
                 detail="ProgramOfThought requires max_iters between 1 and 3",
             )
         interpreter = _keyword(node, "interpreter")
-        if not _is_safe_python_interpreter_call(interpreter):
+        interpreter_factory = _keyword(node, "interpreter_factory")
+        lifecycle_binding_count = sum(
+            binding is not None for binding in (interpreter, interpreter_factory)
+        )
+        if lifecycle_binding_count != 1:
             _add_violation(
                 violations,
                 code="unsafe_program_of_thought_call",
                 node=node,
-                detail="ProgramOfThought requires the generated safe interpreter binding",
+                detail="ProgramOfThought requires exactly one interpreter lifecycle binding",
+            )
+        elif interpreter is not None and not _is_safe_python_interpreter_call(
+            interpreter
+        ):
+            _add_violation(
+                violations,
+                code="unsafe_program_of_thought_call",
+                node=node,
+                detail="ProgramOfThought requires the exact safe legacy interpreter binding",
+            )
+        elif (
+            interpreter_factory is not None
+            and not _is_safe_python_interpreter_factory(interpreter_factory)
+        ):
+            _add_violation(
+                violations,
+                code="unsafe_program_of_thought_call",
+                node=node,
+                detail="ProgramOfThought requires an exact safe zero-argument interpreter_factory binding",
             )
 
 
