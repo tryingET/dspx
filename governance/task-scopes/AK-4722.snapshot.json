@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-09T22:00:33.505115715+00:00",
+  "task_id": 4722,
+  "entity_version": 4,
+  "commit_sha": "3b8fdd44e9292cf29ddbaeb93fb63a91822f83fa",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-custom-lm-legacy-bridge-proof.md",
+      "governance/task-scopes/AK-4722.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/dspy-3-3-custom-lm-legacy-bridge-proof.md",
+      "governance/task-scopes/AK-4722.snapshot.json"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**",
+      "packages/**",
+      "pyproject.toml",
+      "tests/**",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
