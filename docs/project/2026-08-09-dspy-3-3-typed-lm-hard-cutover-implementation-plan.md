@@ -34,7 +34,7 @@ Required behavior:
 - implement the sole `DSPyTypedLMAdapter(dspy.BaseLM)` with `forward_contract = "typed_lm"` and `forward(request: dspy.LMRequest) -> dspy.LMResponse`;
 - initialize `BaseLM` with an exact model, `model_type="text"`, empty secret-free kwargs, and DSPy-owned callbacks/history;
 - accept only `LMRequest.model` matching the adapter model, empty `tools`, empty request metadata, roles `system|user|assistant`, and messages whose parts are exclusively `dspy.core.types.LMTextPart`;
-- accept only default `LMConfig` in the stub canary; non-default temperature, max tokens, top-p, stop, n, logprobs, response format, reasoning, tool choice, cache, prompt cache, or extensions require a later explicit mapping;
+- accept only default `LMConfig` plus the exact cache configuration that DSPy `BaseLM` derives from the adapter's own `cache` flag with no rollout ID; non-default temperature, max tokens, top-p, stop, n, logprobs, response format, reasoning, tool choice, prompt cache, extensions, or divergent cache controls require a later explicit mapping;
 - construct output with `dspy.LMResponse.from_text`, exact observed model, zero-token `dspy.core.types.LMUsage`, and bounded non-secret provider data containing the terminal effect disposition;
 - override `aforward` to raise `dspy.LMUnsupportedFeatureError(features=["async"])` before provider invocation; do not inherit or synthesize async execution;
 - reject tools, non-text parts, unknown metadata/extensions, unsupported response schemas/reasoning, cancellation, and streaming before effects;
