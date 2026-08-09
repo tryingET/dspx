@@ -19,7 +19,7 @@ AK-4692 authored only this frame and its task-scope snapshot. AK-4693 subsequent
 
 ## Decision in one sentence
 
-Do not create another strategic frame and do not treat DSPy 3.3 as a routine lock refresh. Execute a compatibility-gated work wave under Core production readiness: close the 3.3 migration hazards first, prove a bounded trusted-artifact local Core target second, migrate typed LM contracts incrementally third, and pilot Flex only through a separate experimental safety gate.
+Do not create another strategic frame and do not treat DSPy 3.3 as a routine lock refresh. Decision 118 replaces the legacy-bridge sequence with a hard typed-LM cutover: preserve DSPx provider/effect authority behind one DSPy 3.3 typed adapter, intentionally contract the supported provider matrix during migration, prove the bounded trusted-artifact local Core target, and pilot ReActV2 or Flex only through their separate gates.
 
 ## Why this wave exists
 
@@ -51,7 +51,7 @@ These upstream facts are dated discovery evidence. A successor dependency-mutati
 | `ProgramOfThought` | Generated code supplies `interpreter=dspy.PythonInterpreter(...)`; generated policy requires that shape. | DSPy 3.3 uses an interpreter-factory lifecycle; renderer and policy must migrate together. |
 | ReAct | Direct agent service uses legacy `dspy.ReAct`; generated programs keep user tools disabled. | Preserve current behavior and distinguish direct-agent tool wiring from generated-program no-tool policy. |
 | ReActV2 | DSPx has explicit-opt-in/no-user-tool contracts, readiness metadata, traces, and policy tests, but the locked DSPy exposes no public `ReActV2`. | Existing tests prove DSPx contract rendering, not native DSPy 3.3 execution. Activate only after real 3.3 no-user-tool proof. |
-| Custom LMs | DSPx providers subclass DSPy LM bases while using DSPx-owned `LMRequest`/`LMResponse` DTOs and capability/error contracts. | DSPy's similarly named typed LM API is not a drop-in replacement. Stabilize the supported legacy bridge before typed migration. |
+| Custom LMs | DSPx providers subclass DSPy LM bases while using DSPx-owned `LMRequest`/`LMResponse` DTOs and capability/error contracts. | Decision 118 requires a hard break: providers become DSPx-owned ports, one adapter owns DSPy's typed contract, and unmigrated providers become explicitly unavailable. |
 | GEPA | DSPx calls GEPA directly and saves/materializes optimizer output; lock is `0.0.26`. | DSPy 3.3 resolves newer GEPA behavior/result shapes; compile, save, load, materialize, replay, and comparison need exact regression proof. |
 | Flex | No DSPx capability, policy, source receipt, sandbox, or test integration; absent from the locked DSPy. | Generic GEPA support is not Flex support. Flex remains a later experimental pilot. |
 | DSPy cache/persistence | DSPx owns receipts and caches; generated GEPA candidates may load DSPy artifacts with pickle enabled. | Evaluate upstream cache hardening separately; do not conflate cache restrictions with safety of owner-supplied whole-program artifacts. |
@@ -87,8 +87,8 @@ A future hosted, shared-store, untrusted-code, or autonomous-foundry target requ
 ## Execution principles
 
 1. **Compatibility before feature adoption.** A dependency migration may expose ReActV2 and Flex, but exposure is not integration or authorization.
-2. **One compatibility variable at a time.** Preserve an exact 3.1.3 baseline, apply the accepted S0 consumer-safety cap only through its separately scoped proof, probe and repair 3.3 in an isolated environment, then migrate the canonical dependency surface to 3.3 only from reviewed S1-S4 evidence.
-3. **Legacy bridge before typed rewrite.** Stabilize existing provider behavior on DSPy's supported compatibility bridge before migrating providers to the typed LM contract.
+2. **One reviewed cutover transaction.** Preserve the exact 3.1.3 rollback baseline, build the typed provider kernel in the isolated 3.3 environment, then move source, exact dependencies, lock, and the intentionally reduced provider support matrix as one reviewed transaction.
+3. **Remove the bridge instead of repairing it.** Transport providers do not inherit DSPy; one anti-corruption adapter owns the DSPy 3.3 typed request/response lifecycle. No compatibility alias or mixed legacy/typed fallback survives on the canonical path.
 4. **Characterize before enabling ReActV2.** Gate B may run native no-user-tool ReActV2 only in an isolated compatibility probe. Installing DSPy 3.3 or detecting `dspy.ReActV2` must not make the canonical materialization path available. A separate Gate C adoption decision and proof must precede enablement; external tool binding remains outside this wave.
 5. **Trusted artifacts before sandbox claims.** The first production target explicitly limits artifact trust; Python-level guards are not an OS sandbox.
 6. **Receipts must fail closed.** A successful product operation cannot silently omit a required artifact or receipt.
@@ -174,7 +174,7 @@ Stop and leave the canonical dependency/lock transaction unapplied or reverted w
 
 Apply S0 as one declaration/lock/proof transaction. If its proof fails, revert only that transaction, retain the failed evidence, prohibit package release under the reopened range, and create no compatibility claim. Once accepted, the exact 3.1.3 declaration, lock, resolved environment, and installed proof become the retained rollback target for S5; they are not permission to discard the earlier audit baseline.
 
-S1-S4 may proceed only against the exact isolated 3.3 target selected by AK-4693 while preserving accepted S0. S5, the canonical 3.3 dependency/source/lock transaction, depends on accepted evidence from S0, S1, S2, S3, and all required S4 slices. No S0 result can waive or satisfy those repair gates.
+S1 and S2 remain accepted compatibility repairs against the exact isolated 3.3 target. AK-4722 and AK-4725 remain truthful terminal evidence but no longer gate the canonical transaction: Decision 118 supersedes S3 legacy-bridge repair with a typed provider-kernel cutover and keeps pickle-backed S4b materialization outside the trusted-local production matrix. S0 remains the exact rollback baseline and cannot waive typed-kernel, installed-artifact, or safety proof.
 
 ### Owner and handoff
 
@@ -187,18 +187,18 @@ DSPx owns the separately scoped S0 declaration/lock implementation and local con
 - Gate A has an accepted compatibility decision bound to exact DSPy/DSPy-AI/GEPA artifacts and one immutable isolated-environment identity;
 - successor tasks have disjoint exact scopes and explicit dependencies on that decision;
 - accepted S0 exact 3.1.3 direct bounds, wheel, lock, resolved environment, installed proof, and rollback commands are retained;
-- no further canonical dependency or availability predicate changes beyond accepted S0 until the ProgramOfThought, generated-smoke, custom-LM bridge, and GEPA compatibility proofs all pass against the same target environment.
+- S1/S2 compatibility repairs remain accepted, Decision 118 is accepted, and the isolated T1 typed provider kernel passes against the retained exact target; AK-4722/AK-4725 remain historical evidence rather than entry gates.
 
 ### Required work
 
 1. Migrate generated `ProgramOfThought` construction and static policy to the 3.3 interpreter-factory lifecycle while preserving the empty filesystem/network/environment/tool sandbox contract.
-2. Make each DSPx custom LM's 3.3 bridge posture explicit and test prompt/messages, sync/async behavior where supported, streaming, timeout/cancellation, callbacks, history, copy/state, failure normalization, and secret exclusion.
-3. Map proven DSPx capabilities to upstream LM capability properties without overstating child or multi-provider support.
-4. Refresh DSPy/DSPy-AI/GEPA and all transitive lock identities only after focused compatibility passes.
-5. Regression-test GEPA compile, save, whole-program load, candidate materialization, refreshed behavior, receipt/replay identity, and comparison using exact real optimizer output in a credential-free path. Pickle-backed whole-program loading is compatibility evidence only and remains outside the first production target.
+2. Replace dual-interface provider objects with DSPx-owned provider ports plus the sole typed `DSPyTypedLMAdapter`; delete legacy provider subclasses, response facsimiles, mixed history ownership, and `MultiProviderLM` before the canonical dependency move.
+3. Start with the deterministic offline stub, reject unsupported typed content before effects, and restore providers only through an explicit support allowlist after provider-specific effect, error, redaction, receipt, and capability proof.
+4. Refresh DSPy/DSPy-AI/GEPA and all transitive lock identities only in the reviewed typed source/dependency/lock transaction after isolated typed-kernel proof.
+5. Retain S4a/S4b as compatibility evidence. A separately scoped credential-free real GEPA materialization journey may run later, but pickle-backed whole-program loading and materialization remain outside the first production target and do not gate the typed transaction.
 6. Characterize native ReActV2 in the isolated 3.3 environment with explicit opt-in and no user tools; account for upstream internal submission behavior and record structured history/termination/failure shapes. Keep the canonical materialization path disabled after the dependency update: public symbol availability is necessary evidence but never sufficient authorization.
 7. Update stale beta wording to experimental wording only when exact upstream status supports it.
-8. Keep canonical ReActV2 materialization, Flex, external ReActV2 tools, and typed-LM conversion disabled.
+8. Keep canonical ReActV2 materialization, Flex, and external ReActV2 tools disabled; typed-LM conversion is the selected migration mechanism and authorizes no feature by availability alone.
 
 ### Exit evidence
 
@@ -305,39 +305,39 @@ Retain the last supported exact Core wheel, dependency declaration, lock, resolv
 
 DSPx owns the bounded local capability matrix and technical evidence. Security/dependency/provenance owners own their acceptance gates. `IW-CPR-05-RELEASE-OPERATIONS` owns release subjects, signing/quorum, registry, publication, yank/rollback, and operational release judgment. No owner may be inferred from a passing DSPx artifact.
 
-## Gate E — incremental typed LM adoption
+## Gate E — additive provider restoration after the typed cutover
 
-This gate is a later provider-contract refactoring wave, not part of the base 3.3 lock refresh and not an external-tool gate.
+This gate restores provider breadth after the hard typed-LM cutover. It is not a compatibility-bridge, external-tool, or feature-adoption gate.
 
 ### Entry
 
-- Gate D's bounded technical evidence packet is complete at an immutable commit;
-- one low-risk provider and its exact legacy baseline are selected by a separately scoped AK task;
-- upstream typed-LM types/version and the DSPx DTO translation boundary are frozen for the attempt.
+- the typed provider kernel and canonical exact-3.3 transaction are accepted at an immutable commit;
+- the provider is explicitly unavailable in the current support matrix;
+- one provider-specific AK task freezes its DSPx port, effect, receipt, redaction, and capability contract.
 
 ### Required work
 
-- migrate one provider from the explicit legacy bridge to upstream typed LM request/response contracts;
-- define translation between DSPx receipts/DTOs and upstream typed messages, tools, reasoning, usage, citations, cache controls, metadata, and stream events;
-- preserve secret redaction, failure identity, cancellation, callback lineage, state/history/copy behavior, and replay semantics;
-- compare typed and legacy behavior before each provider transition;
-- do not bind external tools or mechanically migrate DSPx DTOs merely because upstream uses the same class names.
+- remove DSPy inheritance from the provider and implement the DSPx-owned provider port;
+- route it through the sole typed adapter without fake OpenAI response envelopes or provider-specific DSPy lifecycle code;
+- preserve secret redaction, failure identity, effect disposition, provider/model identity, bounded usage, and receipt semantics;
+- reject unsupported typed parts, async, cancellation, or streaming before effects;
+- add the provider to the explicit support allowlist only after exact contract proof.
 
 ### Exit evidence
 
-Provider-specific parity results bind exact request/response/stream/error/capability/receipt shapes. A mixed legacy/typed bridge is acceptable only when explicit and tested; hidden fallback is not.
+Provider-specific results bind exact request/result/effect/error/capability/receipt shapes. The provider is either accepted into the support matrix or remains explicitly unavailable; no hidden fallback exists.
 
 ### Falsifiers
 
-Stop if typed translation loses identity, usage, reasoning, stream ordering, cancellation, errors, redaction, or receipt attribution; if upstream/DSPx DTO names are conflated; or if the migration implicitly enables tools.
+Stop if the provider remains a DSPy subclass, typed translation loses identity or receipt attribution, a failure becomes answer text, an indeterminate effect can retry, upstream/DSPx DTO names are conflated, or migration implicitly enables tools.
 
 ### Rollback
 
-Restore the provider's explicit legacy bridge and retain typed-attempt evidence. Do not change other providers or rewrite receipts.
+Revert the failed additive provider source commit, remove the provider from the support allowlist, and retain evidence while preserving the accepted typed runtime generation. Do not restore legacy inheritance or rewrite receipts.
 
 ### Owner and handoff
 
-DSPx owns provider translation and receipts. Each external provider/auth owner retains transport and credential semantics. External ReActV2 tool binding requires a different owner-gated wave and is not authorized here.
+DSPx owns provider ports, typed translation, effect disposition, and receipts. Each external provider/auth owner retains transport and credential semantics. External ReActV2 tool binding requires a different owner-gated wave and is not authorized here.
 
 ## Gate F — separate experimental Flex pilot
 
@@ -380,7 +380,7 @@ DSPx owns local experimental evidence. The interpreter/sandbox owner owns contai
 The work wave is complete only when:
 
 1. the dependency support window matches tested compatibility rather than an unbounded lower-bound assumption;
-2. DSPy 3.3 constructor, LM bridge, GEPA, save/load, tracing, replay, and generated-policy changes have exact regression evidence;
+2. DSPy 3.3 constructor, typed adapter, GEPA supported/unsupported posture, save/load, tracing, replay, and generated-policy changes have exact regression evidence;
 3. native no-user-tool ReActV2 is characterized under Gate B and remains canonically disabled until Gate C separately records either explicit support with evidence or explicit unsupported status;
 4. Flex remains absent or separately experimental—never silently enabled by dependency resolution;
 5. one immutable Core candidate has clean full/CI/package/installed evidence under an exact hash-bound resolved environment for the bounded trusted-artifact local target;
@@ -393,18 +393,19 @@ The work wave is complete only when:
 
 AK-4693 completed the compatibility probe and accepted `cap_current_range_pending_repairs`. Its successor dependencies are explicit:
 
-0. **S0 — exact 3.1.3 consumer-safety cap** — a separately scoped declaration/lock transaction and consumer proof under the variance above. It establishes the retained current-version rollback baseline and authorizes nothing from 3.3.
-1. **S1 — interpreter/generated-policy compatibility proof** — migrate and prove the `ProgramOfThought` interpreter-factory constructor and static/negative policy together while preserving explicit production exclusion.
-2. **S2 — generated-smoke failure attribution and repair** — explain and repair the isolated target's `forward_error:PermissionError` without weakening `generated_code_guard.py`, enabling effects, or broadening generated imports.
-3. **S3 — full custom-LM legacy-bridge proof** — prove capabilities, errors, state/history/copy, sync/async and stream behavior, callbacks, cancellation, and secret exclusion against the exact isolated target.
-4. **S4 — GEPA 0.1.1 compatibility proof** — use separately attributable S4a/S4b slices when needed for compile/save/load versus materialization/receipt/replay behavior; pickle paths remain compatibility-only and outside the first production target.
-5. **S5 — canonical DSPy 3.3 dependency/source/lock transaction** — depends on accepted S0, S1, S2, S3, and all required S4 evidence bound to the same target. It installs exact direct bounds and the retained hash-bound resolved environment as one rollback unit.
-6. **S6 — native no-user-tool ReActV2 adoption decision/proof** — depends on S5's immutable candidate; canonical materialization remains disabled until this task accepts it. Tools remain blocked.
-7. **Trusted-local Core evidence candidate** — depends on S5 and S6; package, installed environment, supported/unsupported matrix, downgrade, live compatibility, security inputs, and current full evidence.
-8. **Typed-LM pilot** — depends on the trusted-local Core candidate; one provider, parity evidence, no tool enablement.
-9. **Flex design and pilot** — separate decision/task only after the trusted-local Core candidate and its containment prerequisites; it does not depend on typed-LM completion unless its exact design requires it.
+0. **S0 — exact 3.1.3 rollback cap** — completed consumer proof retained as the rollback baseline.
+1. **S1 — interpreter/generated-policy compatibility proof** — completed while preserving explicit production exclusion.
+2. **S2 — generated-smoke attribution and repair** — completed without weakening `generated_code_guard.py`.
+3. **S3 historical result** — AK-4722 remains `unsupported_legacy_bridge`; Decision 118 supersedes repair with the typed hard cutover rather than relabeling the result.
+4. **S4 historical result** — S4a remains compatibility-only and S4b remains `unsupported_real_materialization`; pickle paths remain production-excluded and nonblocking.
+5. **T1 — typed provider kernel and offline canary** — prove DSPx provider ports, sole typed adapter, stub, pre-effect rejection, state/copy/history separation, and effect disposition against the exact isolated target.
+6. **T2 — canonical DSPy 3.3 typed source/dependency/lock transaction** — atomically install exact direct bounds, typed kernel, explicit supported-provider allowlist, deletion of every importable legacy provider/response/aggregation path, generated-policy regressions, installed-wheel proof, and retained rollback unit.
+7. **T3 — additive provider restoration** — migrate providers one at a time without DSPy inheritance; unavailable providers remain explicit.
+8. **T4 — aggregation replacement** — `MultiProviderLM` was deleted in T2; add only a new DSPx-port aggregate whose effect and cancellation rules pass separately.
+9. **T5 — trusted-local Core evidence candidate** — package, installed environment, supported/unsupported matrix, downgrade, safety inputs, and current full evidence.
+10. **S6/ReActV2 and Flex** — separate decisions/tasks after the typed Core candidate; tools remain blocked.
 
-No task may move the canonical lock to DSPy/DSPy-AI 3.3 or GEPA 0.1.1 before S1-S4 are accepted. S0 is the only earlier lock exception, and only for the exact currently proven DSPy/DSPy-AI 3.1.3 cap with GEPA retained at 0.0.26. Parallel work must use disjoint files/worktrees, the same exact target identity, and separate evidence. Tasks must not be combined merely to reduce task count when doing so hides failure attribution, ownership, or rollback.
+No task may move the canonical lock to DSPy/DSPy-AI 3.3 before isolated T1 proof and an accepted T2 source/dependency/lock contract. S0 remains the exact 3.1.3 rollback baseline with GEPA 0.0.26. The T2 transaction may resolve the retained exact GEPA 0.1.1 dependency identity without claiming pickle-backed production support. Parallel work must use disjoint files/worktrees, the same exact target identity, and separate evidence.
 
 ## Relationship to existing work
 
