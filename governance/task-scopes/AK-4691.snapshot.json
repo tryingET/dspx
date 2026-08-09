@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-08T21:47:35.501044340+00:00",
+  "task_id": 4691,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "benchmarks/semantic/oracle-semantic-analysis-evaluation-v11.json",
+      "docs/project/oracle-semantic-analysis-v11-contract-proposal.md",
+      "docs/project/product-posture.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_*_v11.py",
+      "scripts/ci/run_oracle_semantic_analysis_evaluation_v11.py",
+      "tests/test_dspy_lm_auth_lm.py",
+      "tests/test_program_oracle_semantic_evaluation_v11.py"
+    ],
+    "required_paths": [
+      "benchmarks/semantic/oracle-semantic-analysis-evaluation-v11.json",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v11.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v11.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v11.py",
+      "tests/test_program_oracle_semantic_evaluation_v11.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "benchmarks/semantic/oracle-semantic-analysis-evaluation-v10.json",
+      "benchmarks/semantic/oracle-semantic-analysis-evaluation-v9.json",
+      "benchmarks/semantic/oracle-semantic-code-semantics-v1.json",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic_*_v10.py",
+      "packages/dspx-core/src/dspx/services/provider_outcome_receipt_*.py",
+      "pyproject.toml",
+      "scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py",
+      "tests/test_provider_outcome_receipt_consumer.py",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
