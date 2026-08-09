@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-09T22:08:55.708061939+00:00",
+  "task_id": 4724,
+  "entity_version": 4,
+  "commit_sha": "6b3600680a66a1e2a65882f08982be3e5db650a3",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-gepa-0-1-1-compile-save-load-proof.md",
+      "governance/task-scopes/AK-4724.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/dspy-3-3-gepa-0-1-1-compile-save-load-proof.md",
+      "governance/task-scopes/AK-4724.snapshot.json"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**",
+      "packages/**",
+      "tests/**",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
