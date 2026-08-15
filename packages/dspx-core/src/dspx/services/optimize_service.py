@@ -364,7 +364,7 @@ def run_gepa_optimize(
     Optimize a DSPy program/module via GEPA and save it as a loadable program dir.
 
     Provider selection:
-    - student_provider defaults to DSPX_PROVIDER (default: pi-rpc).
+    - student_provider defaults to DSPX_PROVIDER (supported default: stub).
     - reflection_provider defaults to student_provider.
 
     Program requirements:
@@ -379,26 +379,17 @@ def run_gepa_optimize(
     from datetime import datetime, timezone
 
     import dspy
-    from dspx.provider_registry import create, create_from_env, ensure_default_providers
+    from dspx.provider_registry import create, create_from_env
     from dspx.provider_runtime import provider_metadata_from_instance
 
-    ensure_default_providers()
     if not 1 <= num_threads <= 32:
         raise ValueError("num_threads must be between 1 and 32")
 
-    student_lm = (
-        create(student_provider)
-        if student_provider
-        else create_from_env(default="pi-rpc")
-    )
+    student_lm = create(student_provider) if student_provider else create_from_env()
     reflection_lm = (
         create(reflection_provider)
         if reflection_provider
-        else (
-            create(student_provider)
-            if student_provider
-            else create_from_env(default="pi-rpc")
-        )
+        else (create(student_provider) if student_provider else create_from_env())
     )
 
     # Ensure GEPA + Predict calls use the student LM; GEPA reflections use reflection_lm.
@@ -488,9 +479,9 @@ def run_gepa_optimize(
     copied_program = source_dir / program_path.name
     copied_program.write_bytes(program_path.read_bytes())
 
-    student_provider_name = student_provider or os.getenv("DSPX_PROVIDER", "pi-rpc")
+    student_provider_name = student_provider or os.getenv("DSPX_PROVIDER", "stub")
     reflection_provider_name = (
-        reflection_provider or student_provider or os.getenv("DSPX_PROVIDER", "pi-rpc")
+        reflection_provider or student_provider or os.getenv("DSPX_PROVIDER", "stub")
     )
 
     manifest = {

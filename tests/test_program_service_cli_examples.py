@@ -142,10 +142,31 @@ def test_program_gen_cli_materializes_from_yaml(
     assert "ThreadPoolExecutor" in direct_run_text
     assert "def _apply_runtime_config_env(data: object) -> None:" in direct_run_text
     assert "_set_env_from_config(provider, 'name', 'DSPX_PROVIDER')" in direct_run_text
-    assert (
-        "_set_env_from_config(lm_auth, 'model', 'DSPX_LM_AUTH_MODEL')"
-        in direct_run_text
+    assert "'provider': 'stub'" in direct_run_text
+    assert "'model': getattr(lm, 'model', None)" in direct_run_text
+    assert "DSPX_LM_AUTH" not in direct_run_text
+    assert "lm_auth" not in direct_run_text
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    preflight_run = subprocess.run(
+        [sys.executable, str(outdir / "direct_run.py"), "--preflight", "--json"],
+        cwd=outdir,
+        check=True,
+        capture_output=True,
+        text=True,
     )
+    preflight = json.loads(preflight_run.stdout)
+    assert preflight["provider"]["provider"] == "stub"
+    assert preflight["provider"]["model"] == "stub/echo"
+    assert preflight["provider"]["adapter"] == "DSPyTypedLMAdapter"
+    assert preflight["provider"]["provider_port"] == "StubProvider"
+    assert set(preflight["resolved_env"]) == {
+        "DSPX_PROVIDER",
+        "MLFLOW_ARTIFACT_ROOT",
+        "MLFLOW_ENABLE",
+        "MLFLOW_EXPERIMENT",
+        "MLFLOW_TRACKING_URI",
+    }
+    assert preflight["model_call_performed"] is False
     assert (
         "configure_observability(run_name='program-runtime', run_kind='program-runtime')"
         in direct_run_text
@@ -286,7 +307,7 @@ def test_program_service_binds_examples_when_present(
     root = Path(artifact.root_path)
     assert (root / "examples.json").exists()
     assert (root / "eval_examples.py").exists()
-    assert "create_from_env(default='dspy-lm-auth')" in (
+    assert "create_from_env()" in (
         root / "eval_examples.py"
     ).read_text(encoding="utf-8")
     assert (root / "behavior_results.json").exists()

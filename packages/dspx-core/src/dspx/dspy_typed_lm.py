@@ -53,7 +53,6 @@ class DSPyTypedLMAdapter(BaseLM):
         *,
         cache: bool = True,
         callbacks: list[Any] | None = None,
-        num_retries: int = 0,
     ) -> None:
         if not isinstance(provider.model, str) or not provider.model.strip():
             raise ValueError("provider model must be a non-empty string")
@@ -62,13 +61,13 @@ class DSPyTypedLMAdapter(BaseLM):
             model_type="text",
             cache=cache,
             callbacks=callbacks,
-            num_retries=num_retries,
+            num_retries=0,
         )
         self.provider = provider
 
     # DSPy 3.3 selects this runtime contract through forward_contract, while its
     # BaseLM annotation still describes the legacy signature.
-    def forward(  # type: ignore[invalid-method-override]
+    def forward(  # ty: ignore[invalid-method-override]
         self, request: LMRequest
     ) -> LMResponse:
         """Translate one validated typed request and preserve effect disposition."""
@@ -108,7 +107,7 @@ class DSPyTypedLMAdapter(BaseLM):
             )
         raise normalized_error from None
 
-    async def aforward(  # type: ignore[invalid-method-override]
+    async def aforward(  # ty: ignore[invalid-method-override]
         self, request: LMRequest
     ) -> LMResponse:
         """Reject unsupported async before dispatch; never thread-wrap sync effects."""
@@ -182,18 +181,23 @@ class DSPyTypedLMAdapter(BaseLM):
         num_retries = payload["num_retries"]
         if not isinstance(cache, bool) or not isinstance(num_retries, int):
             raise TypeError("typed LM cache and num_retries have invalid types")
-        return cls(provider, cache=cache, num_retries=num_retries)
+        if num_retries != 0:
+            raise ValueError("typed LM state retries must remain disabled")
+        return cls(provider, cache=cache)
 
     def copy(self, **kwargs: Any) -> DSPyTypedLMAdapter:
         """Preserve DSPy copy semantics without aliasing provider event state."""
 
-        if kwargs.get("model", self.model) != self.model:
+        unsupported_updates = sorted(set(kwargs) - {"cache"})
+        if unsupported_updates:
             raise LMUnsupportedFeatureError(
-                "DSPx typed provider copies cannot change provider model identity",
-                features=["copy:model"],
+                "DSPx typed provider copy received unsupported state updates",
+                features=[f"copy:{key}" for key in unsupported_updates],
                 model=self.model,
                 provider=type(self.provider).__name__,
             )
+        if "cache" in kwargs and not isinstance(kwargs["cache"], bool):
+            raise TypeError("typed LM copy cache must be a boolean")
         if type(self.provider) is not StubProvider:
             raise LMUnsupportedFeatureError(
                 "DSPx typed provider copy is unsupported for this provider",

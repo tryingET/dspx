@@ -553,7 +553,7 @@ def signature_refine(
 
     summary_payload: dict[str, Any] = {
         "run_kind": "signature-refine",
-        "provider": provider or os.getenv("DSPX_PROVIDER") or "pi-rpc",
+        "provider": provider or os.getenv("DSPX_PROVIDER") or "stub",
         "attempts_requested": int(attempts),
         "non_interactive": bool(non_interactive),
         "wrap_script": bool(wrap_script),

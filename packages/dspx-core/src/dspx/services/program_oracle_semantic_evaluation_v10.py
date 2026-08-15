@@ -1,7 +1,6 @@
 # summary: "Executes the already-consumed, no-retry AK-4643 semantic v10 attempt."
 from __future__ import annotations
 
-import inspect
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
@@ -56,46 +55,10 @@ GATE_SNAPSHOT = "live-gate-snapshot.json"
 
 
 def _production_backend() -> tuple[Any, Any]:
-    from dspx.dspy_lm_auth_lm import DspyLMAuthLM
-    from dspx.services.program_oracle_semantic_backend import (
-        LiveLMOracleSemanticBackend,
-        resolve_program_oracle_semantic_backend,
+    raise SemanticV10Error(
+        "semantic v10 production backend is unavailable after the typed hard cutover; "
+        "the terminal effect_indeterminate attempt remains immutable and is not retried"
     )
-
-    backend = resolve_program_oracle_semantic_backend()
-    if (
-        type(backend) is not LiveLMOracleSemanticBackend
-        or type(backend.lm) is not DspyLMAuthLM
-    ):
-        raise SemanticV10Error(
-            "only the exact production DspyLMAuthLM backend is permitted"
-        )
-    lm = backend.lm
-    if (
-        "generate" in lm.__dict__
-        or getattr(lm, "requested_model", None) != ROUTE["model"]
-        or getattr(lm, "auth_provider", None) != "codex"
-        or getattr(lm, "strict", None) is not True
-        or getattr(lm, "kwargs", None) != {"reasoning_effort": "max"}
-        or getattr(lm, "history", None)
-    ):
-        raise SemanticV10Error("production adapter configuration drift")
-    for name in ("_build_inner", "forward", "generate", "runtime_metadata"):
-        descriptor = inspect.getattr_static(DspyLMAuthLM, name, None)
-        bound = getattr(lm, name, None)
-        if (
-            name in lm.__dict__
-            or descriptor is None
-            or getattr(bound, "__func__", None) is not descriptor
-        ):
-            raise SemanticV10Error("production adapter method drift")
-    if (
-        backend.provider_name != ROUTE["provider"]
-        or backend.preferred_model != ROUTE["model"]
-        or backend.configured_model != ROUTE["model"]
-    ):
-        raise SemanticV10Error("configured route identity drift")
-    return backend, lm
 
 
 def _case_rows(

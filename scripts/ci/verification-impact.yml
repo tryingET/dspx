@@ -162,6 +162,7 @@ rules:
       - pytest_cli_dspx
       - pytest_forge_cli_policy
       - pytest_program_runtime_episode
+      - pytest_provider_runtime
       - boundary_contract_check
 
   - match: "packages/dspx-core/src/dspx/provider_runtime.py"
@@ -178,7 +179,7 @@ rules:
       - pytest_provider_runtime
       - boundary_contract_check
 
-  - match: "packages/dspx-core/src/dspx/providers_register_*.py"
+  - match: "packages/dspx-core/src/dspx/dspy_typed_lm.py"
     category: provider_boundary
     impact_group: provider_runtime
     risk: expanded
@@ -186,7 +187,24 @@ rules:
       - ruff_touched
       - typecheck_core
       - pytest_provider_runtime
-      - pytest_provider_v4
+
+  - match: "packages/dspx-core/src/dspx/provider_contract.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
+
+  - match: "packages/dspx-core/src/dspx/stub_provider.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
 
   - match: "packages/dspx-core/src/dspx/redaction.py"
     category: provider_boundary
@@ -225,46 +243,6 @@ rules:
       - typecheck_core
       - pytest_tools_registry
       - boundary_contract_check
-
-  - match: "packages/dspx-core/src/dspx/multi_provider_lm.py"
-    category: provider_boundary
-    impact_group: provider_runtime
-    risk: expanded
-    commands:
-      - ruff_touched
-      - typecheck_core
-      - pytest_provider_runtime
-      - pytest_boundary_adversarial
-      - pytest_cli_dspx
-      - pytest_forge_cli_policy
-      - pytest_program_runtime_episode
-
-  - match: "packages/dspx-core/src/dspx/openrouter_lm.py"
-    category: provider_boundary
-    impact_group: provider_runtime
-    risk: expanded
-    commands:
-      - ruff_touched
-      - typecheck_core
-      - pytest_provider_runtime
-
-  - match: "packages/dspx-core/src/dspx/openai_compatible_lm.py"
-    category: provider_boundary
-    impact_group: provider_runtime
-    risk: expanded
-    commands:
-      - ruff_touched
-      - typecheck_core
-      - pytest_provider_runtime
-
-  - match: "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py"
-    category: provider_boundary
-    impact_group: provider_runtime
-    risk: expanded
-    commands:
-      - ruff_touched
-      - typecheck_core
-      - pytest_provider_v4
 
   - match: "packages/dspx-core/src/dspx/coordinates/storage.py"
     category: oracle_coordinate_store
@@ -934,17 +912,6 @@ rules:
     commands:
       - pytest_release_bundle
       - package_check_retain_smoke
-
-  - match: "scripts/run_installed_core_live_semantic.sh"
-    category: installed_live_semantic_runner
-    impact_group: installed_live_semantic
-    risk: expanded
-    exclusive: true
-    commands:
-      - ruff_touched
-      - pytest_touched
-      - pytest_program_generation_spine
-      - workflow_contract_check
 
   - match: "tests/test_release_*.py"
     category: core_release_evidence_test

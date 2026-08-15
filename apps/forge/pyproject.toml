@@ -3,7 +3,7 @@ name = "dspx-forge"
 version = "0.1.0"
 description = "Optional Forge workflow application built on DSPx Core"
 readme = { text = "DSPx Forge is the optional backlog and issue-workflow application for the DSPx monorepo. It provides the `dspx-forge` command-line interface and depends only on the public DSPx Core package.", content-type = "text/markdown" }
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.15"
 keywords = ["dspy", "workflow", "forge"]
 classifiers = [
   "Development Status :: 3 - Alpha",

@@ -428,11 +428,7 @@ def _react_v2_tool_readiness(
     *, intent: Any, contracts: list[dict[str, Any]]
 ) -> dict[str, Any]:
     modules = _declared_react_v2_modules(intent)
-    options = dict(getattr(intent, "options", {}) or {})
-    requested = bool(modules) or bool(
-        options.get("enable_react_v2_materialization")
-        or options.get("react_v2_materialization")
-    )
+    requested = bool(modules)
     declared_tool_ids = [contract["tool_id"] for contract in contracts]
     module_tool_refs: list[str] = []
     for module in modules:
@@ -492,6 +488,7 @@ def _react_v2_tool_readiness(
         )
     )
     adapter_blockers = [
+        "ReActV2 materialization is unavailable during the typed Core cutover",
         "generated_adapter.exists is false for every tool contract",
         "program_generated_policy still forbids dspy.Tool materialization",
         "runtime_policy.dspy_tool_materialization_allowed is false",
@@ -561,19 +558,15 @@ def _react_v2_tool_readiness(
         "react_v2_module_tool_refs": module_tool_refs,
         "missing_tool_contracts": missing_contracts,
         "pure_tool_adapter_preflight": pure_tool_preflight,
-        "ready_for_react_v2_no_tool_materialization": requested
-        and not module_tool_refs,
+        "ready_for_react_v2_no_tool_materialization": False,
         "ready_for_react_v2_tool_binding": False,
-        "status": "blocked_until_generated_tool_adapter_policy"
-        if requested and (contracts or module_tool_refs)
+        "status": "unavailable_typed_core_cutover"
+        if requested
         else "not_requested_or_no_tool_need",
-        "production_readiness_blockers": adapter_blockers
-        if requested and (contracts or module_tool_refs)
-        else [],
+        "production_readiness_blockers": adapter_blockers if requested else [],
         "next_actions": [
-            "Keep ReActV2 tools=[] for materialization until generated tool adapters are policy-approved.",
-            "For every desired tool, declare a descriptor-only tool capability with schemas, effect class, allowlists, timeout, redaction, and mutation posture.",
-            "Land generated dspy.Tool adapter policy with adapter hashes/provenance and replay checks before enabling tool binding.",
+            "Keep ReActV2 and its tool references descriptor-only during the typed Core cutover.",
+            "For every desired tool, retain a descriptor-only capability with schemas, effect class, allowlists, timeout, redaction, and mutation posture.",
         ],
         "effect": {
             "tool_called": False,

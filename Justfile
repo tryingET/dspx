@@ -58,23 +58,6 @@ upstream-link-mlflow path="":
   if [ -z "{{path}}" ]; then echo "usage: just upstream-link-mlflow path=~/programming/upstream/mlflow"; exit 1; fi
   uv pip install -e "{{path}}"
 
-# Link the repo-local contrib dspy-lm-auth checkout and verify DSPx resolves imports from it
-link-dspy-lm-auth path="":
-  target="{{path}}"; \
-  if [ -z "$target" ]; then target="$HOME/ai-society/softwareco/contrib/dspy-lm-auth"; fi; \
-  if [ ! -f "$target/pyproject.toml" ]; then echo "missing dspy-lm-auth checkout: $target"; exit 1; fi; \
-  uv pip install -e "$target"; \
-  uv run python -c 'from pathlib import Path; import sys, dspy_lm_auth; target = Path(sys.argv[1]).expanduser().resolve(); actual = Path(dspy_lm_auth.__file__).resolve(); print(actual); assert target in actual.parents or actual == target, f"dspy_lm_auth resolved to {actual}, expected under {target}"' "$target"
-
-# Show the active dspy-lm-auth import path plus the auth-backed route/health proof in one command
-show-dspy-lm-auth-route:
-  @echo "# import path"
-  @uv run python -c "import dspy_lm_auth; print(dspy_lm_auth.__file__)"
-  @echo "# provider resolve"
-  @just dspx providers resolve --provider dspy-lm-auth --json
-  @echo "# provider health"
-  @just dspx providers health --provider dspy-lm-auth --probe --json
-
 # Reset environment back to locked/released dependencies
 upstream-reset:
   uv sync
@@ -186,25 +169,9 @@ module-synthesis-quality-check:
 semantic-benchmark out="generated/ci/semantic-benchmark-result.json":
   target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_semantic_benchmarks.py --out "$target"
 
-# Explicit opt-in live semantic corpus; never included in default validation gates.
-semantic-benchmark-live provider out="generated/ci/semantic-benchmark-live-result.json":
-  selected="{{provider}}"; selected="${selected#provider=}"; target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_semantic_benchmarks.py --live --provider "$selected" --out "$target"
-
 # Deterministic generated-program semantic corpus; root must not already exist.
 program-semantic-benchmark root="generated/ci/program-semantic-benchmark" out="generated/ci/program-semantic-benchmark-result.json":
   work="{{root}}"; work="${work#root=}"; target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_program_semantic_benchmarks.py --work-root "$work" --out "$target"
-
-# Explicit opt-in live generated-program semantic corpus; never a default CI gate.
-program-semantic-benchmark-live provider root="generated/ci/program-semantic-benchmark-live" out="generated/ci/program-semantic-benchmark-live-result.json":
-  selected="{{provider}}"; selected="${selected#provider=}"; work="{{root}}"; work="${work#root=}"; target="{{out}}"; target="${target#out=}"; uv run --no-sync python scripts/run_program_semantic_benchmarks.py --live --provider "$selected" --work-root "$work" --out "$target"
-
-# Deterministic no-live membrane for the installed corpus and Oracle evaluation protocol.
-installed-live-oracle-evaluation-contract-check:
-  uv run --no-sync python scripts/ci/validate_installed_live_oracle_evaluation.py
-
-# Explicit opt-in exact-wheel live semantic journey; one invocation, no DSPx compatibility retry, never publishes.
-installed-core-live-semantic wheel wheel_sha256 provider model root:
-  artifact="{{wheel}}"; artifact="${artifact#wheel=}"; digest="{{wheel_sha256}}"; digest="${digest#wheel_sha256=}"; selected_model="{{model}}"; selected_model="${selected_model#model=}"; work="{{root}}"; work="${work#root=}"; selected_provider="{{provider}}"; selected_provider="${selected_provider#provider=}"; bash scripts/run_installed_core_live_semantic.sh --wheel "$artifact" --wheel-sha256 "$digest" --root "$work" --provider "$selected_provider" --model "$selected_model"
 
 # Executable boundary contract matrix for validation-only/preflight/rooting/parser surfaces
 boundary-contract-check:
@@ -218,7 +185,7 @@ boundary-contract-check:
 # Without an explicit task_id, auto/head binding trusts only an
 # active AK claim or changed task-scope artifact paths, and otherwise fails closed.
 task-scope-check task_id="" mode="auto" rev_range="auto":
-  if [ -n "{{task_id}}" ]; then python3 scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else python3 scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi
+  if [ -n "{{task_id}}" ]; then uv run --no-sync python scripts/check_task_scope.py --task-id {{task_id}} --mode {{mode}} --range {{rev_range}}; else uv run --no-sync python scripts/check_task_scope.py --mode {{mode}} --range {{rev_range}}; fi
 
 # Fast deterministic validation gate (cheap enough for frequent local use)
 verify-fast:
@@ -261,7 +228,7 @@ verify-runtime-nonoverlap:
 
 # Diagnose whether the current dirty tree is inside the active AK task scope.
 scope-doctor:
-  @python3 scripts/check_task_scope.py --mode working-tree --json || true
+  @uv run --no-sync python scripts/check_task_scope.py --mode working-tree --json || true
 
 # Focused adversarial boundary-hardening validation for CLI/provider/runtime/generated-program seams.
 verify-boundary-hardening:
@@ -408,66 +375,7 @@ run *args:
 forge *args:
   bash -lc 'uv run --package dspx-forge -q python -m dspx_forge.cli "$@"' -- {{args}}
 
-# OpenRouter wrapper (1Password `op run`)
-# NOTE: We avoid variadic pass-through here because Just interpolation happens in a shell,
-# and it will split multi-word args unless each arg is shell-escaped.
-_op-preflight:
-  if ! command -v op >/dev/null 2>&1; then echo "op CLI not found (install 1Password CLI)"; exit 2; fi
-
-_openrouter-preflight:
-  just _op-preflight
-  if [ ! -f .env ]; then echo ".env not found (create one; see .env.example)"; exit 2; fi
-  if ! rg -q '^OPENROUTER_API_KEY=' .env 2>/dev/null; then echo "OPENROUTER_API_KEY not set in .env (see .env.example)"; exit 2; fi
-
-# Debug helpers (run in recipe environment)
-openrouter-whoami:
-  just _op-preflight
-  op whoami
-
-openrouter-env:
-  just _openrouter-preflight
-  # Do not print secrets; only show whether the key resolves and its length.
-  op run -- bash -lc 'python - <<PY\nimport os\nk=os.getenv(\"OPENROUTER_API_KEY\") or \"\"\nprint(f\"OPENROUTER_API_KEY_set={1 if k else 0} len={len(k)}\")\nprint(f\"OPENROUTER_MODEL={os.getenv(\\\"OPENROUTER_MODEL\\\") or \\\"\\\"}\")\nPY'
-
-openrouter-codegen spec lang="python" template="v1":
-  just _openrouter-preflight
-  # Rely on Just's dotenv-load for `.env`; `op run` resolves any `op://...` env values.
-  op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx codegen "{{spec}}" --template-version {{template}} --language {{lang}}
-
-openrouter-codegen-timed spec lang="python" template="v1":
-  just _openrouter-preflight
-  # Total wall-clock time from command start to finish (printed to stderr).
-  TIMEFORMAT=$'[openrouter] duration_s=%R\n'; \
-  time op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx codegen "{{spec}}" --template-version {{template}} --language {{lang}}
-
-openrouter-signature prompt template="v1":
-  just _openrouter-preflight
-  op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx signature gen "{{prompt}}" --template-version {{template}}
-
-openrouter-signature-timed prompt template="v1":
-  just _openrouter-preflight
-  TIMEFORMAT=$'[openrouter] duration_s=%R\n'; \
-  time op run -- env DSPX_PROVIDER=openrouter uv run -q python -m dspx.cli.dspx signature gen "{{prompt}}" --template-version {{template}}
-
-# Friendly OpenRouter shortcuts (no flags, no quoting).
-# These accept unquoted multi-word prompts by capturing the remainder.
-or-signature prompt *more:
-  P="{{prompt}} {{more}}"; P="${P% }"; \
-  just openrouter-signature "$P" v1
-
-or-codegen spec *more:
-  S="{{spec}} {{more}}"; S="${S% }"; \
-  just openrouter-codegen "$S" python v1
-
-or-signature-timed prompt *more:
-  P="{{prompt}} {{more}}"; P="${P% }"; \
-  just openrouter-signature-timed "$P" v1
-
-or-codegen-timed spec *more:
-  S="{{spec}} {{more}}"; S="${S% }"; \
-  just openrouter-codegen-timed "$S" python v1
-
-# GEPA optimization (DSPy) — default provider is DSPX_PROVIDER (defaults to codex-exec)
+# GEPA optimization (DSPy); the typed cutover supports only an explicitly selected stub provider.
 gepa program train out val="" output_key="" auto="light" max_metric_calls="" metric="exact":
   if [ "{{val}}" != "" ]; then \
     VAL_ARGS="--val {{val}}"; \
@@ -507,47 +415,6 @@ gepa-modulegen-smoke:
     just gepa "$TD/student.py" examples/gepa_modulegen_train.csv "$TD/optimized" "" "" light 2 contains >/dev/null; \
   test -f "$TD/optimized/manifest.json"; \
   echo "[gepa-modulegen-smoke] ok out=$TD/optimized"
-
-# GEPA smoke starting from `module-gen` output (live; Codex Exec; opt-in).
-gepa-modulegen-live:
-  if [ "${DSPX_RUN_LIVE_TESTS:-0}" != "1" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "true" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "yes" ]; then \
-    echo "set DSPX_RUN_LIVE_TESTS=1 to run live Codex GEPA smoke"; exit 0; \
-  fi; \
-  if ! command -v codex >/dev/null 2>&1; then echo "codex CLI not found"; exit 2; fi; \
-  if ! (codex login status >/dev/null 2>&1 || codex auth whoami >/dev/null 2>&1); then echo "codex not authenticated (codex login status)"; exit 2; fi; \
-  TD="$(mktemp -d)"; \
-  echo "[gepa-modulegen-live] dir=$TD"; \
-  MLFLOW_ENABLE=0 uv run -q python -m dspx.cli.dspx module-gen \
-    --name Student \
-    --description "Answer a short question with a short answer" \
-    --input question \
-    --output answer \
-    --template-version simple-v1 \
-    --outfile "$TD/student.py" >/dev/null; \
-  DSPX_PROVIDER=codex-exec \
-    just gepa "$TD/student.py" examples/gepa_modulegen_train.csv "$TD/optimized" "" "" light 2 contains >/dev/null; \
-  test -f "$TD/optimized/manifest.json"; \
-  echo "[gepa-modulegen-live] ok out=$TD/optimized"
-
-# Pi RPC live smoke (opt-in) with recommended provider/model defaults.
-pi-live-smoke provider="openai-codex" model="gpt-5.1-codex-mini" thinking="" timeout="90":
-  if [ "${DSPX_RUN_LIVE_TESTS:-0}" != "1" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "true" ] && [ "${DSPX_RUN_LIVE_TESTS:-0}" != "yes" ]; then \
-    echo "set DSPX_RUN_LIVE_TESTS=1 to run live Pi RPC smoke"; exit 0; \
-  fi; \
-  if ! command -v pi >/dev/null 2>&1; then echo "pi CLI not found"; exit 2; fi; \
-  DSPX_PI_LIVE_PROVIDER="{{provider}}" \
-  DSPX_PI_LIVE_MODEL="{{model}}" \
-  DSPX_PI_LIVE_THINKING="{{thinking}}" \
-  DSPX_PI_LIVE_TIMEOUT="{{timeout}}" \
-    uv run -m pytest -q tests/test_pi_rpc_provider_live.py -rs
-
-# GEPA optimization pinned to Codex Exec
-codex-gepa program train out val="" output_key="" auto="light" max_metric_calls="20":
-  DSPX_PROVIDER=codex-exec just gepa "{{program}}" "{{train}}" "{{out}}" "{{val}}" "{{output_key}}" {{auto}} {{max_metric_calls}}
-
-codex-gepa-timed program train out val="" output_key="" auto="light" max_metric_calls="20":
-  TIMEFORMAT=$'[codex-gepa] duration_s=%R\n'; \
-  time just codex-gepa "{{program}}" "{{train}}" "{{out}}" "{{val}}" "{{output_key}}" {{auto}} {{max_metric_calls}}
 
 # Build distributables (wheel + sdist) for all workspace packages
 build:
@@ -750,24 +617,6 @@ dspx-mermaid file name="" provider="":
   else \
     uv run -q python -m dspx.cli.dspx_mermaid2dspy -f "{{file}}" -n "{{name}}" ; \
   fi
-
-# Benchmark CLI flows with MLflow enabled (one example per type)
-# Usage: just bench-mlflow
-bench-mlflow:
-  bash -lc 'set -e; export DSPX_RUN_GROUP="cli-bench-$(date +%Y%m%d-%H%M%S)"; export MLFLOW_ENABLE="${MLFLOW_ENABLE:-1}"; echo "[bench] run_group=$DSPX_RUN_GROUP"; \
-    SIG="Summarize a middle school science passage into 3 key points."; \
-    if uv run -q python -m dspx.cli.dspx signature gen --provider codex-exec --template-version v1 --budget-ms 30000 "$SIG" >/dev/null 2>&1; then echo "provider=codex-exec kind=signature rc=0"; else echo "provider=codex-exec kind=signature rc=$?"; fi; \
-    if uv run -q python -m dspx.cli.dspx signature gen --provider claude-cli --template-version v1 --budget-ms 30000 "$SIG" >/dev/null 2>&1; then echo "provider=claude-cli kind=signature rc=0"; else echo "provider=claude-cli kind=signature rc=$?"; fi; \
-    SPEC="A Python CLI that prints 10 random fraction addition practice problems for grade 6"; \
-    if uv run -q python -m dspx.cli.dspx codegen --provider codex-exec --template-version v1 --budget-ms 240000 "$SPEC" >/dev/null 2>&1; then echo "provider=codex-exec kind=codegen rc=0"; else echo "provider=codex-exec kind=codegen rc=$?"; fi; \
-    if CLAUDE_MODEL=sonnet uv run -q python -m dspx.cli.dspx codegen --provider claude-cli --template-version v1 --budget-ms 240000 "$SPEC" >/dev/null 2>&1; then echo "provider=claude-cli kind=codegen rc=0"; else echo "provider=claude-cli kind=codegen rc=$?"; fi; \
-    if uv run -q python -m dspx.cli.dspx module-gen --name LessonSummarizer --description "Summarize middle school readings into key points" --input text --output summary --budget-ms 30000 >/dev/null 2>&1; then echo "provider=none kind=module rc=0"; else echo "provider=none kind=module rc=$?"; fi; \
-    WF=examples/workflows/sample_flow/workflow.mmd; \
-    if uv run -q python -m dspx.cli.dspx mermaid gen --file "$WF" --name bench --variants predict,cot >/dev/null 2>&1; then echo "provider=none kind=mermaid-gen rc=0"; else echo "provider=none kind=mermaid-gen rc=$?"; fi; \
-    export DSPX_POLICY_ENFORCE_NETWORK_MUTATE=0; export DSPX_BUDGET_SIGNATURE_MS=60000; \
-    if CODEX_TIMEOUT=60 uv run -q python -m dspx.cli.dspx mermaid sig --file "$WF" --name benchsig --provider codex-exec >/dev/null 2>&1; then echo "provider=codex-exec kind=mermaid-sig rc=0"; else echo "provider=codex-exec kind=mermaid-sig rc=$?"; fi; \
-    if CLAUDE_TIMEOUT=60 uv run -q python -m dspx.cli.dspx mermaid sig --file "$WF" --name benchsig --provider claude-cli >/dev/null 2>&1; then echo "provider=claude-cli kind=mermaid-sig rc=0"; else echo "provider=claude-cli kind=mermaid-sig rc=$?"; fi; \
-    echo "[bench] done. Group: $DSPX_RUN_GROUP"'
 
 # Start the FastAPI server (Granian)
 # Usage (positional args):

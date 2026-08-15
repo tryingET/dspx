@@ -13,8 +13,8 @@ import dspy
 
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
-from dspx.provider_registry import create_from_env, ensure_default_providers
-from dspx.lm_base import LMBase
+from dspx.provider_registry import create_from_env
+from dspy import BaseLM
 from dspx.dtos import CodegenRequest, CodegenResult
 from dspx.templates import format_codegen_spec, render_minimal_program
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
@@ -50,7 +50,7 @@ def run(
     language: Optional[str] = None,
     outfile: Optional[str] = None,
     print_all: bool = False,
-    lm: Optional[LMBase] = None,
+    lm: Optional[BaseLM] = None,
 ) -> str:
     # Configure env + tracing
     load_config_env()
@@ -59,8 +59,7 @@ def run(
     # LM options (read from env via provider-specific factories)
     # Kept minimal here; provider registry will apply env when creating the LM.
 
-    # Create LM via provider registry (default: pi-rpc)
-    ensure_default_providers()
+    # Create an explicitly selected supported LM through the stub-only registry.
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
@@ -172,7 +171,7 @@ def run(
     return code_text
 
 
-def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResult:
+def run_dto(req: CodegenRequest, *, lm: Optional[BaseLM] = None) -> CodegenResult:
     """DTO-oriented codegen. Supports template-only deterministic path."""
     # Template-only deterministic path (no LM required)
     if (req.template_version or "").startswith("simple"):
@@ -215,7 +214,6 @@ def run_dto(req: CodegenRequest, *, lm: Optional[LMBase] = None) -> CodegenResul
             "OPENROUTER_TIMEOUT",
         ):
             _os.environ[name] = str(secs)
-    ensure_default_providers()
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 

@@ -246,14 +246,10 @@ def test_cli_mermaid_gen_creates_files(tmp_path: Path, monkeypatch) -> None:
         os.chdir(cwd)
 
 
-def test_cli_readonly_providers_list_skips_mlflow_bootstrap(monkeypatch) -> None:
-    def _boom() -> bool:
-        raise AssertionError("read-only providers list must not bootstrap MLflow")
-
-    monkeypatch.setattr(dspx_utils, "enable_mlflow_from_env", _boom)
+def test_removed_provider_cli_is_not_exposed() -> None:
     result = runner.invoke(app, ["providers", "list"])
-    assert result.exit_code == 0
-    assert "stub" in result.stdout
+    assert result.exit_code == 2
+    assert "No such command 'providers'" in result.output
 
 
 def test_cli_readonly_openapi_ops_skips_mlflow_bootstrap(

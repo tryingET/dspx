@@ -88,7 +88,7 @@ def optimize_gepa(
     student_provider: Optional[str] = typer.Option(
         None,
         "--student-provider",
-        help="Provider for student calls (defaults to DSPX_PROVIDER, default: pi-rpc).",
+        help="Provider for student calls (defaults to explicit DSPX_PROVIDER; supported: stub).",
     ),
     reflection_provider: Optional[str] = typer.Option(
         None,

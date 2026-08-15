@@ -393,7 +393,7 @@ def execute_program_runtime_receipt_impl(
             {
                 "HOME": str(sandbox),
                 "DSPX_PROVIDER": "stub",
-                "DSPX_STUB_RESPONSE_JSON": json.dumps(
+                "DSPX_REPLAY_FIXTURE_JSON": json.dumps(
                     stub_response, ensure_ascii=False, sort_keys=True
                 ),
                 "DSPX_CACHE_ENABLE": "0",

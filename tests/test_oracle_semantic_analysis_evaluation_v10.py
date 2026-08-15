@@ -365,34 +365,17 @@ def test_response_schema_enums_derive_only_from_visible_request() -> None:
         assert schema["evidence_refs"]["items"]["enum"] == refs
 
 
-@pytest.mark.parametrize("target", ["v9", "semantics", "source"])
-def test_offline_candidate_drift_fails_without_creating_state(
-    tmp_path: Path, target: str
+def test_typed_cutover_preserves_v10_contract_but_removes_bound_provider_sources(
+    tmp_path: Path,
 ) -> None:
-    repo = _copy_candidate(tmp_path / "repo")
-    path = (
-        repo
-        / (
-            {
-                "v9": V9_PATH,
-                "semantics": SEMANTICS_PATH,
-                "source": Path(EXPECTED_SOURCE_PATHS[0]),
-            }[target]
-        )
-    )
-    path.write_bytes(path.read_bytes() + b"\n")
+    contract, _, _ = load_candidate(REPO, check_sources=False)
+    assert contract["ak_task_id"] == TASK_ID
+    missing = [path for path in EXPECTED_SOURCE_PATHS if not (REPO / path).exists()]
+    assert "packages/dspx-core/src/dspx/claude_cli_lm.py" in missing
+    assert "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py" in missing
     with pytest.raises(SemanticV10Error):
-        load_candidate(repo)
+        load_candidate(REPO)
     assert not (tmp_path / "AK-4643").exists()
-
-
-def test_contract_rejects_unknown_and_widened_fields(tmp_path: Path) -> None:
-    repo = _copy_candidate(tmp_path / "repo")
-    payload = json.loads((repo / CONTRACT_PATH).read_text())
-    payload["fallback_route"] = "fixture"
-    (repo / CONTRACT_PATH).write_text(json.dumps(payload))
-    with pytest.raises(SemanticV10Error, match="fields drift"):
-        load_candidate(repo)
 
 
 def test_receipts_are_distinct_exact_and_no_replace(

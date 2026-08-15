@@ -265,32 +265,10 @@ promotion_decision_template.json
 
 The fixture's expected transition artifacts are embedded as `expected_outputs` in `behavior_results.json`. With the stub provider, the behavior check may report mismatches; that is acceptable for this scenario because the test proves the generated program shape, artifact contracts, replay metadata, and authority boundaries rather than model quality.
 
-To exercise the generated DSPy program with the default auth-backed provider/model instead of the stub, run:
-
-```bash
-export TD="$(mktemp -d)"
-export DSPX_PROVIDER=dspy-lm-auth
-export DSPX_LM_AUTH_MODEL=codex/gpt-5.5
-export MLFLOW_ENABLE=0
-export DSPX_CACHE_DIR="$TD/cache"
-export DSPX_CACHE_ENABLE=1
-
-uv run -q python -m dspx.cli.dspx program-gen \
-  --intent tests/fixtures/program_gen/pdf_transition/intent.yaml \
-  --outdir "$TD/pdf-transition-program" \
-  --print-manifest
-
-python3 - <<'PY'
-import json, os
-from pathlib import Path
-out = Path(os.environ["TD"]) / "pdf-transition-program"
-behavior = json.loads((out / "behavior_results.json").read_text())
-print(json.dumps(behavior["summary"], indent=2, sort_keys=True))
-print(json.dumps(behavior["examples"][0].get("observed_outputs"), indent=2, sort_keys=True))
-PY
-```
-
-`dspy-lm-auth` defaults to `codex/gpt-5.5` when `DSPX_LM_AUTH_MODEL` is unset. The explicit export above keeps the provider-backed run auditable.
+The T2 typed hard cutover supports only the deterministic stub provider. An
+auth-backed provider/model run is unavailable and this guide intentionally
+provides no compatibility command. Inspect fixture-backed behavior locally, or
+wait for a separately reviewed additive provider restoration.
 
 ## Test coverage
 
@@ -326,26 +304,9 @@ It consumes either:
 - direct generated output files named after the DSPx output fields; or
 - a DSPx generated-program candidate root containing `behavior_results.json` with `observed_outputs`.
 
-Example live-provider flow:
-
-```bash
-export TD="$(mktemp -d)"
-export DSPX_PROVIDER=dspy-lm-auth
-export DSPX_LM_AUTH_MODEL=codex/gpt-5.5
-export MLFLOW_ENABLE=0
-export DSPX_CACHE_DIR="$TD/cache"
-export DSPX_CACHE_ENABLE=1
-export DSPX_ORACLE_EMBEDDING_BACKEND=mock
-
-uv run --package dspx-core -q python -m dspx.cli.dspx program-loop \
-  --intent tests/fixtures/program_gen/pdf_transition/intent.yaml \
-  --outdir "$TD/pdf-transition-program" \
-  --json
-
-python /home/tryinget/Documents/Obsidian/_System/pdf-pipeline/scripts/materialize_dspy_transition_review.py \
-  --input-dir "$TD/pdf-transition-program" \
-  --json
-```
+Use the offline stub-backed `program-loop` output described above as adapter
+input. Live-provider generation is unavailable in T2; the adapter does not grant
+provider, publication, or canonical-Wiki authority.
 
 The adapter writes only to the approved review/proposal surface:
 

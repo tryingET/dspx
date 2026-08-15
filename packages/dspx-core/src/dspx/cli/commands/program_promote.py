@@ -134,7 +134,7 @@ def model_jury(
     provider: str | None = typer.Option(
         None,
         "--provider",
-        help="Provider for juror model calls (defaults to DSPX_PROVIDER, then dspy-lm-auth)",
+        help="Provider for juror model calls (defaults to explicit DSPX_PROVIDER; supported: stub)",
     ),
     adjudicator_id: str = typer.Option(
         "target_repo_product_manager_agent",

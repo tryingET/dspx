@@ -1,17 +1,15 @@
-# summary: "Provides sanitized provider inspection, health checks, invocation, and benchmarks."
+# summary: "Provides typed-provider metadata and bounded diagnostic sanitization without legacy invocation bridges."
 # read_when:
-#   - "Changing provider diagnostics, payload sanitization, health probes, or benchmarks."
+#   - "Changing typed provider metadata, diagnostics, or direct offline invocation."
 
 from __future__ import annotations
 
-import statistics
-import time
 from collections.abc import Mapping as MappingABC
-from typing import Any, Sequence
+from typing import Any
 
-from dspx.dtos import LMRequest
-from dspx.provider_registry import create, ensure_default_providers
+from dspx.dspy_typed_lm import DSPyTypedLMAdapter
 from dspx.redaction import redact_headers, redact_url, sanitize_diagnostic_text
+from dspx.stub_provider import StubProvider
 
 _MAX_PREVIEW_CHARS = 320
 _MAX_COLLECTION_ITEMS = 20
@@ -21,10 +19,8 @@ _SENSITIVE_FIELD_NAMES = {
     "api_key",
     "apikey",
     "auth_storage",
-    "auth_storage_exists",
     "authorization",
     "credential_path",
-    "credential_storage",
     "credentials_path",
     "cookie",
     "password",
@@ -49,13 +45,6 @@ _SENSITIVE_FIELD_SUFFIXES = (
 )
 
 
-class ProviderInvocationError(RuntimeError):
-    """Raised when a provider returns an explicit failure result."""
-
-
-_FAILURE_HEALTH_STATUSES = {"error", "failed", "failure", "unhealthy"}
-
-
 def _normalized_field_name(name: str) -> str:
     return str(name or "").strip().lower().replace("-", "_").replace(".", "_")
 
@@ -71,40 +60,8 @@ def _looks_sensitive_field(name: str) -> bool:
     )
 
 
-def _truncate_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
-    if len(text) <= limit:
-        return text
-    return text[:limit] + "…[truncated]"
-
-
 def sanitize_text(text: str, *, limit: int = _MAX_PREVIEW_CHARS) -> str:
     return sanitize_diagnostic_text(text, limit=limit)
-
-
-def _sanitize_mapping(value: MappingABC[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    items = list(value.items())
-    for index, (key, item) in enumerate(items):
-        if index >= _MAX_MAPPING_ITEMS:
-            out["__truncated_items__"] = max(0, len(items) - _MAX_MAPPING_ITEMS)
-            break
-        key_text = str(key)
-        lowered = key_text.lower()
-        if lowered == "headers" and isinstance(item, MappingABC):
-            out[key_text] = redact_headers(
-                {str(header): str(val) for header, val in item.items()}
-            )
-            continue
-        if _looks_sensitive_field(lowered):
-            out[key_text] = "[REDACTED]"
-            continue
-        if isinstance(item, str) and (
-            lowered.endswith("_url") or lowered in {"artifact_uri", "base_url", "url"}
-        ):
-            out[key_text] = _truncate_text(redact_url(item))
-            continue
-        out[key_text] = sanitize_payload(item)
-    return out
 
 
 def sanitize_payload(value: Any) -> Any:
@@ -113,7 +70,28 @@ def sanitize_payload(value: Any) -> Any:
     if isinstance(value, str):
         return sanitize_text(value)
     if isinstance(value, MappingABC):
-        return _sanitize_mapping({str(key): item for key, item in value.items()})
+        out: dict[str, Any] = {}
+        items = list(value.items())
+        for index, (key, item) in enumerate(items):
+            if index >= _MAX_MAPPING_ITEMS:
+                out["__truncated_items__"] = len(items) - _MAX_MAPPING_ITEMS
+                break
+            key_text = str(key)
+            lowered = key_text.lower()
+            if lowered == "headers" and isinstance(item, MappingABC):
+                out[key_text] = redact_headers(
+                    {str(header): str(val) for header, val in item.items()}
+                )
+            elif _looks_sensitive_field(lowered):
+                out[key_text] = "[REDACTED]"
+            elif isinstance(item, str) and (
+                lowered.endswith("_url")
+                or lowered in {"artifact_uri", "base_url", "url"}
+            ):
+                out[key_text] = sanitize_text(redact_url(item))
+            else:
+                out[key_text] = sanitize_payload(item)
+        return out
     if isinstance(value, (list, tuple, set)):
         items = list(value)
         sanitized = [sanitize_payload(item) for item in items[:_MAX_COLLECTION_ITEMS]]
@@ -127,347 +105,54 @@ _sanitize_text = sanitize_text
 _sanitize_payload = sanitize_payload
 
 
-def raise_for_explicit_provider_error(result: Any) -> None:
-    """Reject provider-owned failure signals without interpreting model text."""
-
-    candidates = (result, getattr(result, "raw", None))
-    for candidate in candidates:
-        if not isinstance(candidate, MappingABC):
-            continue
-        marker = candidate.get("_dspx_error") is True
-        declared_error = candidate.get("error")
-        error_text = str(declared_error).strip() if declared_error is not None else ""
-        status = str(candidate.get("status") or "").strip().lower()
-        if not marker and not error_text and status not in _FAILURE_HEALTH_STATUSES:
-            continue
-        error = sanitize_text(
-            error_text
-            or (
-                f"provider execution reported status={status}"
-                if status in _FAILURE_HEALTH_STATUSES
-                else "provider execution failed"
-            )
-        )
-        error_type = sanitize_text(str(candidate.get("_dspx_error_type") or ""))
-        prefix = f"{error_type}: " if marker and error_type else ""
-        raise ProviderInvocationError(f"{prefix}{error}")
-
-
-def normalize_provider_health_payload(
-    payload: MappingABC[str, Any], *, probe: bool
+def provider_metadata_from_instance(
+    provider: str, lm: DSPyTypedLMAdapter
 ) -> dict[str, Any]:
-    """Require exact success signals from provider-owned health payloads."""
+    """Return bounded identity metadata for the one supported typed adapter."""
 
-    normalized = dict(payload)
-    probe_payload = normalized.get("probe")
-    error: str | None = None
-    try:
-        raise_for_explicit_provider_error(normalized)
-        if isinstance(probe_payload, MappingABC):
-            raise_for_explicit_provider_error(probe_payload)
-    except ProviderInvocationError as exc:
-        error = str(exc)
+    if provider != "stub" or type(lm.provider) is not StubProvider:
+        raise ValueError("provider metadata is available only for the supported stub")
 
-    declared_error = normalized.get("error")
-    if declared_error is not None and str(declared_error).strip():
-        error = error or str(declared_error)
-    if isinstance(probe_payload, MappingABC):
-        probe_error = probe_payload.get("error")
-        if probe_error is not None and str(probe_error).strip():
-            error = error or str(probe_error)
-        probe_status = str(probe_payload.get("status") or "").strip().lower()
-        if probe_status in _FAILURE_HEALTH_STATUSES:
-            error = error or f"provider probe reported status={probe_status}"
-    status = str(normalized.get("status") or "").strip().lower()
-    if status in _FAILURE_HEALTH_STATUSES:
-        error = error or f"provider healthcheck reported status={status}"
-    if normalized.get("ok") is not True:
-        error = error or "provider healthcheck failed"
-    if isinstance(probe_payload, MappingABC):
-        if probe_payload.get("ok") is not True:
-            error = error or "provider probe did not report success"
-    elif probe:
-        error = error or "provider probe did not report success"
-    if error is not None:
-        normalized["ok"] = False
-        normalized["status"] = "error"
-        normalized["error"] = sanitize_text(error)
-    return normalized
-
-
-def extract_text_from_result(result: Any) -> str:
-    try:
-        if hasattr(result, "outputs"):
-            outputs = getattr(result, "outputs") or []
-            if outputs:
-                return str(outputs[0] or "").strip()
-        if isinstance(result, dict):
-            choices = result.get("choices") or []
-            if choices:
-                c0 = choices[0]
-                if isinstance(c0, dict):
-                    msg = c0.get("message")
-                    if isinstance(msg, dict) and msg.get("content") is not None:
-                        return str(msg.get("content") or "").strip()
-                    if c0.get("text") is not None:
-                        return str(c0.get("text") or "").strip()
-        if hasattr(result, "choices"):
-            choices = getattr(result, "choices") or []
-            if choices:
-                c0 = choices[0]
-                if isinstance(c0, dict) and c0.get("text") is not None:
-                    return str(c0.get("text") or "").strip()
-    except Exception:
-        pass
-    return str(result).strip()
-
-
-def usage_from_result(result: Any) -> dict[str, Any] | None:
-    try:
-        if hasattr(result, "usage") and isinstance(getattr(result, "usage"), dict):
-            return dict(getattr(result, "usage"))
-        if isinstance(result, dict) and isinstance(result.get("usage"), dict):
-            return dict(result["usage"])
-    except Exception:
-        pass
-    return None
-
-
-def provider_metadata_from_instance(provider: str, lm: Any) -> dict[str, Any]:
-    caps = getattr(lm, "capabilities", None)
-    payload: dict[str, Any] = {
+    return {
         "provider": provider,
-        "model": getattr(lm, "model", None),
-        "model_type": getattr(lm, "model_type", None),
+        "model": lm.model,
+        "model_type": lm.model_type,
+        "typed_contract": "typed_lm",
+        "capabilities": {
+            "supports_tools": False,
+            "code_exec": False,
+            "json_mode": False,
+            "multi_turn": True,
+            "structured_output_format": "none",
+            "supports_vision": False,
+            "supports_audio": False,
+        },
+        "runtime": {},
     }
-    if caps is not None:
-        payload["capabilities"] = {
-            "supports_tools": bool(getattr(caps, "supports_tools", False)),
-            "code_exec": bool(getattr(caps, "code_exec", False)),
-            "json_mode": bool(getattr(caps, "json_mode", False)),
-            "multi_turn": bool(getattr(caps, "multi_turn", False)),
-            "structured_output_format": str(
-                getattr(caps, "structured_output_format", "none")
-            ),
-            "supports_vision": bool(getattr(caps, "supports_vision", False)),
-            "supports_audio": bool(getattr(caps, "supports_audio", False)),
-        }
-    payload["runtime"] = {}
-    meta_fn = getattr(lm, "runtime_metadata", None)
-    if callable(meta_fn):
-        try:
-            payload["runtime"] = sanitize_payload(meta_fn())
-        except Exception as e:
-            payload["runtime_error"] = sanitize_text(str(e))
-    return payload
 
 
 def invoke_provider(
-    lm: Any,
+    lm: DSPyTypedLMAdapter,
     *,
     prompt: str,
-    max_tokens: int | None = 16,
+    max_tokens: int | None = None,
 ) -> tuple[str, dict[str, Any] | None]:
-    if hasattr(lm, "generate"):
-        try:
-            result = lm.generate(LMRequest(prompt=prompt), max_tokens=max_tokens)
-        except TypeError:
-            result = lm.generate(LMRequest(prompt=prompt))
-    else:
-        try:
-            result = lm.forward(prompt=prompt, max_tokens=max_tokens)
-        except TypeError:
-            result = lm.forward(prompt=prompt)
-    raise_for_explicit_provider_error(result)
-    return extract_text_from_result(result), usage_from_result(result)
+    """Invoke the typed stub once; no signature retry or legacy response parsing."""
 
+    if type(lm.provider) is not StubProvider:
+        raise ValueError("typed invocation is available only for the supported stub")
 
-def describe_provider(provider: str) -> dict[str, Any]:
-    ensure_default_providers()
-    lm = create(provider)
-    return provider_metadata_from_instance(provider, lm)
-
-
-def check_provider_health(
-    provider: str,
-    *,
-    probe: bool = False,
-    prompt: str = "Reply with the single word: hello",
-    max_tokens: int | None = 16,
-) -> dict[str, Any]:
-    ensure_default_providers()
-    started = time.time()
-    try:
-        lm = create(provider)
-    except Exception as e:
-        return {
-            "ok": False,
-            "provider": provider,
-            "error": sanitize_text(str(e)),
-            "duration_ms": round((time.time() - started) * 1000.0, 3),
-        }
-
-    health_fn = getattr(lm, "healthcheck", None)
-    if callable(health_fn):
-        try:
-            raw_payload = health_fn(probe=probe, prompt=prompt, max_tokens=max_tokens)
-        except Exception as e:
-            return sanitize_payload(
-                {
-                    "ok": False,
-                    "provider": provider,
-                    "status": "error",
-                    "error": sanitize_text(str(e)),
-                    "duration_ms": round((time.time() - started) * 1000.0, 3),
-                    "metadata": provider_metadata_from_instance(provider, lm),
-                }
-            )
-        payload: dict[str, Any] = (
-            dict(raw_payload)
-            if isinstance(raw_payload, MappingABC)
-            else {
-                "ok": False,
-                "provider": provider,
-                "error": f"invalid health payload: {type(raw_payload).__name__}",
-            }
-        )
-        if "duration_ms" not in payload:
-            payload["duration_ms"] = round((time.time() - started) * 1000.0, 3)
-        if "provider" not in payload:
-            payload["provider"] = provider
-        if "metadata" not in payload:
-            payload["metadata"] = provider_metadata_from_instance(provider, lm)
-        payload = normalize_provider_health_payload(payload, probe=probe)
-        return sanitize_payload(payload)
-
-    payload = provider_metadata_from_instance(provider, lm)
-    payload.update(
-        {
-            "ok": False,
-            "provider": provider,
-            "status": "unknown",
-            "error": "provider has no healthcheck; run with probe=true to verify readiness",
-            "duration_ms": round((time.time() - started) * 1000.0, 3),
-        }
-    )
-    if probe:
-        probe_started = time.time()
-        try:
-            text, usage = invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
-            payload["ok"] = True
-            payload.pop("error", None)
-            payload["status"] = "ok"
-            payload["probe"] = {
-                "ok": True,
-                "text": sanitize_text(text),
-                "usage": sanitize_payload(usage),
-                "duration_ms": round((time.time() - probe_started) * 1000.0, 3),
-            }
-        except Exception as e:
-            sanitized_error = sanitize_text(str(e))
-            payload["ok"] = False
-            payload["error"] = sanitized_error
-            payload["probe"] = {
-                "ok": False,
-                "error": sanitized_error,
-                "duration_ms": round((time.time() - probe_started) * 1000.0, 3),
-            }
-    return sanitize_payload(payload)
-
-
-def benchmark_providers(
-    providers: Sequence[str],
-    *,
-    prompt: str,
-    repeats: int = 3,
-    warmup: int = 0,
-    max_tokens: int | None = 16,
-) -> dict[str, Any]:
-    ensure_default_providers()
-    started = time.time()
-    results: list[dict[str, Any]] = []
-    if repeats < 1:
-        raise ValueError("provider benchmark repeats must be at least 1")
-
-    for provider in providers:
-        provider_started = time.time()
-        item: dict[str, Any] = {"provider": provider}
-        try:
-            lm = create(provider)
-            item.update(provider_metadata_from_instance(provider, lm))
-        except Exception as e:
-            item.update(
-                {
-                    "ok": False,
-                    "error": sanitize_text(str(e)),
-                    "durations_ms": [],
-                    "successes": 0,
-                    "failures": repeats,
-                }
-            )
-            results.append(item)
-            continue
-
-        for _ in range(max(0, warmup)):
-            try:
-                invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
-            except Exception:
-                break
-
-        durations: list[float] = []
-        errors: list[str] = []
-        last_text = ""
-        for _ in range(max(0, repeats)):
-            t0 = time.time()
-            try:
-                text, _usage = invoke_provider(lm, prompt=prompt, max_tokens=max_tokens)
-                durations.append((time.time() - t0) * 1000.0)
-                last_text = sanitize_text(text)
-            except Exception as e:
-                durations.append((time.time() - t0) * 1000.0)
-                errors.append(sanitize_text(str(e)))
-
-        successes = max(0, repeats - len(errors))
-        item.update(
-            {
-                "ok": len(errors) == 0,
-                "successes": successes,
-                "failures": len(errors),
-                "success_rate": (float(successes) / float(repeats)) if repeats else 0.0,
-                "durations_ms": [round(d, 3) for d in durations],
-                "duration_mean_ms": round(statistics.mean(durations), 3)
-                if durations
-                else None,
-                "duration_median_ms": round(statistics.median(durations), 3)
-                if durations
-                else None,
-                "duration_min_ms": round(min(durations), 3) if durations else None,
-                "duration_max_ms": round(max(durations), 3) if durations else None,
-                "last_text": last_text,
-                "errors": errors[:5],
-                "benchmark_duration_ms": round(
-                    (time.time() - provider_started) * 1000.0, 3
-                ),
-            }
-        )
-        results.append(item)
-
-    ranked = sorted(
-        results,
-        key=lambda row: (
-            -float(row.get("success_rate") or 0.0),
-            float(row.get("duration_median_ms") or float("inf")),
-        ),
-    )
-    ok = bool(results) and all(row.get("ok") is True for row in results)
-    return {
-        "providers": list(providers),
-        "ok": ok,
-        "prompt": sanitize_text(prompt),
-        "prompt_raw_persisted": False,
-        "repeats": repeats,
-        "warmup": warmup,
-        "results": results,
-        "ranking": [str(row.get("provider") or "") for row in ranked],
-        "duration_ms": round((time.time() - started) * 1000.0, 3),
+    if max_tokens is not None:
+        raise ValueError("typed stub invocation does not support max_tokens")
+    result = lm(prompt=prompt)
+    if (
+        not isinstance(result, list)
+        or len(result) != 1
+        or not isinstance(result[0], str)
+    ):
+        raise RuntimeError("typed stub returned an invalid public DSPy result")
+    return result[0], {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
     }

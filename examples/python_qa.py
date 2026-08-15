@@ -1,20 +1,12 @@
-# Auto-generated DSPy script (Codex Exec enabled)
-import os
+# Auto-generated DSPy script using the typed hard-cutover stub provider.
 from typing import Optional
 
 import dspy
 
-from dspx.codex_exec_lm import CodexExecLM
+from dspx.provider_registry import create
 
-# Configure Codex Exec as the LM
-MODEL = os.getenv("CODEX_MODEL", "gpt-5")
-lm = CodexExecLM(
-    model_flag=MODEL,
-    auto_mode=True,
-    dangerously_bypass=False,
-    reasoning_effort="minimal",
-)
-dspy.configure(lm=lm)
+# The T2 support matrix is intentionally offline and stub-only.
+dspy.configure(lm=create("stub"))
 
 
 class PythonCodeQa(dspy.Signature):

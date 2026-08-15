@@ -1,491 +1,193 @@
-# summary: "Tests TOML configuration loading, environment projection, refresh behavior, and secret-safe validation."
+# summary: "Tests secret-free stub-only DSPx configuration loading after the typed provider cutover."
 # read_when:
-#   - "You are changing config sections, environment mappings, override precedence, or configuration safety checks."
+#   - "Changing config discovery, supported provider sections, environment precedence, or secret rejection."
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
+import pytest
+
 from dspx.config_loader import load_config_env
 
 
-def test_load_config_env_sets_env(monkeypatch, tmp_path: Path) -> None:
-    # Start with clean env for keys we assert
-    for k in [
+def test_load_config_env_sets_supported_stub_only_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        """
+[mlflow]
+enable = false
+tracking_uri = "sqlite:///local.db"
+experiment = "typed-cutover"
+
+[provider]
+name = "stub"
+
+[model_roles.oracle_semantic]
+model = "stub/echo"
+provider = "stub"
+backend = "fixture-replay"
+fixture_path = "fixtures/oracle.json"
+
+[optimize]
+student_provider = "stub"
+reflection_provider = "stub"
+""",
+        encoding="utf-8",
+    )
+    for key in (
         "MLFLOW_ENABLE",
         "MLFLOW_TRACKING_URI",
         "MLFLOW_EXPERIMENT",
-        "MLFLOW_ARTIFACT_ROOT",
-        "CODEX_MODEL",
-        "CODEX_REASONING",
-        "CODEX_BYPASS",
-        "CODEX_SEARCH",
         "DSPX_PROVIDER",
-    ]:
-        monkeypatch.delenv(k, raising=False)
-
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [mlflow]
-        enable = true
-        tracking_uri = "http://localhost:5000"
-        experiment = "TEST_EXP"
-        artifact_root = "./mlflow-artifacts"
-
-        [codex]
-        model = "gpt-test"
-        reasoning_effort = "minimal"
-        bypass = true
-        search = false
-
-        [provider]
-        name = "codex-exec"
-        """,
-        encoding="utf-8",
-    )
-
-    data = load_config_env(str(cfg))
-    assert data["mlflow"]["tracking_uri"] == "http://localhost:5000"
-    assert os.environ["MLFLOW_TRACKING_URI"] == "http://localhost:5000"
-    assert os.environ["MLFLOW_ENABLE"] == "1"
-    assert os.environ["MLFLOW_EXPERIMENT"] == "TEST_EXP"
-    assert os.environ["MLFLOW_ARTIFACT_ROOT"] == "./mlflow-artifacts"
-    assert os.environ["CODEX_MODEL"] == "gpt-test"
-    assert os.environ["CODEX_REASONING"] == "minimal"
-    assert os.environ["CODEX_BYPASS"] == "1"
-    assert os.environ["CODEX_SEARCH"] == "0"
-    assert os.environ["DSPX_PROVIDER"] == "codex-exec"
-
-
-def test_load_config_env_defaults_codex_bypass_to_safe_false(
-    monkeypatch, tmp_path: Path
-) -> None:
-    monkeypatch.delenv("CODEX_BYPASS", raising=False)
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [codex]
-        model = "gpt-test"
-        """,
-        encoding="utf-8",
-    )
-
-    load_config_env(str(cfg))
-
-    assert os.environ["CODEX_BYPASS"] == "0"
-
-
-def test_load_config_env_accepts_numeric_zero_one_booleans(
-    monkeypatch, tmp_path: Path
-) -> None:
-    monkeypatch.delenv("CODEX_BYPASS", raising=False)
-    monkeypatch.delenv("CODEX_SEARCH", raising=False)
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [codex]
-        bypass = 1
-        search = 0
-        """,
-        encoding="utf-8",
-    )
-
-    load_config_env(str(cfg))
-
-    assert os.environ["CODEX_BYPASS"] == "1"
-    assert os.environ["CODEX_SEARCH"] == "0"
-
-
-def test_load_config_env_rejects_unknown_bool_strings(
-    monkeypatch, tmp_path: Path
-) -> None:
-    monkeypatch.delenv("CODEX_BYPASS", raising=False)
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [codex]
-        bypass = "flase"
-        """,
-        encoding="utf-8",
-    )
-
-    try:
-        load_config_env(str(cfg))
-    except ValueError as exc:
-        assert "codex.bypass" in str(exc)
-        assert "true/false" in str(exc)
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected ValueError for unknown boolean string")
-
-    assert os.getenv("CODEX_BYPASS") is None
-
-
-def test_load_config_env_sets_pi_env(monkeypatch, tmp_path: Path) -> None:
-    for k in [
-        "DSPX_PROVIDER",
-        "DSPX_PI_PROVIDER",
-        "DSPX_PI_MODEL",
-        "DSPX_PI_THINKING",
-        "DSPX_PI_TIMEOUT",
-        "DSPX_PI_NO_TOOLS",
-        "DSPX_PI_NO_SESSION",
-        "DSPX_PI_DISABLE_RESOURCES",
-    ]:
-        monkeypatch.delenv(k, raising=False)
-
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [pi]
-        provider = "openai-codex"
-        model = "gpt-5.1-codex-mini"
-        thinking = "medium"
-        timeout_s = 42
-        no_tools = true
-        no_session = true
-        disable_resources = false
-
-        [provider]
-        name = "pi-rpc"
-        """,
-        encoding="utf-8",
-    )
-
-    load_config_env(str(cfg))
-    assert os.environ["DSPX_PROVIDER"] == "pi-rpc"
-    assert os.environ["DSPX_PI_PROVIDER"] == "openai-codex"
-    assert os.environ["DSPX_PI_MODEL"] == "gpt-5.1-codex-mini"
-    assert os.environ["DSPX_PI_THINKING"] == "medium"
-    assert os.environ["DSPX_PI_TIMEOUT"] == "42"
-    assert os.environ["DSPX_PI_NO_TOOLS"] == "1"
-    assert os.environ["DSPX_PI_NO_SESSION"] == "1"
-    assert os.environ["DSPX_PI_DISABLE_RESOURCES"] == "0"
-
-
-def test_load_config_env_sets_lm_auth_and_vllm_env(monkeypatch, tmp_path: Path) -> None:
-    for k in [
-        "DSPX_PROVIDER",
-        "DSPX_LM_AUTH_MODEL",
-        "DSPX_LM_AUTH_PROVIDER",
-        "DSPX_LM_AUTH_STORAGE",
-        "DSPX_LM_AUTH_TIMEOUT",
-        "DSPX_LM_AUTH_REASONING_EFFORT",
-        "DSPX_QUALITY_CRITERIA_MODEL",
-        "DSPX_QUALITY_CRITERIA_REASONING_EFFORT",
-        "DSPX_ORACLE_SEMANTIC_MODEL",
-        "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT",
-        "DSPX_ORACLE_SEMANTIC_BACKEND",
         "DSPX_ORACLE_SEMANTIC_PROVIDER",
-        "DSPX_ORACLE_SEMANTIC_FIXTURE_PATH",
-        "DSPX_VLLM_API_BASE",
-        "DSPX_VLLM_MODEL",
-        "DSPX_VLLM_TIMEOUT",
-        "DSPX_VLLM_JSON_MODE",
-    ]:
-        monkeypatch.delenv(k, raising=False)
-
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [lm_auth]
-        model = "codex/gpt-5.4-mini"
-        auth_provider = "codex"
-        auth_storage = "~/.pi/agent/auth.json"
-        timeout_s = 75
-        reasoning_effort = "low"
-
-        [model_roles.quality_criteria]
-        model = "codex/gpt-5.6-sol"
-        reasoning_effort = "high"
-
-        [model_roles.oracle_semantic]
-        model = "codex/gpt-5.6-luna"
-        reasoning_effort = "max"
-        backend = "fixture-replay"
-        provider = "dspy-lm-auth"
-        fixture_path = "./fixtures/oracle-semantic.json"
-
-        [vllm]
-        api_base = "http://127.0.0.1:8000/v1"
-        model = "local-student"
-        timeout_s = 33
-        json_mode = true
-
-        [provider]
-        name = "vllm-local"
-        """,
-        encoding="utf-8",
-    )
-
-    load_config_env(str(cfg))
-    assert os.environ["DSPX_PROVIDER"] == "vllm-local"
-    assert os.environ["DSPX_LM_AUTH_MODEL"] == "codex/gpt-5.4-mini"
-    assert os.environ["DSPX_LM_AUTH_PROVIDER"] == "codex"
-    assert os.environ["DSPX_LM_AUTH_STORAGE"] == "~/.pi/agent/auth.json"
-    assert os.environ["DSPX_LM_AUTH_TIMEOUT"] == "75"
-    assert os.environ["DSPX_LM_AUTH_REASONING_EFFORT"] == "low"
-    assert os.environ["DSPX_QUALITY_CRITERIA_MODEL"] == "codex/gpt-5.6-sol"
-    assert os.environ["DSPX_QUALITY_CRITERIA_REASONING_EFFORT"] == "high"
-    assert os.environ["DSPX_ORACLE_SEMANTIC_MODEL"] == "codex/gpt-5.6-luna"
-    assert os.environ["DSPX_ORACLE_SEMANTIC_REASONING_EFFORT"] == "max"
-    assert os.environ["DSPX_ORACLE_SEMANTIC_BACKEND"] == "fixture-replay"
-    assert os.environ["DSPX_ORACLE_SEMANTIC_PROVIDER"] == "dspy-lm-auth"
-    assert (
-        os.environ["DSPX_ORACLE_SEMANTIC_FIXTURE_PATH"]
-        == "./fixtures/oracle-semantic.json"
-    )
-    assert os.environ["DSPX_VLLM_API_BASE"] == "http://127.0.0.1:8000/v1"
-    assert os.environ["DSPX_VLLM_MODEL"] == "local-student"
-    assert os.environ["DSPX_VLLM_TIMEOUT"] == "33"
-    assert os.environ["DSPX_VLLM_JSON_MODE"] == "1"
-
-
-def test_load_config_env_sets_optimize_provider_defaults(
-    monkeypatch, tmp_path: Path
-) -> None:
-    for k in [
         "DSPX_OPTIMIZE_STUDENT_PROVIDER",
         "DSPX_OPTIMIZE_REFLECTION_PROVIDER",
-    ]:
-        monkeypatch.delenv(k, raising=False)
+    ):
+        monkeypatch.delenv(key, raising=False)
 
+    payload = load_config_env(str(cfg))
+
+    assert payload["provider"]["name"] == "stub"
+    assert os.environ["MLFLOW_ENABLE"] == "0"
+    assert os.environ["MLFLOW_TRACKING_URI"] == "sqlite:///local.db"
+    assert os.environ["MLFLOW_EXPERIMENT"] == "typed-cutover"
+    assert os.environ["DSPX_PROVIDER"] == "stub"
+    assert os.environ["DSPX_ORACLE_SEMANTIC_PROVIDER"] == "stub"
+    assert os.environ["DSPX_OPTIMIZE_STUDENT_PROVIDER"] == "stub"
+    assert os.environ["DSPX_OPTIMIZE_REFLECTION_PROVIDER"] == "stub"
+
+
+@pytest.mark.parametrize(
+    "section",
+    ["codex", "openrouter", "pi", "lm_auth", "openai_compatible", "vllm"],
+)
+def test_load_config_env_rejects_retired_provider_sections(
+    section: str, tmp_path: Path
+) -> None:
     cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [optimize]
-        student_provider = "vllm-local"
-        reflection_provider = "dspy-lm-auth"
-        """,
-        encoding="utf-8",
-    )
+    cfg.write_text(f"[{section}]\nmodel = 'removed'\n", encoding="utf-8")
 
-    load_config_env(str(cfg))
-    assert os.environ["DSPX_OPTIMIZE_STUDENT_PROVIDER"] == "vllm-local"
-    assert os.environ["DSPX_OPTIMIZE_REFLECTION_PROVIDER"] == "dspy-lm-auth"
+    with pytest.raises(ValueError, match="unsupported provider config sections"):
+        load_config_env(str(cfg))
+
+
+@pytest.mark.parametrize(
+    "body,label",
+    [
+        ("[provider]\nname = 'pi-rpc'\n", "provider.name"),
+        (
+            "[optimize]\nstudent_provider = 'openrouter'\n",
+            "optimize.student_provider",
+        ),
+        (
+            "[model_roles.oracle_semantic]\nprovider = 'dspy-lm-auth'\n",
+            "model_roles.oracle_semantic.provider",
+        ),
+    ],
+)
+def test_load_config_env_rejects_removed_provider_selection(
+    body: str, label: str, tmp_path: Path
+) -> None:
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(body, encoding="utf-8")
+
+    with pytest.raises(ValueError, match=label.replace(".", r"\.")):
+        load_config_env(str(cfg))
 
 
 def test_load_config_env_fails_closed_for_missing_explicit_path(
-    monkeypatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
-    (tmp_path / "config.toml").write_text(
-        '[provider]\nname = "stub"\n', encoding="utf-8"
-    )
-
     missing = tmp_path / "missing.toml"
+    monkeypatch.delenv("DSPX_CONFIG", raising=False)
 
-    try:
+    with pytest.raises(FileNotFoundError, match="explicit DSPx config path not found"):
         load_config_env(str(missing))
-    except FileNotFoundError as exc:
-        assert str(missing.resolve()) in str(exc)
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected FileNotFoundError for missing explicit path")
-
-    assert os.getenv("DSPX_PROVIDER") != "stub"
 
 
 def test_load_config_env_fails_closed_for_missing_dspx_config_env(
-    monkeypatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
-    (tmp_path / "config.toml").write_text(
-        '[provider]\nname = "stub"\n', encoding="utf-8"
-    )
-    missing = tmp_path / "missing.toml"
-    monkeypatch.setenv("DSPX_CONFIG", str(missing))
+    monkeypatch.setenv("DSPX_CONFIG", str(tmp_path / "missing.toml"))
 
-    try:
+    with pytest.raises(FileNotFoundError, match="DSPX_CONFIG path not found"):
         load_config_env()
-    except FileNotFoundError as exc:
-        assert str(missing.resolve()) in str(exc)
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected FileNotFoundError for missing DSPX_CONFIG")
-
-    assert os.getenv("DSPX_PROVIDER") is None
 
 
 def test_load_config_env_fails_closed_for_invalid_toml(tmp_path: Path) -> None:
-    cfg = tmp_path / "config.toml"
-    cfg.write_text('[provider\nname = "broken"\n', encoding="utf-8")
+    cfg = tmp_path / "invalid.toml"
+    cfg.write_text("[provider\n", encoding="utf-8")
 
-    try:
+    with pytest.raises(ValueError, match="Failed to parse DSPx config TOML"):
         load_config_env(str(cfg))
-    except ValueError as exc:
-        assert str(cfg) in str(exc)
-        assert "Failed to parse DSPx config TOML" in str(exc)
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected ValueError for invalid TOML")
 
 
-def test_load_config_env_refreshes_previous_config_managed_values(
-    monkeypatch, tmp_path: Path
+def test_load_config_env_refreshes_previous_managed_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    for key in [
-        "DSPX_PROVIDER",
-        "DSPX_PI_TIMEOUT",
-        "MLFLOW_EXPERIMENT",
-    ]:
-        monkeypatch.delenv(key, raising=False)
-
-    cfg_a = tmp_path / "a.toml"
-    cfg_a.write_text(
-        """
-        [provider]
-        name = "stub"
-
-        [pi]
-        timeout_s = 42
-
-        [mlflow]
-        experiment = "EXP_A"
-        """,
+    first = tmp_path / "first.toml"
+    second = tmp_path / "second.toml"
+    first.write_text(
+        "[provider]\nname = 'stub'\n[mlflow]\nexperiment = 'first'\n",
         encoding="utf-8",
     )
-    cfg_b = tmp_path / "b.toml"
-    cfg_b.write_text(
-        """
-        [provider]
-        name = "pi-rpc"
+    second.write_text("[mlflow]\nexperiment = 'second'\n", encoding="utf-8")
+    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
+    monkeypatch.delenv("MLFLOW_EXPERIMENT", raising=False)
 
-        [mlflow]
-        experiment = "EXP_B"
-        """,
-        encoding="utf-8",
-    )
-
-    load_config_env(str(cfg_a))
+    load_config_env(str(first))
     assert os.environ["DSPX_PROVIDER"] == "stub"
-    assert os.environ["DSPX_PI_TIMEOUT"] == "42"
-    assert os.environ["MLFLOW_EXPERIMENT"] == "EXP_A"
+    load_config_env(str(second))
 
-    load_config_env(str(cfg_b))
-    assert os.environ["DSPX_PROVIDER"] == "pi-rpc"
-    assert os.environ["MLFLOW_EXPERIMENT"] == "EXP_B"
-    assert os.getenv("DSPX_PI_TIMEOUT") is None
+    assert os.getenv("DSPX_PROVIDER") is None
+    assert os.environ["MLFLOW_EXPERIMENT"] == "second"
 
 
 def test_load_config_env_preserves_explicit_env_override_on_refresh(
-    monkeypatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("DSPX_PROVIDER", "explicit-provider")
-
-    cfg_a = tmp_path / "a.toml"
-    cfg_a.write_text('[provider]\nname = "stub"\n', encoding="utf-8")
-    cfg_b = tmp_path / "b.toml"
-    cfg_b.write_text('[provider]\nname = "pi-rpc"\n', encoding="utf-8")
-
-    load_config_env(str(cfg_a))
-    load_config_env(str(cfg_b))
-
-    assert os.environ["DSPX_PROVIDER"] == "explicit-provider"
-
-
-def test_load_config_env_rejects_embedded_secrets(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("DSPX_OPENAI_COMPAT_API_KEY", raising=False)
     cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [openai_compatible]
-        api_key = "super-secret"
-        api_base = "http://127.0.0.1:8000/v1"
-        """,
-        encoding="utf-8",
-    )
+    cfg.write_text("[mlflow]\nexperiment = 'configured'\n", encoding="utf-8")
+    monkeypatch.setenv("MLFLOW_EXPERIMENT", "operator")
 
-    try:
-        load_config_env(str(cfg))
-    except ValueError as exc:
-        assert "must not embed secrets" in str(exc)
-        assert "openai_compatible.api_key" in str(exc)
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected ValueError for embedded secret")
+    load_config_env(str(cfg))
 
-    assert os.getenv("DSPX_OPENAI_COMPAT_API_KEY") is None
+    assert os.environ["MLFLOW_EXPERIMENT"] == "operator"
 
 
-def test_load_config_env_rejects_url_userinfo(monkeypatch, tmp_path: Path) -> None:
-    for key in [
-        "OPENROUTER_BASE_URL",
-        "DSPX_OPENAI_COMPAT_API_BASE",
-        "DSPX_VLLM_API_BASE",
-    ]:
-        monkeypatch.delenv(key, raising=False)
-    cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [openrouter]
-        base_url = "https://user:pass@openrouter.example/v1"
-        [openai_compatible]
-        api_base = "https://user:pass@compat.example/v1"
-        [vllm]
-        api_base = "https://user:pass@vllm.example/v1"
-        """,
-        encoding="utf-8",
-    )
-
-    try:
-        load_config_env(str(cfg))
-    except ValueError as exc:
-        assert "openrouter.base_url" in str(exc)
-        assert "embedded credentials" in str(exc)
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected ValueError for URL userinfo")
-
-    assert os.getenv("OPENROUTER_BASE_URL") is None
-    assert os.getenv("DSPX_OPENAI_COMPAT_API_BASE") is None
-    assert os.getenv("DSPX_VLLM_API_BASE") is None
-
-
-def test_load_config_env_rejects_url_userinfo_in_http_referer(
-    monkeypatch, tmp_path: Path
+def test_load_config_env_rejects_embedded_secrets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.delenv("OPENROUTER_HTTP_REFERER", raising=False)
     cfg = tmp_path / "config.toml"
-    cfg.write_text(
-        """
-        [openrouter]
-        http_referer = "https://user:pass@example.invalid/app"
-        """,
-        encoding="utf-8",
-    )
+    cfg.write_text("[provider]\nname = 'stub'\napi_key = 'secret'\n", encoding="utf-8")
+    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
 
-    try:
+    with pytest.raises(ValueError, match="must not embed secrets"):
         load_config_env(str(cfg))
-    except ValueError as exc:
-        assert "openrouter.http_referer" in str(exc)
-        assert "embedded credentials" in str(exc)
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected ValueError for URL userinfo in referer")
-
-    assert os.getenv("OPENROUTER_HTTP_REFERER") is None
+    assert os.getenv("DSPX_PROVIDER") is None
 
 
-def test_load_config_env_rolls_back_partial_env_on_validation_failure(
-    monkeypatch, tmp_path: Path
+def test_load_config_env_rejects_url_userinfo_and_rolls_back(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setenv("MLFLOW_ENABLE", "preexisting")
-    monkeypatch.delenv("MLFLOW_EXPERIMENT", raising=False)
-    monkeypatch.delenv("CODEX_BYPASS", raising=False)
     cfg = tmp_path / "config.toml"
     cfg.write_text(
         """
-        [openrouter]
-        base_url = "https://user:pass@openrouter.example/v1"
-        """,
+[provider]
+name = "stub"
+[mlflow]
+tracking_uri = "https://user:pass@example.test/mlflow"
+""",
         encoding="utf-8",
     )
+    monkeypatch.delenv("DSPX_PROVIDER", raising=False)
+    monkeypatch.delenv("MLFLOW_TRACKING_URI", raising=False)
 
-    try:
+    with pytest.raises(ValueError, match="mlflow.tracking_uri"):
         load_config_env(str(cfg))
-    except ValueError:
-        pass
-    else:  # pragma: no cover - fail closed assertion
-        raise AssertionError("expected ValueError for URL userinfo")
-
-    assert os.environ["MLFLOW_ENABLE"] == "preexisting"
-    assert os.getenv("MLFLOW_EXPERIMENT") is None
-    assert os.getenv("CODEX_BYPASS") is None
+    assert os.getenv("DSPX_PROVIDER") is None
+    assert os.getenv("MLFLOW_TRACKING_URI") is None

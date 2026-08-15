@@ -1,23 +1,12 @@
-# Auto-generated DSPy script (Codex Exec enabled)
-import os
-import dspy
+# Auto-generated DSPy script using the typed hard-cutover stub provider.
 from typing import Optional
-from dspx.codex_exec_lm import CodexExecLM
-from dspx.config_loader import load_config_env
-from dspx.tracing import enable_mlflow_from_env
 
-# Load config.toml (MLflow + Codex defaults) and enable tracing if configured.
-load_config_env()
-enable_mlflow_from_env()
+import dspy
 
-MODEL = os.getenv("CODEX_MODEL", "gpt-5")
-lm = CodexExecLM(
-    model_flag=MODEL,
-    auto_mode=True,
-    dangerously_bypass=False,
-    reasoning_effort="minimal",
-)
-dspy.configure(lm=lm)
+from dspx.provider_registry import create
+
+# The T2 support matrix is intentionally offline and stub-only.
+dspy.configure(lm=create("stub"))
 
 
 class DocumentQASignature(dspy.Signature):

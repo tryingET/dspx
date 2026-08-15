@@ -187,7 +187,7 @@ def test_generated_module_policy_rejects_disallowed_effects(
     assert policy["violations"]
 
 
-def test_generated_module_policy_allows_declared_no_tool_react_v2_shape() -> None:
+def test_generated_module_policy_rejects_react_v2_even_with_declared_surface() -> None:
     surfaces = json.loads(json.dumps(MODULE_SURFACES))
     surfaces["module_surfaces"][0]["primitive"] = "ReActV2"
 
@@ -196,7 +196,12 @@ def test_generated_module_policy_allows_declared_no_tool_react_v2_shape() -> Non
         module_surfaces=surfaces,
     )
 
-    assert policy["status"] == "passed"
+    assert policy["status"] == "failed"
+    assert any(
+        violation["code"] == "dspy_call_not_allowed"
+        and violation["detail"] == "dspy.ReActV2"
+        for violation in policy["violations"]
+    )
 
 
 @pytest.mark.parametrize(

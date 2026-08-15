@@ -122,7 +122,7 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
     for split in ("train", "validation", "test"):
         assert (root / "splits" / f"{split}.jsonl").exists()
         assert (root / f"eval_{split}.py").exists()
-        assert "create_from_env(default='dspy-lm-auth')" in (
+        assert "create_from_env()" in (
             root / f"eval_{split}.py"
         ).read_text(encoding="utf-8")
         assert (root / f"behavior_results.{split}.json").exists()
@@ -389,7 +389,7 @@ def test_program_dataset_behavior_episode_aggregates_declared_quality(
     _setup_env(tmp_path, monkeypatch)
     dataset_path = tmp_path / "data" / "tickets.jsonl"
     _write_jsonl(dataset_path, _ticket_rows())
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps({"urgency": "high"}))
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", json.dumps({"urgency": "high"}))
 
     passed = materialize_program_from_intent(
         _ratio_intent(dataset_path, declared_quality=True),
@@ -432,7 +432,7 @@ def test_program_dataset_behavior_episode_aggregates_declared_quality(
     assert tiny_episode["quality_evaluation"]["criteria_declared"] is True
     assert tiny_episode["quality_evaluation"]["evaluations_total"] == 1
 
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps({"urgency": "unknown"}))
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", json.dumps({"urgency": "unknown"}))
     failed = materialize_program_from_intent(
         _ratio_intent(dataset_path, declared_quality=True),
         outdir=tmp_path / "quality-failed",

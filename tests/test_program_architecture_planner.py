@@ -106,26 +106,19 @@ def test_architecture_planner_adds_preview_only_capability_advisories() -> None:
     react_v2_boundary = plan["generation_assumptions_preview"]["capability_boundaries"][
         "react_v2"
     ]
-    assert react_v2_boundary["status"] == (
-        "experimental_no_tool_explicit_opt_in_boundary"
-    )
+    assert react_v2_boundary["status"] == "unavailable_typed_core_cutover"
     assert react_v2_boundary["tool_need_detected"] is True
     assert react_v2_boundary["tools_enabled"] is False
-    assert react_v2_boundary["tool_binding_status"] == (
-        "blocked_until_safe_tool_adapter_contract"
-    )
+    assert react_v2_boundary["tool_binding_status"] == "disabled"
     react_v2_contract = by_id["preview_reactv2_declared_only"]["topology_preview"][
         "required_explicit_contract"
     ]
-    assert react_v2_contract["intent_patch"]["options"] == {
-        "enable_react_v2_materialization": True,
-        "react_v2_materialization": True,
-    }
+    assert "options" not in react_v2_contract["intent_patch"]
     module = react_v2_contract["intent_patch"]["topology"]["modules"][0]
     assert module["primitive"] == "ReActV2"
     assert module["tools"] == []
     assert module["tool_refs"] == []
-    assert "public dspy.ReActV2" in react_v2_contract["production_readiness_missing"][0]
+    assert "unavailable" in react_v2_contract["production_readiness_missing"][0]
     assert plan["effect"]["candidate_materialized"] is False
 
 

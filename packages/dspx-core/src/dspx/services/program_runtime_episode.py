@@ -226,7 +226,7 @@ def _write_private_json_exclusive(path: Path, payload: Mapping[str, Any]) -> Non
 
 
 def _safe_stub_response_for_replay() -> dict[str, Any] | None:
-    raw = os.getenv("DSPX_STUB_RESPONSE_JSON")
+    raw = os.getenv("DSPX_REPLAY_FIXTURE_JSON")
     if raw is None or len(raw) > 20_000:
         return None
     try:
@@ -393,7 +393,7 @@ def _materialize_image_descriptor(value: Mapping[str, Any], *, base_dir: Path) -
         image_path = confine_path(base_dir, candidate_path)
         if not image_path.is_file():
             raise ValueError(f"image_file path does not exist: {image_path}")
-        return str(dspy.Image(str(image_path)))
+        return str(dspy.Image.from_path(str(image_path)))
 
     if descriptor_type == "image_base64":
         data = str(value.get("data") or value.get("base64") or "").strip()
@@ -926,10 +926,9 @@ def _prediction_mapping(prediction: object) -> dict[str, object]:
 def _configure_provider() -> dict[str, object]:
     try:
         import dspy
-        from dspx.provider_registry import create_from_env, ensure_default_providers
+        from dspx.provider_registry import create_from_env
 
-        ensure_default_providers()
-        lm = create_from_env(default="dspy-lm-auth")
+        lm = create_from_env()
         dspy.configure(lm=lm)
         return {
             "status": "configured",

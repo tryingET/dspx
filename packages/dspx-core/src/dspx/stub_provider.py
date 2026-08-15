@@ -31,10 +31,18 @@ class ProviderEvent:
 class StubProvider:
     """Credential-free provider canary owned by DSPx rather than DSPy."""
 
-    def __init__(self, model: str = "stub/echo") -> None:
+    def __init__(
+        self,
+        model: str = "stub/echo",
+        *,
+        explicit_response_text: str | None = None,
+    ) -> None:
         if not model.strip():
             raise ValueError("stub provider model must be non-empty")
+        if explicit_response_text is not None and len(explicit_response_text) > 1_000_000:
+            raise ValueError("explicit stub response exceeds the size bound")
         self._model = model
+        self._explicit_response_text = explicit_response_text
         self._events: deque[ProviderEvent] = deque(maxlen=64)
 
     @property
@@ -48,7 +56,11 @@ class StubProvider:
     def invoke(self, request: ProviderRequest) -> ProviderResult:
         if request.model != self.model:
             raise ValueError("provider request model does not match stub provider")
-        text = self._render(request)
+        text = (
+            self._explicit_response_text
+            if self._explicit_response_text is not None
+            else self._render(request)
+        )
         disposition = EffectDisposition.COMPLETED_SUCCESS
         self._events.append(
             ProviderEvent(
@@ -67,6 +79,8 @@ class StubProvider:
         )
 
     def dump_state(self) -> dict[str, object]:
+        if self._explicit_response_text is not None:
+            raise ValueError("explicit replay fixture state is not serializable")
         return {
             "schema": _STATE_SCHEMA,
             "kind": _PROVIDER_KIND,

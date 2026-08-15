@@ -477,10 +477,10 @@ def test_pdf_transition_program_gen_scenario_materializes_reviewable_artifacts_o
     assert "from dspx.config_loader import load_config_env" in direct_run_text
     assert "def _apply_runtime_config_env(data: object) -> None:" in direct_run_text
     assert "_set_env_from_config(provider, 'name', 'DSPX_PROVIDER')" in direct_run_text
-    assert (
-        "_set_env_from_config(lm_auth, 'model', 'DSPX_LM_AUTH_MODEL')"
-        in direct_run_text
-    )
+    assert "'provider': 'stub'" in direct_run_text
+    assert "'model': getattr(lm, 'model', None)" in direct_run_text
+    assert "DSPX_LM_AUTH" not in direct_run_text
+    assert "lm_auth" not in direct_run_text
     assert (
         "configure_observability(run_name='program-runtime', run_kind='program-runtime')"
         in direct_run_text

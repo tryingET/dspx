@@ -1205,9 +1205,9 @@ def test_react_v2_tool_readiness_blocks_until_adapter_policy_exists() -> None:
     )
     assert readiness["ready_for_react_v2_no_tool_materialization"] is False
     assert readiness["ready_for_react_v2_tool_binding"] is False
-    assert readiness["status"] == "blocked_until_generated_tool_adapter_policy"
+    assert readiness["status"] == "unavailable_typed_core_cutover"
     assert (
-        "program_generated_policy still forbids dspy.Tool materialization"
+        "ReActV2 materialization is unavailable during the typed Core cutover"
         in readiness["production_readiness_blockers"]
     )
     assert readiness["effect"]["tool_called"] is False

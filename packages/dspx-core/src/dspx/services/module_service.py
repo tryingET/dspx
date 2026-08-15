@@ -10,7 +10,7 @@ import os as _os
 
 from dspx.cache import cache_enabled, read as cache_read, write as cache_write
 from dspx.dtos import ModuleArtifact, ModuleSpec
-from dspx.lm_base import LMBase
+from dspy import BaseLM
 from dspx.services.module_artifacts import (
     module_cache_key as _module_cache_key,
     render_seed_module_code,
@@ -65,7 +65,7 @@ def _materialize_metadata(
 def run_generate(
     spec: ModuleSpec,
     *,
-    lm: Optional[LMBase] = None,
+    lm: Optional[BaseLM] = None,
     use_signature: bool = False,
     promotion_target: Optional[Path] = None,
 ) -> ModuleArtifact:

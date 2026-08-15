@@ -324,19 +324,11 @@ def _apply_runtime_config_env(data: object) -> None:
         return
     mlflow = data.get('mlflow')
     provider = data.get('provider')
-    lm_auth = data.get('lm_auth')
     _set_env_from_config(mlflow, 'enable', 'MLFLOW_ENABLE', boolean=True)
     _set_env_from_config(mlflow, 'tracking_uri', 'MLFLOW_TRACKING_URI')
     _set_env_from_config(mlflow, 'experiment', 'MLFLOW_EXPERIMENT')
     _set_env_from_config(mlflow, 'artifact_root', 'MLFLOW_ARTIFACT_ROOT')
     _set_env_from_config(provider, 'name', 'DSPX_PROVIDER')
-    _set_env_from_config(lm_auth, 'model', 'DSPX_LM_AUTH_MODEL')
-    _set_env_from_config(lm_auth, 'auth_provider', 'DSPX_LM_AUTH_PROVIDER')
-    _set_env_from_config(lm_auth, 'auth_storage', 'DSPX_LM_AUTH_STORAGE')
-    _set_env_from_config(lm_auth, 'timeout_s', 'DSPX_LM_AUTH_TIMEOUT')
-    _set_env_from_config(lm_auth, 'strict', 'DSPX_LM_AUTH_STRICT', boolean=True)
-    _set_env_from_config(lm_auth, 'temperature', 'DSPX_LM_AUTH_TEMPERATURE')
-    _set_env_from_config(lm_auth, 'max_tokens', 'DSPX_LM_AUTH_MAX_TOKENS')
 
 
 def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str | None:
@@ -355,13 +347,16 @@ def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str 
 
 def _configure_lm() -> dict[str, Any]:
     import dspy
-    from dspx.provider_registry import create_from_env, ensure_default_providers
+    from dspx.provider_registry import create_from_env
 
-    ensure_default_providers()
-    lm = create_from_env(default='dspy-lm-auth')
+    lm = create_from_env()
     dspy.configure(lm=lm)
+    provider_port = getattr(lm, 'provider', None)
     return {
-        'provider': getattr(lm, 'model', type(lm).__name__),
+        'provider': 'stub',
+        'model': getattr(lm, 'model', None),
+        'adapter': type(lm).__name__,
+        'provider_port': type(provider_port).__name__,
         'kwargs': dict(getattr(lm, 'kwargs', {}) or {}),
     }
 
@@ -561,7 +556,7 @@ def _tail_text(value: object, *, limit: int = 2000) -> str:
     return _sanitize_diagnostic_text(text, limit=limit)
 
 
-def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: int, config_path: Path | None) -> dict[str, Any]:
+def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, config_path: Path | None) -> dict[str, Any]:
     attempts: list[dict[str, Any]] = []
     cmd = [
         sys.executable,
@@ -574,31 +569,29 @@ def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: in
     ]
     if config_path is not None:
         cmd.extend(['--config', str(config_path)])
-    for attempt in range(retries + 1):
-        outdir.mkdir(parents=True, exist_ok=True)
-        try:
-            result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
-        except subprocess.TimeoutExpired as exc:
-            attempts.append({
-                'attempt': attempt + 1,
-                'returncode': None,
-                'timed_out': True,
-                'timeout_seconds': timeout_seconds,
-                'error_type': 'TimeoutExpired',
-                'stdout_tail': _tail_text(exc.stdout),
-                'stderr_tail': _tail_text(exc.stderr),
-            })
-            continue
-        except Exception as exc:
-            attempts.append({
-                'attempt': attempt + 1,
-                'returncode': None,
-                'error_type': type(exc).__name__,
-                'error': _sanitize_diagnostic_text(exc),
-            })
-            continue
+    outdir.mkdir(parents=True, exist_ok=True)
+    try:
+        result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
         attempts.append({
-            'attempt': attempt + 1,
+            'attempt': 1,
+            'returncode': None,
+            'timed_out': True,
+            'timeout_seconds': timeout_seconds,
+            'error_type': 'TimeoutExpired',
+            'stdout_tail': _tail_text(exc.stdout),
+            'stderr_tail': _tail_text(exc.stderr),
+        })
+    except Exception as exc:
+        attempts.append({
+            'attempt': 1,
+            'returncode': None,
+            'error_type': type(exc).__name__,
+            'error': _sanitize_diagnostic_text(exc),
+        })
+    else:
+        attempts.append({
+            'attempt': 1,
             'returncode': result.returncode,
             'stdout_tail': _tail_text(result.stdout),
             'stderr_tail': _tail_text(result.stderr),
@@ -634,8 +627,6 @@ def _preflight(config_path: Path | None = None) -> dict[str, Any]:
         'provider': provider,
         'resolved_env': {
             'DSPX_PROVIDER': os.getenv('DSPX_PROVIDER') or None,
-            'DSPX_LM_AUTH_MODEL': os.getenv('DSPX_LM_AUTH_MODEL') or None,
-            'DSPX_LM_AUTH_PROVIDER': os.getenv('DSPX_LM_AUTH_PROVIDER') or None,
             'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
             'MLFLOW_TRACKING_URI': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None),
             'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
@@ -652,8 +643,8 @@ def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds
         raise SystemExit('--parallel must be >= 1')
     if timeout_seconds <= 0:
         raise SystemExit('--timeout-seconds must be > 0')
-    if retries < 0:
-        raise SystemExit('--retries must be >= 0')
+    if retries != 0:
+        raise SystemExit('--retries is disabled because child effect disposition is unavailable; use 0')
     input_files = _discover_input_files(inputs_root)
     if not input_files:
         raise SystemExit(f'no batch inputs found under {inputs_root}')
@@ -661,7 +652,7 @@ def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds
     jobs = [(input_file, out_root / _target_name(input_file, inputs_root)) for input_file in input_files]
     results: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=parallel) as executor:
-        future_to_job = {executor.submit(_run_child, input_file, outdir, timeout_seconds, retries, config_path): (input_file, outdir) for input_file, outdir in jobs}
+        future_to_job = {executor.submit(_run_child, input_file, outdir, timeout_seconds, config_path): (input_file, outdir) for input_file, outdir in jobs}
         for future in as_completed(future_to_job):
             input_file, outdir = future_to_job[future]
             try:
@@ -711,7 +702,7 @@ def main() -> int:
     batch.add_argument('--out-root', type=Path, help='Directory for per-target output folders and batch receipt.')
     batch.add_argument('--parallel', type=int, default=1, help='Batch parallelism. Default: 1.')
     batch.add_argument('--timeout-seconds', type=int, default=600, help='Per-target timeout for batch child runs. Default: 600.')
-    batch.add_argument('--retries', type=int, default=0, help='Per-target retries after a failed child run. Default: 0.')
+    batch.add_argument('--retries', type=int, default=0, help='Compatibility flag; only 0 is accepted because child effects cannot be classified safely.')
     parser.add_argument('--config', type=Path, help='DSPx runtime config. Defaults to nearest dspx-local.config.toml or config.toml above direct_run.py.')
     parser.add_argument('--preflight', action='store_true', help='Load config and resolve/configure the provider without executing the generated program or making a model call.')
     parser.add_argument('--json', action='store_true', help='Print receipt JSON to stdout.')
@@ -722,7 +713,7 @@ def main() -> int:
         if args.json:
             print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))
         else:
-            print(f"provider={receipt['resolved_env']['DSPX_PROVIDER']} model={receipt['resolved_env']['DSPX_LM_AUTH_MODEL']} config={receipt['config_path']}")
+            print(f"provider={receipt['provider']['provider']} model={receipt['provider']['model']} config={receipt['config_path']}")
         return 0
 
     if args.inputs_root or args.out_root:
@@ -1158,10 +1149,8 @@ def render_eval_examples(intent: Any) -> str:
             "def _configure_provider() -> dict[str, object]:",
             "    try:",
             "        import dspy",
-            "        from dspx.provider_registry import create_from_env, ensure_default_providers",
-            "",
-            "        ensure_default_providers()",
-            "        lm = create_from_env(default='dspy-lm-auth')",
+            "        from dspx.provider_registry import create_from_env",
+            "        lm = create_from_env()",
             "        dspy.configure(lm=lm)",
             "        return {'status': 'configured', 'provider': getattr(lm, 'model', type(lm).__name__)}",
             "    except Exception as exc:",

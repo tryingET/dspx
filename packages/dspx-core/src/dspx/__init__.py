@@ -1,33 +1,41 @@
-# summary: "Public DSPx package exports for supported LM wrappers and validation helpers."
+# summary: "Public DSPx exports for the typed provider kernel and validation helpers."
 # read_when:
-#   - "You are importing DSPx's top-level Python API or changing its public exports."
+#   - "Importing DSPx's top-level Python API or changing its supported provider contract."
 
-from .codex_exec_lm import CodexExecLM
-from .claude_cli_lm import ClaudeHeadlessLM
-from .multi_provider_lm import MultiProviderLM
-from .gemini_cli_lm import GeminiCLILM
-from .pi_rpc_lm import PiRPCLM
+from .dspy_typed_lm import DSPyTypedLMAdapter
+from .provider_contract import (
+    EffectDisposition,
+    Provider,
+    ProviderInvocationError,
+    ProviderMessage,
+    ProviderRequest,
+    ProviderResult,
+)
+from .stub_provider import StubProvider
 from .validators import (
-    non_empty,
-    contains_all,
-    regex,
-    json_parsable,
-    json_has,
-    any_of,
     all_of,
+    any_of,
+    contains_all,
+    json_has,
+    json_parsable,
+    non_empty,
+    regex,
 )
 
 __all__ = [
-    "CodexExecLM",
-    "ClaudeHeadlessLM",
-    "MultiProviderLM",
-    "GeminiCLILM",
-    "PiRPCLM",
-    "non_empty",
-    "contains_all",
-    "regex",
-    "json_parsable",
-    "json_has",
-    "any_of",
+    "DSPyTypedLMAdapter",
+    "EffectDisposition",
+    "Provider",
+    "ProviderInvocationError",
+    "ProviderMessage",
+    "ProviderRequest",
+    "ProviderResult",
+    "StubProvider",
     "all_of",
+    "any_of",
+    "contains_all",
+    "json_has",
+    "json_parsable",
+    "non_empty",
+    "regex",
 ]

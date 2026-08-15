@@ -10,7 +10,6 @@ Extraction status:
   ✅ cache      - dspx.cli.commands.cache
   ✅ run        - dspx.cli.commands.run
   ✅ optimize   - dspx.cli.commands.optimize
-  ✅ providers  - dspx.cli.commands.providers
   ✅ oracle     - dspx.cli.commands.oracle
   ✅ signature  - dspx.cli.commands.signature
   ✅ mermaid    - dspx.cli.commands.mermaid
@@ -36,7 +35,6 @@ from dspx.cli.commands.mermaid import app as mermaid_app
 from dspx.cli.commands.openapi import app as openapi_app
 from dspx.cli.commands.optimize import app as optimize_app
 from dspx.cli.commands.oracle import app as oracle_app
-from dspx.cli.commands.providers import app as providers_app
 from dspx.cli.commands.program_architect import app as program_architect_app
 from dspx.cli.commands.program_promote import app as program_promote_app
 from dspx.cli.commands.program_refine import app as program_refine_app
@@ -49,7 +47,6 @@ __all__ = [
     "cache_app",
     "run_app",
     "optimize_app",
-    "providers_app",
     "program_refine_app",
     "program_promote_app",
     "program_architect_app",

@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
-import os
 import re
 from typing import Any, Mapping
 
@@ -565,61 +564,14 @@ def _module_signature(module: Mapping[str, Any]) -> dict[str, Any]:
     return dict(signature) if isinstance(signature, Mapping) else {}
 
 
-def _truthy(value: object) -> bool:
-    if isinstance(value, bool):
-        return value
-    return str(value or "").strip().casefold() in {"1", "true", "yes", "on"}
+def _declared_react_v2_modules(modules: list[dict[str, Any]]) -> list[str]:
+    """Keep ReActV2 descriptor-only during the typed Core cutover."""
 
-
-def _react_v2_materialization_requested(intent: Any) -> bool:
-    options = getattr(intent, "options", {}) or {}
-    option_enabled = False
-    if isinstance(options, Mapping):
-        option_enabled = _truthy(
-            options.get(
-                "enable_react_v2_materialization",
-                options.get("react_v2_materialization", False),
-            )
-        )
-    env_enabled = _truthy(os.getenv("DSPX_PROGRAM_GEN_ENABLE_REACT_V2"))
-    return option_enabled or env_enabled
-
-
-def _dspy_react_v2_available() -> bool:
-    try:
-        import dspy
-    except Exception:
-        return False
-    return hasattr(dspy, "ReActV2")
-
-
-def _prepare_react_v2_modules(
-    *, intent: Any, modules: list[dict[str, Any]]
-) -> list[str]:
-    react_v2_modules = [
+    return [
         str(module.get("id") or "")
         for module in modules
         if str(module.get("primitive") or "") == "ReActV2"
     ]
-    if not react_v2_modules:
-        return []
-    if not _react_v2_materialization_requested(intent):
-        return react_v2_modules
-    if not _dspy_react_v2_available():
-        raise ProgramTopologyMaterializationError(
-            "ReActV2 materialization requires installed DSPy with public dspy.ReActV2; "
-            "keep ReActV2 descriptor-only or make an explicit DSPy 3.3 compatibility decision"
-        )
-    for module in modules:
-        if str(module.get("primitive") or "") != "ReActV2":
-            continue
-        react = dict(module.get("react") or {})
-        react["version"] = "v2"
-        react["status"] = "experimental_materializable_with_empty_tools_explicit_opt_in"
-        react["react_v2_materialization_explicit_opt_in"] = True
-        react["tool_binding_allowed"] = False
-        module["react"] = react
-    return []
 
 
 def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
@@ -637,7 +589,7 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
         raise ProgramTopologyMaterializationError(
             "pipeline topology materialization requires at least one module"
         )
-    react_v2_not_enabled = _prepare_react_v2_modules(intent=intent, modules=modules)
+    react_v2_not_enabled = _declared_react_v2_modules(modules)
     unsupported = sorted(
         {
             str(module.get("primitive") or "")
@@ -653,7 +605,6 @@ def validate_materializable_pipeline_topology(intent: Any) -> dict[str, Any]:
                     *SUPPORTED_PIPELINE_PRIMITIVES,
                     "Retriever:inline_corpus",
                     "ReAct:tools=[]",
-                    "ReActV2:tools=[]:explicit_opt_in:dspy_3_3_required",
                     "ProgramOfThought:empty_sandbox",
                 ]
             )
@@ -1111,7 +1062,7 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
                     f"        return dspy.Prediction({output_name}=json.dumps(selected, ensure_ascii=False, sort_keys=True))",
                 ]
             )
-        elif primitive in {"ReAct", "ReActV2"}:
+        elif primitive == "ReAct":
             react = dict(module.get("react") or {})
             max_iters = int(react.get("max_iters") or 1)
             declared_tool_refs = [
@@ -1119,29 +1070,18 @@ def render_pipeline_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
                 for item in react.get("declared_tool_refs", [])
                 if str(item).strip()
             ]
-            constructor = "ReActV2" if primitive == "ReActV2" else "ReAct"
-            status_lines = [
-                f"    _MAX_ITERS = {max_iters!r}",
-                f"    _DECLARED_TOOL_REFS = {declared_tool_refs!r}",
-                "    _TOOL_BINDING_STATUS = 'declared_refs_only_not_bound'",
-            ]
-            if primitive == "ReActV2":
-                status_lines.extend(
-                    [
-                        "    _REACT_V2_STATUS = 'experimental_materializable_with_empty_tools_explicit_opt_in'",
-                        "    _TOOL_BINDING_ALLOWED = False",
-                    ]
-                )
             lines.extend(
                 [
                     f"class {class_name}(dspy.Module):",
                     f"    {doc!r}",
                     "",
-                    *status_lines,
+                    f"    _MAX_ITERS = {max_iters!r}",
+                    f"    _DECLARED_TOOL_REFS = {declared_tool_refs!r}",
+                    "    _TOOL_BINDING_STATUS = 'declared_refs_only_not_bound'",
                     "",
                     "    def __init__(self, use_cot: bool = False) -> None:",
                     "        super().__init__()",
-                    f"        self.predict = dspy.{constructor}({signature_name}, tools=[], max_iters={max_iters!r})",
+                    f"        self.predict = dspy.ReAct({signature_name}, tools=[], max_iters={max_iters!r})",
                     "",
                     f"    def forward(self, {input_params}) -> dspy.Prediction:",
                     f"        return self.predict({call_args})",

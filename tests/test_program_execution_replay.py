@@ -55,7 +55,7 @@ def _tree_hash(root: Path) -> dict[str, str]:
 def replay_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     keys = {
         "DSPX_PROVIDER": "stub",
-        "DSPX_STUB_RESPONSE_JSON": json.dumps(
+        "DSPX_REPLAY_FIXTURE_JSON": json.dumps(
             {
                 "reasoning": "The supplied ticket describes an outage.",
                 "urgency": "high",
@@ -189,7 +189,7 @@ def _review_runtime(
             {"canonical_mutation_performed": False}, sort_keys=True
         ),
     }
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps(stub_response))
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", json.dumps(stub_response))
     quality_criteria = (
         [
             {
@@ -412,7 +412,7 @@ def test_program_runtime_replay_preserves_failed_behavior_as_nonapproval(
     tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps({"reasoning": "No declared output was supplied."}),
     )
     _candidate, runtime, receipt = _single_runtime(tmp_path)
@@ -430,7 +430,7 @@ def test_program_runtime_replay_preserves_declared_quality_failure(
     tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps(
             {
                 "reasoning": "overclaim",
@@ -690,7 +690,7 @@ def test_program_runtime_replay_policy_rejects_incomplete_expected_episode(
 def test_program_runtime_replay_policy_is_unsupported_without_safe_stub_fixture(
     tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", "api_key=secret")
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", "api_key=secret")
     _candidate, runtime, receipt_path = _single_runtime(
         tmp_path, capture_replay_fixture=False
     )

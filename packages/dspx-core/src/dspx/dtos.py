@@ -97,27 +97,6 @@ class TemplateAdapterConfig(BaseModel):
     )
 
 
-# --- Core DTOs ---
-
-
-class Message(BaseModel):
-    role: Literal["system", "user", "assistant", "tool"]
-    content: Any
-
-
-class LMRequest(BaseModel):
-    prompt: Optional[str] = None
-    messages: Optional[List[Message]] = None
-    options: dict[str, Any] = Field(default_factory=dict)
-
-
-class LMResponse(BaseModel):
-    outputs: List[str]
-    model: Optional[str] = None
-    usage: Optional[dict[str, Any]] = None
-    raw: Optional[dict[str, Any]] = None
-
-
 # --- v1 DTOs for services (contracts) ---
 
 

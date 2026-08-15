@@ -250,7 +250,7 @@ def test_pdf_review_runtime_cannot_hide_declared_quality_failure(
             {"canonical_mutation_performed": False}
         ),
     }
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps(stub_response))
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", json.dumps(stub_response))
     artifact = materialize_program_from_intent(
         ProgramIntent(
             name="PdfReviewQualityProgram",
@@ -369,7 +369,7 @@ def test_program_runtime_episode_applies_declared_quality_without_approval(
     )
 
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps(
             {
                 "reasoning": "bounded evidence",
@@ -396,7 +396,7 @@ def test_program_runtime_episode_applies_declared_quality_without_approval(
     assert passed_oracle["behavior"]["failure_modes"] == []
 
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps(
             {
                 "reasoning": "overclaim",
@@ -421,7 +421,7 @@ def test_program_runtime_episode_applies_declared_quality_without_approval(
     ]
 
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps({"reasoning": "missing declared response"}),
     )
     errored = run_program_runtime_episode(

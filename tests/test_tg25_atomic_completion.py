@@ -6,33 +6,11 @@ from __future__ import annotations
 
 import csv
 import logging
-from collections.abc import Callable
-
 import pandas as pd
 import pytest
 from dspx import policy
-from dspx.pi_rpc_client import PiPromptResult, PiRpcClient
-from dspx.pi_rpc_lm import PiRPCLM
 from dspx.tools import registry
 from dspx.tools.registry import _data_preview
-
-
-class _TestPiRpcClient(PiRpcClient):
-    def __init__(
-        self,
-        *,
-        prompt: Callable[[str, float | None], PiPromptResult],
-        restart: Callable[[], None],
-    ) -> None:
-        super().__init__()
-        self._prompt = prompt
-        self._restart = restart
-
-    def prompt(self, message: str, *, timeout: float | None = None) -> PiPromptResult:
-        return self._prompt(message, timeout)
-
-    def restart(self) -> None:
-        self._restart()
 
 
 def test_policy_bypass_logs_audit_event(
@@ -48,50 +26,6 @@ def test_policy_bypass_logs_audit_event(
         getattr(record, "dspx_policy_target", None) == "stub"
         for record in caplog.records
     )
-
-
-def test_pi_rpc_lm_retries_process_failures_only() -> None:
-    lm = PiRPCLM.__new__(PiRPCLM)
-    lm.timeout = 1.0
-
-    calls = {"prompt": 0, "restart": 0}
-
-    def _prompt(query: str, timeout: float | None = None) -> PiPromptResult:
-        calls["prompt"] += 1
-        if calls["prompt"] == 1:
-            raise BrokenPipeError("broken pipe")
-        return PiPromptResult(text=f"ok:{query}:{timeout}")
-
-    lm.client = _TestPiRpcClient(
-        prompt=_prompt,
-        restart=lambda: calls.__setitem__("restart", calls["restart"] + 1),
-    )
-
-    result = lm._call_prompt_with_retry("hello")
-
-    assert result == "ok:hello:1.0"
-    assert calls == {"prompt": 2, "restart": 1}
-
-
-def test_pi_rpc_lm_does_not_retry_timeout() -> None:
-    lm = PiRPCLM.__new__(PiRPCLM)
-    lm.timeout = 1.0
-
-    calls = {"prompt": 0, "restart": 0}
-
-    def _prompt(query: str, timeout: float | None = None) -> PiPromptResult:
-        calls["prompt"] += 1
-        raise TimeoutError("timed out")
-
-    lm.client = _TestPiRpcClient(
-        prompt=_prompt,
-        restart=lambda: calls.__setitem__("restart", calls["restart"] + 1),
-    )
-
-    with pytest.raises(TimeoutError):
-        lm._call_prompt_with_retry("hello")
-
-    assert calls == {"prompt": 1, "restart": 0}
 
 
 def test_data_preview_bounds_rows_and_cell_sizes(tmp_path, monkeypatch) -> None:

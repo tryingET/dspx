@@ -37,7 +37,7 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
             "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus or local_corpus_snapshot only; local snapshots are normalized into generated inline adapters during materialization",
         },
         "experimental_primitives": {
-            "ReActV2": "descriptor-only by default; conditionally materializable only with explicit opt-in, tools=[], public dspy.ReActV2, generated policy, and tool contracts"
+            "ReActV2": "descriptor-only and unavailable for materialization during the typed Core cutover"
         },
         "unsupported_primitives_are_declared_only": True,
         "custom_imports_are_declarations_only": True,
@@ -55,9 +55,9 @@ def test_builtin_capability_registry_is_descriptor_only_and_fail_closed() -> Non
     assert by_id["dspy.primitive.ReActV2"]["materializable"] is False
     assert by_id["dspy.primitive.ReActV2"]["experimental"] is True
     assert by_id["dspy.primitive.ReActV2"]["status"] == (
-        "experimental_conditionally_materializable_with_empty_tools_explicit_opt_in"
+        "experimental_declared_only_not_materializable"
     )
-    assert by_id["dspy.primitive.ReActV2"]["conditional_materializable"] is True
+    assert by_id["dspy.primitive.ReActV2"]["conditional_materializable"] is False
     assert by_id["dspy.primitive.ProgramOfThought"]["materializable"] is False
     assert (
         by_id["dspy.primitive.ProgramOfThought"]["conditional_materializable"] is True
@@ -300,71 +300,46 @@ def test_bounded_reasoning_primitive_contracts_are_conditionally_materializable(
     assert contract["effects"]["provider_called"] is False
 
 
-def test_react_v2_primitive_contract_is_experimental_opt_in_only() -> None:
+def test_react_v2_primitive_contract_is_experimental_declared_only() -> None:
     contract = capability_contract_for_primitive("react_v2")
 
     assert contract["capability_id"] == "dspy.primitive.ReActV2"
-    assert contract["status"] == (
-        "experimental_conditionally_materializable_with_empty_tools_explicit_opt_in"
-    )
+    assert contract["status"] == "experimental_declared_only_not_materializable"
     assert contract["materializable"] is False
-    assert contract["conditional_materializable"] is True
+    assert contract["conditional_materializable"] is False
     assert contract["experimental"] is True
-    assert contract["allowed_topology_kinds"] == [
-        "pipeline",
-        "router",
-        "retrieve_then_answer",
-        "extract_transform_validate",
-        "generate_critique_revise",
-    ]
+    assert contract["allowed_topology_kinds"] == []
     assert contract["materialization_policy"]["react_v2_declared_only"] is True
     assert (
         contract["materialization_policy"][
             "react_v2_materialization_requires_explicit_opt_in"
         ]
-        is True
+        is False
     )
     assert (
         contract["materialization_policy"]["react_v2_requires_public_dspy_react_v2"]
-        is True
+        is False
     )
     assert contract["materialization_policy"]["react_v2_tool_binding_allowed"] is False
     assert contract["effects"]["tool_called"] is False
 
 
-def test_react_v2_module_capability_ref_requires_full_safety_predicate() -> None:
-    valid_ref = module_capability_ref(
+def test_react_v2_module_capability_ref_stays_declared_only() -> None:
+    for react in [
         {
-            "id": "safe_reasoner",
-            "primitive": "react_v2",
-            "react": {
-                "react_v2_materialization_explicit_opt_in": True,
-                "tools": [],
-                "max_iters": 2,
-            },
-        }
-    )
-    assert valid_ref["materializable"] is True
-    assert valid_ref["status"] == (
-        "experimental_materializable_with_empty_tools_explicit_opt_in"
-    )
-    assert valid_ref["runtime_binding"] == "generated_experimental_react_v2_no_tools"
-
-    for unsafe_react in [
+            "react_v2_materialization_explicit_opt_in": True,
+            "tools": [],
+            "max_iters": 2,
+        },
         {
             "react_v2_materialization_explicit_opt_in": True,
             "tools": ["unsafe"],
             "max_iters": 2,
         },
-        {
-            "react_v2_materialization_explicit_opt_in": True,
-            "tools": [],
-            "max_iters": "2",
-        },
         {"tools": [], "max_iters": 2},
     ]:
         ref = module_capability_ref(
-            {"id": "unsafe_reasoner", "primitive": "react_v2", "react": unsafe_react}
+            {"id": "reasoner", "primitive": "react_v2", "react": react}
         )
         assert ref["materializable"] is False
         assert ref["status"] == "experimental_declared_only_not_materializable"

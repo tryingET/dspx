@@ -572,29 +572,24 @@ def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
             "pytest_cache_boundary",
         ),
         (
-            "packages/dspx-core/src/dspx/multi_provider_lm.py",
+            "packages/dspx-core/src/dspx/dspy_typed_lm.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
         (
-            "packages/dspx-core/src/dspx/openrouter_lm.py",
+            "packages/dspx-core/src/dspx/provider_contract.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
         (
-            "packages/dspx-core/src/dspx/providers_register_openrouter.py",
+            "packages/dspx-core/src/dspx/provider_registry.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
         (
-            "packages/dspx-core/src/dspx/openai_compatible_lm.py",
+            "packages/dspx-core/src/dspx/stub_provider.py",
             "provider_boundary",
             "pytest_provider_runtime",
-        ),
-        (
-            "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
-            "provider_boundary",
-            "pytest_provider_v4",
         ),
         (
             "packages/dspx-core/src/dspx/oracle_time_travel.py",
@@ -806,15 +801,15 @@ def test_refinement_episode_code_test_and_docs_stays_product_bounded() -> None:
     assert groups == {"program_refinement_episode", "docs"}
 
 
-def test_provider_v4_auth_adapter_change_stays_bounded() -> None:
-    plan = _plan("packages/dspx-core/src/dspx/dspy_lm_auth_lm.py")
+def test_typed_provider_adapter_change_stays_bounded() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/dspy_typed_lm.py")
 
     assert plan["risk"] == "expanded"
     assert plan["full_verification_required"] is False
     assert _command_ids(plan) == [
         "ruff_touched",
         "typecheck_core",
-        "pytest_provider_v4",
+        "pytest_provider_runtime",
     ]
     assert "verify_full" not in _command_ids(plan)
 

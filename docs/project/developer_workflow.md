@@ -28,17 +28,12 @@ just hooks-install
 
 Implementation detail: this uses `uvx prek install` for both `pre-commit` and `pre-push` hooks. `prek` is a fast, language-agnostic Git hook manager; DSPx keeps the interoperable `.pre-commit-config.yaml` hook definition and uses `prek` as the runner.
 
-### Optional local auth-provider checkout
+### Typed provider support matrix
 
-When DSPx should use the local `dspy-lm-auth` checkout rather than a published wheel or an unrelated clone, install the contrib repo in editable mode from this workspace:
-
-```bash
-just link-dspy-lm-auth
-# optional explicit override:
-# just link-dspy-lm-auth path=~/ai-society/softwareco/contrib/dspy-lm-auth
-```
-
-The helper defaults to `~/ai-society/softwareco/contrib/dspy-lm-auth`, installs it with `uv pip install -e`, and fails if `import dspy_lm_auth` still resolves somewhere else.
+The canonical T2 environment supports only `DSPyTypedLMAdapter(StubProvider)`.
+Legacy auth, CLI, HTTP, RPC, and aggregate providers are removed rather than
+linked or selected through compatibility helpers. Future provider restoration is
+an additive, separately reviewed gate.
 
 ### 3. Validate before push
 
@@ -64,11 +59,13 @@ Reproducible semantic regression gate (offline by default):
 
 ```bash
 just semantic-benchmark
-# live provider evaluation is separate and explicit:
-just semantic-benchmark-live provider=dspy-lm-auth out=/tmp/semantic-live.json
 ```
 
-The machine-readable result is evidence only and grants no activation or external authority. See `docs/project/semantic-benchmarks.md` for corpus thresholds, result schema, and live-provider controls.
+The T2 benchmark is credential-free and offline; live provider evaluation is
+unavailable until a provider is restored through its own gate. The
+machine-readable result is evidence only and grants no activation or external
+authority. See `docs/project/semantic-benchmarks.md` for corpus thresholds and
+result schema.
 
 Artifact retention is inspection-first. Generated/server output roots are never cleaned implicitly. Preview aged files below the explicit server root and retain the emitted `plan_id`; apply requires that unchanged plan plus exact-root confirmation:
 

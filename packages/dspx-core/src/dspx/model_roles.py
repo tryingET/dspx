@@ -9,7 +9,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from dspx.dspy_lm_auth_lm import DspyLMAuthLM
+from dspx.provider_registry import UnsupportedProviderError
 
 CODEX_REASONING_EFFORTS = frozenset({"none", "low", "medium", "high", "xhigh", "max"})
 
@@ -101,8 +101,8 @@ def create_role_lm(
     environ: Mapping[str, str] | None = None,
     timeout: float | None = 60.0,
     resolved_role: ModelRole | None = None,
-) -> DspyLMAuthLM:
-    """Create a lazy authenticated DSPy LM from one resolved role snapshot."""
+) -> None:
+    """Reject the removed authenticated role provider before any effect."""
 
     env = os.environ if environ is None else environ
     role = resolved_role or resolve_model_role(name, environ=env)
@@ -110,12 +110,7 @@ def create_role_lm(
         raise ValueError(
             f"resolved model role {role.name!r} does not match requested role {name!r}"
         )
-    auth_storage = str(env.get("DSPX_LM_AUTH_STORAGE", "~/.pi/agent/auth.json")).strip()
-    return DspyLMAuthLM(
-        model=role.model,
-        auth_provider="codex",
-        auth_storage=auth_storage or None,
-        timeout=timeout,
-        strict=True,
-        kwargs={"reasoning_effort": role.reasoning_effort},
+    del timeout
+    raise UnsupportedProviderError(
+        "provider 'dspy-lm-auth' is unsupported after the typed hard cutover"
     )

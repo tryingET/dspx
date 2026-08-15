@@ -12,7 +12,6 @@ from typing import Any
 import dspy
 import pytest
 
-from dspx.dtos import LMRequest as DSPxLegacyLMRequest
 from dspx.provider_contract import (
     EffectDisposition,
     ProviderInvocationError,
@@ -355,6 +354,15 @@ def test_copy_resets_dspy_history_and_does_not_alias_provider_events() -> None:
     assert exc_info.value.features == ["copy:model"]
     assert len(provider.provider_events) == 1
 
+    for key, value in (("num_retries", 7), ("model_type", "chat")):
+        with pytest.raises(LMUnsupportedFeatureError) as drift_info:
+            lm.copy(**{key: value})
+        assert drift_info.value.features == [f"copy:{key}"]
+    with pytest.raises(TypeError, match="cache must be a boolean"):
+        lm.copy(cache="no")
+    assert lm.num_retries == 0
+    assert lm.model_type == "text"
+
     copied = lm.copy(cache=False)
 
     assert copied is not lm
@@ -407,6 +415,5 @@ def test_callbacks_wrap_success_and_pre_effect_rejection_but_are_not_receipts() 
     assert len(provider.provider_events) == 1
 
 
-def test_dspx_provider_and_legacy_dto_identities_remain_distinct_from_dspy() -> None:
+def test_dspx_provider_request_identity_remains_distinct_from_dspy() -> None:
     assert ProviderRequest is not LMRequest
-    assert DSPxLegacyLMRequest is not LMRequest

@@ -596,50 +596,9 @@ def verify_architecture_contract_intent(path: Path) -> dict[str, Any]:
         primitive = str(module.get("primitive") or "")
         module_id = str(module.get("id") or "")
         if primitive == "ReActV2":
-            react = (
-                module.get("react") if isinstance(module.get("react"), Mapping) else {}
+            violations.append(
+                f"ReActV2 module {module_id!r} is unavailable during the typed Core cutover"
             )
-            tools = module.get(
-                "tools", react.get("tools") if isinstance(react, Mapping) else []
-            )
-            if tools != []:
-                violations.append(f"ReActV2 module {module_id!r} must keep tools=[]")
-            declared_tool_refs = (
-                react.get("declared_tool_refs") if isinstance(react, Mapping) else []
-            )
-            if isinstance(declared_tool_refs, list):
-                declared_tool_ref_ids = sorted(str(item) for item in declared_tool_refs)
-                missing_tool_refs = sorted(set(declared_tool_ref_ids) - pure_tool_ids)
-                if missing_tool_refs:
-                    violations.append(
-                        f"ReActV2 module {module_id!r} tool_refs require matching pure tool declarations: {missing_tool_refs}"
-                    )
-                if declared_tool_ref_ids:
-                    if not react_v2_tool_preflight[
-                        "all_referenced_tool_schemas_bounded"
-                    ]:
-                        violations.append(
-                            f"ReActV2 module {module_id!r} tool_refs require bounded args/return schemas: {declared_tool_ref_ids}"
-                        )
-                    if not react_v2_tool_preflight[
-                        "all_referenced_adapter_blueprints_hash_bound"
-                    ]:
-                        violations.append(
-                            f"ReActV2 module {module_id!r} tool_refs require hash-bound adapter blueprints: {declared_tool_ref_ids}"
-                        )
-                    if not react_v2_tool_preflight[
-                        "all_referenced_tools_have_replay_policy_preconditions"
-                    ]:
-                        violations.append(
-                            f"ReActV2 module {module_id!r} tool_refs require replay-policy preconditions: {declared_tool_ref_ids}"
-                        )
-            if not bool(
-                dict(intent.options or {}).get("enable_react_v2_materialization")
-                or dict(intent.options or {}).get("react_v2_materialization")
-            ):
-                violations.append(
-                    f"ReActV2 module {module_id!r} requires explicit opt-in option"
-                )
         elif primitive == "ReAct":
             react = (
                 module.get("react") if isinstance(module.get("react"), Mapping) else {}

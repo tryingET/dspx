@@ -53,32 +53,11 @@ def _validate(
     )
 
 
-def test_checked_in_contract_passes_as_declared_no_live_protocol() -> None:
+def test_checked_in_legacy_contract_fails_closed_after_typed_cutover() -> None:
     module = _load_validator()
 
-    result = _validate(module)
-
-    assert result["status"] == "passed"
-    assert result["case_ids"] == [
-        "single-module-authority-boundary",
-        "pipeline-evidence-calibration",
-        "pdf-transition-review-runtime-replay",
-    ]
-    assert result["coverage_claim"] == (
-        "declared_strata_only_not_statistically_representative"
-    )
-    assert result["live_execution_status"] == "not_run"
-    assert result["production_semantic_claim_allowed"] is False
-    assert result["declared_operation_contract"] == {
-        "provider_calls": 0,
-        "embedding_models_loaded": 0,
-        "model_artifacts_downloaded": 0,
-        "shared_store_connections": 0,
-        "oracle_records_written": 0,
-        "ak_mutated": False,
-        "governance_mutated": False,
-        "publication_performed": False,
-    }
+    with pytest.raises(module.ContractValidationError, match="model roles source hash"):
+        _validate(module)
 
 
 @pytest.mark.parametrize(
@@ -250,11 +229,12 @@ def test_validator_subprocess_does_not_create_home_or_cache_state(
         [sys.executable, str(VALIDATOR_PATH)],
         cwd=REPO_ROOT,
         env=env,
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
 
-    assert json.loads(result.stdout)["status"] == "passed"
+    assert result.returncode != 0
+    assert "model roles source hash" in result.stderr
     assert list(home.iterdir()) == []
     assert list(cache.iterdir()) == []

@@ -834,7 +834,7 @@ def _case_environment(
 ) -> Iterator[None]:
     keys = (
         "DSPX_PROVIDER",
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         "DSPX_CACHE_DIR",
         "DSPX_CACHE_ENABLE",
         "MLFLOW_ENABLE",
@@ -844,9 +844,9 @@ def _case_environment(
     try:
         os.environ["DSPX_PROVIDER"] = "stub" if mode == "offline" else str(provider)
         if mode == "offline":
-            os.environ["DSPX_STUB_RESPONSE_JSON"] = json.dumps(stub, sort_keys=True)
+            os.environ["DSPX_REPLAY_FIXTURE_JSON"] = json.dumps(stub, sort_keys=True)
         else:
-            os.environ.pop("DSPX_STUB_RESPONSE_JSON", None)
+            os.environ.pop("DSPX_REPLAY_FIXTURE_JSON", None)
         os.environ["DSPX_CACHE_DIR"] = str(cache_dir)
         os.environ["DSPX_CACHE_ENABLE"] = "0"
         os.environ["MLFLOW_ENABLE"] = "0"

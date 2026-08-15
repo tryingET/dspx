@@ -66,7 +66,7 @@ def _loop_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", '{"urgency":"high"}')
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", '{"urgency":"high"}')
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
     reset_embedding_engine()

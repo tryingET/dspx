@@ -182,7 +182,6 @@ def test_run_generate_dto_injects_explicit_io_fields_as_native_constraints(
     )
     monkeypatch.setattr(sigsvc, "load_config_env", lambda *args, **kwargs: {})
     monkeypatch.setattr(sigsvc, "enable_mlflow_from_env", lambda *args, **kwargs: None)
-    monkeypatch.setattr(sigsvc, "ensure_default_providers", lambda: None)
     monkeypatch.setattr(sigsvc.dspy, "configure", lambda **kwargs: None)
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
 
@@ -247,7 +246,6 @@ def test_run_generate_dto_prefers_active_lm_capabilities_for_json_mode(
     )
     monkeypatch.setattr(sigsvc, "load_config_env", lambda *args, **kwargs: {})
     monkeypatch.setattr(sigsvc, "enable_mlflow_from_env", lambda *args, **kwargs: None)
-    monkeypatch.setattr(sigsvc, "ensure_default_providers", lambda: None)
     monkeypatch.setattr(sigsvc.dspy, "configure", lambda **kwargs: None)
     monkeypatch.setenv("DSPX_PROVIDER", "vllm-local")
     monkeypatch.setenv("DSPX_VLLM_JSON_MODE", "0")

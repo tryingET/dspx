@@ -6,7 +6,7 @@ from typing import Dict, List
 import dspy
 
 from dspx.config_loader import load_config_env
-from dspx.provider_registry import create_from_env, ensure_default_providers
+from dspx.provider_registry import create_from_env
 from dspx.tools.registry import ensure_default_tools, get_tool
 from dspx.tracing import enable_mlflow_from_env
 
@@ -16,8 +16,7 @@ PROGRAM_NAME = "sample_flow"
 def _configure_lm() -> None:
     load_config_env()
     enable_mlflow_from_env()
-    ensure_default_providers()
-    lm = create_from_env()
+    lm = create_from_env(allow_stub_default=True)
     dspy.configure(lm=lm)
 
 

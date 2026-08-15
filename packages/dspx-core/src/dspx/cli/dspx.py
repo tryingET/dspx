@@ -13,11 +13,9 @@ Note: codegen and module-gen are kept inline as single commands.
 
 from __future__ import annotations
 
-import getpass
 import json
 import os
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -47,7 +45,6 @@ from dspx.cli.commands import (
     cache_app,
     run_app,
     optimize_app,
-    providers_app,
     program_promote_app,
     program_refine_app,
     program_architect_app,
@@ -68,7 +65,6 @@ app = typer.Typer(no_args_is_help=True, add_completion=False)
 # Register command groups (imported from extracted modules)
 app.add_typer(signature_app, name="signature", help="Signature operations")
 app.add_typer(mermaid_app, name="mermaid", help="Mermaid workflow operations")
-app.add_typer(providers_app, name="providers", help="Provider utilities")
 app.add_typer(tools_app, name="tools", help="Tools and integrations")
 tools_app.add_typer(openapi_app, name="openapi", help="OpenAPI loader/caller")
 tools_app.add_typer(web_app, name="web", help="Web tools (fetch/scrape)")
@@ -1832,32 +1828,12 @@ def codegen(
 
 
 # =============================================================================
-# Policy Callback (OpenRouter key injection, policy env setup)
+# Policy callback (provider-neutral policy environment setup)
 # =============================================================================
 
 
 @app.callback()
 def _policy_callback(
-    openrouter_api_key_file: Optional[Path] = typer.Option(
-        None,
-        "--openrouter-api-key-file",
-        help="Read OPENROUTER_API_KEY from a file (recommended vs passing via CLI).",
-    ),
-    openrouter_api_key_op: Optional[str] = typer.Option(
-        None,
-        "--openrouter-api-key-op",
-        help="Read OPENROUTER_API_KEY via 1Password CLI `op read <ref>` (e.g., op://Vault/Item/field).",
-    ),
-    openrouter_api_key_stdin: bool = typer.Option(
-        False,
-        "--openrouter-api-key-stdin",
-        help="Read OPENROUTER_API_KEY from stdin (e.g., CI).",
-    ),
-    openrouter_api_key_prompt: bool = typer.Option(
-        False,
-        "--openrouter-api-key-prompt",
-        help="Prompt for OPENROUTER_API_KEY (hidden input).",
-    ),
     bypass_permissions: bool = typer.Option(
         False, "--bypass-permissions", help="Bypass policy checks (unsafe)"
     ),
@@ -1888,44 +1864,7 @@ def _policy_callback(
         None, "--disallowed-http-methods", help="Comma list of denied HTTP methods"
     ),
 ) -> None:
-    """Global callback for policy and API key setup."""
-    # OpenRouter API key injection (avoid leaking secrets via CLI args).
-    if os.getenv("OPENROUTER_API_KEY") is None:
-        if openrouter_api_key_file is not None:
-            try:
-                os.environ["OPENROUTER_API_KEY"] = openrouter_api_key_file.read_text(
-                    encoding="utf-8"
-                ).strip()
-            except (OSError, UnicodeError) as exc:
-                typer.echo(
-                    "Error: failed to read OpenRouter API key file: "
-                    f"{sanitize_cli_error(exc)}",
-                    err=True,
-                )
-                raise typer.Exit(code=2) from exc
-        elif openrouter_api_key_op:
-            if shutil.which("op") is None:
-                typer.echo("Error: 1Password CLI 'op' not found", err=True)
-                raise typer.Exit(code=2)
-            p = subprocess.run(
-                ["op", "read", str(openrouter_api_key_op)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-            )
-            if p.returncode != 0:
-                msg = sanitize_cli_error((p.stderr or "").strip() or "op read failed")
-                typer.echo(msg, err=True)
-                raise typer.Exit(code=p.returncode)
-            os.environ["OPENROUTER_API_KEY"] = (p.stdout or "").strip()
-        elif openrouter_api_key_stdin:
-            os.environ["OPENROUTER_API_KEY"] = sys.stdin.read().strip()
-        elif openrouter_api_key_prompt:
-            os.environ["OPENROUTER_API_KEY"] = getpass.getpass(
-                "OPENROUTER_API_KEY: "
-            ).strip()
-
+    """Export provider-neutral policy settings for downstream modules."""
     # Export policy envs for downstream modules
     if bypass_permissions:
         os.environ["DSPX_POLICY_BYPASS"] = "1"

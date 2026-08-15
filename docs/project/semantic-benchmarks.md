@@ -1,5 +1,5 @@
 ---
-summary: "Reproducible offline semantic corpus and explicit opt-in live-provider benchmark contract."
+summary: "Reproducible offline semantic corpus under the typed hard-cutover support matrix."
 read_when:
   - "You are running or changing DSPx semantic benchmarks."
   - "You need the semantic benchmark result or authority boundary."
@@ -23,18 +23,12 @@ just semantic-benchmark out=/tmp/semantic-result.json
 
 The default uses checked-in responses only. It makes no provider or network call, uses no randomness or wall-clock fields, and produces byte-stable semantic scores and hashes. The command exits `0` only when declared corpus thresholds pass, `1` when valid results miss thresholds, and `2` for invalid configuration/runtime failure.
 
-## Optional live provider
+## Live providers unavailable in T2
 
-Live execution is deliberately separate and requires both the live switch and a named registry provider:
-
-```bash
-just semantic-benchmark-live provider=dspy-lm-auth out=/tmp/semantic-live.json
-# equivalent:
-uv run --no-sync python scripts/run_semantic_benchmarks.py \
-  --live --provider dspy-lm-auth --out /tmp/semantic-live.json
-```
-
-Supplying a provider without `--live`, or `--live` without a provider, fails before corpus execution. Provider/model availability, authentication, latency, and output variability make live results non-deterministic. Live runs are never part of the offline default gate.
+The typed hard cutover intentionally exposes no live semantic-benchmark recipe.
+`scripts/run_semantic_benchmarks.py --live ...` rejects before corpus or provider
+execution. Provider-backed evaluation may return only through a separately
+reviewed additive provider-restoration gate.
 
 ## Result contract and thresholds
 
@@ -57,30 +51,23 @@ The direct-provider corpus above checks provider/scorer semantics. A separate la
 just program-semantic-benchmark \
   root=/tmp/dspx-program-semantic \
   out=/tmp/dspx-program-semantic-result.json
-
-# Live execution is separate and explicit.
-just program-semantic-benchmark-live dspy-lm-auth \
-  root=/tmp/dspx-program-semantic-live \
-  out=/tmp/dspx-program-semantic-live-result.json
 ```
 
 The default `benchmarks/semantic/program-corpus-v2.json` includes one single-module assembly, one bounded `Predict` → `ChainOfThought` pipeline, and one mixed-output PDF-transition review case. Each checked-in case declares intent-native `concept_coverage` quality criteria matching its outer aggregate scoring contract in output field, evaluator, required concept groups, forbidden terms, and threshold. Each case is materialized through `program-loop`; generated behavior episodes validate and preserve record, child-result, source, and episode-aggregate quality evidence with explicit `criteria_declared` and `quality_approved=false`. Empty sources retain whether criteria were declared without fabricating an evaluation; legacy child summaries without the declaration flag are normalized from their bound intent. The benchmark consumer re-derives quality from the current manifest intent and observed outputs, requires those hash-bound levels to agree, and then computes the aggregate semantic score. It does not call a provider directly from the benchmark scorer.
 
-In deterministic offline mode, the review case additionally executes the candidate through `program-run --contract-mode pdf_transition_review`, captures a private mode-0600 replay fixture, executes receipt-bound replay, and requires `executed_valid_review_only`, declared quality `passed`, and `execution_reproduced` without approval authority. Its aggregate row hash-binds the runtime episode, runtime receipt, replay fixture, and replay evidence. Live mode remains provider-backed and does not capture the stub-only replay fixture; its runtime-replay field is null with explicit `not_run_live_unsupported` status rather than claiming unsupported reproduction. Ordinary cases use `not_required`; successful offline review replay uses `passed`; failures use `failed`.
+In deterministic offline mode, the review case additionally executes the candidate through `program-run --contract-mode pdf_transition_review`, captures a private mode-0600 replay fixture, executes receipt-bound replay, and requires `executed_valid_review_only`, declared quality `passed`, and `execution_reproduced` without approval authority. Its aggregate row hash-binds the runtime episode, runtime receipt, replay fixture, and replay evidence. Ordinary cases use `not_required`; successful offline review replay uses `passed`; failures use `failed`.
 
 The aggregate `dspx-program-semantic-benchmark-result-v2` packet records corpus identity, candidate/receipt identities, current manifest/workflow/behavior hashes, and optional runtime-replay evidence. Raw generated responses and replay-fixture contents are represented only by SHA-256 in the aggregate. Candidate and runtime directories remain available for local inspection. Benchmark runtime inputs are created exclusively with mode `0600`; replay rechecks that the candidate tree remains unchanged and binds the runtime episode, runtime receipt, and replay evidence to the candidate manifest hash. Corpus/result v1 remain accepted for external compatibility; legacy v1 cases without intent quality criteria retain outer aggregate scoring without gaining a candidate-quality claim.
 
 The lane fails closed on stale or substituted evidence, failed/degraded generated behavior, review-boundary or declared-quality failure, runtime/replay semantic drift, path overlap, symlink corpus input, pre-existing work/runtime roots, invalid mode/provider combinations, and widened authority/effect flags. A valid semantic miss or case runtime failure produces benchmark evidence with exit `1`; invalid invocation or contract/runtime setup failure exits `2`. Candidate directories may remain after failure and are evidence for inspection, not a success claim. Delete the fresh work root and aggregate result to roll back local artifacts.
 
-Offline mode uses the stub provider through the generated DSPy program runtime. Live mode uses only the explicitly selected provider, remains non-deterministic, and is never a default CI gate.
+Offline mode uses the stub provider through the generated DSPy program runtime. Live mode is unavailable in the T2 support matrix.
 
-## Pre-live installed corpus and Oracle evaluation contract
+## Historical pre-live installed corpus and Oracle evaluation contract
 
-Before another installed-wheel provider call, validate the checked-in no-live membrane:
-
-```bash
-just installed-live-oracle-evaluation-contract-check
-```
+The former live-provider readiness recipe is retired by the typed hard cutover.
+The checked-in contracts and terminal attempts below remain historical empirical
+evidence only; they authorize no new provider call or retry.
 
 The machine-readable contract is `benchmarks/semantic/installed-live-oracle-evaluation-v1.json`. It hash-binds the complete three-case v2 corpus in declared order and freezes:
 
@@ -108,7 +95,7 @@ AK-4517 then performed one separately authorized offline full-batch recovery und
 
 mDenseOn is therefore the version-2 dense default for new coordinates. Indexed records use its document role; text searches use its query role. Explicit `sentence-transformers` remains available for the legacy MiniLM path, and version-1 rows are not silently rewritten: cross-version in-place upserts fail closed and require a new/rebuilt version-2 index. Search binds embedding version and backend-space identity where an engine identity is available.
 
-This establishes only the frozen production-semantic **embedding routing gate**. It does not establish broad or statistically representative semantic correctness. The semantic-analysis LM remains a separate layer: fixture replay is its deterministic offline path, and any live evaluation requires the role-bound `dspy-lm-auth` route plus distinct preferred, configured, and observed model evidence. Shared Postgres/pgvector is a third durability/publication layer and cannot satisfy either semantic-quality gate.
+This establishes only the frozen production-semantic **embedding routing gate**. It does not establish broad or statistically representative semantic correctness. The semantic-analysis LM remains a separate layer: fixture replay is its deterministic offline path. Historical live evaluations required the role-bound `dspy-lm-auth` route, which is removed and unavailable in T2. Shared Postgres/pgvector is a third durability/publication layer and cannot satisfy either semantic-quality gate.
 
 AK-4506 froze that separate semantic-analysis evaluation in `benchmarks/semantic/oracle-semantic-analysis-evaluation-v1.json`. Four candidate-local cases receive the same provider-visible field codebook; hidden expected/forbidden code partitions and exact evidence-reference labels remain outside the prompt. Scoring accepts only the exact hidden code set for every field, exact expected evidence references, no forbidden references, and bounded confidence. Unknown prose, synonyms, missing/extra/duplicate codes, contrary allowed codes, source drift, test doubles, rebound adapter methods, widened authority, and artifact tampering fail closed. The runner requires one committed source snapshot, private artifacts, the exact production adapter, one canonical ledger, no health probe/DSPx retry/selective rerun, and stop after the first failed or indeterminate case.
 

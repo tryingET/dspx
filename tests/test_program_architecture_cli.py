@@ -115,7 +115,7 @@ def test_architecture_planner_cli_writes_contract_drafts(tmp_path: Path) -> None
     assert not (contract_dir / "program.py").exists()
 
 
-def test_architecture_planner_cli_verifies_contract_draft(tmp_path: Path) -> None:
+def test_architecture_planner_cli_records_react_v2_contract_rejection(tmp_path: Path) -> None:
     payload = build_program_architecture_candidates(
         ProgramIntent(
             name="ReactV2CliVerifyProgram",
@@ -147,7 +147,9 @@ def test_architecture_planner_cli_verifies_contract_draft(tmp_path: Path) -> Non
 
     assert result.exit_code == 0, result.output
     verification = json.loads(out.read_text(encoding="utf-8"))
-    assert verification["status"] == "verified_contract_intent"
+    assert verification["status"] == "failed"
+    assert verification["materialization_allowed_by_contract_verification"] is False
+    assert any("unavailable" in item for item in verification["violations"])
     assert verification["effect"]["candidate_program_materialized"] is False
     assert not (tmp_path / "manifest.json").exists()
 

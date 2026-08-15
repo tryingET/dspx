@@ -23,6 +23,24 @@ from run_receipts_helpers import (
 )
 
 
+def test_receipt_provider_identity_is_canonicalized(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "  STUB  ")
+    receipt = build_run_receipt(
+        run_kind="module-gen",
+        output_path=tmp_path / "artifact.py",
+        output_hash="abc123",
+        template_version="simple-v1",
+        cache_key=None,
+        cache_file=None,
+        cache_enabled=False,
+        capture_context=False,
+    )
+
+    assert receipt["provider"] == "stub"
+    assert receipt["provider_details"]["provider"] == "stub"
+    assert receipt["provider_details"]["model"] == "stub/echo"
+
+
 def test_run_receipt_phase_c_causal_chain(tmp_path: Path) -> None:
     """Test causal chain for Time Travel behavioral lineage."""
     from dspx.run_receipts import build_causal_chain, extend_causal_chain
@@ -146,7 +164,7 @@ def test_run_receipt_execution_context_hash_tracks_env_value_changes(
         capture_context=True,
     )
 
-    monkeypatch.setenv("DSPX_PROVIDER", "pi-rpc")
+    monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     receipt_b = build_run_receipt(
         run_kind="module-gen",
         output_path=out,

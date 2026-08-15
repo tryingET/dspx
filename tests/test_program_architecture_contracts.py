@@ -183,13 +183,13 @@ def test_architecture_contract_drafts_write_reviewable_react_v2_intent(
     assert record["materializable_claimed"] is False
     draft = json.loads(Path(record["intent_path"]).read_text(encoding="utf-8"))
     loaded = ProgramIntent.model_validate(draft)
-    assert loaded.options["enable_react_v2_materialization"] is True
-    assert loaded.options["react_v2_materialization"] is True
+    assert "enable_react_v2_materialization" not in loaded.options
+    assert "react_v2_materialization" not in loaded.options
     assert loaded.topology["kind"] == "pipeline"
     assert loaded.topology["modules"][0]["primitive"] == "ReActV2"
     assert loaded.topology["modules"][0]["react"]["tools"] == []
     assert loaded.topology["modules"][0]["react"]["declared_tool_refs"] == []
-    assert "public dspy.ReActV2" in record["preconditions"][0]
+    assert "unavailable" in record["preconditions"][0]
     assert not (tmp_path / "contracts" / "manifest.json").exists()
 
 
@@ -293,12 +293,10 @@ def test_architecture_contract_verification_rejects_tool_refs_without_pure_contr
 
     assert verification["status"] == "failed"
     assert verification["materialization_allowed_by_contract_verification"] is False
-    assert any(
-        "matching pure tool declarations" in item for item in verification["violations"]
-    )
+    assert any("unavailable" in item for item in verification["violations"])
 
 
-def test_architecture_contract_verification_accepts_safe_react_v2_tool_ref_preflight(
+def test_architecture_contract_verification_keeps_react_v2_preflight_non_executable(
     tmp_path: Path,
 ) -> None:
     payload = build_program_architecture_candidates(
@@ -329,7 +327,9 @@ def test_architecture_contract_verification_accepts_safe_react_v2_tool_ref_prefl
 
     verification = verify_architecture_contract_intent(Path(record["intent_path"]))
 
-    assert verification["status"] == "verified_contract_intent"
+    assert verification["status"] == "failed"
+    assert verification["materialization_allowed_by_contract_verification"] is False
+    assert any("unavailable" in item for item in verification["violations"])
     preflight = verification["react_v2_tool_preflight"]
     assert preflight["referenced_tool_ids"] == ["lookup_policy"]
     assert preflight["all_referenced_tools_have_pure_contracts"] is True
@@ -342,7 +342,7 @@ def test_architecture_contract_verification_accepts_safe_react_v2_tool_ref_prefl
     assert verification["materialization_gate"]["allows_live_tools"] is False
 
 
-def test_architecture_contract_verification_accepts_safe_react_v2_draft(
+def test_architecture_contract_verification_rejects_react_v2_draft(
     tmp_path: Path,
 ) -> None:
     payload = build_program_architecture_candidates(
@@ -365,13 +365,13 @@ def test_architecture_contract_verification_accepts_safe_react_v2_draft(
     assert verification["schema_version"] == (
         "program-architecture-contract-verification-v1"
     )
-    assert verification["status"] == "verified_contract_intent"
-    assert verification["materialization_allowed_by_contract_verification"] is True
+    assert verification["status"] == "failed"
+    assert verification["materialization_allowed_by_contract_verification"] is False
     assert verification["live_tool_binding_allowed"] is False
     assert verification["custom_import_allowed"] is False
     assert verification["external_retriever_allowed"] is False
     assert verification["effect"]["candidate_program_materialized"] is False
-    assert verification["violations"] == []
+    assert any("unavailable" in item for item in verification["violations"])
 
 
 def test_architecture_contract_verification_rejects_react_v2_tools(
