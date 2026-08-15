@@ -30,10 +30,31 @@ Implementation detail: this uses `uvx prek install` for both `pre-commit` and `p
 
 ### Typed provider support matrix
 
-The canonical T2 environment supports only `DSPyTypedLMAdapter(StubProvider)`.
-Legacy auth, CLI, HTTP, RPC, and aggregate providers are removed rather than
-linked or selected through compatibility helpers. Future provider restoration is
-an additive, separately reviewed gate.
+The T3 matrix supports `DSPyTypedLMAdapter(StubProvider)` and exactly one restored
+`DSPyTypedLMAdapter(OpenAICompatibleProvider)`. The latter requires an explicit model
+and IP-literal loopback HTTP base URL; it has no credentials, redirects, retries,
+streaming, tools, async, state, or copy surface. Other legacy auth, CLI, HTTP, RPC,
+and aggregate providers remain removed rather than linked through compatibility helpers.
+Canonical secret-free TOML configuration is:
+
+```toml
+[provider]
+name = "openai-compatible"
+model = "local-model"
+base_url = "http://127.0.0.1:8000/v1"
+timeout = 30
+```
+
+Dispatch additionally requires `DSPX_POLICY_ALLOW_NETWORK_MUTATE=1` and the existing
+provider/capability policy checks. The policy maximum timeout caps the configured value.
+Provider attempts retain only bounded model/effect metadata; prompts, bodies, URLs,
+headers, and exception text are excluded. The additive
+`dspx-provider-effect-evidence-v1` envelope records cumulative count, explicit
+history truncation, terminal effect, and at most 64 attempts. Any indeterminate
+effect permanently latches both the provider instance and typed adapter against
+later dispatch, including adapter-side response-construction failures. A shared
+reentrant operation lock serializes direct and adapter calls through final response
+construction, so concurrent GEPA/runtime calls cannot complete past that latch.
 
 ### 3. Validate before push
 
@@ -61,9 +82,10 @@ Reproducible semantic regression gate (offline by default):
 just semantic-benchmark
 ```
 
-The T2 benchmark is credential-free and offline; live provider evaluation is
-unavailable until a provider is restored through its own gate. The
-machine-readable result is evidence only and grants no activation or external
+The default benchmark remains credential-free and offline. The restored loopback HTTP
+provider is not exercised by that benchmark and is tested only with injected fake
+clients; no live-provider pass is claimed. The machine-readable result is evidence only
+and grants no activation or external
 authority. See `docs/project/semantic-benchmarks.md` for corpus thresholds and
 result schema.
 

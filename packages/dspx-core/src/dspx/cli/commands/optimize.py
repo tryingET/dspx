@@ -25,11 +25,13 @@ def _resolve_optimize_providers(
 ) -> tuple[Optional[str], Optional[str]]:
     student = (
         student_provider
-        or os.getenv("DSPX_OPTIMIZE_STUDENT_PROVIDER")
-        or os.getenv("DSPX_PROVIDER")
+        if student_provider is not None
+        else os.getenv("DSPX_OPTIMIZE_STUDENT_PROVIDER") or os.getenv("DSPX_PROVIDER")
     )
     reflection = (
-        reflection_provider or os.getenv("DSPX_OPTIMIZE_REFLECTION_PROVIDER") or student
+        reflection_provider
+        if reflection_provider is not None
+        else os.getenv("DSPX_OPTIMIZE_REFLECTION_PROVIDER") or student
     )
     return student, reflection
 
@@ -88,12 +90,12 @@ def optimize_gepa(
     student_provider: Optional[str] = typer.Option(
         None,
         "--student-provider",
-        help="Provider for student calls (defaults to explicit DSPX_PROVIDER; supported: stub).",
+        help="Provider for student calls (stub or configured openai-compatible; defaults to explicit DSPX_PROVIDER).",
     ),
     reflection_provider: Optional[str] = typer.Option(
         None,
         "--reflection-provider",
-        help="Provider for GEPA reflections (defaults to student-provider).",
+        help="Provider for GEPA reflections (stub or configured openai-compatible; defaults to student-provider).",
     ),
     auto: Optional[str] = typer.Option(
         None,

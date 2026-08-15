@@ -179,6 +179,44 @@ rules:
       - pytest_provider_runtime
       - boundary_contract_check
 
+  - match: "packages/dspx-core/src/dspx/config_loader.py"
+    category: provider_config_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
+
+  - match: "packages/dspx-core/src/dspx/services/program_execution_replay_executor.py"
+    category: program_runtime_replay_boundary
+    impact_group: replay_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_runtime_episode
+      - pytest_run_receipts
+
+  - match: "packages/dspx-core/src/dspx/run_receipts.py"
+    category: run_receipt_boundary
+    impact_group: replay_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_run_receipts
+      - pytest_program_runtime_episode
+
+  - match: "packages/dspx-core/src/dspx/openai_compatible_provider.py"
+    category: provider_boundary
+    impact_group: provider_runtime
+    risk: expanded
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_provider_runtime
+
   - match: "packages/dspx-core/src/dspx/dspy_typed_lm.py"
     category: provider_boundary
     impact_group: provider_runtime

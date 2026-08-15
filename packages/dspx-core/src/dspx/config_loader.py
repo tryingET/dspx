@@ -41,6 +41,9 @@ _CONFIG_ENV_KEYS = (
     "DSPX_OPTIMIZE_STUDENT_PROVIDER",
     "DSPX_OPTIMIZE_REFLECTION_PROVIDER",
     "DSPX_PROVIDER",
+    "DSPX_OPENAI_COMPAT_MODEL",
+    "DSPX_OPENAI_COMPAT_API_BASE",
+    "DSPX_OPENAI_COMPAT_TIMEOUT",
 )
 _RETIRED_PROVIDER_SECTIONS = frozenset(
     {"codex", "openrouter", "pi", "lm_auth", "openai_compatible", "vllm"}
@@ -72,17 +75,56 @@ def _config_url(value: Any, *, label: str) -> Optional[str]:
     return value
 
 
-def _stub_provider_name(value: Any, *, label: str) -> Optional[str]:
+def _provider_name(value: Any, *, label: str) -> Optional[str]:
     if value is None:
         return None
     if not isinstance(value, str):
-        raise ValueError(f"{label} must be the string 'stub'")
+        raise ValueError(f"{label} must be a supported provider name")
     normalized = value.strip().lower()
-    if normalized != "stub":
+    if normalized not in {"stub", "openai-compatible"}:
         raise ValueError(
-            f"{label} selects unsupported provider {normalized!r}; supported=('stub',)"
+            f"{label} selects unsupported provider {normalized!r}; "
+            "supported=('stub', 'openai-compatible')"
         )
     return normalized
+
+
+def _stub_provider_name(value: Any, *, label: str) -> Optional[str]:
+    normalized = _provider_name(value, label=label)
+    if normalized not in {None, "stub"}:
+        raise ValueError(f"{label} supports only the stub provider")
+    return normalized
+
+
+def _provider_config_values(
+    provider: Any,
+) -> tuple[str | None, str | None, str | None, str | None]:
+    if not isinstance(provider, dict):
+        raise ValueError("provider config must be a TOML table")
+    unknown = sorted(set(provider) - {"name", "model", "base_url", "timeout"})
+    if unknown:
+        raise ValueError(
+            "provider config contains unsupported fields: " + ", ".join(unknown)
+        )
+    name = _provider_name(provider.get("name"), label="provider.name")
+    http_fields = {key for key in ("model", "base_url", "timeout") if key in provider}
+    if name in {None, "stub"}:
+        if http_fields:
+            raise ValueError("stub provider does not accept HTTP configuration")
+        return name, None, None, None
+
+    from dspx.openai_compatible_provider import (
+        _validated_endpoint,
+        _validated_model,
+        _validated_timeout,
+    )
+
+    if "model" not in provider or "base_url" not in provider:
+        raise ValueError("openai-compatible provider requires model and base_url")
+    model = _validated_model(provider.get("model"))
+    base_url, _ = _validated_endpoint(provider.get("base_url"))
+    timeout = _validated_timeout(provider.get("timeout", 30.0))
+    return name, model, base_url, str(timeout)
 
 
 def _restore_config_env(
@@ -244,6 +286,9 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
         model_roles.get("oracle_semantic", {}) if isinstance(model_roles, dict) else {}
     )
     optimize = data.get("optimize", {}) if isinstance(data, dict) else {}
+    provider_name, provider_model, provider_base_url, provider_timeout = (
+        _provider_config_values(provider)
+    )
 
     seen_keys: set[str] = set()
     env_snapshot = {key: os.environ.get(key) for key in _CONFIG_ENV_KEYS}
@@ -315,25 +360,30 @@ def load_config_env(path: Optional[str] = None) -> Dict[str, Any]:
         # Optimization provider defaults
         _set_config_value(
             "DSPX_OPTIMIZE_STUDENT_PROVIDER",
-            _stub_provider_name(
+            _provider_name(
                 optimize.get("student_provider"), label="optimize.student_provider"
             ),
             seen_keys=seen_keys,
         )
         _set_config_value(
             "DSPX_OPTIMIZE_REFLECTION_PROVIDER",
-            _stub_provider_name(
+            _provider_name(
                 optimize.get("reflection_provider"),
                 label="optimize.reflection_provider",
             ),
             seen_keys=seen_keys,
         )
 
-        # Provider selection env
+        # Canonical provider selection and secret-free loopback HTTP settings.
+        _set_config_value("DSPX_PROVIDER", provider_name, seen_keys=seen_keys)
         _set_config_value(
-            "DSPX_PROVIDER",
-            _stub_provider_name(provider.get("name"), label="provider.name"),
-            seen_keys=seen_keys,
+            "DSPX_OPENAI_COMPAT_MODEL", provider_model, seen_keys=seen_keys
+        )
+        _set_config_value(
+            "DSPX_OPENAI_COMPAT_API_BASE", provider_base_url, seen_keys=seen_keys
+        )
+        _set_config_value(
+            "DSPX_OPENAI_COMPAT_TIMEOUT", provider_timeout, seen_keys=seen_keys
         )
 
         _refresh_removed_config_values(seen_keys)

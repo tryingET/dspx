@@ -1,4 +1,4 @@
-# summary: "Tests secret-free stub-only DSPx configuration loading after the typed provider cutover."
+# summary: "Tests canonical secret-free stub and loopback-HTTP DSPx configuration."
 # read_when:
 #   - "Changing config discovery, supported provider sections, environment precedence, or secret rejection."
 
@@ -191,3 +191,73 @@ tracking_uri = "https://user:pass@example.test/mlflow"
         load_config_env(str(cfg))
     assert os.getenv("DSPX_PROVIDER") is None
     assert os.getenv("MLFLOW_TRACKING_URI") is None
+
+
+def test_load_config_env_sets_canonical_openai_compatible_values(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cfg = tmp_path / "openai.toml"
+    cfg.write_text(
+        """
+[provider]
+name = "openai-compatible"
+model = "local-model"
+base_url = "http://127.0.0.1:8000/v1/"
+timeout = 12.5
+
+[optimize]
+student_provider = "openai-compatible"
+reflection_provider = "openai-compatible"
+""",
+        encoding="utf-8",
+    )
+    for key in (
+        "DSPX_PROVIDER",
+        "DSPX_OPENAI_COMPAT_MODEL",
+        "DSPX_OPENAI_COMPAT_API_BASE",
+        "DSPX_OPENAI_COMPAT_TIMEOUT",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    load_config_env(str(cfg))
+
+    assert os.environ["DSPX_PROVIDER"] == "openai-compatible"
+    assert os.environ["DSPX_OPENAI_COMPAT_MODEL"] == "local-model"
+    assert os.environ["DSPX_OPENAI_COMPAT_API_BASE"] == "http://127.0.0.1:8000/v1"
+    assert os.environ["DSPX_OPENAI_COMPAT_TIMEOUT"] == "12.5"
+    assert os.environ["DSPX_OPTIMIZE_STUDENT_PROVIDER"] == "openai-compatible"
+    assert os.environ["DSPX_OPTIMIZE_REFLECTION_PROVIDER"] == "openai-compatible"
+
+
+@pytest.mark.parametrize(
+    "body,match",
+    [
+        (
+            "[provider]\nname='stub'\nmodel='irrelevant'\n",
+            "stub provider does not accept HTTP configuration",
+        ),
+        (
+            "[provider]\nname='openai-compatible'\nmodel='local-model'\n",
+            "requires model and base_url",
+        ),
+        (
+            "[provider]\nname='openai-compatible'\nmodel='local model'\nbase_url='http://127.0.0.1/v1'\n",
+            "model",
+        ),
+        (
+            "[provider]\nname='openai-compatible'\nmodel='local-model'\nbase_url='http://example.test/v1'\n",
+            "loopback",
+        ),
+        (
+            "[provider]\nname='openai-compatible'\nmodel='local-model'\nbase_url='http://127.0.0.1/v1'\nextra='x'\n",
+            "unsupported fields",
+        ),
+    ],
+)
+def test_load_config_env_rejects_noncanonical_provider_fields(
+    body: str, match: str, tmp_path: Path
+) -> None:
+    cfg = tmp_path / "invalid-provider.toml"
+    cfg.write_text(body, encoding="utf-8")
+    with pytest.raises(ValueError, match=match):
+        load_config_env(str(cfg))

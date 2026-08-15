@@ -1,4 +1,4 @@
-# summary: "Exposes the explicit stub-only provider support matrix for the DSPy 3.3 typed cutover."
+# summary: "Exposes the explicit stub and loopback-HTTP typed provider support matrix."
 # read_when:
 #   - "Changing supported providers, provider selection, or replay-fixture construction."
 
@@ -11,10 +11,11 @@ from typing import Final, Never
 
 from .capabilities import ProviderCapabilities
 from .dspy_typed_lm import DSPyTypedLMAdapter
+from .openai_compatible_provider import OpenAICompatibleProvider
 from .policy import check_provider_allowed
 from .stub_provider import StubProvider
 
-SUPPORTED_PROVIDER_NAMES: Final = ("stub",)
+SUPPORTED_PROVIDER_NAMES: Final = ("stub", "openai-compatible")
 REMOVED_PROVIDER_NAMES: Final = frozenset(
     {
         "claude-cli",
@@ -22,7 +23,6 @@ REMOVED_PROVIDER_NAMES: Final = frozenset(
         "dspy-lm-auth",
         "gemini-cli",
         "multi",
-        "openai-compatible",
         "openrouter",
         "pi-rpc",
         "vllm-local",
@@ -59,22 +59,82 @@ def supported_provider_names() -> tuple[str, ...]:
     return SUPPORTED_PROVIDER_NAMES
 
 
-def create(name: str = "stub", *, model: str = "stub/echo") -> DSPyTypedLMAdapter:
+def create(
+    name: str = "stub",
+    *,
+    model: str | None = None,
+    base_url: str | None = None,
+    timeout: float = 30.0,
+) -> DSPyTypedLMAdapter:
     """Create one compiled-in provider; arbitrary registration is unsupported."""
 
     normalized = _validated_name(name)
     check_provider_allowed(normalized)
     if normalized == "stub":
-        if model != _STUB_MODEL:
+        selected_model = _STUB_MODEL if model is None else model
+        if selected_model != _STUB_MODEL:
             raise ValueError(f"stub provider model must be {_STUB_MODEL!r}")
+        if base_url is not None or timeout != 30.0:
+            raise ValueError("stub provider does not accept HTTP configuration")
         return DSPyTypedLMAdapter(StubProvider(model=_STUB_MODEL))
+    if normalized == "openai-compatible":
+        if model is None or base_url is None:
+            raise ValueError("openai-compatible requires explicit model and base_url")
+        return DSPyTypedLMAdapter(
+            OpenAICompatibleProvider(
+                base_url=base_url,
+                model=model,
+                timeout=timeout,
+            )
+        )
     _raise_unsupported_or_unknown(normalized)
+
+
+def create_configured(
+    name: str,
+    *,
+    model: str | None = None,
+    base_url: str | None = None,
+    timeout: float | None = None,
+) -> DSPyTypedLMAdapter:
+    """Create an explicitly named provider from canonical secret-free configuration."""
+
+    normalized = _validated_name(name)
+    check_provider_allowed(normalized)
+    if normalized == "stub":
+        if model is not None or base_url is not None or timeout is not None:
+            raise ValueError("stub provider does not accept HTTP configuration")
+        return create("stub")
+    if normalized != "openai-compatible":
+        _raise_unsupported_or_unknown(normalized)
+    if os.getenv("DSPX_OPENAI_COMPAT_API_KEY") is not None:
+        raise ValueError("openai-compatible credentials are unsupported")
+    selected_model = os.getenv("DSPX_OPENAI_COMPAT_MODEL") if model is None else model
+    selected_base_url = (
+        os.getenv("DSPX_OPENAI_COMPAT_API_BASE") if base_url is None else base_url
+    )
+    selected_timeout = timeout
+    if selected_timeout is None:
+        raw_timeout = os.getenv("DSPX_OPENAI_COMPAT_TIMEOUT", "30")
+        try:
+            selected_timeout = float(raw_timeout)
+        except (TypeError, ValueError):
+            raise ValueError("openai-compatible timeout is invalid") from None
+    return create(
+        normalized,
+        model=selected_model,
+        base_url=selected_base_url,
+        timeout=selected_timeout,
+    )
 
 
 def create_from_env(
     env_var: str = "DSPX_PROVIDER",
     *,
     allow_stub_default: bool = False,
+    model: str | None = None,
+    base_url: str | None = None,
+    timeout: float | None = None,
 ) -> DSPyTypedLMAdapter:
     """Resolve an explicit provider selection without live-provider fallback."""
 
@@ -90,8 +150,17 @@ def create_from_env(
 
     normalized = _validated_name(name)
     check_provider_allowed(normalized)
+    if normalized == "openai-compatible":
+        return create_configured(
+            normalized,
+            model=model,
+            base_url=base_url,
+            timeout=timeout,
+        )
     if normalized != "stub":
         _raise_unsupported_or_unknown(normalized)
+    if model is not None or base_url is not None or timeout is not None:
+        raise ValueError("stub provider does not accept HTTP configuration")
     fixture_text = _explicit_replay_fixture_text()
     return DSPyTypedLMAdapter(
         StubProvider(model=_STUB_MODEL, explicit_response_text=fixture_text)
@@ -101,7 +170,7 @@ def create_from_env(
 def capabilities(name: str) -> ProviderCapabilities:
     normalized = _validated_name(name)
     check_provider_allowed(normalized)
-    if normalized == "stub":
+    if normalized in {"stub", "openai-compatible"}:
         return _STUB_CAPABILITIES
     _raise_unsupported_or_unknown(normalized)
 

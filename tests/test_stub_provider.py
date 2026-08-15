@@ -18,8 +18,8 @@ from dspx.provider_registry import (
 from dspx.stub_provider import StubProvider
 
 
-def test_support_matrix_is_exactly_stub() -> None:
-    assert supported_provider_names() == ("stub",)
+def test_support_matrix_includes_stub_and_loopback_http() -> None:
+    assert supported_provider_names() == ("stub", "openai-compatible")
     lm = create("stub")
     assert type(lm) is DSPyTypedLMAdapter
     assert type(lm.provider) is StubProvider
@@ -59,3 +59,23 @@ def test_invalid_replay_fixture_fails_before_provider_invocation(monkeypatch) ->
     monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", "api_key=secret")
     with pytest.raises(ValueError, match="valid JSON"):
         create_from_env()
+
+
+def test_stub_preflight_rejection_records_zero_dispatch_attempt() -> None:
+    provider = StubProvider()
+    from dspx.provider_contract import (
+        ProviderInvocationError,
+        ProviderMessage,
+        ProviderRequest,
+    )
+
+    request = ProviderRequest(
+        model="stub/other",
+        messages=(ProviderMessage(role="user", text="not retained"),),
+    )
+    with pytest.raises(ProviderInvocationError):
+        provider.invoke(request)
+    assert provider.provider_events[-1].requested_model == "stub/other"
+    assert provider.provider_events[-1].observed_model is None
+    assert provider.provider_events[-1].dispatch_count == 0
+    assert provider.provider_events[-1].disposition.value == "preflight_rejected"

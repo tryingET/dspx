@@ -116,6 +116,8 @@ from typing import Any
 OUTPUT_RECEIPT = 'direct_run_receipt.json'
 PROTECTED_OUTPUT_BASENAMES = __PROTECTED_OUTPUT_BASENAMES__
 CONFIG_CANDIDATES = ('dspx-local.config.toml', 'config.toml')
+_RUNTIME_LM: object | None = None
+_PREVIOUS_LM: object | None = None
 
 
 def _redact_url(value: object) -> str | None:
@@ -328,7 +330,18 @@ def _apply_runtime_config_env(data: object) -> None:
     _set_env_from_config(mlflow, 'tracking_uri', 'MLFLOW_TRACKING_URI')
     _set_env_from_config(mlflow, 'experiment', 'MLFLOW_EXPERIMENT')
     _set_env_from_config(mlflow, 'artifact_root', 'MLFLOW_ARTIFACT_ROOT')
+    if isinstance(provider, Mapping):
+        for env_key in (
+            'DSPX_PROVIDER',
+            'DSPX_OPENAI_COMPAT_MODEL',
+            'DSPX_OPENAI_COMPAT_API_BASE',
+            'DSPX_OPENAI_COMPAT_TIMEOUT',
+        ):
+            os.environ.pop(env_key, None)
     _set_env_from_config(provider, 'name', 'DSPX_PROVIDER')
+    _set_env_from_config(provider, 'model', 'DSPX_OPENAI_COMPAT_MODEL')
+    _set_env_from_config(provider, 'base_url', 'DSPX_OPENAI_COMPAT_API_BASE')
+    _set_env_from_config(provider, 'timeout', 'DSPX_OPENAI_COMPAT_TIMEOUT')
 
 
 def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str | None:
@@ -345,20 +358,83 @@ def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str 
     return str(chosen) if chosen is not None else None
 
 
+def _provider_projection(metadata: dict[str, Any]) -> dict[str, Any]:
+    from dspx.provider_runtime import provider_effect_evidence_from_instance
+
+    if _RUNTIME_LM is None:
+        raise RuntimeError('runtime provider adapter is unavailable')
+    return {
+        'status': 'configured',
+        'metadata': metadata,
+        'effect_evidence': provider_effect_evidence_from_instance(_RUNTIME_LM),
+    }
+
+
 def _configure_lm() -> dict[str, Any]:
+    global _PREVIOUS_LM, _RUNTIME_LM
     import dspy
     from dspx.provider_registry import create_from_env
+    from dspx.provider_runtime import provider_metadata_from_instance
 
+    if _RUNTIME_LM is not None:
+        _close_runtime_lm()
+    previous_lm = getattr(dspy.settings, 'lm', None)
     lm = create_from_env()
-    dspy.configure(lm=lm)
-    provider_port = getattr(lm, 'provider', None)
-    return {
-        'provider': 'stub',
-        'model': getattr(lm, 'model', None),
-        'adapter': type(lm).__name__,
-        'provider_port': type(provider_port).__name__,
-        'kwargs': dict(getattr(lm, 'kwargs', {}) or {}),
-    }
+    try:
+        provider_name = str(os.environ.get('DSPX_PROVIDER') or '')
+        metadata = provider_metadata_from_instance(provider_name, lm)
+    except BaseException:
+        from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+        from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+        if type(lm) is DSPyTypedLMAdapter and type(lm.provider) is OpenAICompatibleProvider:
+            lm.provider.close()
+        raise
+    _PREVIOUS_LM = previous_lm
+    _RUNTIME_LM = lm
+    try:
+        dspy.configure(lm=lm)
+        return _provider_projection(metadata)
+    except BaseException:
+        _close_runtime_lm()
+        raise
+
+
+def _refresh_provider(provider: dict[str, Any]) -> dict[str, Any]:
+    metadata = provider.get('metadata')
+    if not isinstance(metadata, dict):
+        return provider
+    return _provider_projection(metadata)
+
+
+def _close_runtime_lm() -> None:
+    global _PREVIOUS_LM, _RUNTIME_LM
+    if _RUNTIME_LM is None:
+        _PREVIOUS_LM = None
+        return
+    lm = _RUNTIME_LM
+    previous_lm = _PREVIOUS_LM
+    _RUNTIME_LM = None
+    _PREVIOUS_LM = None
+    try:
+        import dspy
+
+        dspy.configure(lm=previous_lm)
+    finally:
+        from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+        from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+        if type(lm) is DSPyTypedLMAdapter and type(lm.provider) is OpenAICompatibleProvider:
+            lm.provider.close()
+
+
+def _provider_error_code(error: BaseException) -> str | None:
+    code = getattr(error, 'code', None)
+    return code if code in {
+        'preflight_rejected',
+        'completed_failure',
+        'effect_indeterminate',
+    } else None
 
 
 def _active_mlflow_run_id() -> str | None:
@@ -436,7 +512,7 @@ def _write_direct_run_receipt(
         'inputs_path': str(inputs_path.resolve()),
         'outdir': str(outdir.resolve()),
         'config_path': config_path,
-        'provider': provider,
+        'provider': _refresh_provider(provider),
         'output_files': output_fields,
         'observability': {
             **_mlflow_receipt(),
@@ -452,6 +528,7 @@ def _write_direct_run_receipt(
         receipt['error'] = {
             'type': type(error).__name__,
             'message': _sanitize_diagnostic_text(error),
+            'code': _provider_error_code(error),
         }
     (outdir / OUTPUT_RECEIPT).write_text(
         json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
@@ -493,6 +570,18 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
                 encoding='utf-8',
             )
         artifacts_logged = _log_output_artifacts(outdir)
+        return _write_direct_run_receipt(
+            status='ok',
+            program_dir=program_dir,
+            inputs_path=inputs_path,
+            outdir=outdir,
+            config_path=loaded_config,
+            provider=provider,
+            output_fields=output_fields,
+            started=started,
+            mlflow_run_id=mlflow_run_id,
+            artifacts_logged=artifacts_logged,
+        )
     except BaseException as exc:
         end_status = 'FAILED'
         _set_runtime_failed(exc)
@@ -512,19 +601,7 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
         raise SystemExit(_sanitize_diagnostic_text(exc)) from None
     finally:
         end_observability_run(started, status=end_status)
-
-    return _write_direct_run_receipt(
-        status='ok',
-        program_dir=program_dir,
-        inputs_path=inputs_path,
-        outdir=outdir,
-        config_path=loaded_config,
-        provider=provider,
-        output_fields=output_fields,
-        started=started,
-        mlflow_run_id=mlflow_run_id,
-        artifacts_logged=artifacts_logged,
-    )
+        _close_runtime_lm()
 
 
 def _target_name(input_file: Path, inputs_root: Path) -> str:
@@ -619,23 +696,26 @@ def _preflight(config_path: Path | None = None) -> dict[str, Any]:
     program_dir = Path(__file__).resolve().parent
     loaded_config = _load_runtime_config(config_path, program_dir=program_dir)
     provider = _configure_lm()
-    return {
-        'schema_version': 'generated-dspy-direct-run-preflight-v1',
-        'status': 'ok',
-        'program_dir': str(program_dir),
-        'config_path': loaded_config,
-        'provider': provider,
-        'resolved_env': {
-            'DSPX_PROVIDER': os.getenv('DSPX_PROVIDER') or None,
-            'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
-            'MLFLOW_TRACKING_URI': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None),
-            'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
-            'MLFLOW_ARTIFACT_ROOT': os.getenv('MLFLOW_ARTIFACT_ROOT') or None,
-        },
-        'model_call_performed': False,
-        'canonical_notes_mutated': False,
-        'dspx_program_run_wrapper_used': False,
-    }
+    try:
+        return {
+            'schema_version': 'generated-dspy-direct-run-preflight-v1',
+            'status': 'ok',
+            'program_dir': str(program_dir),
+            'config_path': loaded_config,
+            'provider': provider,
+            'resolved_env': {
+                'DSPX_PROVIDER': os.getenv('DSPX_PROVIDER') or None,
+                'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
+                'MLFLOW_TRACKING_URI': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None),
+                'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
+                'MLFLOW_ARTIFACT_ROOT': os.getenv('MLFLOW_ARTIFACT_ROOT') or None,
+            },
+            'model_call_performed': False,
+            'canonical_notes_mutated': False,
+            'dspx_program_run_wrapper_used': False,
+        }
+    finally:
+        _close_runtime_lm()
 
 
 def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds: int, retries: int, config_path: Path | None = None) -> dict[str, Any]:
@@ -713,7 +793,7 @@ def main() -> int:
         if args.json:
             print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))
         else:
-            print(f"provider={receipt['provider']['provider']} model={receipt['provider']['model']} config={receipt['config_path']}")
+            print(f"provider={receipt['provider']['metadata']['provider']} model={receipt['provider']['metadata']['model']} config={receipt['config_path']}")
         return 0
 
     if args.inputs_root or args.out_root:

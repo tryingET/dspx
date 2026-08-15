@@ -572,6 +572,11 @@ def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
             "pytest_cache_boundary",
         ),
         (
+            "packages/dspx-core/src/dspx/openai_compatible_provider.py",
+            "provider_boundary",
+            "pytest_provider_runtime",
+        ),
+        (
             "packages/dspx-core/src/dspx/dspy_typed_lm.py",
             "provider_boundary",
             "pytest_provider_runtime",
@@ -1251,3 +1256,51 @@ def test_plan_json_is_serializable() -> None:
     encoded = json.dumps(plan, sort_keys=True)
 
     assert "dspx-verification-impact-plan-v1" in encoded
+
+
+def test_openai_provider_source_only_plan_runs_its_focused_test() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/openai_compatible_provider.py")
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_provider_runtime",
+    ]
+    loaded = _load_module()
+    command = loaded.COMMAND_REGISTRY["pytest_provider_runtime"].command
+    assert "tests/test_openai_compatible_provider.py" in command
+    assert "tests/test_openai_compatible_runtime.py" in command
+    runtime_command = loaded.COMMAND_REGISTRY["pytest_program_runtime_episode"].command
+    assert "tests/test_program_execution_replay.py" in runtime_command
+
+
+@pytest.mark.parametrize(
+    "path,category,command",
+    [
+        (
+            "packages/dspx-core/src/dspx/config_loader.py",
+            "provider_config_boundary",
+            "pytest_provider_runtime",
+        ),
+        (
+            "packages/dspx-core/src/dspx/run_receipts.py",
+            "run_receipt_boundary",
+            "pytest_run_receipts",
+        ),
+    ],
+)
+def test_provider_config_and_receipt_sources_are_mapped(
+    path: str, category: str, command: str
+) -> None:
+    plan = _plan(path)
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert plan["classifications"][0]["category"] == category
+    assert command in _command_ids(plan)
+
+
+def test_program_runtime_replay_executor_is_mapped() -> None:
+    plan = _plan(
+        "packages/dspx-core/src/dspx/services/program_execution_replay_executor.py"
+    )
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert plan["classifications"][0]["category"] == ("program_runtime_replay_boundary")
+    assert "pytest_program_runtime_episode" in _command_ids(plan)

@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 import dspx.cli.dspx as dspx_cli
 import dspx.cli.utils as dspx_utils
+from dspx.cli.commands.optimize import _resolve_optimize_providers
 
 
 app = dspx_cli.app
@@ -672,3 +673,16 @@ def _monkeypatch_adapter_available(available: bool):
             dspx_cli._TEMPLATE_ADAPTER_AVAILABLE = original
 
     return ctx()
+
+
+def test_optimize_help_names_configured_openai_provider() -> None:
+    result = runner.invoke(app, ["optimize", "gepa", "--help"])
+    assert result.exit_code == 0
+    assert "configured openai-compatible" in result.stdout
+
+
+def test_optimize_explicit_empty_provider_does_not_fall_back_to_env(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    assert _resolve_optimize_providers("", None) == ("", "")

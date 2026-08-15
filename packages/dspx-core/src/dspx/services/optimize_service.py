@@ -341,6 +341,22 @@ def _optimizer_output_payload_inventory(root: Path) -> dict[str, Any]:
     }
 
 
+def _resolve_optimizer_provider(name: str | None):
+    """Resolve one explicit configured provider without running the optimizer."""
+
+    from dspx.provider_registry import create_configured, create_from_env
+
+    return create_configured(name) if name is not None else create_from_env()
+
+
+def _close_optimizer_provider(lm: object) -> None:
+    from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+    from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+    if type(lm) is DSPyTypedLMAdapter and type(lm.provider) is OpenAICompatibleProvider:
+        lm.provider.close()
+
+
 def run_gepa_optimize(
     *,
     program_path: Path,
@@ -359,6 +375,60 @@ def run_gepa_optimize(
     seed: int = 0,
     nrows: Optional[int] = None,
     num_threads: int = 1,
+) -> GEPAResult:
+    """Run GEPA while deterministically closing owned HTTP providers."""
+
+    import dspy
+
+    owned_lms: list[Any] = []
+    previous_lm = getattr(dspy.settings, "lm", None)
+    try:
+        return _run_gepa_optimize_impl(
+            program_path=program_path,
+            train_path=train_path,
+            out_dir=out_dir,
+            input_keys=input_keys,
+            output_keys=output_keys,
+            val_path=val_path,
+            student_provider=student_provider,
+            reflection_provider=reflection_provider,
+            auto=auto,
+            max_metric_calls=max_metric_calls,
+            max_full_evals=max_full_evals,
+            metric=metric,
+            output_weights=output_weights,
+            seed=seed,
+            nrows=nrows,
+            num_threads=num_threads,
+            _owned_lms=owned_lms,
+        )
+    finally:
+        try:
+            dspy.configure(lm=previous_lm)
+        finally:
+            for lm in reversed(owned_lms):
+                _close_optimizer_provider(lm)
+
+
+def _run_gepa_optimize_impl(
+    *,
+    program_path: Path,
+    train_path: Path,
+    out_dir: Path,
+    input_keys: Optional[List[str]] = None,
+    output_keys: Optional[List[str]] = None,
+    val_path: Optional[Path] = None,
+    student_provider: Optional[str] = None,
+    reflection_provider: Optional[str] = None,
+    auto: Optional[Literal["light", "medium", "heavy"]] = "light",
+    max_metric_calls: Optional[int] = None,
+    max_full_evals: Optional[int] = None,
+    metric: str = "exact",
+    output_weights: Optional[Dict[str, float]] = None,
+    seed: int = 0,
+    nrows: Optional[int] = None,
+    num_threads: int = 1,
+    _owned_lms: list[Any],
 ) -> GEPAResult:
     """
     Optimize a DSPy program/module via GEPA and save it as a loadable program dir.
@@ -379,18 +449,18 @@ def run_gepa_optimize(
     from datetime import datetime, timezone
 
     import dspy
-    from dspx.provider_registry import create, create_from_env
     from dspx.provider_runtime import provider_metadata_from_instance
 
     if not 1 <= num_threads <= 32:
         raise ValueError("num_threads must be between 1 and 32")
 
-    student_lm = create(student_provider) if student_provider else create_from_env()
-    reflection_lm = (
-        create(reflection_provider)
-        if reflection_provider
-        else (create(student_provider) if student_provider else create_from_env())
+    student_lm = _resolve_optimizer_provider(student_provider)
+    _owned_lms.append(student_lm)
+    reflection_lm = _resolve_optimizer_provider(
+        reflection_provider if reflection_provider is not None else student_provider
     )
+    if reflection_lm is not student_lm:
+        _owned_lms.append(reflection_lm)
 
     # Ensure GEPA + Predict calls use the student LM; GEPA reflections use reflection_lm.
     dspy.configure(lm=student_lm)
@@ -483,6 +553,12 @@ def run_gepa_optimize(
     reflection_provider_name = (
         reflection_provider or student_provider or os.getenv("DSPX_PROVIDER", "stub")
     )
+    student_metadata = provider_metadata_from_instance(
+        str(student_provider_name), student_lm
+    )
+    reflection_metadata = provider_metadata_from_instance(
+        str(reflection_provider_name), reflection_lm
+    )
 
     manifest = {
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -522,12 +598,8 @@ def run_gepa_optimize(
             "seed": seed,
         },
         "providers": {
-            "student": provider_metadata_from_instance(
-                str(student_provider_name), student_lm
-            ),
-            "reflection": provider_metadata_from_instance(
-                str(reflection_provider_name), reflection_lm
-            ),
+            "student": student_metadata,
+            "reflection": reflection_metadata,
         },
         "output_payload": _optimizer_output_payload_inventory(out_dir),
     }
@@ -543,8 +615,8 @@ def run_gepa_optimize(
         chosen_output_keys=out_keys,
         metric=metric,
         output_weights=weights,
-        student_provider=str(student_provider_name),
-        reflection_provider=str(reflection_provider_name),
+        student_provider=str(student_metadata["provider"]),
+        reflection_provider=str(reflection_metadata["provider"]),
     )
 
 

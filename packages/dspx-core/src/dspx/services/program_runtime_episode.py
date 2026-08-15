@@ -18,7 +18,11 @@ from types import ModuleType, SimpleNamespace
 from typing import Any, Iterator, Mapping, TypeGuard, cast
 
 from dspx.cache import make_key
-from dspx.run_receipts import build_run_receipt, write_run_receipt
+from dspx.run_receipts import (
+    build_run_receipt,
+    canonical_replay_identity_hash,
+    write_run_receipt,
+)
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication_preflight import (
     build_program_oracle_publication_preflight,
@@ -923,25 +927,108 @@ def _prediction_mapping(prediction: object) -> dict[str, object]:
     return {}
 
 
-def _configure_provider() -> dict[str, object]:
+def _configure_provider() -> tuple[dict[str, object], object | None, object | None]:
+    lm: object | None = None
+    previous_lm: object | None = None
     try:
         import dspy
         from dspx.provider_registry import create_from_env
+        from dspx.provider_runtime import (
+            provider_effect_evidence_from_instance,
+            provider_metadata_from_instance,
+        )
 
+        previous_lm = getattr(dspy.settings, "lm", None)
         lm = create_from_env()
+        provider_name = str(os.getenv("DSPX_PROVIDER") or "")
+        metadata = provider_metadata_from_instance(provider_name, lm)
+        evidence = provider_effect_evidence_from_instance(lm)
         dspy.configure(lm=lm)
-        return {
-            "status": "configured",
-            "provider": getattr(lm, "model", type(lm).__name__),
-        }
-    except Exception as exc:
-        return {
-            "status": "unavailable",
-            "error": {
-                "type": type(exc).__name__,
-                "message": _sanitize_runtime_diagnostic(exc),
+        return (
+            {
+                "status": "configured",
+                "metadata": metadata,
+                "effect_evidence": evidence,
             },
+            lm,
+            previous_lm,
+        )
+    except Exception as exc:
+        if lm is not None:
+            _close_runtime_provider(lm, previous_lm)
+        return (
+            {
+                "status": "unavailable",
+                "error": {
+                    "type": type(exc).__name__,
+                    "message": _sanitize_runtime_diagnostic(exc),
+                },
+            },
+            None,
+            previous_lm,
+        )
+
+
+def _provider_effect_evidence(lm: object | None) -> dict[str, object]:
+    if lm is None:
+        raise ValueError("provider adapter is unavailable")
+    from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+    from dspx.provider_runtime import provider_effect_evidence_from_instance
+
+    adapter = cast(DSPyTypedLMAdapter, lm)
+    if type(adapter) is not DSPyTypedLMAdapter:
+        raise TypeError("provider adapter has an invalid type")
+    return provider_effect_evidence_from_instance(adapter)
+
+
+def _close_runtime_provider(lm: object | None, previous_lm: object | None) -> None:
+    if lm is None:
+        return
+    import dspy
+    from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+    from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+    try:
+        dspy.configure(lm=previous_lm)
+    finally:
+        if (
+            type(lm) is DSPyTypedLMAdapter
+            and type(lm.provider) is OpenAICompatibleProvider
+        ):
+            lm.provider.close()
+
+
+def _receipt_provider_details(provider: Mapping[str, object]) -> dict[str, object]:
+    if provider.get("status") != "configured":
+        return {
+            "provider": "unavailable",
+            "provider_family": "unavailable",
+            "model": None,
+            "effect_contract": "dspx-provider-effect-v1",
+            "runtime": {"configuration_status": "unavailable"},
         }
+    metadata = _safe_mapping(provider.get("metadata"))
+    runtime = _safe_mapping(metadata.get("runtime"))
+    name = str(metadata.get("provider") or "")
+    return {
+        "provider": name,
+        "provider_family": name,
+        "model": metadata.get("model"),
+        "effect_contract": "dspx-provider-effect-v1",
+        "runtime": {
+            "provider_kind": runtime.get("provider_kind"),
+            "base_endpoint": runtime.get("base_endpoint"),
+            "effective_timeout": runtime.get("effective_timeout"),
+        },
+    }
+
+
+def _safe_lm_error_code(exc: Exception) -> str | None:
+    from dspx.provider_contract import EffectDisposition
+
+    code = getattr(exc, "code", None)
+    allowed = {item.value for item in EffectDisposition}
+    return code if isinstance(code, str) and code in allowed else None
 
 
 def _strip_json_fence(raw: str) -> str:
@@ -1303,6 +1390,207 @@ def _assert_identity_matches(
         raise ValueError(f"{label} identity mismatch: " + ", ".join(mismatches))
 
 
+_LEGACY_STUB_RECEIPT_PROVIDER_DETAILS: dict[str, object] = {
+    "provider": "stub",
+    "provider_family": "stub",
+    "model": "stub/echo",
+    "effect_contract": "dspx-provider-effect-v1",
+}
+
+
+def _legacy_receipt_matches_stub_provider(receipt: Mapping[str, object]) -> bool:
+    expected_identity = {
+        "provider": "stub",
+        "provider_details": _LEGACY_STUB_RECEIPT_PROVIDER_DETAILS,
+    }
+    replay = _safe_mapping(receipt.get("execution_replay"))
+    replay_identity = _safe_mapping(replay.get("provider_identity"))
+    return (
+        receipt.get("provider") == "stub"
+        and receipt.get("provider_details") == _LEGACY_STUB_RECEIPT_PROVIDER_DETAILS
+        and set(replay_identity) == {"provider", "provider_details", "hash"}
+        and replay_identity.get("provider") == expected_identity["provider"]
+        and replay_identity.get("provider_details")
+        == expected_identity["provider_details"]
+        and replay_identity.get("hash")
+        == canonical_replay_identity_hash(expected_identity)
+    )
+
+
+def _is_legacy_provider_evidence(value: object) -> bool:
+    evidence = _safe_mapping(value)
+    if evidence == {"status": "configured", "provider": "stub/echo"}:
+        return True
+    error = evidence.get("error")
+    return (
+        set(evidence) == {"status", "error"}
+        and evidence.get("status") == "unavailable"
+        and isinstance(error, Mapping)
+        and set(error) == {"type", "message"}
+        and all(isinstance(error.get(key), str) for key in ("type", "message"))
+    )
+
+
+def _validate_provider_evidence(value: object) -> dict[str, Any]:
+    evidence = _safe_mapping(value)
+    if evidence.get("status") == "unavailable":
+        if not _is_legacy_provider_evidence(evidence):
+            raise ValueError("unavailable provider evidence shape is invalid")
+        return evidence
+    if set(evidence) != {"status", "metadata", "effect_evidence"}:
+        raise ValueError("configured provider evidence shape is invalid")
+    if evidence.get("status") != "configured":
+        raise ValueError("provider evidence status is invalid")
+
+    metadata = _safe_mapping(evidence.get("metadata"))
+    if set(metadata) != {
+        "provider",
+        "model",
+        "model_type",
+        "typed_contract",
+        "capabilities",
+        "runtime",
+    }:
+        raise ValueError("provider runtime metadata shape is invalid")
+    kind = metadata.get("provider")
+    if kind not in {"stub", "openai-compatible"}:
+        raise ValueError("provider runtime identity is invalid")
+    if (
+        metadata.get("model_type") != "text"
+        or metadata.get("typed_contract") != "typed_lm"
+    ):
+        raise ValueError("provider typed metadata is invalid")
+    if metadata.get("capabilities") != {
+        "supports_tools": False,
+        "code_exec": False,
+        "json_mode": False,
+        "multi_turn": True,
+        "structured_output_format": "none",
+        "supports_vision": False,
+        "supports_audio": False,
+    }:
+        raise ValueError("provider capabilities metadata is invalid")
+
+    from dspx.openai_compatible_provider import _validated_model
+
+    model = metadata.get("model")
+    if not isinstance(model, str):
+        raise ValueError("provider runtime model is invalid")
+    try:
+        canonical_model = _validated_model(model)
+    except (TypeError, ValueError):
+        raise ValueError("provider runtime model is invalid") from None
+    if model != canonical_model:
+        raise ValueError("provider runtime model is not canonical")
+    runtime = _safe_mapping(metadata.get("runtime"))
+    if set(runtime) != {"provider_kind", "base_endpoint", "effective_timeout"}:
+        raise ValueError("provider runtime details shape is invalid")
+    if runtime.get("provider_kind") != kind:
+        raise ValueError("provider runtime kind is inconsistent")
+    if kind == "stub":
+        if (
+            model != "stub/echo"
+            or runtime.get("base_endpoint") is not None
+            or runtime.get("effective_timeout") is not None
+        ):
+            raise ValueError("stub runtime metadata contains HTTP fields")
+    else:
+        from dspx.openai_compatible_provider import (
+            _validated_endpoint,
+            _validated_timeout,
+        )
+
+        base_endpoint = runtime.get("base_endpoint")
+        if not isinstance(base_endpoint, str):
+            raise ValueError("provider runtime endpoint is invalid")
+        canonical_base, _ = _validated_endpoint(base_endpoint)
+        if base_endpoint != canonical_base:
+            raise ValueError("provider runtime endpoint is not canonical")
+        timeout = runtime.get("effective_timeout")
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise ValueError("provider runtime timeout is invalid")
+        try:
+            canonical_timeout = _validated_timeout(timeout)
+        except (TypeError, ValueError):
+            raise ValueError("provider runtime timeout is invalid") from None
+        if timeout != canonical_timeout:
+            raise ValueError("provider runtime timeout is not canonical")
+
+    effect_evidence = _safe_mapping(evidence.get("effect_evidence"))
+    if (
+        set(effect_evidence)
+        != {
+            "schema_version",
+            "attempt_total",
+            "attempts_truncated",
+            "terminal_effect",
+            "attempts",
+        }
+        or effect_evidence.get("schema_version") != "dspx-provider-effect-evidence-v1"
+    ):
+        raise ValueError("provider effect evidence envelope is invalid")
+    attempts = effect_evidence.get("attempts")
+    total = effect_evidence.get("attempt_total")
+    truncated = effect_evidence.get("attempts_truncated")
+    terminal = effect_evidence.get("terminal_effect")
+    if (
+        not isinstance(attempts, list)
+        or len(attempts) > 64
+        or isinstance(total, bool)
+        or not isinstance(total, int)
+        or total < len(attempts)
+        or not isinstance(truncated, bool)
+        or truncated != (total > len(attempts))
+        or (truncated and len(attempts) != 64)
+    ):
+        raise ValueError("provider attempt counts are inconsistent")
+    allowed_dispositions = {
+        "preflight_rejected",
+        "completed_success",
+        "completed_failure",
+        "effect_indeterminate",
+    }
+    for index, attempt in enumerate(attempts):
+        if not isinstance(attempt, Mapping) or set(attempt) != {
+            "provider_kind",
+            "requested_model",
+            "observed_model",
+            "dispatch_count",
+            "effect_disposition",
+        }:
+            raise ValueError("provider attempt shape is invalid")
+        disposition = attempt.get("effect_disposition")
+        dispatch_count = attempt.get("dispatch_count")
+        if (
+            attempt.get("provider_kind") != kind
+            or attempt.get("requested_model") != model
+            or (
+                attempt.get("observed_model") is not None
+                and (
+                    not isinstance(attempt.get("observed_model"), str)
+                    or _validated_model(cast(str, attempt.get("observed_model")))
+                    != attempt.get("observed_model")
+                )
+            )
+            or disposition not in allowed_dispositions
+            or dispatch_count not in {0, 1}
+            or (disposition == "preflight_rejected" and dispatch_count != 0)
+            or (disposition != "preflight_rejected" and dispatch_count != 1)
+            or (
+                disposition == "completed_success"
+                and attempt.get("observed_model") != model
+            )
+            or (disposition == "effect_indeterminate" and index != len(attempts) - 1)
+        ):
+            raise ValueError("provider attempt fields are inconsistent")
+    expected_terminal = attempts[-1].get("effect_disposition") if attempts else None
+    if terminal != expected_terminal or (total == 0) != (terminal is None):
+        raise ValueError("provider terminal effect is inconsistent")
+    if terminal not in allowed_dispositions | {None}:
+        raise ValueError("provider terminal effect is invalid")
+    return evidence
+
+
 def validate_program_runtime_episode_contract(
     runtime_episode: Mapping[str, Any],
     *,
@@ -1633,6 +1921,38 @@ def validate_program_runtime_episode_contract(
                 "shared_oracle_mutated",
             ),
         )
+
+        receipt_path = _resolve_episode_artifact(
+            episode_root,
+            f"{runtime_episode_path.name}.meta.json",
+            label="runtime receipt",
+        )
+        receipt_check = check_run_receipt(receipt_path)
+        if receipt_check.get("status") != "ok":
+            fail("runtime receipt must pass replay validation")
+        receipt = _load_json_object(receipt_path, label="runtime receipt")
+        behavior_provider_raw = behavior.get("provider")
+        runtime_provider_raw = runtime_episode.get("provider")
+        if runtime_provider_raw is None:
+            if not _is_legacy_provider_evidence(behavior_provider_raw):
+                fail("runtime provider evidence is missing for non-legacy behavior")
+            if not _legacy_receipt_matches_stub_provider(receipt):
+                fail(
+                    "legacy runtime receipt provider identity drifts from behavior results"
+                )
+        else:
+            behavior_provider = _validate_provider_evidence(behavior_provider_raw)
+            runtime_provider = _validate_provider_evidence(runtime_provider_raw)
+            if runtime_provider != behavior_provider:
+                fail("runtime provider evidence drifts from behavior results")
+            receipt_provider = _safe_mapping(receipt.get("run_summary")).get("provider")
+            if _validate_provider_evidence(receipt_provider) != behavior_provider:
+                fail("runtime receipt provider evidence drifts from behavior results")
+            expected_details = _receipt_provider_details(behavior_provider)
+            if receipt.get("provider_details") != expected_details or receipt.get(
+                "provider"
+            ) != expected_details.get("provider"):
+                fail("runtime receipt provider details drift from provider evidence")
     except error_type:
         raise
     except Exception as exc:
@@ -1806,7 +2126,7 @@ def run_program_runtime_episode(
         replay_fixture_hash = _sha256_file(replay_fixture_path)
 
     manifest_intent = _safe_mapping(manifest.get("intent"))
-    provider = _configure_provider()
+    provider, provider_adapter, previous_lm = _configure_provider()
     observed: dict[str, object] = {}
     notes: list[str] = []
     error: dict[str, str] | None = None
@@ -1871,8 +2191,16 @@ def run_program_runtime_episode(
     except Exception as exc:
         sanitized_error = _sanitize_runtime_diagnostic(exc)
         error = {"type": type(exc).__name__, "message": sanitized_error}
+        error_code = _safe_lm_error_code(exc)
+        if error_code is not None:
+            error["code"] = error_code
         notes.append(sanitized_error)
 
+    if provider.get("status") == "configured":
+        try:
+            provider["effect_evidence"] = _provider_effect_evidence(provider_adapter)
+        finally:
+            _close_runtime_provider(provider_adapter, previous_lm)
     execution_status = status
     quality_evaluation = evaluate_declared_quality(
         intent_summary.get("quality_criteria"), observed
@@ -2004,6 +2332,7 @@ def run_program_runtime_episode(
         "status": status,
         "execution_status": execution_status,
         "contract_mode": contract_mode,
+        "provider": provider,
         "candidate_manifest_path": str(source_manifest_path),
         "manifest_path": str(runtime_manifest_path),
         "input_path": str(inputs_path.expanduser().resolve()),
@@ -2063,10 +2392,12 @@ def run_program_runtime_episode(
         cache_key=cache_key,
         cache_file=str(root / ".cache" / "program-runtime" / f"{cache_key}.json"),
         cache_enabled=False,
+        provider_details_override=_receipt_provider_details(provider),
         replay_inputs=replay_inputs,
         run_summary={
             "runtime_episode_id": runtime_episode_id,
             "runtime_status": status,
+            "provider": provider,
             "behavior_results_sha256": behavior_hash,
             "program_runtime_traces_sha256": runtime_traces_hash,
             "oracle_evidence_sha256": _sha256_file(oracle_path),

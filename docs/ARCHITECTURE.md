@@ -20,15 +20,17 @@ graph TD
   Services --> Registry["Explicit provider registry"]
   Registry --> Adapter["DSPyTypedLMAdapter"]
   Adapter --> DSPy["DSPy 3.3 typed LM contract"]
-  Adapter --> Stub["StubProvider (supported in T2)"]
+  Adapter --> Stub["StubProvider (offline canary)"]
+  Adapter --> LocalHTTP["OpenAICompatibleProvider (loopback HTTP)"]
   Services --> Artifacts["Local generated and replay artifacts"]
   Services --> Tracing["Optional MLflow observability"]
   Services --> ToolRegistry["Tool registry (not enabled by typed cutover)"]
 ```
 
-The T2 support matrix is intentionally stub-only. Transport providers are DSPx-owned
-ports and do not subclass DSPy; exactly one adapter owns DSPy's typed lifecycle.
-Removed provider names fail before effects, and no legacy provider bridge,
+The T3 support matrix contains the offline stub plus one IP-literal loopback HTTP
+OpenAI-compatible transport. Providers are DSPx-owned ports and do not subclass DSPy;
+exactly one adapter owns DSPy's typed lifecycle. Unsupported provider names fail before
+effects, and no legacy provider bridge,
 `LMBase`, fake response envelope, or `MultiProviderLM` remains on the active path.
 
 Core vs App Boundary (current)
@@ -178,21 +180,27 @@ classDiagram
   }
 ```
 
-7) Provider Runtime Mode (T2 operational view)
+7) Provider Runtime Mode (T3 operational view)
 -----------------------------------------------
 
-The supported matrix contains only `DSPyTypedLMAdapter(StubProvider)` with model
-`stub/echo`. It is deterministic, local, synchronous, and has no network,
-credential, subprocess, tool, streaming, cancellation, or native-async effect.
-Unknown and removed provider names reject before dispatch.
+The supported matrix contains `DSPyTypedLMAdapter(StubProvider)` with model
+`stub/echo` and `DSPyTypedLMAdapter(OpenAICompatibleProvider)` for explicit
+IP-literal loopback HTTP endpoints. The HTTP provider is credential-free, synchronous,
+text-only, non-redirecting, and non-retrying; external URLs, tools, streaming,
+cancellation, native async, state, and copy remain unsupported. Explicit network-mutate
+policy opt-in plus provider/capability checks are required before dispatch. Runtime
+artifacts bind a maximum-64 secret-free attempt projection with one terminal effect and
+zero-or-one dispatch per invocation. Unknown and removed provider names reject before
+dispatch.
 
 8) Provider Execution Semantics
 -------------------------------
 
 | Provider / mode | Runtime type | Retry behavior | Effect contract | Status |
 | --- | --- | --- | --- | --- |
-| Stub (`stub`) | DSPx provider port behind the sole typed adapter | Disabled (`num_retries=0`) | Unsupported input rejects before invocation; post-effect ambiguity becomes redacted `effect_indeterminate` | Supported |
-| Codex, Claude, Gemini, Pi RPC, OpenRouter, OpenAI-compatible, `dspy-lm-auth`, vLLM, Multi | None in T2 | None | Deterministic unsupported-provider error before effects | Removed; additive restoration requires a separate gate |
+| Stub (`stub`) | DSPx provider port behind the sole typed adapter | Disabled (`num_retries=0`) | Unsupported input rejects before invocation; post-effect ambiguity becomes redacted `effect_indeterminate` | Supported offline canary |
+| OpenAI-compatible (`openai-compatible`) | DSPx loopback HTTP port behind the sole typed adapter | One dispatch per attempt; redirects and retries disabled; indeterminate effects latch the instance terminally | Fully read non-2xx/malformed responses are `completed_failure`; transport/read ambiguity is redacted `effect_indeterminate`; bounded receipt evidence records count and truncation | Supported without credentials for IP-literal loopback HTTP only |
+| Codex, Claude, Gemini, Pi RPC, OpenRouter, `dspy-lm-auth`, vLLM, Multi | None | None | Deterministic unsupported-provider error before effects | Removed; additive restoration requires a separate gate |
 
 9) Replay vs Explain (data model)
 ---------------------------------

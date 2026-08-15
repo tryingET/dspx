@@ -22,6 +22,17 @@ class EffectDisposition(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class ProviderAttemptEvent:
+    """Bounded secret-free terminal evidence for one provider invocation attempt."""
+
+    provider_kind: str
+    requested_model: str
+    observed_model: str | None
+    dispatch_count: int
+    disposition: EffectDisposition
+
+
+@dataclass(frozen=True, slots=True)
 class ProviderMessage:
     """One text-only message accepted by the first typed-provider slice."""
 

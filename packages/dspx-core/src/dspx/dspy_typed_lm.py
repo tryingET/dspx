@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from _thread import RLock as ReentrantLock
 from typing import Any, Final, cast
 
 from dspy import (
@@ -15,6 +16,7 @@ from dspy import (
 )
 from dspy.core.types import LMTextPart, LMUsage
 
+from .openai_compatible_provider import OpenAICompatibleProvider
 from .provider_contract import (
     EffectDisposition,
     Provider,
@@ -64,14 +66,36 @@ class DSPyTypedLMAdapter(BaseLM):
             num_retries=0,
         )
         self.provider = provider
+        self._indeterminate_latched = False
+        allowlisted_provider = (
+            cast(StubProvider | OpenAICompatibleProvider, provider)
+            if type(provider) in {StubProvider, OpenAICompatibleProvider}
+            else None
+        )
+        self._operation_lock = (
+            allowlisted_provider.operation_lock
+            if allowlisted_provider is not None
+            else ReentrantLock()
+        )
 
     # DSPy 3.3 selects this runtime contract through forward_contract, while its
     # BaseLM annotation still describes the legacy signature.
     def forward(  # ty: ignore[invalid-method-override]
         self, request: LMRequest
     ) -> LMResponse:
+        """Serialize invocation through response construction and terminal latching."""
+
+        with self._operation_lock:
+            return self._forward_locked(request)
+
+    def _forward_locked(self, request: LMRequest) -> LMResponse:
         """Translate one validated typed request and preserve effect disposition."""
 
+        if self._indeterminate_latched:
+            raise self._transport_error(
+                "DSPx provider invocation effect is indeterminate",
+                code=EffectDisposition.EFFECT_INDETERMINATE.value,
+            ) from None
         provider_request = self._provider_request(request)
         normalized_error: LMTransportError | None = None
         try:
@@ -82,10 +106,13 @@ class DSPyTypedLMAdapter(BaseLM):
                 if isinstance(provider_error.disposition, EffectDisposition)
                 else EffectDisposition.EFFECT_INDETERMINATE.value
             )
+            if code == EffectDisposition.EFFECT_INDETERMINATE.value:
+                self._latch_indeterminate()
             normalized_error = self._transport_error(
                 "DSPx provider invocation failed", code=code
             )
         except Exception:
+            self._latch_indeterminate()
             normalized_error = self._transport_error(
                 "DSPx provider invocation effect is indeterminate",
                 code=EffectDisposition.EFFECT_INDETERMINATE.value,
@@ -96,11 +123,14 @@ class DSPyTypedLMAdapter(BaseLM):
         try:
             return self._typed_response(result)
         except _ProviderResultFailure as result_failure:
+            if result_failure.code == EffectDisposition.EFFECT_INDETERMINATE.value:
+                self._latch_indeterminate()
             normalized_error = self._transport_error(
                 "DSPx provider returned a classified failure",
                 code=result_failure.code,
             )
         except Exception:
+            self._latch_indeterminate()
             normalized_error = self._transport_error(
                 "DSPx provider response processing is indeterminate",
                 code=EffectDisposition.EFFECT_INDETERMINATE.value,
@@ -121,8 +151,13 @@ class DSPyTypedLMAdapter(BaseLM):
         )
 
     def dump_state(self) -> dict[str, object]:
+        with self._operation_lock:
+            return self._dump_state_locked()
+
+    def _dump_state_locked(self) -> dict[str, object]:
         """Return a secret-free trusted-local reconstruction state."""
 
+        self._reject_latched_lifecycle("state")
         if type(self.provider) is not StubProvider:
             raise LMUnsupportedFeatureError(
                 "DSPx typed provider state is unsupported for this provider",
@@ -186,8 +221,13 @@ class DSPyTypedLMAdapter(BaseLM):
         return cls(provider, cache=cache)
 
     def copy(self, **kwargs: Any) -> DSPyTypedLMAdapter:
+        with self._operation_lock:
+            return self._copy_locked(**kwargs)
+
+    def _copy_locked(self, **kwargs: Any) -> DSPyTypedLMAdapter:
         """Preserve DSPy copy semantics without aliasing provider event state."""
 
+        self._reject_latched_lifecycle("copy")
         unsupported_updates = sorted(set(kwargs) - {"cache"})
         if unsupported_updates:
             raise LMUnsupportedFeatureError(
@@ -206,8 +246,27 @@ class DSPyTypedLMAdapter(BaseLM):
                 provider=type(self.provider).__name__,
             )
         copied = cast(DSPyTypedLMAdapter, super().copy(**kwargs))
-        copied.provider = self._load_provider_state(self.provider.dump_state())
+        copied_provider = cast(
+            StubProvider, self._load_provider_state(self.provider.dump_state())
+        )
+        copied.provider = copied_provider
+        copied._operation_lock = copied_provider.operation_lock
         return copied
+
+    def _latch_indeterminate(self) -> None:
+        self._indeterminate_latched = True
+        if type(self.provider) in {StubProvider, OpenAICompatibleProvider}:
+            provider = cast(StubProvider | OpenAICompatibleProvider, self.provider)
+            provider.latch_indeterminate_after_dispatch()
+
+    def _reject_latched_lifecycle(self, operation: str) -> None:
+        if self._indeterminate_latched:
+            raise LMUnsupportedFeatureError(
+                "DSPx indeterminate provider lifecycle is terminal",
+                features=[f"{operation}:effect_indeterminate"],
+                model=self.model,
+                provider=type(self.provider).__name__,
+            )
 
     def _provider_request(self, request: LMRequest) -> ProviderRequest:
         issues: list[str] = []
@@ -284,15 +343,31 @@ class DSPyTypedLMAdapter(BaseLM):
             raise ValueError("provider result text is invalid or exceeds the bound")
 
         provider_data = dict(result.provider_data)
-        if provider_data != {"provider_kind": "stub"}:
-            raise ValueError("provider data is not in the typed canary allowlist")
+        usage_data = dict(result.usage)
+        if type(self.provider) is StubProvider:
+            if provider_data != {"provider_kind": "stub"}:
+                raise ValueError("provider data is not in the stub allowlist")
+            if set(usage_data) != _ALLOWED_USAGE_KEYS or any(
+                value != 0 or isinstance(value, bool) for value in usage_data.values()
+            ):
+                raise ValueError(
+                    "provider usage is not the exact zero-token canary shape"
+                )
+        elif type(self.provider) is OpenAICompatibleProvider:
+            if provider_data != {"provider_kind": "openai-compatible"}:
+                raise ValueError("provider data is not in the HTTP provider allowlist")
+            if usage_data and (
+                set(usage_data) != _ALLOWED_USAGE_KEYS
+                or any(
+                    not isinstance(value, int) or isinstance(value, bool) or value < 0
+                    for value in usage_data.values()
+                )
+            ):
+                raise ValueError("provider usage is incomplete or invalid")
+        else:
+            raise ValueError("provider result is not from an allowlisted provider")
         provider_data["effect_disposition"] = result.effect_disposition.value
 
-        usage_data = dict(result.usage)
-        if set(usage_data) != _ALLOWED_USAGE_KEYS or any(
-            value != 0 or isinstance(value, bool) for value in usage_data.values()
-        ):
-            raise ValueError("provider usage is not the exact zero-token canary shape")
         usage = LMUsage(
             input_tokens=usage_data.get("input_tokens"),
             output_tokens=usage_data.get("output_tokens"),

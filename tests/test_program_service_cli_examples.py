@@ -5,16 +5,20 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, cast
 
+import dspy
+import httpx
 import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
+import dspx.openai_compatible_provider as openai_provider
 from dspx.services import program_service
 from dspx.services.program_service import ProgramIntent, materialize_program_from_intent
 from dspx.services.run_replay_service import check_run_receipt
@@ -142,8 +146,19 @@ def test_program_gen_cli_materializes_from_yaml(
     assert "ThreadPoolExecutor" in direct_run_text
     assert "def _apply_runtime_config_env(data: object) -> None:" in direct_run_text
     assert "_set_env_from_config(provider, 'name', 'DSPX_PROVIDER')" in direct_run_text
-    assert "'provider': 'stub'" in direct_run_text
-    assert "'model': getattr(lm, 'model', None)" in direct_run_text
+    assert (
+        "_set_env_from_config(provider, 'model', 'DSPX_OPENAI_COMPAT_MODEL')"
+        in direct_run_text
+    )
+    assert (
+        "_set_env_from_config(provider, 'base_url', 'DSPX_OPENAI_COMPAT_API_BASE')"
+        in direct_run_text
+    )
+    assert (
+        "_set_env_from_config(provider, 'timeout', 'DSPX_OPENAI_COMPAT_TIMEOUT')"
+        in direct_run_text
+    )
+    assert "provider_metadata_from_instance(provider_name, lm)" in direct_run_text
     assert "DSPX_LM_AUTH" not in direct_run_text
     assert "lm_auth" not in direct_run_text
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
@@ -155,10 +170,27 @@ def test_program_gen_cli_materializes_from_yaml(
         text=True,
     )
     preflight = json.loads(preflight_run.stdout)
-    assert preflight["provider"]["provider"] == "stub"
-    assert preflight["provider"]["model"] == "stub/echo"
-    assert preflight["provider"]["adapter"] == "DSPyTypedLMAdapter"
-    assert preflight["provider"]["provider_port"] == "StubProvider"
+    plain_preflight = subprocess.run(
+        [sys.executable, str(outdir / "direct_run.py"), "--preflight"],
+        cwd=outdir,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "provider=stub model=stub/echo" in plain_preflight.stdout
+    assert preflight["provider"]["metadata"]["provider"] == "stub"
+    assert preflight["provider"]["metadata"]["runtime"] == {
+        "provider_kind": "stub",
+        "base_endpoint": None,
+        "effective_timeout": None,
+    }
+    assert preflight["provider"]["effect_evidence"] == {
+        "schema_version": "dspx-provider-effect-evidence-v1",
+        "attempt_total": 0,
+        "attempts_truncated": False,
+        "terminal_effect": None,
+        "attempts": [],
+    }
     assert set(preflight["resolved_env"]) == {
         "DSPX_PROVIDER",
         "MLFLOW_ARTIFACT_ROOT",
@@ -167,6 +199,56 @@ def test_program_gen_cli_materializes_from_yaml(
         "MLFLOW_TRACKING_URI",
     }
     assert preflight["model_call_performed"] is False
+    openai_config = outdir / "openai.config.toml"
+    openai_config.write_text(
+        """
+[provider]
+name = "openai-compatible"
+model = "local-model"
+base_url = "http://127.0.0.1:8000/v1"
+timeout = 7
+""",
+        encoding="utf-8",
+    )
+    openai_preflight_run = subprocess.run(
+        [
+            sys.executable,
+            str(outdir / "direct_run.py"),
+            "--config",
+            str(openai_config),
+            "--preflight",
+            "--json",
+        ],
+        cwd=outdir,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    openai_preflight = json.loads(openai_preflight_run.stdout)
+    openai_plain_preflight = subprocess.run(
+        [
+            sys.executable,
+            str(outdir / "direct_run.py"),
+            "--config",
+            str(openai_config),
+            "--preflight",
+        ],
+        cwd=outdir,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "provider=openai-compatible model=local-model" in (
+        openai_plain_preflight.stdout
+    )
+    assert openai_preflight["provider"]["metadata"]["provider"] == "openai-compatible"
+    assert openai_preflight["provider"]["metadata"]["runtime"] == {
+        "provider_kind": "openai-compatible",
+        "base_endpoint": "http://127.0.0.1:8000/v1",
+        "effective_timeout": 7.0,
+    }
+    assert openai_preflight["provider"]["effect_evidence"]["attempt_total"] == 0
+    assert openai_preflight["model_call_performed"] is False
     assert (
         "configure_observability(run_name='program-runtime', run_kind='program-runtime')"
         in direct_run_text
@@ -307,9 +389,9 @@ def test_program_service_binds_examples_when_present(
     root = Path(artifact.root_path)
     assert (root / "examples.json").exists()
     assert (root / "eval_examples.py").exists()
-    assert "create_from_env()" in (
-        root / "eval_examples.py"
-    ).read_text(encoding="utf-8")
+    assert "create_from_env()" in (root / "eval_examples.py").read_text(
+        encoding="utf-8"
+    )
     assert (root / "behavior_results.json").exists()
     assert (root / "eval_behavior.py").exists()
     eval_behavior_source = (root / "eval_behavior.py").read_text(encoding="utf-8")
@@ -773,3 +855,113 @@ def test_program_gen_cli_rejects_invalid_intent_field(
     assert result.exit_code == 2
     combined = (result.stdout + result.stderr).lower()
     assert "valid python identifiers" in combined
+
+
+@pytest.mark.parametrize(
+    "outcome,disposition,status",
+    [
+        ("success", "completed_success", "ok"),
+        ("completed_failure", "completed_failure", "failed"),
+        ("indeterminate", "effect_indeterminate", "failed"),
+    ],
+)
+def test_generated_direct_run_projects_in_process_provider_effect_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: str,
+    disposition: str,
+    status: str,
+) -> None:
+    candidate = tmp_path / "candidate"
+    materialize_program_from_intent(
+        ProgramIntent(
+            name="DirectRuntimeProgram",
+            objective="Classify urgency.",
+            inputs=["ticket_text"],
+            outputs=["urgency"],
+        ),
+        outdir=candidate,
+    )
+    inputs = tmp_path / "inputs.json"
+    inputs.write_text(json.dumps({"inputs": {"ticket_text": "server down"}}))
+    monkeypatch.setenv("DSPX_PROVIDER", "openai-compatible")
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_MODEL", "local-model")
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_API_BASE", "http://127.0.0.1:8000/v1")
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_TIMEOUT", "10")
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    requests: list[httpx.Request] = []
+    closed: list[object] = []
+    original_close = openai_provider.OpenAICompatibleProvider.close
+
+    def close(provider: object) -> None:
+        closed.append(provider)
+        original_close(provider)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(openai_provider.OpenAICompatibleProvider, "close", close)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if outcome == "indeterminate":
+            raise httpx.ConnectError("api_key=secret-value", request=request)
+        if outcome == "completed_failure":
+            return httpx.Response(
+                500, json={"error": "api_key=secret-value"}, request=request
+            )
+        return httpx.Response(
+            200,
+            json={
+                "model": "local-model",
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "[[ ## urgency ## ]]\nhigh\n[[ ## completed ## ]]",
+                        }
+                    }
+                ],
+            },
+            request=request,
+        )
+
+    monkeypatch.setattr(
+        openai_provider, "_default_transport", lambda: httpx.MockTransport(handler)
+    )
+    module_name = f"direct_run_{outcome}"
+    spec = importlib.util.spec_from_file_location(
+        module_name, candidate / "direct_run.py"
+    )
+    assert spec is not None and spec.loader is not None
+    direct_run = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(direct_run)
+    outdir = tmp_path / "outputs"
+    for name in ("program", "module", "signature"):
+        sys.modules.pop(name, None)
+    if status == "ok":
+        direct_run._single_run(inputs, outdir)
+    else:
+        with pytest.raises(SystemExit):
+            direct_run._single_run(inputs, outdir)
+    for name in ("program", "module", "signature"):
+        sys.modules.pop(name, None)
+
+    receipt_text = (outdir / "direct_run_receipt.json").read_text()
+    receipt = json.loads(receipt_text)
+    evidence = receipt["provider"]["effect_evidence"]
+    assert receipt["status"] == status
+    assert receipt["provider"]["metadata"]["provider"] == "openai-compatible"
+    assert evidence["schema_version"] == "dspx-provider-effect-evidence-v1"
+    assert evidence["attempt_total"] == 1
+    assert evidence["attempts_truncated"] is False
+    assert evidence["terminal_effect"] == disposition
+    assert evidence["attempts"][0]["effect_disposition"] == disposition
+    assert len(requests) == 1
+    assert len(closed) == 1
+    assert direct_run._RUNTIME_LM is None
+    configured_lm = getattr(dspy.settings, "lm", None)
+    assert (
+        configured_lm is None or getattr(configured_lm, "provider", None) not in closed
+    )
+    assert "secret-value" not in receipt_text
+    if status == "failed":
+        assert receipt["error"]["code"] == disposition

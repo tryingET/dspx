@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Iterator, Mapping
 import inspect
+from threading import Event, Thread
 from typing import Any
 
 import dspy
@@ -15,6 +16,7 @@ import pytest
 from dspx.provider_contract import (
     EffectDisposition,
     ProviderInvocationError,
+    ProviderMessage,
     ProviderRequest,
     ProviderResult,
 )
@@ -417,3 +419,104 @@ def test_callbacks_wrap_success_and_pre_effect_rejection_but_are_not_receipts() 
 
 def test_dspx_provider_request_identity_remains_distinct_from_dspy() -> None:
     assert ProviderRequest is not LMRequest
+
+
+def test_latched_stub_cannot_dispatch_dump_or_copy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    provider = StubProvider()
+    lm = DSPyTypedLMAdapter(provider)
+
+    def fail_response(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        raise ValueError("post-effect failure")
+
+    monkeypatch.setattr(LMResponse, "from_text", fail_response)
+    with pytest.raises(LMTransportError, match="response processing") as exc_info:
+        lm(request=_request())
+    assert exc_info.value.code == "effect_indeterminate"
+    assert provider.attempt_total == 1
+    assert provider.terminal_effect is EffectDisposition.EFFECT_INDETERMINATE
+
+    with pytest.raises(LMTransportError) as second:
+        lm(request=_request())
+    assert second.value.code == "effect_indeterminate"
+    assert provider.attempt_total == 1
+    with pytest.raises(RuntimeError, match="terminal"):
+        provider.dump_state()
+    with pytest.raises(LMUnsupportedFeatureError, match="terminal"):
+        lm.dump_state()
+    with pytest.raises(LMUnsupportedFeatureError, match="terminal"):
+        lm.copy()
+
+
+def test_copied_adapter_and_provider_share_isolated_lock_during_postprocessing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_provider = StubProvider()
+    original = DSPyTypedLMAdapter(original_provider)
+    copied = original.copy()
+    assert copied.provider is not original_provider
+    assert copied._operation_lock is copied.provider.operation_lock
+    assert copied._operation_lock is not original._operation_lock
+
+    postprocessing = Event()
+    release = Event()
+    direct_started = Event()
+    direct_finished = Event()
+    outcomes: list[str] = []
+
+    def fail_response(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        postprocessing.set()
+        assert release.wait(5)
+        raise ValueError("postprocessing failure")
+
+    monkeypatch.setattr(LMResponse, "from_text", fail_response)
+
+    def adapter_call() -> None:
+        try:
+            copied(request=_request("copied"))
+        except LMTransportError as exc:
+            outcomes.append(f"adapter:{exc.code}")
+
+    def direct_call() -> None:
+        direct_started.set()
+        try:
+            copied.provider.invoke(
+                ProviderRequest(
+                    model="stub/echo",
+                    messages=(ProviderMessage(role="user", text="direct"),),
+                )
+            )
+        except ProviderInvocationError as exc:
+            outcomes.append(f"direct:{exc.disposition.value}")
+        finally:
+            direct_finished.set()
+
+    first = Thread(target=adapter_call)
+    second = Thread(target=direct_call)
+    first.start()
+    assert postprocessing.wait(5)
+    second.start()
+    assert direct_started.wait(5)
+    assert not direct_finished.wait(0.05)
+    release.set()
+    first.join(5)
+    second.join(5)
+
+    assert not first.is_alive() and not second.is_alive()
+    assert sorted(outcomes) == [
+        "adapter:effect_indeterminate",
+        "direct:effect_indeterminate",
+    ]
+    assert original_provider.provider_events == ()
+    assert original_provider.attempt_total == 0
+    assert copied.provider.attempt_total == 1
+    assert copied.provider.terminal_effect is EffectDisposition.EFFECT_INDETERMINATE
+    assert copied.provider.provider_events == (copied.provider.provider_events[0],)
+    event = copied.provider.provider_events[0]
+    assert event.requested_model == "stub/echo"
+    assert event.observed_model == "stub/echo"
+    assert event.dispatch_count == 1
+    assert event.disposition is EffectDisposition.EFFECT_INDETERMINATE

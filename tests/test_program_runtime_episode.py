@@ -15,8 +15,10 @@ import pytest
 from typer.testing import CliRunner
 from typer.main import get_command
 
+from dspx.cache import make_key
 from dspx.cli.dspx import app
 from dspx.coordinates import CoordinateIndex, reset_embedding_engine
+from dspx.run_receipts import build_execution_replay_policy
 import dspx.services.program_runtime_episode as runtime_episode_service
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
@@ -505,6 +507,38 @@ def test_program_runtime_episode_applies_declared_quality_without_approval(
     episode["artifact_hashes"]["program_runtime_traces_sha256"] = traces_hash
     episode["artifact_hashes"]["oracle_evidence_sha256"] = oracle_hash
     episode_path.write_text(json.dumps(episode, indent=2, sort_keys=True) + "\n")
+    episode_hash = hashlib.sha256(episode_path.read_bytes()).hexdigest()
+    receipt_path = pass_root / "runtime_episode.json.meta.json"
+    receipt = json.loads(receipt_path.read_text())
+    receipt["hash"] = episode_hash
+    receipt["run_summary"]["runtime_status"] = "executed"
+    receipt["run_summary"]["behavior_results_sha256"] = behavior_hash
+    receipt["run_summary"]["program_runtime_traces_sha256"] = traces_hash
+    receipt["run_summary"]["oracle_evidence_sha256"] = oracle_hash
+    expected = receipt["replay_inputs"]["expected_episode"]
+    expected["status"] = "executed"
+    expected["quality_status"] = "not_declared"
+    expected["quality_evaluation_sha256"] = hashlib.sha256(
+        json.dumps(not_declared, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    expected["behavior_results_sha256"] = behavior_hash
+    expected["program_runtime_traces_sha256"] = traces_hash
+    expected["oracle_evidence_sha256"] = oracle_hash
+    expected["runtime_episode_sha256"] = episode_hash
+    receipt["cache_key"] = make_key(
+        {"kind": "program-runtime", "replay_inputs": receipt["replay_inputs"]}
+    )
+    receipt["cache_file"] = str(
+        pass_root / ".cache" / "program-runtime" / f"{receipt['cache_key']}.json"
+    )
+    receipt["execution_replay"] = build_execution_replay_policy(
+        run_kind="program-runtime",
+        provider=receipt["provider"],
+        provider_details=receipt["provider_details"],
+        replay_inputs=receipt["replay_inputs"],
+        output_hash=episode_hash,
+    )
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     source_manifest = json.loads((candidate / "manifest.json").read_text())
     with pytest.raises(ValueError, match="quality criteria drift"):
         validate_program_runtime_episode_contract(

@@ -18,8 +18,10 @@ supersede this runtime with:
 - exact DSPy and DSPy-AI 3.3.0;
 - DSPx-owned provider/effect/receipt ports;
 - exactly one `DSPyTypedLMAdapter` owning DSPy's typed lifecycle;
-- a stub-only T2 support matrix using `StubProvider` and model `stub/echo`;
-- deterministic pre-effect rejection for removed or unknown provider names;
+- a T3 support matrix with the `StubProvider` canary and one separately restored,
+  credential-free IP-literal loopback HTTP `OpenAICompatibleProvider`, with explicit
+  network policy opt-in and receipt-bound bounded attempt evidence;
+- deterministic pre-effect rejection for unsupported or unknown provider names;
 - no compatibility registration, response facsimile, fallback, aggregate LM,
   auth checkout, or live-provider command;
 - future provider breadth only through separately reviewed additive restoration.

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import hashlib
 import json
 import os
@@ -47,6 +48,44 @@ from dspx.services.program_runtime_episode import (
 )
 from dspx.services.run_replay_service import check_run_receipt
 from dspx.services.replay_claims import build_replay_claim_matrix
+
+
+def _legacy_behavior_without_provider(value: Mapping[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(dict(value))
+    normalized.pop("provider", None)
+    return normalized
+
+
+def _legacy_traces_without_behavior_hash(value: Mapping[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(dict(value))
+    sources = normalized.get("sources")
+    if isinstance(sources, list):
+        for source in sources:
+            if (
+                isinstance(source, dict)
+                and source.get("path") == "behavior_results.json"
+            ):
+                source["content_hash"] = "<provider-normalized-behavior-hash>"
+    return normalized
+
+
+def _legacy_oracle_without_provider_dependent_hashes(
+    value: Mapping[str, Any],
+) -> dict[str, Any]:
+    normalized = deepcopy(dict(value))
+    behavior = normalized.get("behavior")
+    if isinstance(behavior, dict) and "result_hash" in behavior:
+        behavior["result_hash"] = "<provider-normalized-behavior-hash>"
+    sources = normalized.get("source_artifacts")
+    if isinstance(sources, list):
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            if source.get("path") == "behavior_results.json":
+                source["content_hash"] = "<provider-normalized-behavior-hash>"
+            elif source.get("path") == "program_runtime_traces.json":
+                source["content_hash"] = "<provider-normalized-traces-hash>"
+    return normalized
 
 
 def execute_program_runtime_receipt_impl(
@@ -274,6 +313,27 @@ def execute_program_runtime_receipt_impl(
             label="source runtime episode",
         )
         expected = _safe_mapping(replay_inputs.get("expected_episode"))
+        legacy_provider_evidence = (
+            "provider" not in source_bundle.runtime_episode
+            and source_bundle.behavior_results.get("provider")
+            == {"status": "configured", "provider": "stub/echo"}
+        )
+        source_legacy_traces = (
+            _load_json_object(
+                source_episode_path.parent / "program_runtime_traces.json",
+                label="source legacy runtime traces",
+            )
+            if legacy_provider_evidence
+            else {}
+        )
+        source_legacy_oracle = (
+            _load_json_object(
+                source_episode_path.parent / "oracle_evidence.json",
+                label="source legacy Oracle evidence",
+            )
+            if legacy_provider_evidence
+            else {}
+        )
         source_observed = _observed_outputs(source_bundle.behavior_results)
         source_quality = _safe_mapping(
             source_bundle.behavior_results.get("quality_evaluation")
@@ -498,15 +558,55 @@ def execute_program_runtime_receipt_impl(
                 == expected.get("quality_evaluation_sha256"),
                 "observed_outputs_match": _canonical_hash(fresh_observed)
                 == expected.get("observed_outputs_sha256"),
-                "behavior_results_hash_match": fresh_bundle.behavior_results_sha256
-                == expected.get("behavior_results_sha256"),
-                "runtime_traces_hash_match": fresh_hashes.get(
-                    "program_runtime_traces_sha256"
-                )
-                == expected.get("program_runtime_traces_sha256"),
-                "oracle_evidence_hash_match": fresh_hashes.get("oracle_evidence_sha256")
-                == expected.get("oracle_evidence_sha256"),
             }
+            if legacy_provider_evidence:
+                fresh_traces = _load_json_object(
+                    fresh_root / "program_runtime_traces.json",
+                    label="fresh legacy-compatible runtime traces",
+                )
+                fresh_oracle = _load_json_object(
+                    fresh_root / "oracle_evidence.json",
+                    label="fresh legacy-compatible Oracle evidence",
+                )
+                reproduction_checks.update(
+                    {
+                        "legacy_behavior_normalized_match": (
+                            _legacy_behavior_without_provider(
+                                source_bundle.behavior_results
+                            )
+                            == _legacy_behavior_without_provider(
+                                fresh_bundle.behavior_results
+                            )
+                        ),
+                        "legacy_runtime_traces_normalized_match": (
+                            _legacy_traces_without_behavior_hash(source_legacy_traces)
+                            == _legacy_traces_without_behavior_hash(fresh_traces)
+                        ),
+                        "legacy_oracle_evidence_normalized_match": (
+                            _legacy_oracle_without_provider_dependent_hashes(
+                                source_legacy_oracle
+                            )
+                            == _legacy_oracle_without_provider_dependent_hashes(
+                                fresh_oracle
+                            )
+                        ),
+                    }
+                )
+            else:
+                reproduction_checks.update(
+                    {
+                        "behavior_results_hash_match": fresh_bundle.behavior_results_sha256
+                        == expected.get("behavior_results_sha256"),
+                        "runtime_traces_hash_match": fresh_hashes.get(
+                            "program_runtime_traces_sha256"
+                        )
+                        == expected.get("program_runtime_traces_sha256"),
+                        "oracle_evidence_hash_match": fresh_hashes.get(
+                            "oracle_evidence_sha256"
+                        )
+                        == expected.get("oracle_evidence_sha256"),
+                    }
+                )
             report.setdefault("checks", {}).update(reproduction_checks)
             if not all(reproduction_checks.values()):
                 raise ValueError(
