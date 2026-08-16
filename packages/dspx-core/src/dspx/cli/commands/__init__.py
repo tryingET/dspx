@@ -40,6 +40,7 @@ from dspx.cli.commands.program_promote import app as program_promote_app
 from dspx.cli.commands.program_refine import app as program_refine_app
 from dspx.cli.commands.run import app as run_app
 from dspx.cli.commands.signature import app as signature_app
+from dspx.cli.commands.soomfon_evaluation import app as soomfon_evaluation_app
 from dspx.cli.commands.tools import app as tools_app
 from dspx.cli.commands.web import app as web_app
 
@@ -52,6 +53,7 @@ __all__ = [
     "program_architect_app",
     "oracle_app",
     "signature_app",
+    "soomfon_evaluation_app",
     "mermaid_app",
     "openapi_app",
     "web_app",

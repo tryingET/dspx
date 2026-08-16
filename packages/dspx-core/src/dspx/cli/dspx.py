@@ -32,7 +32,6 @@ from dspx.cli.utils import (
 )
 from dspx.tracing import enable_mlflow_from_env
 
-# Re-exports for backward compatibility with tests
 __all__ = [
     "app",
     "enable_mlflow_from_env",
@@ -40,7 +39,6 @@ __all__ = [
     "_TEMPLATE_ADAPTER_AVAILABLE",
 ]
 
-# Import extracted command apps
 from dspx.cli.commands import (
     cache_app,
     run_app,
@@ -50,6 +48,7 @@ from dspx.cli.commands import (
     program_architect_app,
     oracle_app,
     signature_app,
+    soomfon_evaluation_app,
     mermaid_app,
     openapi_app,
     web_app,
@@ -59,10 +58,8 @@ from dspx.cli.commands import (
     adapters_eval_app,
 )
 
-# Main app
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
-# Register command groups (imported from extracted modules)
 app.add_typer(signature_app, name="signature", help="Signature operations")
 app.add_typer(mermaid_app, name="mermaid", help="Mermaid workflow operations")
 app.add_typer(tools_app, name="tools", help="Tools and integrations")
@@ -73,6 +70,7 @@ adapters_app.add_typer(adapters_dataset_app, name="dataset", help="Dataset adapt
 adapters_app.add_typer(adapters_eval_app, name="eval", help="Evaluation helpers")
 app.add_typer(cache_app, name="cache", help="Inspect and manage the on-disk cache")
 app.add_typer(optimize_app, name="optimize", help="Program optimization (GEPA, etc.)")
+app.add_typer(soomfon_evaluation_app, name="soomfon", help="Soomfon evaluation")
 app.add_typer(run_app, name="run", help="Replay/explain operations")
 app.add_typer(
     program_refine_app,
