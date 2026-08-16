@@ -563,6 +563,7 @@ def _run_gepa_optimize_impl(
     manifest = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "dspy_version": getattr(dspy, "__version__", "unknown"),
+        "gepa_version": _distribution_version("gepa"),
         "dspx_version": _dspx_version(),
         "python": _python_env(),
         "program": {
@@ -620,16 +621,20 @@ def _run_gepa_optimize_impl(
     )
 
 
-def _dspx_version() -> str | None:
+def _distribution_version(distribution: str) -> str | None:
     try:
         from importlib.metadata import PackageNotFoundError, version
 
         try:
-            return version("dspx")
+            return version(distribution)
         except PackageNotFoundError:
             return None
     except Exception:
         return None
+
+
+def _dspx_version() -> str | None:
+    return _distribution_version("dspx")
 
 
 def _python_env() -> dict[str, str]:

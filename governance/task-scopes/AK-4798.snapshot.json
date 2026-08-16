@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-16T07:48:29.739087122+00:00",
+  "task_id": 4798,
+  "entity_version": 2,
+  "commit_sha": "54b77e8bac495212a02ba6cdb3186080a34bd584",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-gepa-0-1-4-*.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/pyproject.toml",
+      "packages/dspx-core/src/dspx/services/optimize_service.py",
+      "pyproject.toml",
+      "tests/test_mlflow_gepa_tracing.py",
+      "tests/test_optimize_gepa_*.py",
+      "tests/test_program_refinement_gepa*.py",
+      "uv.lock"
+    ],
+    "required_paths": [
+      "pyproject.toml",
+      "uv.lock"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

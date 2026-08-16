@@ -4,6 +4,9 @@ members = ["packages/dspx-core", "apps/forge"]
 [tool.uv]
 # Immutable dependency-evidence cutoff for the exact DSPy 3.3 transaction.
 exclude-newer = "2026-08-04T23:59:59Z"
+# DSPy 3.3.0 pins GEPA 0.1.1 transitively. DSPx explicitly overrides that
+# stale compatibility pin only after its GEPA 0.1.4 transition matrix passes.
+override-dependencies = ["gepa[dspy]==0.1.4"]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
