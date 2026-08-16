@@ -1,0 +1,205 @@
+{
+  "behavior_comparison": {
+    "candidate": {
+      "behavior_episode_present": true,
+      "behavior_evidence_kind": "behavior_results",
+      "behavior_evidence_present": true,
+      "behavior_results_present": true,
+      "behavior_status": "failed",
+      "example_count": 2,
+      "failure_signals": [
+        "mismatch:response"
+      ],
+      "source_count": 1,
+      "status_counts": {
+        "failed": 2
+      }
+    },
+    "delta": {
+      "candidate_degraded_count": 0,
+      "candidate_error_count": 0,
+      "candidate_failed_count": 2,
+      "degraded_count_delta": 0,
+      "error_count_delta": 0,
+      "failed_count_delta": 0,
+      "failure_signals_added": [],
+      "failure_signals_persisted": [
+        "mismatch:response"
+      ],
+      "failure_signals_removed": [],
+      "source_degraded_count": 0,
+      "source_error_count": 0,
+      "source_failed_count": 2,
+      "status_changed": false
+    },
+    "source": {
+      "behavior_episode_present": true,
+      "behavior_evidence_kind": "behavior_results",
+      "behavior_evidence_present": true,
+      "behavior_results_present": true,
+      "behavior_status": "failed",
+      "example_count": 2,
+      "failure_signals": [
+        "mismatch:response"
+      ],
+      "source_count": 1,
+      "status_counts": {
+        "failed": 2
+      }
+    }
+  },
+  "candidate_identity": {
+    "assembly_id": "prog-asm-ff4b916dc780",
+    "candidate_id": "prog-cand-d4f50d25a3fa",
+    "episode_id": "prog-ep-9dd1ec564343",
+    "receipt_bundle_id": "prog-rb-b8bce0f74404",
+    "request_id": "prog-req-c6660c9b1470"
+  },
+  "created_from": {
+    "candidate_behavior_episode_hash": "91e05a246aa23eb21313d281037b7f4b71a02268f937a65bd3629a215a562328",
+    "candidate_behavior_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/behavior_episode.json",
+    "candidate_behavior_results_hash": "db882b0dfb7ded130dc98bdc1923b1f7826223223223d005faa513c5c0bebc6d",
+    "candidate_behavior_results_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/behavior_results.json",
+    "candidate_manifest_hash": "aa0b473e7f0cd056246149eacfcb25c5ed023ab61a1b9410103443e68c30fac1",
+    "candidate_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json",
+    "candidate_manifest_schema_version": "program-candidate-assembly-v1",
+    "candidate_runtime_episode_hash": "d202f357c4874ec26f5b1e9c7ddc0cbdfa9628dcf4c22325440b0aa3bcb24679",
+    "candidate_runtime_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/runtime_episode.json",
+    "decision_record_path": null,
+    "refinement_proposal_path": null,
+    "source_behavior_episode_hash": "01b07141bf75288e9c78503aeebf49d7ca0b2f99f58a0d51001e0b889ed11f49",
+    "source_behavior_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/simple/original/behavior_episode.json",
+    "source_behavior_results_hash": "2c1cd583f6c1c183920d1b4847c210280400d37c014dd9208f70df077f362d5d",
+    "source_behavior_results_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/simple/original/behavior_results.json",
+    "source_manifest_hash": "d83eefae351c6ba16e3a19c346f75e8b3bd47a25886a7e76359141e3b8b0acae",
+    "source_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/simple/original/manifest.json",
+    "source_manifest_schema_version": "program-candidate-assembly-v1",
+    "source_runtime_episode_hash": "5548a645a1fb2d50171fc31a05a80823ca6074fdeb10f96f2edb9e315244a773",
+    "source_runtime_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/historical-artifact-under-3.3-stub/runtime_episode.json"
+  },
+  "effect": {
+    "candidate_program_files_mutated": false,
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "local_comparison_only": true,
+    "new_candidate_generated": false,
+    "source_program_files_mutated": false
+  },
+  "interpretation": {
+    "evidence_basis": "generated_behavior",
+    "evidence_conflict": false,
+    "generated_evidence_compared": true,
+    "improvement_observed": false,
+    "limits": [
+      "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+      "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+      "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+      "This comparison is not a promotion, ranking, winner-selection, or approval decision."
+    ],
+    "needs_more_evidence": true,
+    "runtime_evidence_compared": true,
+    "summary": "The second candidate did not remove the observed local behavior signal."
+  },
+  "lineage": {
+    "candidate_declares_refinement_lineage": false,
+    "decision_outcome": null,
+    "decision_record_input_present": false,
+    "proposal_input_present": false,
+    "refinement_proposal_id": null,
+    "source_identity_matches_candidate_lineage": null
+  },
+  "non_authority": {
+    "automatic_promotion": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "local_comparison_only": true,
+    "new_candidate_generation": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "program_mutation": false,
+    "winner_selection": false
+  },
+  "runtime_evidence_comparison": {
+    "candidate": {
+      "artifact_hashes": {
+        "behavior_results_hash": "43f0db536a537155c295ef08380de7d5bcf5212499e572297cfd43b301fb6ccb",
+        "oracle_evidence_hash": "d947bfb32784c667e54741d1eef9a008748553f255013e09485ee83810f8a963",
+        "program_runtime_traces_hash": "9bc9ce39ae9eeb7ec5ebe22ec07eff320ab768e702c0b1f7a30434a8e7a64572",
+        "runtime_inputs_hash": "e1eeb9e8974d3716c76882af7dfba39c8ccf758eb51caf48fe6fe9a8426c74ff"
+      },
+      "behavior_evidence_kind": "runtime_episode",
+      "behavior_evidence_present": true,
+      "behavior_status": "executed",
+      "contract_mode": "none",
+      "example_count": 1,
+      "failure_signals": [],
+      "runtime_episode_id": "prog-run-68e8b9e7c67da8fc",
+      "runtime_evidence_present": true,
+      "runtime_status": "executed",
+      "status_counts": {
+        "executed": 1
+      }
+    },
+    "compared": true,
+    "delta": {
+      "candidate_degraded_count": 0,
+      "candidate_error_count": 0,
+      "candidate_failed_count": 0,
+      "degraded_count_delta": 0,
+      "error_count_delta": 0,
+      "failed_count_delta": 0,
+      "failure_signals_added": [],
+      "failure_signals_persisted": [],
+      "failure_signals_removed": [],
+      "source_degraded_count": 0,
+      "source_error_count": 0,
+      "source_failed_count": 0,
+      "status_changed": false
+    },
+    "interpretation": {
+      "improvement_observed": false,
+      "limits": [
+        "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+        "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+        "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+        "This comparison is not a promotion, ranking, winner-selection, or approval decision."
+      ],
+      "needs_more_evidence": true,
+      "summary": "The second candidate behavior status is unchanged on the available local evidence."
+    },
+    "limits": [
+      "Runtime episodes are already-produced local program-run evidence; comparison never reruns candidates.",
+      "Runtime success, trace coverage, or Oracle-readable evidence is not promotion, activation, ranking, or owner acceptance."
+    ],
+    "source": {
+      "artifact_hashes": {
+        "behavior_results_hash": "ec953285d1af96217cc8c0f1f1969439cc8328a1c41a3372ac772ad7c8619b79",
+        "oracle_evidence_hash": "422d734ab7036d89ce29e6a63881e04506b766e0f3f90ce4c3e9b43e75d642e5",
+        "program_runtime_traces_hash": "bf860a7cbfb8790ff6030f7e41f0eb7aa59d979a48d22fdd3a55c400e0378927",
+        "runtime_inputs_hash": "e1eeb9e8974d3716c76882af7dfba39c8ccf758eb51caf48fe6fe9a8426c74ff"
+      },
+      "behavior_evidence_kind": "runtime_episode",
+      "behavior_evidence_present": true,
+      "behavior_status": "executed",
+      "contract_mode": "none",
+      "example_count": 1,
+      "failure_signals": [],
+      "runtime_episode_id": "prog-run-91cb60090d6faa98",
+      "runtime_evidence_present": true,
+      "runtime_status": "executed",
+      "status_counts": {
+        "executed": 1
+      }
+    }
+  },
+  "schema_version": "program-refinement-candidate-comparison-v1",
+  "source_identity": {
+    "assembly_id": "prog-asm-a4329751dd30",
+    "candidate_id": "prog-cand-9a22407aa649",
+    "episode_id": "prog-ep-1ad3a21148de",
+    "receipt_bundle_id": "prog-rb-1503e0d3f320",
+    "request_id": "prog-req-c6660c9b1470"
+  },
+  "status": "compared"
+}

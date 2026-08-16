@@ -1,0 +1,86 @@
+{
+  "artifact_hashes": {
+    "behavior_results_sha256": "ec953285d1af96217cc8c0f1f1969439cc8328a1c41a3372ac772ad7c8619b79",
+    "oracle_evidence_sha256": "422d734ab7036d89ce29e6a63881e04506b766e0f3f90ce4c3e9b43e75d642e5",
+    "program_runtime_traces_sha256": "bf860a7cbfb8790ff6030f7e41f0eb7aa59d979a48d22fdd3a55c400e0378927",
+    "runtime_inputs_sha256": "e1eeb9e8974d3716c76882af7dfba39c8ccf758eb51caf48fe6fe9a8426c74ff",
+    "source_manifest_sha256": "d83eefae351c6ba16e3a19c346f75e8b3bd47a25886a7e76359141e3b8b0acae"
+  },
+  "candidate_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/simple/original/manifest.json",
+  "contract_mode": "none",
+  "execution_status": "executed",
+  "input_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime-inputs.json",
+  "manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/historical-artifact-under-3.3-stub/manifest.json",
+  "non_authority": {
+    "activation_authority": false,
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "promotion_authority": false,
+    "shared_oracle_mutated": false
+  },
+  "output_files": [
+    "response"
+  ],
+  "provider": {
+    "effect_evidence": {
+      "attempt_total": 4,
+      "attempts": [
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        },
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        },
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        },
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        }
+      ],
+      "attempts_truncated": false,
+      "schema_version": "dspx-provider-effect-evidence-v1",
+      "terminal_effect": "completed_success"
+    },
+    "metadata": {
+      "capabilities": {
+        "code_exec": false,
+        "json_mode": false,
+        "multi_turn": true,
+        "structured_output_format": "none",
+        "supports_audio": false,
+        "supports_tools": false,
+        "supports_vision": false
+      },
+      "model": "stub/echo",
+      "model_type": "text",
+      "provider": "stub",
+      "runtime": {
+        "base_endpoint": null,
+        "effective_timeout": null,
+        "provider_kind": "stub"
+      },
+      "typed_contract": "typed_lm"
+    },
+    "status": "configured"
+  },
+  "runtime_episode_id": "prog-run-91cb60090d6faa98",
+  "schema_version": "program-runtime-episode-v1",
+  "status": "executed"
+}

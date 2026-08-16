@@ -1,0 +1,166 @@
+{
+  "authority": "oracle_readability_only_non_authoritative",
+  "behavior": {
+    "evaluation_sources": [
+      {
+        "behavior_results_hash": "ec953285d1af96217cc8c0f1f1969439cc8328a1c41a3372ac772ad7c8619b79",
+        "behavior_results_path": "behavior_results.json",
+        "input_artifact_hash": "e1eeb9e8974d3716c76882af7dfba39c8ccf758eb51caf48fe6fe9a8426c74ff",
+        "input_artifact_path": "runtime_inputs.json",
+        "kind": "runtime_inputs",
+        "source_kind": "runtime_inputs"
+      }
+    ],
+    "evidence_summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    },
+    "example_count": 1,
+    "failure_modes": [],
+    "result_hash": "ec953285d1af96217cc8c0f1f1969439cc8328a1c41a3372ac772ad7c8619b79",
+    "result_path": "behavior_results.json",
+    "source_statuses": [
+      "executed"
+    ],
+    "statuses": {
+      "executed": 1
+    },
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    }
+  },
+  "evidence_kind": "program_execution_episode",
+  "identity": {
+    "assembly_id": "prog-asm-a4329751dd30",
+    "candidate_id": "prog-cand-9a22407aa649",
+    "episode_id": "prog-ep-1ad3a21148de",
+    "receipt_bundle_id": "prog-rb-1503e0d3f320",
+    "request_id": "prog-req-c6660c9b1470",
+    "runtime_episode_id": "prog-run-91cb60090d6faa98"
+  },
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Give a direct, concise, factual answer.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "metric": "runtime_episode:none",
+    "name": "VoiceTurnSimpleBrain",
+    "objective": "Define the requested persona, then answer the spoken transcription directly and concisely.",
+    "task_type": "single_module"
+  },
+  "io": {
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "outputs": [
+      "response"
+    ]
+  },
+  "non_authority": {
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false
+  },
+  "oracle_facets": {
+    "behavior_source_kinds": [
+      "runtime_inputs"
+    ],
+    "behavior_status": "executed",
+    "contract_mode": "none",
+    "dataset_split_count": 0,
+    "evidence_source_count": 1,
+    "example_count": 1,
+    "failure_mode_count": 0,
+    "has_dataset_splits": false,
+    "has_examples": true,
+    "has_failures": false,
+    "input_fields": [
+      "transcription",
+      "persona_intent"
+    ],
+    "metric": "runtime_episode:none",
+    "output_fields": [
+      "response"
+    ],
+    "runtime_episode_id": "prog-run-91cb60090d6faa98",
+    "runtime_trace_coverage_status": "complete",
+    "runtime_trace_final_output_trace_count": 1,
+    "runtime_trace_module_call_count": 2,
+    "runtime_trace_source_record_coverage_status": "complete",
+    "runtime_trace_status": "runtime_traces_captured",
+    "status_counts": {
+      "executed": 1
+    },
+    "task_type": "single_module",
+    "total_evaluation_count": 1
+  },
+  "oracle_text": "schema_version=program-oracle-evidence-v1\nevidence_kind=program_execution_episode\nintent.name=VoiceTurnSimpleBrain\nintent.objective=Define the requested persona, then answer the spoken transcription directly and concisely.\nintent.task_type=single_module\nintent.metric=runtime_episode:none\nio.inputs=transcription,persona_intent\nio.outputs=response\nidentity.runtime_episode_id=prog-run-91cb60090d6faa98\nidentity.candidate_id=prog-cand-9a22407aa649\nidentity.assembly_id=prog-asm-a4329751dd30\nbehavior.status=executed\nbehavior.source_kinds=runtime_inputs\nbehavior.example_count=1\nruntime_traces.status=runtime_traces_captured\nruntime_traces.coverage_status=complete\nruntime_traces.source_record_coverage_status=complete\nruntime_traces.module_call_count=2\nruntime_traces.final_output_trace_count=1\nauthority=oracle_readability_only_non_authoritative; oracle_ranking=false; oracle_pruning=false; oracle_promotion=false; governance_authority=false; external_mutation=false",
+  "runtime_traces": {
+    "content_hash": "bf860a7cbfb8790ff6030f7e41f0eb7aa59d979a48d22fdd3a55c400e0378927",
+    "coverage": {
+      "schema_version": "program-runtime-trace-coverage-v1",
+      "source_record_coverage_status": "complete",
+      "status": "complete"
+    },
+    "final_output_trace_count": 1,
+    "module_call_count": 2,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "source_count": 1,
+    "status": "runtime_traces_captured"
+  },
+  "schema_version": "program-oracle-evidence-v1",
+  "source_artifacts": [
+    {
+      "content_hash": "e1eeb9e8974d3716c76882af7dfba39c8ccf758eb51caf48fe6fe9a8426c74ff",
+      "kind": "runtime_inputs",
+      "path": "runtime_inputs.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "ec953285d1af96217cc8c0f1f1969439cc8328a1c41a3372ac772ad7c8619b79",
+      "kind": "behavior_results",
+      "path": "behavior_results.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "bf860a7cbfb8790ff6030f7e41f0eb7aa59d979a48d22fdd3a55c400e0378927",
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json"
+    }
+  ]
+}

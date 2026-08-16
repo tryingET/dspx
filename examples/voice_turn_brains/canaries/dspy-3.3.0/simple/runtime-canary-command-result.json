@@ -1,0 +1,136 @@
+{
+  "behavior_results_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/behavior_results.json",
+  "candidate_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json",
+  "effect": {
+    "ak_called": false,
+    "behavior_results_written": true,
+    "candidate_manifest_mutated": false,
+    "canonical_notes_mutated": false,
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "oracle_evidence_written": true,
+    "oracle_index_mutated": false,
+    "oracle_index_scope": "none",
+    "oracle_publication_preflight_written": false,
+    "oracle_report_written": false,
+    "oracle_semantic_live_call_succeeded": false,
+    "oracle_semantic_written": false,
+    "promotion_applied": false,
+    "runtime_episode_written": true,
+    "runtime_receipt_written": true,
+    "runtime_replay_fixture_written": true,
+    "shared_oracle_mutated": false
+  },
+  "manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/manifest.json",
+  "non_authority": {
+    "activation_authority": false,
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "promotion_authority": false,
+    "shared_oracle_mutated": false
+  },
+  "oracle_evidence_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/oracle_evidence.json",
+  "oracle_index_path": null,
+  "oracle_report_path": null,
+  "oracle_semantic_path": null,
+  "publication_preflight_path": null,
+  "runtime_episode_id": "prog-run-68e8b9e7c67da8fc",
+  "runtime_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/runtime_episode.json",
+  "runtime_receipt_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+  "runtime_root": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub",
+  "schema_version": "program-runtime-episode-workflow-v1",
+  "status": "ok",
+  "steps": {
+    "oracle_index": {
+      "result": null,
+      "status": "skipped"
+    },
+    "oracle_report": {
+      "status": "skipped",
+      "total_records": null
+    },
+    "oracle_semantic": {
+      "advisory_only": false,
+      "executed_model": null,
+      "execution_status": null,
+      "path": null,
+      "preferred_model": null,
+      "status": "skipped"
+    },
+    "publication_preflight": {
+      "status": "skipped"
+    },
+    "runtime_execution": {
+      "notes": [],
+      "output_files": [
+        "response"
+      ],
+      "provider": {
+        "effect_evidence": {
+          "attempt_total": 4,
+          "attempts": [
+            {
+              "dispatch_count": 1,
+              "effect_disposition": "completed_success",
+              "observed_model": "stub/echo",
+              "provider_kind": "stub",
+              "requested_model": "stub/echo"
+            },
+            {
+              "dispatch_count": 1,
+              "effect_disposition": "completed_success",
+              "observed_model": "stub/echo",
+              "provider_kind": "stub",
+              "requested_model": "stub/echo"
+            },
+            {
+              "dispatch_count": 1,
+              "effect_disposition": "completed_success",
+              "observed_model": "stub/echo",
+              "provider_kind": "stub",
+              "requested_model": "stub/echo"
+            },
+            {
+              "dispatch_count": 1,
+              "effect_disposition": "completed_success",
+              "observed_model": "stub/echo",
+              "provider_kind": "stub",
+              "requested_model": "stub/echo"
+            }
+          ],
+          "attempts_truncated": false,
+          "schema_version": "dspx-provider-effect-evidence-v1",
+          "terminal_effect": "completed_success"
+        },
+        "metadata": {
+          "capabilities": {
+            "code_exec": false,
+            "json_mode": false,
+            "multi_turn": true,
+            "structured_output_format": "none",
+            "supports_audio": false,
+            "supports_tools": false,
+            "supports_vision": false
+          },
+          "model": "stub/echo",
+          "model_type": "text",
+          "provider": "stub",
+          "runtime": {
+            "base_endpoint": null,
+            "effective_timeout": null,
+            "provider_kind": "stub"
+          },
+          "typed_contract": "typed_lm"
+        },
+        "status": "configured"
+      },
+      "status": "executed"
+    },
+    "runtime_receipt": {
+      "evidence_only": true,
+      "execution_replay_supported": true,
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+      "status": "written"
+    }
+  }
+}

@@ -1,0 +1,433 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "answer_simple",
+      "define_persona"
+    ],
+    "expected_module_ids": [
+      "answer_simple",
+      "define_persona"
+    ],
+    "final_output_trace_count": 1,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 2,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 1,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "Four."
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "43f0db536a537155c295ef08380de7d5bcf5212499e572297cfd43b301fb6ccb",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "status": "executed",
+      "trace_hash": "5e17480130f954418be69da923b6488310cb2bcd801ad13c16b159d1a4ec991e"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnSimpleBrain",
+    "objective": "Define the requested persona, then answer the spoken transcription directly and concisely."
+  },
+  "module_call_count": 2,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A calm, precise teacher."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A calm, precise teacher."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "43f0db536a537155c295ef08380de7d5bcf5212499e572297cfd43b301fb6ccb",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "29c4a25d2647ebba1d3a36f4db4891119562ab5321be732f753e76eab789cfad",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "answer_simple"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "A calm, precise teacher.",
+        "transcription": "What is two plus two?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "answer_simple",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "Four."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "43f0db536a537155c295ef08380de7d5bcf5212499e572297cfd43b301fb6ccb",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "direct_answer"
+      },
+      "status": "executed",
+      "trace_hash": "2cc3fce07a0245bf08a842c3b6d9fcc6430aa0818d6e84c5bbfbf13fcf82b5bb",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "answer_simple",
+        "define_persona"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 1,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 2,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 1,
+      "records_with_complete_final_outputs": [
+        0
+      ],
+      "records_with_complete_module_calls": [
+        0
+      ],
+      "records_with_final_outputs": [
+        0
+      ],
+      "records_with_module_calls": [
+        0
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "43f0db536a537155c295ef08380de7d5bcf5212499e572297cfd43b301fb6ccb",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 1,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "executed": 1,
+        "failed": 0,
+        "passed": 0,
+        "status": "executed",
+        "status_counts": {
+          "executed": 1
+        },
+        "total": 1
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "5e17480130f954418be69da923b6488310cb2bcd801ad13c16b159d1a4ec991e"
+    ],
+    "module_calls": [
+      "29c4a25d2647ebba1d3a36f4db4891119562ab5321be732f753e76eab789cfad",
+      "2cc3fce07a0245bf08a842c3b6d9fcc6430aa0818d6e84c5bbfbf13fcf82b5bb"
+    ]
+  }
+}

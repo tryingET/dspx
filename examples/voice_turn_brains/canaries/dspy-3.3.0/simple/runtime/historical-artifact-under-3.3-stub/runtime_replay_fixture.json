@@ -1,0 +1,14 @@
+{
+  "authority": "local_replay_input_only",
+  "redaction_status": "checked",
+  "retention_class": "explicit_local_replay_fixture",
+  "runtime_inputs": {
+    "persona_intent": "A calm, precise teacher.",
+    "transcription": "What is two plus two?"
+  },
+  "schema_version": "program-runtime-replay-fixture-v1",
+  "stub_response": {
+    "persona": "A calm, precise teacher.",
+    "response": "Four."
+  }
+}
