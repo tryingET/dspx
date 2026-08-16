@@ -1,0 +1,15 @@
+{
+  "authority": "local_replay_input_only",
+  "redaction_status": "checked",
+  "retention_class": "explicit_local_replay_fixture",
+  "runtime_inputs": {
+    "persona_intent": "A warm mathematics tutor.",
+    "transcription": "Is every square a rectangle?"
+  },
+  "schema_version": "program-runtime-replay-fixture-v1",
+  "stub_response": {
+    "persona": "A warm mathematics tutor.",
+    "reasoning": "Bounded deterministic stub reasoning for compatibility plumbing only.",
+    "response": "What properties define a rectangle, and does a square satisfy each of them?"
+  }
+}

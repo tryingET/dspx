@@ -1,0 +1,102 @@
+{
+  "binding_kind": "hash_bound_local_post_execution_environment_observation",
+  "effect": {
+    "authority_mutation": false,
+    "credentials": false,
+    "external_tools": false,
+    "live_provider_or_model": false,
+    "network": false
+  },
+  "environment": {
+    "dspx_core": "0.1.0",
+    "dspy": "3.3.0",
+    "dspy_ai": "3.3.0",
+    "git_commit": "d123a205e705be9530f6d8836ff8e935a79b9bf9",
+    "platform": "linux",
+    "python": "3.13.12"
+  },
+  "executions": {
+    "fresh_candidate": {
+      "execution_status": "executed",
+      "model": "stub/echo",
+      "provider": "stub",
+      "receipt_created_at": "2026-08-16T06:49:03.755909+00:00",
+      "receipt_execution_context": {
+        "env_hash": "f52a9845ecbbb72e",
+        "git_commit": "d123a205e705",
+        "git_dirty": true,
+        "platform": "linux",
+        "python_version": "3.13.12"
+      },
+      "replay_runtime_reproduction": "passed",
+      "replay_status": "executed",
+      "runtime_episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/canary-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "fd62801960bc08ccc484f8b54b6b4d4f3e8e67cbd744f77cc2dfc472367b88ab",
+        "size": 3122
+      },
+      "runtime_episode_id": "prog-run-049265f42a187f16",
+      "runtime_receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/canary-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "fefb535c7d1316e807d0eaba26195c01d9725a34bf38545f47341d66e208b785",
+        "size": 7131
+      },
+      "runtime_replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/canary-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "095633f85ed12ab661f7d2671988d6bce802e17f3a8824dba530e6171d0e7494",
+        "size": 4232
+      },
+      "runtime_replay_result": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime-canary-replay-result.json",
+        "sha256": "b2b9977ec7d70a3de1fbf2ec4a659322afa2c5f343d29b4e3e399065cf8d54d0",
+        "size": 8751
+      },
+      "typed_contract": "typed_lm"
+    },
+    "historical_original": {
+      "execution_status": "executed",
+      "model": "stub/echo",
+      "provider": "stub",
+      "receipt_created_at": "2026-08-16T06:49:02.588485+00:00",
+      "receipt_execution_context": {
+        "env_hash": "f52a9845ecbbb72e",
+        "git_commit": "d123a205e705",
+        "git_dirty": true,
+        "platform": "linux",
+        "python_version": "3.13.12"
+      },
+      "replay_runtime_reproduction": "passed",
+      "replay_status": "executed",
+      "runtime_episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "20491fbebce6bd380e5e2824b0612e01490eeead3c73bd90ccdd6c9d696fef27",
+        "size": 3116
+      },
+      "runtime_episode_id": "prog-run-be4b660105d15c5b",
+      "runtime_receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "d45b456d6e2b16854de3c024c715261f65e75f8be8c850412afb4320c75162a1",
+        "size": 7123
+      },
+      "runtime_replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "2866a59717230989849baf5e1f05bda81067ddcc346bc96e72dc349bd821c20e",
+        "size": 4232
+      },
+      "runtime_replay_result": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime-historical-replay-result.json",
+        "sha256": "4123083bd97384746f8207a51d3d44154cfb5ce7228b918ba5c7178bd221be4b",
+        "size": 8775
+      },
+      "typed_contract": "typed_lm"
+    }
+  },
+  "limitations": [
+    "This local binding is not an external attestation or process sandbox proof.",
+    "It binds the observed environment identity to exact runtime receipts, episodes, and replay results; source-generation DSPy provenance remains distinct.",
+    "Semantic equivalence, quality, version causality, optimized/GEPA compatibility, promotion, and activation remain not evaluated."
+  ],
+  "mode": "bloom",
+  "schema_version": "voice-turn-runtime-environment-binding-v1",
+  "task_id": 4794
+}

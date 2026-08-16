@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-16T06:47:10.893277513+00:00",
+  "task_id": 4794,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/README.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/**",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/deep-research/**",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/**",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/remaining-originals-index.json",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/**",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/**",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "tests/test_voice_turn_brains_dspy_33_remaining_canaries.py"
+    ],
+    "required_paths": [
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/remaining-originals-index.json",
+      "tests/test_voice_turn_brains_dspy_33_remaining_canaries.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/ai-control-brains.json",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/**",
+      "examples/voice_turn_brains/candidates/**",
+      "examples/voice_turn_brains/intents/**",
+      "examples/voice_turn_brains/manifest-index.json",
+      "examples/voice_turn_brains/refinement/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

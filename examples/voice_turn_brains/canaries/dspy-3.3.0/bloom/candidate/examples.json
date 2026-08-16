@@ -1,0 +1,20 @@
+[
+  {
+    "inputs": {
+      "persona_intent": "An encouraging physics teacher.",
+      "transcription": "I think heavier objects always fall faster than lighter ones."
+    },
+    "outputs": {
+      "response": "In a vacuum, heavy and light objects accelerate equally; air resistance creates many everyday differences. Imagine dropping a coin and a feather in a vacuum chamber: both land together. How would changing the feather into a compact ball affect the result in ordinary air, and why?"
+    }
+  },
+  {
+    "inputs": {
+      "persona_intent": "A supportive mathematics coach.",
+      "transcription": "Multiplying two negative numbers should stay negative."
+    },
+    "outputs": {
+      "response": "The product of two negative numbers is positive. One way to see it is that reversing direction twice returns you to the original direction. If negative three times negative four is positive twelve, what sign should negative five times negative two have, and how can you justify it?"
+    }
+  }
+]

@@ -1,0 +1,863 @@
+{
+  "status": "ok",
+  "receipt_path": "examples/voice_turn_brains/candidates/socratic/original/manifest.json.meta.json",
+  "checks": {
+    "output_exists": true,
+    "output_hash_match": true,
+    "program_manifest_json_object": true,
+    "program_behavior_episode_declarations_complete": true,
+    "program_candidate_artifact_closure_valid": true,
+    "program_evidence_artifacts_declared": true,
+    "program_behavior_episode_declaration_consistent": true,
+    "program_behavior_episode_exists": true,
+    "program_behavior_episode_hash_match": true,
+    "program_behavior_harness_declaration_consistent": true,
+    "program_behavior_harness_exists": true,
+    "program_behavior_harness_hash_match": true,
+    "program_behavior_results_declaration_consistent": true,
+    "program_behavior_results_exists": true,
+    "program_behavior_results_hash_match": true,
+    "program_capability_registry_declaration_consistent": true,
+    "program_capability_registry_exists": true,
+    "program_capability_registry_hash_match": true,
+    "program_capability_registry_semantic_valid": true,
+    "program_direct_runner_declaration_consistent": true,
+    "program_direct_runner_exists": true,
+    "program_direct_runner_hash_match": true,
+    "program_eval_harness_declaration_consistent": true,
+    "program_eval_harness_exists": true,
+    "program_eval_harness_hash_match": true,
+    "program_examples_harness_declaration_consistent": true,
+    "program_examples_harness_exists": true,
+    "program_examples_harness_hash_match": true,
+    "program_execution_episode_declaration_consistent": true,
+    "program_execution_episode_exists": true,
+    "program_execution_episode_hash_match": true,
+    "program_generated_module_policy_declaration_consistent": true,
+    "program_generated_module_policy_exists": true,
+    "program_generated_module_policy_hash_match": true,
+    "program_generated_module_policy_semantic_valid": true,
+    "program_intent_normalization_declaration_consistent": true,
+    "program_intent_normalization_exists": true,
+    "program_intent_normalization_hash_match": true,
+    "program_jury_declaration_consistent": true,
+    "program_jury_exists": true,
+    "program_jury_hash_match": true,
+    "program_jury_harness_declaration_consistent": true,
+    "program_jury_harness_exists": true,
+    "program_jury_harness_hash_match": true,
+    "program_jury_rubric_declaration_consistent": true,
+    "program_jury_rubric_exists": true,
+    "program_jury_rubric_hash_match": true,
+    "program_jury_selection_declaration_consistent": true,
+    "program_jury_selection_exists": true,
+    "program_jury_selection_hash_match": true,
+    "program_module_declaration_consistent": true,
+    "program_module_exists": true,
+    "program_module_hash_match": true,
+    "program_module_surfaces_declaration_consistent": true,
+    "program_module_surfaces_exists": true,
+    "program_module_surfaces_hash_match": true,
+    "program_module_surfaces_semantic_valid": true,
+    "program_oracle_evidence_declaration_consistent": true,
+    "program_oracle_evidence_exists": true,
+    "program_oracle_evidence_hash_match": true,
+    "program_plan_declaration_consistent": true,
+    "program_plan_exists": true,
+    "program_plan_hash_match": true,
+    "program_program_declaration_consistent": true,
+    "program_program_exists": true,
+    "program_program_hash_match": true,
+    "program_promotion_adjudication_request_declaration_consistent": true,
+    "program_promotion_adjudication_request_exists": true,
+    "program_promotion_adjudication_request_hash_match": true,
+    "program_promotion_decision_template_declaration_consistent": true,
+    "program_promotion_decision_template_exists": true,
+    "program_promotion_decision_template_hash_match": true,
+    "program_promotion_harness_declaration_consistent": true,
+    "program_promotion_harness_exists": true,
+    "program_promotion_harness_hash_match": true,
+    "program_promotion_review_declaration_consistent": true,
+    "program_promotion_review_exists": true,
+    "program_promotion_review_hash_match": true,
+    "program_runtime_outcomes_declaration_consistent": true,
+    "program_runtime_outcomes_exists": true,
+    "program_runtime_outcomes_hash_match": true,
+    "program_runtime_outcomes_semantic_valid": true,
+    "program_runtime_traces_declaration_consistent": true,
+    "program_runtime_traces_exists": true,
+    "program_runtime_traces_hash_match": true,
+    "program_runtime_traces_semantic_valid": true,
+    "program_signature_declaration_consistent": true,
+    "program_signature_exists": true,
+    "program_signature_hash_match": true,
+    "program_tool_contracts_declaration_consistent": true,
+    "program_tool_contracts_exists": true,
+    "program_tool_contracts_hash_match": true,
+    "program_tool_contracts_semantic_valid": true,
+    "program_tool_adapter_artifacts_valid": true,
+    "program_tool_adapter_blueprints_valid": true,
+    "program_runtime_trace_tool_intents_match_contracts": true,
+    "program_react_v2_tool_readiness_matches_surfaces": true,
+    "cache_file_matches_key": true,
+    "cache_kind_matches_run_kind": true,
+    "cache_key_recomputes": true,
+    "cache_file_exists": false
+  },
+  "errors": [],
+  "warnings": [
+    "cache disabled in receipt; cache existence/provenance checks are informational"
+  ],
+  "error_codes": [],
+  "error_details": [],
+  "replay_claims": {
+    "schema_version": "dspx-replay-claim-matrix-v1",
+    "mode": "check_only",
+    "dimensions": {
+      "receipt_integrity_check": {
+        "status": "passed",
+        "evidence_level": "current_receipt_and_declared_artifact_bindings"
+      },
+      "deterministic_regeneration": {
+        "status": "not_run",
+        "evidence_level": "fresh_producer_output_identity"
+      },
+      "runtime_execution_reproduction": {
+        "status": "not_run",
+        "evidence_level": "fresh_receipt_bound_runtime_evidence_identity"
+      },
+      "semantic_reproduction": {
+        "status": "not_evaluated",
+        "evidence_level": "independent_semantic_equivalence_evaluation"
+      },
+      "quality_evaluation_reproduction": {
+        "status": "not_evaluated",
+        "evidence_level": "receipt_bound_quality_evaluation_identity_not_independent_approval"
+      }
+    },
+    "release_claim_allowed": false,
+    "authority": {
+      "release_authority": false,
+      "promotion_authority": false,
+      "activation_authority": false,
+      "governance_authority": false,
+      "external_authority": false
+    }
+  },
+  "receipt_version": "v2",
+  "run_kind": "program-gen",
+  "output_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/manifest.json",
+  "receipt_hash": "d9479c2981d4382fdbd9d54f5f5ba6684bdd1afcf73e1585a1d2a9664b342fd5",
+  "actual_output_hash": "d9479c2981d4382fdbd9d54f5f5ba6684bdd1afcf73e1585a1d2a9664b342fd5",
+  "program_candidate_artifact_closure": [
+    {
+      "kind": "plan",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/plan.json",
+      "sha256": "b5cd8f446470d012e1304fc4762d55540346d5e17a85f99d0bd651c47aaca46f"
+    },
+    {
+      "kind": "jury",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/jury.json",
+      "sha256": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886"
+    },
+    {
+      "kind": "jury_selection",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/jury_selection.json",
+      "sha256": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40"
+    },
+    {
+      "kind": "jury_rubric",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/jury_rubric.json",
+      "sha256": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3"
+    },
+    {
+      "kind": "promotion_review",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/promotion_review.json",
+      "sha256": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a"
+    },
+    {
+      "kind": "promotion_adjudication_request",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/promotion_adjudication_request.json",
+      "sha256": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f"
+    },
+    {
+      "kind": "promotion_decision_template",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/promotion_decision_template.json",
+      "sha256": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c"
+    },
+    {
+      "kind": "module_surfaces",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/module_surfaces.json",
+      "sha256": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00"
+    },
+    {
+      "kind": "runtime_outcomes",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_runtime_outcomes.json",
+      "sha256": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203"
+    },
+    {
+      "kind": "runtime_traces",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_runtime_traces.json",
+      "sha256": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e"
+    },
+    {
+      "kind": "tool_contracts",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_tool_contracts.json",
+      "sha256": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e"
+    },
+    {
+      "kind": "execution_episode",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/execution_episode.json",
+      "sha256": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad"
+    },
+    {
+      "kind": "capability_registry",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_capability_registry.json",
+      "sha256": "3008a7f27fc742b24154a2bf41842f0ab86eedd8bcc2abc36866007e067b2da8"
+    },
+    {
+      "kind": "generated_module_policy",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/generated_module_policy.json",
+      "sha256": "323388cc1c08e44446dd21a15f92a31678fbbbfc4bc4b3d7d0de7469acab6f3b"
+    },
+    {
+      "kind": "intent_normalization",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/intent_normalization.json",
+      "sha256": "faf085484550bd487761828351a4922f3061245ee8da7c95a2e3234c71470829"
+    },
+    {
+      "kind": "signature",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/signature.py",
+      "sha256": "010e9ac3debf1449fca8dc4875eb1151ec47bb23dd95a9f3a79e0a662debdc50"
+    },
+    {
+      "kind": "module",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/module.py",
+      "sha256": "beb5f4468700777fe1079afac9a54897812a20c73c8f54233c25b3938749c2db"
+    },
+    {
+      "kind": "program",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program.py",
+      "sha256": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449"
+    },
+    {
+      "kind": "direct_runner",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/direct_run.py",
+      "sha256": "0ea9b69a1f2a70a3b95c7779475fed5a05a9e8af1ca6c094a8b14ebbf5132aac"
+    },
+    {
+      "kind": "eval_harness",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_smoke.py",
+      "sha256": "607cef04070698bec5e6a3ce78cfe05eac80036108fb8d8a71b5b6383378f882"
+    },
+    {
+      "kind": "jury_harness",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_jury.py",
+      "sha256": "6774acaa995c82022d348061f1990938f8450abc109c03b936f4ac3c992cb992"
+    },
+    {
+      "kind": "promotion_harness",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_promotion.py",
+      "sha256": "e1bb315d005f536f8b9c057f855773dd87aaa8d558d5dd438159ec51ef21b841"
+    },
+    {
+      "kind": "examples_harness",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_examples.py",
+      "sha256": "b86f87942753fbb08e23058ff73625e0658634a7b39c012df016af39cf2a879e"
+    },
+    {
+      "kind": "behavior_results",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/behavior_results.json",
+      "sha256": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a"
+    },
+    {
+      "kind": "behavior_harness",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_behavior.py",
+      "sha256": "1925accd8d4565de742a273095c5deb04a5a1a712d42a5f3e9b040a5311152e0"
+    },
+    {
+      "kind": "behavior_episode",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/behavior_episode.json",
+      "sha256": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f"
+    },
+    {
+      "kind": "oracle_evidence",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/oracle_evidence.json",
+      "sha256": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5"
+    }
+  ],
+  "program_evidence_artifacts": [
+    {
+      "kind": "behavior_episode",
+      "path": "behavior_episode.json",
+      "content_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f",
+      "declarations": [
+        {
+          "source": "manifest.behavior_episode_artifact",
+          "path": "behavior_episode.json",
+          "content_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f"
+        },
+        {
+          "source": "manifest.candidate_assembly.surfaces.behavior_episode",
+          "path": "behavior_episode.json",
+          "content_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.behavior_episode_hash",
+          "path": "behavior_episode.json",
+          "content_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.behavior_episode.json",
+          "path": "behavior_episode.json",
+          "content_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f"
+        },
+        {
+          "source": "receipt.run_summary.behavior_episode_hash",
+          "path": "behavior_episode.json",
+          "content_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f"
+        },
+        {
+          "source": "receipt.program_behavior_episode_artifact",
+          "path": "behavior_episode.json",
+          "content_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f"
+        }
+      ]
+    },
+    {
+      "kind": "behavior_harness",
+      "path": "eval_behavior.py",
+      "content_hash": "1925accd8d4565de742a273095c5deb04a5a1a712d42a5f3e9b040a5311152e0",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.behavior_harness",
+          "path": "eval_behavior.py",
+          "content_hash": "1925accd8d4565de742a273095c5deb04a5a1a712d42a5f3e9b040a5311152e0"
+        }
+      ]
+    },
+    {
+      "kind": "behavior_results",
+      "path": "behavior_results.json",
+      "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+      "declarations": [
+        {
+          "source": "manifest.execution_episode.behavior_results",
+          "path": "behavior_results.json",
+          "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a"
+        },
+        {
+          "source": "manifest.candidate_assembly.surfaces.behavior_results",
+          "path": "behavior_results.json",
+          "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.behavior_results_hash",
+          "path": "behavior_results.json",
+          "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.behavior_results.json",
+          "path": "behavior_results.json",
+          "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a"
+        },
+        {
+          "source": "receipt.run_summary.behavior_results_hash",
+          "path": "behavior_results.json",
+          "content_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a"
+        }
+      ]
+    },
+    {
+      "kind": "capability_registry",
+      "path": "program_capability_registry.json",
+      "content_hash": "3008a7f27fc742b24154a2bf41842f0ab86eedd8bcc2abc36866007e067b2da8",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.capability_registry",
+          "path": "program_capability_registry.json",
+          "content_hash": "3008a7f27fc742b24154a2bf41842f0ab86eedd8bcc2abc36866007e067b2da8"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.capability_registry_hash",
+          "path": "program_capability_registry.json",
+          "content_hash": "3008a7f27fc742b24154a2bf41842f0ab86eedd8bcc2abc36866007e067b2da8"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.program_capability_registry.json",
+          "path": "program_capability_registry.json",
+          "content_hash": "3008a7f27fc742b24154a2bf41842f0ab86eedd8bcc2abc36866007e067b2da8"
+        },
+        {
+          "source": "receipt.run_summary.capability_registry_hash",
+          "path": "program_capability_registry.json",
+          "content_hash": "3008a7f27fc742b24154a2bf41842f0ab86eedd8bcc2abc36866007e067b2da8"
+        }
+      ]
+    },
+    {
+      "kind": "direct_runner",
+      "path": "direct_run.py",
+      "content_hash": "0ea9b69a1f2a70a3b95c7779475fed5a05a9e8af1ca6c094a8b14ebbf5132aac",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.direct_runner",
+          "path": "direct_run.py",
+          "content_hash": "0ea9b69a1f2a70a3b95c7779475fed5a05a9e8af1ca6c094a8b14ebbf5132aac"
+        }
+      ]
+    },
+    {
+      "kind": "eval_harness",
+      "path": "eval_smoke.py",
+      "content_hash": "607cef04070698bec5e6a3ce78cfe05eac80036108fb8d8a71b5b6383378f882",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.eval_harness",
+          "path": "eval_smoke.py",
+          "content_hash": "607cef04070698bec5e6a3ce78cfe05eac80036108fb8d8a71b5b6383378f882"
+        }
+      ]
+    },
+    {
+      "kind": "examples_harness",
+      "path": "eval_examples.py",
+      "content_hash": "b86f87942753fbb08e23058ff73625e0658634a7b39c012df016af39cf2a879e",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.examples_harness",
+          "path": "eval_examples.py",
+          "content_hash": "b86f87942753fbb08e23058ff73625e0658634a7b39c012df016af39cf2a879e"
+        }
+      ]
+    },
+    {
+      "kind": "execution_episode",
+      "path": "execution_episode.json",
+      "content_hash": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad",
+      "declarations": [
+        {
+          "source": "manifest.execution_episode_artifact",
+          "path": "execution_episode.json",
+          "content_hash": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad"
+        },
+        {
+          "source": "manifest.candidate_assembly.surfaces.execution_episode",
+          "path": "execution_episode.json",
+          "content_hash": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.execution_episode_hash",
+          "path": "execution_episode.json",
+          "content_hash": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.execution_episode.json",
+          "path": "execution_episode.json",
+          "content_hash": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad"
+        },
+        {
+          "source": "receipt.run_summary.execution_episode_hash",
+          "path": "execution_episode.json",
+          "content_hash": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad"
+        }
+      ]
+    },
+    {
+      "kind": "generated_module_policy",
+      "path": "generated_module_policy.json",
+      "content_hash": "323388cc1c08e44446dd21a15f92a31678fbbbfc4bc4b3d7d0de7469acab6f3b",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.generated_module_policy",
+          "path": "generated_module_policy.json",
+          "content_hash": "323388cc1c08e44446dd21a15f92a31678fbbbfc4bc4b3d7d0de7469acab6f3b"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.generated_module_policy_hash",
+          "path": "generated_module_policy.json",
+          "content_hash": "323388cc1c08e44446dd21a15f92a31678fbbbfc4bc4b3d7d0de7469acab6f3b"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.generated_module_policy.json",
+          "path": "generated_module_policy.json",
+          "content_hash": "323388cc1c08e44446dd21a15f92a31678fbbbfc4bc4b3d7d0de7469acab6f3b"
+        },
+        {
+          "source": "receipt.run_summary.generated_module_policy_hash",
+          "path": "generated_module_policy.json",
+          "content_hash": "323388cc1c08e44446dd21a15f92a31678fbbbfc4bc4b3d7d0de7469acab6f3b"
+        }
+      ]
+    },
+    {
+      "kind": "intent_normalization",
+      "path": "intent_normalization.json",
+      "content_hash": "faf085484550bd487761828351a4922f3061245ee8da7c95a2e3234c71470829",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.intent_normalization",
+          "path": "intent_normalization.json",
+          "content_hash": "faf085484550bd487761828351a4922f3061245ee8da7c95a2e3234c71470829"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.intent_normalization_hash",
+          "path": "intent_normalization.json",
+          "content_hash": "faf085484550bd487761828351a4922f3061245ee8da7c95a2e3234c71470829"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.intent_normalization.json",
+          "path": "intent_normalization.json",
+          "content_hash": "faf085484550bd487761828351a4922f3061245ee8da7c95a2e3234c71470829"
+        },
+        {
+          "source": "receipt.run_summary.intent_normalization_hash",
+          "path": "intent_normalization.json",
+          "content_hash": "faf085484550bd487761828351a4922f3061245ee8da7c95a2e3234c71470829"
+        }
+      ]
+    },
+    {
+      "kind": "jury",
+      "path": "jury.json",
+      "content_hash": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.jury",
+          "path": "jury.json",
+          "content_hash": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886"
+        }
+      ]
+    },
+    {
+      "kind": "jury_harness",
+      "path": "eval_jury.py",
+      "content_hash": "6774acaa995c82022d348061f1990938f8450abc109c03b936f4ac3c992cb992",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.jury_harness",
+          "path": "eval_jury.py",
+          "content_hash": "6774acaa995c82022d348061f1990938f8450abc109c03b936f4ac3c992cb992"
+        }
+      ]
+    },
+    {
+      "kind": "jury_rubric",
+      "path": "jury_rubric.json",
+      "content_hash": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.jury_rubric",
+          "path": "jury_rubric.json",
+          "content_hash": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3"
+        }
+      ]
+    },
+    {
+      "kind": "jury_selection",
+      "path": "jury_selection.json",
+      "content_hash": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.jury_selection",
+          "path": "jury_selection.json",
+          "content_hash": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40"
+        }
+      ]
+    },
+    {
+      "kind": "module",
+      "path": "module.py",
+      "content_hash": "beb5f4468700777fe1079afac9a54897812a20c73c8f54233c25b3938749c2db",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.module",
+          "path": "module.py",
+          "content_hash": "beb5f4468700777fe1079afac9a54897812a20c73c8f54233c25b3938749c2db"
+        }
+      ]
+    },
+    {
+      "kind": "module_surfaces",
+      "path": "module_surfaces.json",
+      "content_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.module_surfaces",
+          "path": "module_surfaces.json",
+          "content_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.module_surfaces_hash",
+          "path": "module_surfaces.json",
+          "content_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.module_surfaces.json",
+          "path": "module_surfaces.json",
+          "content_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00"
+        },
+        {
+          "source": "receipt.run_summary.module_surfaces_hash",
+          "path": "module_surfaces.json",
+          "content_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00"
+        }
+      ]
+    },
+    {
+      "kind": "oracle_evidence",
+      "path": "oracle_evidence.json",
+      "content_hash": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5",
+      "declarations": [
+        {
+          "source": "manifest.execution_episode.oracle_evidence",
+          "path": "oracle_evidence.json",
+          "content_hash": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5"
+        },
+        {
+          "source": "manifest.candidate_assembly.surfaces.oracle_evidence",
+          "path": "oracle_evidence.json",
+          "content_hash": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.oracle_evidence_hash",
+          "path": "oracle_evidence.json",
+          "content_hash": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.oracle_evidence.json",
+          "path": "oracle_evidence.json",
+          "content_hash": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5"
+        },
+        {
+          "source": "receipt.run_summary.oracle_evidence_hash",
+          "path": "oracle_evidence.json",
+          "content_hash": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5"
+        }
+      ]
+    },
+    {
+      "kind": "plan",
+      "path": "plan.json",
+      "content_hash": "b5cd8f446470d012e1304fc4762d55540346d5e17a85f99d0bd651c47aaca46f",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.plan",
+          "path": "plan.json",
+          "content_hash": "b5cd8f446470d012e1304fc4762d55540346d5e17a85f99d0bd651c47aaca46f"
+        }
+      ]
+    },
+    {
+      "kind": "program",
+      "path": "program.py",
+      "content_hash": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.program",
+          "path": "program.py",
+          "content_hash": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449"
+        }
+      ]
+    },
+    {
+      "kind": "promotion_adjudication_request",
+      "path": "promotion_adjudication_request.json",
+      "content_hash": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.promotion_adjudication_request",
+          "path": "promotion_adjudication_request.json",
+          "content_hash": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f"
+        }
+      ]
+    },
+    {
+      "kind": "promotion_decision_template",
+      "path": "promotion_decision_template.json",
+      "content_hash": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.promotion_decision_template",
+          "path": "promotion_decision_template.json",
+          "content_hash": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c"
+        }
+      ]
+    },
+    {
+      "kind": "promotion_harness",
+      "path": "eval_promotion.py",
+      "content_hash": "e1bb315d005f536f8b9c057f855773dd87aaa8d558d5dd438159ec51ef21b841",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.promotion_harness",
+          "path": "eval_promotion.py",
+          "content_hash": "e1bb315d005f536f8b9c057f855773dd87aaa8d558d5dd438159ec51ef21b841"
+        }
+      ]
+    },
+    {
+      "kind": "promotion_review",
+      "path": "promotion_review.json",
+      "content_hash": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.promotion_review",
+          "path": "promotion_review.json",
+          "content_hash": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a"
+        }
+      ]
+    },
+    {
+      "kind": "runtime_outcomes",
+      "path": "program_runtime_outcomes.json",
+      "content_hash": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.runtime_outcomes",
+          "path": "program_runtime_outcomes.json",
+          "content_hash": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.runtime_outcomes_hash",
+          "path": "program_runtime_outcomes.json",
+          "content_hash": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.program_runtime_outcomes.json",
+          "path": "program_runtime_outcomes.json",
+          "content_hash": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203"
+        },
+        {
+          "source": "receipt.run_summary.runtime_outcomes_hash",
+          "path": "program_runtime_outcomes.json",
+          "content_hash": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203"
+        }
+      ]
+    },
+    {
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json",
+      "content_hash": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.runtime_traces",
+          "path": "program_runtime_traces.json",
+          "content_hash": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.runtime_traces_hash",
+          "path": "program_runtime_traces.json",
+          "content_hash": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.program_runtime_traces.json",
+          "path": "program_runtime_traces.json",
+          "content_hash": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e"
+        },
+        {
+          "source": "receipt.run_summary.runtime_traces_hash",
+          "path": "program_runtime_traces.json",
+          "content_hash": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e"
+        }
+      ]
+    },
+    {
+      "kind": "signature",
+      "path": "signature.py",
+      "content_hash": "010e9ac3debf1449fca8dc4875eb1151ec47bb23dd95a9f3a79e0a662debdc50",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.signature",
+          "path": "signature.py",
+          "content_hash": "010e9ac3debf1449fca8dc4875eb1151ec47bb23dd95a9f3a79e0a662debdc50"
+        }
+      ]
+    },
+    {
+      "kind": "tool_contracts",
+      "path": "program_tool_contracts.json",
+      "content_hash": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e",
+      "declarations": [
+        {
+          "source": "manifest.candidate_assembly.surfaces.tool_contracts",
+          "path": "program_tool_contracts.json",
+          "content_hash": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.tool_contracts_hash",
+          "path": "program_tool_contracts.json",
+          "content_hash": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e"
+        },
+        {
+          "source": "manifest.receipt_bundle.evidence.surface_hashes.program_tool_contracts.json",
+          "path": "program_tool_contracts.json",
+          "content_hash": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e"
+        },
+        {
+          "source": "receipt.run_summary.tool_contracts_hash",
+          "path": "program_tool_contracts.json",
+          "content_hash": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e"
+        }
+      ]
+    }
+  ],
+  "program_behavior_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/behavior_episode.json",
+  "program_behavior_episode_hash": "a1a4d51285b02a3a61a271cfc7c8b4abea89b75bff1f90e37c0e0174f1b90c1f",
+  "program_behavior_harness_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_behavior.py",
+  "program_behavior_harness_hash": "1925accd8d4565de742a273095c5deb04a5a1a712d42a5f3e9b040a5311152e0",
+  "program_behavior_results_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/behavior_results.json",
+  "program_behavior_results_hash": "e9acc76a40a0338ba5b2a3fdd5f5d816a19204b3c6a6efb1e31060c18023f08a",
+  "program_capability_registry_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_capability_registry.json",
+  "program_capability_registry_hash": "3008a7f27fc742b24154a2bf41842f0ab86eedd8bcc2abc36866007e067b2da8",
+  "program_direct_runner_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/direct_run.py",
+  "program_direct_runner_hash": "0ea9b69a1f2a70a3b95c7779475fed5a05a9e8af1ca6c094a8b14ebbf5132aac",
+  "program_eval_harness_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_smoke.py",
+  "program_eval_harness_hash": "607cef04070698bec5e6a3ce78cfe05eac80036108fb8d8a71b5b6383378f882",
+  "program_examples_harness_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_examples.py",
+  "program_examples_harness_hash": "b86f87942753fbb08e23058ff73625e0658634a7b39c012df016af39cf2a879e",
+  "program_execution_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/execution_episode.json",
+  "program_execution_episode_hash": "ce96eb02bd1f51fcc647006cb8265973d35cd0490d6f68c2eac0d4b87a8929ad",
+  "program_generated_module_policy_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/generated_module_policy.json",
+  "program_generated_module_policy_hash": "323388cc1c08e44446dd21a15f92a31678fbbbfc4bc4b3d7d0de7469acab6f3b",
+  "program_intent_normalization_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/intent_normalization.json",
+  "program_intent_normalization_hash": "faf085484550bd487761828351a4922f3061245ee8da7c95a2e3234c71470829",
+  "program_jury_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/jury.json",
+  "program_jury_hash": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886",
+  "program_jury_harness_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_jury.py",
+  "program_jury_harness_hash": "6774acaa995c82022d348061f1990938f8450abc109c03b936f4ac3c992cb992",
+  "program_jury_rubric_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/jury_rubric.json",
+  "program_jury_rubric_hash": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3",
+  "program_jury_selection_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/jury_selection.json",
+  "program_jury_selection_hash": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40",
+  "program_module_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/module.py",
+  "program_module_hash": "beb5f4468700777fe1079afac9a54897812a20c73c8f54233c25b3938749c2db",
+  "program_module_surfaces_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/module_surfaces.json",
+  "program_module_surfaces_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00",
+  "program_oracle_evidence_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/oracle_evidence.json",
+  "program_oracle_evidence_hash": "054fa2a93ad54e48cbc7eea710642179233892251e5478e4fdb94a591c8a93b5",
+  "program_plan_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/plan.json",
+  "program_plan_hash": "b5cd8f446470d012e1304fc4762d55540346d5e17a85f99d0bd651c47aaca46f",
+  "program_program_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program.py",
+  "program_program_hash": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449",
+  "program_promotion_adjudication_request_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/promotion_adjudication_request.json",
+  "program_promotion_adjudication_request_hash": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f",
+  "program_promotion_decision_template_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/promotion_decision_template.json",
+  "program_promotion_decision_template_hash": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c",
+  "program_promotion_harness_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/eval_promotion.py",
+  "program_promotion_harness_hash": "e1bb315d005f536f8b9c057f855773dd87aaa8d558d5dd438159ec51ef21b841",
+  "program_promotion_review_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/promotion_review.json",
+  "program_promotion_review_hash": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a",
+  "program_runtime_outcomes_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_runtime_outcomes.json",
+  "program_runtime_outcomes_hash": "0bd017989ead9c98a6b25f6a8bbd50efa1de63903c29ba8212a87fe21c242203",
+  "program_runtime_traces_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_runtime_traces.json",
+  "program_runtime_traces_hash": "a87ba49ba38a133252afe8b74ba9353753fca0f7ab606bf20a720707567c4c1e",
+  "program_signature_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/signature.py",
+  "program_signature_hash": "010e9ac3debf1449fca8dc4875eb1151ec47bb23dd95a9f3a79e0a662debdc50",
+  "program_tool_contracts_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program_tool_contracts.json",
+  "program_tool_contracts_hash": "07445dee7da88478c8a2f7030cf62b58f5eaa05a7554117267d1bd451105670e",
+  "cache_key": "0e741b99a90b2e52870a7ca3f5dc29b906ce271ef58919c271b624711704094f",
+  "cache_file": "/home/tryinget/ai-society/softwareco/owned/dspx/generated/cache/program/0e741b99a90b2e52870a7ca3f5dc29b906ce271ef58919c271b624711704094f.json",
+  "cache_enabled": false,
+  "expected_cache_key": "0e741b99a90b2e52870a7ca3f5dc29b906ce271ef58919c271b624711704094f"
+}

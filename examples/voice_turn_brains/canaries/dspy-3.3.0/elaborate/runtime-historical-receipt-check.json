@@ -1,0 +1,61 @@
+{
+  "status": "ok",
+  "receipt_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/runtime/historical-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+  "checks": {
+    "output_exists": true,
+    "output_hash_match": true,
+    "cache_file_matches_key": true,
+    "cache_kind_matches_run_kind": true,
+    "cache_key_recomputes": true,
+    "cache_file_exists": false
+  },
+  "errors": [],
+  "warnings": [
+    "cache disabled in receipt; cache existence/provenance checks are informational"
+  ],
+  "error_codes": [],
+  "error_details": [],
+  "replay_claims": {
+    "schema_version": "dspx-replay-claim-matrix-v1",
+    "mode": "check_only",
+    "dimensions": {
+      "receipt_integrity_check": {
+        "status": "passed",
+        "evidence_level": "current_receipt_and_declared_artifact_bindings"
+      },
+      "deterministic_regeneration": {
+        "status": "not_run",
+        "evidence_level": "fresh_producer_output_identity"
+      },
+      "runtime_execution_reproduction": {
+        "status": "not_run",
+        "evidence_level": "fresh_receipt_bound_runtime_evidence_identity"
+      },
+      "semantic_reproduction": {
+        "status": "not_evaluated",
+        "evidence_level": "independent_semantic_equivalence_evaluation"
+      },
+      "quality_evaluation_reproduction": {
+        "status": "not_evaluated",
+        "evidence_level": "receipt_bound_quality_evaluation_identity_not_independent_approval"
+      }
+    },
+    "release_claim_allowed": false,
+    "authority": {
+      "release_authority": false,
+      "promotion_authority": false,
+      "activation_authority": false,
+      "governance_authority": false,
+      "external_authority": false
+    }
+  },
+  "receipt_version": "v2",
+  "run_kind": "program-runtime",
+  "output_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+  "receipt_hash": "05a7247eb2dfa2edc88d09eea43a0bb661d66b49a78eaaa73df8ab5af13fa662",
+  "actual_output_hash": "05a7247eb2dfa2edc88d09eea43a0bb661d66b49a78eaaa73df8ab5af13fa662",
+  "cache_key": "07b39f3d26af4dac33e549d623650d4f11827478f64b5cf23fc9d6b471994ed0",
+  "cache_file": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/runtime/historical-artifact-under-3.3-stub/.cache/program-runtime/07b39f3d26af4dac33e549d623650d4f11827478f64b5cf23fc9d6b471994ed0.json",
+  "cache_enabled": false,
+  "expected_cache_key": "07b39f3d26af4dac33e549d623650d4f11827478f64b5cf23fc9d6b471994ed0"
+}

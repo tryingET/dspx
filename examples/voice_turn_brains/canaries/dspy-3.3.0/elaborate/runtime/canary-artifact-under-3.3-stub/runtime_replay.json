@@ -1,0 +1,96 @@
+{
+  "behavior_quality_approved": false,
+  "behavior_status": "executed",
+  "candidate_manifest_sha256": "1304cc07864c241ab9b66e19589394e729640204996b317c0286c628d8e727cd",
+  "candidate_receipt_sha256": "7356d11d793f59a567ebd98fa5940d3e5e333ca1a9a23c9e016142713dda4f9c",
+  "checks": {
+    "behavior_results_hash_match": true,
+    "contract_mode_match": true,
+    "execution_status_match": true,
+    "observed_outputs_match": true,
+    "oracle_evidence_hash_match": true,
+    "quality_evaluation_match": true,
+    "quality_status_match": true,
+    "runtime_episode_id_match": true,
+    "runtime_status_match": true,
+    "runtime_traces_hash_match": true
+  },
+  "contract_mode": "none",
+  "effects": {
+    "explicit_replay_output_write": true,
+    "external_authority_mutation_requested": false,
+    "external_filesystem_access_requested": false,
+    "external_filesystem_isolation_enforced": false,
+    "mlflow": false,
+    "network_access_requested": false,
+    "network_isolation_enforced": false,
+    "provider_call": false,
+    "shared_oracle": false,
+    "source_artifact_write": false,
+    "subprocess": true,
+    "temporary_filesystem": true
+  },
+  "execution_status": "executed",
+  "fresh": {
+    "behavior_results_sha256": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+    "observed_outputs_sha256": "d95322b20cadce309d77c37a0e3a5b7f402c98a5b8f1efd11570c76ee3a95494",
+    "oracle_evidence_sha256": "c33611c36d03a5570c9c87770cbb0114bf0863540932ca9d6d43cb36e608a7d4",
+    "program_runtime_traces_sha256": "ebca26842e5a7a53d4e7f9be57dded3eafddcdad287c5a557175b61b9fb36d34"
+  },
+  "non_authority": {
+    "activation_authority": false,
+    "ak_called": false,
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "promotion_authority": false,
+    "shared_oracle_mutated": false
+  },
+  "quality_evaluation_sha256": "52e8c3edc5e87f7a3bcd04493cb9e0346650efda345b92b4135cce05a511246f",
+  "quality_status": "not_declared",
+  "replay_claims": {
+    "authority": {
+      "activation_authority": false,
+      "external_authority": false,
+      "governance_authority": false,
+      "promotion_authority": false,
+      "release_authority": false
+    },
+    "dimensions": {
+      "deterministic_regeneration": {
+        "evidence_level": "fresh_producer_output_identity",
+        "status": "not_run"
+      },
+      "quality_evaluation_reproduction": {
+        "evidence_level": "receipt_bound_quality_evaluation_identity_not_independent_approval",
+        "status": "passed"
+      },
+      "receipt_integrity_check": {
+        "evidence_level": "current_receipt_and_declared_artifact_bindings",
+        "status": "passed"
+      },
+      "runtime_execution_reproduction": {
+        "evidence_level": "fresh_receipt_bound_runtime_evidence_identity",
+        "status": "passed"
+      },
+      "semantic_reproduction": {
+        "evidence_level": "independent_semantic_equivalence_evaluation",
+        "status": "not_evaluated"
+      }
+    },
+    "mode": "runtime_execution_reproduction",
+    "release_claim_allowed": false,
+    "schema_version": "dspx-replay-claim-matrix-v1"
+  },
+  "runtime_episode_id": "prog-run-09b52dfd3d586619",
+  "schema_version": "program-execution-replay-evidence-v2",
+  "source_receipt_sha256": "5be6cfb9ff55d3cecb832f90db5e2521834908071978d0228b8ae34435265122",
+  "status": "execution_reproduced",
+  "strategy": "program-runtime-local-reexecution",
+  "subprocess": {
+    "returncode": 0,
+    "stderr_preview": "",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_preview": "{\n  \"behavior_results_path\": \"/home/tryinget/.local/state/pi-quests/tmp/dspx-program-replay-w2cdagz9/fresh/behavior_results.json\",\n  \"candidate_manifest_path\": \"/home/tryinget/.local/state/pi-quests/tmp/dspx-program-replay-w2cdagz9/candidate/manifest.json\",\n  \"effect\": {\n    \"ak_called\": false,\n    \"behavior_results_written\": true,\n    \"candidate_manifest_mutated\": false,\n    \"canonical_notes_mutated\": false,\n    \"external_authority_mutated\": false,\n    \"governance_mutated\": false,\n    \"oracle_e…[truncated]",
+    "stdout_sha256": "2a3c2f19e3d742b196452c029772677968f0a4823405ae7245c51a2bcb7ef0b7"
+  }
+}

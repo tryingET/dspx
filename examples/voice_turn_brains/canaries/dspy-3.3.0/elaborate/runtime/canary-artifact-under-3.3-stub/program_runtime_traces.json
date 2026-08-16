@@ -1,0 +1,433 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "answer_elaborate",
+      "define_persona"
+    ],
+    "expected_module_ids": [
+      "answer_elaborate",
+      "define_persona"
+    ],
+    "final_output_trace_count": 1,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 2,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 1,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year."
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "status": "executed",
+      "trace_hash": "790a4676a9c91c51349642f442bc80924dc0be10f229950bc2d0fbdd45ec8994"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnElaborateBrain",
+    "objective": "Define the requested persona, then develop a complete, nuanced spoken answer to the transcription."
+  },
+  "module_call_count": 2,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A patient science explainer."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A patient science explainer."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "98d79b748627d9834375dbf137521f6dbd63d42f7ec09f06af16a52e6bf5049d",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "answer_elaborate"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "A patient science explainer.",
+        "transcription": "Why do seasons change?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "answer_elaborate",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year."
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "developed_answer"
+      },
+      "status": "executed",
+      "trace_hash": "2271847497f214d144bfbef43ba3fbd6efcc6e7b75f0faf9e5aa095314afa103",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "answer_elaborate",
+        "define_persona"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 1,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 2,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 1,
+      "records_with_complete_final_outputs": [
+        0
+      ],
+      "records_with_complete_module_calls": [
+        0
+      ],
+      "records_with_final_outputs": [
+        0
+      ],
+      "records_with_module_calls": [
+        0
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 1,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "executed": 1,
+        "failed": 0,
+        "passed": 0,
+        "status": "executed",
+        "status_counts": {
+          "executed": 1
+        },
+        "total": 1
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "790a4676a9c91c51349642f442bc80924dc0be10f229950bc2d0fbdd45ec8994"
+    ],
+    "module_calls": [
+      "98d79b748627d9834375dbf137521f6dbd63d42f7ec09f06af16a52e6bf5049d",
+      "2271847497f214d144bfbef43ba3fbd6efcc6e7b75f0faf9e5aa095314afa103"
+    ]
+  }
+}

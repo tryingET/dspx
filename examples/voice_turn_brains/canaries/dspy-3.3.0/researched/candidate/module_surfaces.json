@@ -1,0 +1,241 @@
+{
+  "authority": "module_surface_contracts_only_non_authoritative",
+  "module_surface_count": 3,
+  "module_surfaces": [
+    {
+      "authority": "module_surface_contract_only_non_authoritative",
+      "capability_ref": {
+        "capability_id": "dspy.primitive.Predict",
+        "materializable": true,
+        "primitive": "Predict",
+        "runtime_binding": "generated_dspy_primitive",
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      },
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "generated": {
+        "module_class": "DefinePersonaModule",
+        "module_path": "module.py",
+        "signature_class": "DefinePersona",
+        "signature_path": "signature.py"
+      },
+      "io": {
+        "inputs": [
+          "persona_intent"
+        ],
+        "outputs": [
+          "persona"
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false
+      },
+      "primitive": "Predict",
+      "schema_version": "program-module-surface-v1",
+      "signature": {
+        "inputs": [
+          "persona_intent"
+        ],
+        "name": "DefinePersona",
+        "outputs": [
+          "persona"
+        ]
+      },
+      "source_kind": "generated_topology_module",
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      }
+    },
+    {
+      "authority": "module_surface_contract_only_non_authoritative",
+      "capability_ref": {
+        "capability_id": "dspy.primitive.Retriever",
+        "materializable": true,
+        "primitive": "Retriever",
+        "runtime_binding": "generated_bounded_inline_retriever_adapter",
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable_with_bounded_inline_adapter"
+      },
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "generated": {
+        "module_class": "RetrieveVoiceTurnCorpusModule",
+        "module_path": "module.py",
+        "signature_class": "RetrieveVoiceTurnCorpus",
+        "signature_path": "signature.py"
+      },
+      "io": {
+        "inputs": [
+          "transcription"
+        ],
+        "outputs": [
+          "passages"
+        ]
+      },
+      "module_id": "retrieve_corpus",
+      "non_authority": {
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false
+      },
+      "primitive": "Retriever",
+      "retriever": {
+        "documents": [
+          {
+            "id": "voice-turn-owner-split",
+            "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+          },
+          {
+            "id": "voice-turn-capture-contract",
+            "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+          },
+          {
+            "id": "voice-turn-batch-scope",
+            "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+          },
+          {
+            "id": "voice-turn-research-boundary",
+            "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+          },
+          {
+            "id": "voice-turn-receipt-boundary",
+            "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+          },
+          {
+            "id": "voice-turn-modality-boundary",
+            "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+          },
+          {
+            "id": "voice-turn-gepa-boundary",
+            "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+          }
+        ],
+        "k": 3,
+        "mode": "inline_corpus"
+      },
+      "schema_version": "program-module-surface-v1",
+      "signature": {
+        "inputs": [
+          "transcription"
+        ],
+        "name": "RetrieveVoiceTurnCorpus",
+        "outputs": [
+          "passages"
+        ]
+      },
+      "source_kind": "generated_topology_module",
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "retrieve_grounding"
+      }
+    },
+    {
+      "authority": "module_surface_contract_only_non_authoritative",
+      "capability_ref": {
+        "capability_id": "dspy.primitive.ChainOfThought",
+        "materializable": true,
+        "primitive": "ChainOfThought",
+        "runtime_binding": "generated_dspy_primitive",
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      },
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "generated": {
+        "module_class": "AnswerResearchedModule",
+        "module_path": "module.py",
+        "signature_class": "AnswerResearched",
+        "signature_path": "signature.py"
+      },
+      "io": {
+        "inputs": [
+          "transcription",
+          "persona",
+          "passages"
+        ],
+        "outputs": [
+          "response"
+        ]
+      },
+      "module_id": "answer_researched",
+      "non_authority": {
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false
+      },
+      "primitive": "ChainOfThought",
+      "schema_version": "program-module-surface-v1",
+      "signature": {
+        "inputs": [
+          "transcription",
+          "persona",
+          "passages"
+        ],
+        "name": "AnswerResearched",
+        "outputs": [
+          "response"
+        ]
+      },
+      "source_kind": "generated_topology_module",
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "cited_corpus_answer"
+      }
+    }
+  ],
+  "non_authority": {
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false
+  },
+  "notes": [
+    "program-gen composes generated module surfaces through this replayable contract.",
+    "No-topology intents may deterministically infer bounded generated Predict/ChainOfThought modules from clear prompt cues when those modules are more valuable than the default Predict scaffold.",
+    "Capability refs bind each generated surface to the descriptor-only program_capability_registry.json boundary contract.",
+    "Future local custom module references can use the same IO-declared surface shape once a safe declared-only/import-free contract lands.",
+    "This artifact does not execute arbitrary custom Python modules and carries no ranking, promotion, governance, or external mutation authority."
+  ],
+  "schema_version": "program-module-surfaces-v1",
+  "status": "materialized"
+}

@@ -1,0 +1,167 @@
+{
+  "authority": "oracle_readability_only_non_authoritative",
+  "behavior": {
+    "evaluation_sources": [
+      {
+        "behavior_results_hash": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+        "behavior_results_path": "behavior_results.json",
+        "input_artifact_hash": "8a6bf2d23d94bc579c0dc791cbb257ccd4df21e2cf5a7df334f94a558c3bc597",
+        "input_artifact_path": "runtime_inputs.json",
+        "kind": "runtime_inputs",
+        "source_kind": "runtime_inputs"
+      }
+    ],
+    "evidence_summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    },
+    "example_count": 1,
+    "failure_modes": [],
+    "result_hash": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+    "result_path": "behavior_results.json",
+    "source_statuses": [
+      "executed"
+    ],
+    "statuses": {
+      "executed": 1
+    },
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    }
+  },
+  "evidence_kind": "program_execution_episode",
+  "identity": {
+    "assembly_id": "prog-asm-eb06d0cf4e43",
+    "candidate_id": "prog-cand-324b55917e00",
+    "episode_id": "prog-ep-05a694bd6f52",
+    "receipt_bundle_id": "prog-rb-c1af62738150",
+    "request_id": "prog-req-d44c8881c6f7",
+    "runtime_episode_id": "prog-run-09b52dfd3d586619"
+  },
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Develop the answer with context, reasoning, implications, and useful caveats.",
+      "Prefer coherent spoken prose over terse bullets.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "metric": "runtime_episode:none",
+    "name": "VoiceTurnElaborateBrain",
+    "objective": "Define the requested persona, then develop a complete, nuanced spoken answer to the transcription.",
+    "task_type": "single_module"
+  },
+  "io": {
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "outputs": [
+      "response"
+    ]
+  },
+  "non_authority": {
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false
+  },
+  "oracle_facets": {
+    "behavior_source_kinds": [
+      "runtime_inputs"
+    ],
+    "behavior_status": "executed",
+    "contract_mode": "none",
+    "dataset_split_count": 0,
+    "evidence_source_count": 1,
+    "example_count": 1,
+    "failure_mode_count": 0,
+    "has_dataset_splits": false,
+    "has_examples": true,
+    "has_failures": false,
+    "input_fields": [
+      "transcription",
+      "persona_intent"
+    ],
+    "metric": "runtime_episode:none",
+    "output_fields": [
+      "response"
+    ],
+    "runtime_episode_id": "prog-run-09b52dfd3d586619",
+    "runtime_trace_coverage_status": "complete",
+    "runtime_trace_final_output_trace_count": 1,
+    "runtime_trace_module_call_count": 2,
+    "runtime_trace_source_record_coverage_status": "complete",
+    "runtime_trace_status": "runtime_traces_captured",
+    "status_counts": {
+      "executed": 1
+    },
+    "task_type": "single_module",
+    "total_evaluation_count": 1
+  },
+  "oracle_text": "schema_version=program-oracle-evidence-v1\nevidence_kind=program_execution_episode\nintent.name=VoiceTurnElaborateBrain\nintent.objective=Define the requested persona, then develop a complete, nuanced spoken answer to the transcription.\nintent.task_type=single_module\nintent.metric=runtime_episode:none\nio.inputs=transcription,persona_intent\nio.outputs=response\nidentity.runtime_episode_id=prog-run-09b52dfd3d586619\nidentity.candidate_id=prog-cand-324b55917e00\nidentity.assembly_id=prog-asm-eb06d0cf4e43\nbehavior.status=executed\nbehavior.source_kinds=runtime_inputs\nbehavior.example_count=1\nruntime_traces.status=runtime_traces_captured\nruntime_traces.coverage_status=complete\nruntime_traces.source_record_coverage_status=complete\nruntime_traces.module_call_count=2\nruntime_traces.final_output_trace_count=1\nauthority=oracle_readability_only_non_authoritative; oracle_ranking=false; oracle_pruning=false; oracle_promotion=false; governance_authority=false; external_mutation=false",
+  "runtime_traces": {
+    "content_hash": "ebca26842e5a7a53d4e7f9be57dded3eafddcdad287c5a557175b61b9fb36d34",
+    "coverage": {
+      "schema_version": "program-runtime-trace-coverage-v1",
+      "source_record_coverage_status": "complete",
+      "status": "complete"
+    },
+    "final_output_trace_count": 1,
+    "module_call_count": 2,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "source_count": 1,
+    "status": "runtime_traces_captured"
+  },
+  "schema_version": "program-oracle-evidence-v1",
+  "source_artifacts": [
+    {
+      "content_hash": "8a6bf2d23d94bc579c0dc791cbb257ccd4df21e2cf5a7df334f94a558c3bc597",
+      "kind": "runtime_inputs",
+      "path": "runtime_inputs.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "a72d086edb4c14c2f2e79d5cec8f18820c9ba9fa246830f5221d1db5009e873c",
+      "kind": "behavior_results",
+      "path": "behavior_results.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "ebca26842e5a7a53d4e7f9be57dded3eafddcdad287c5a557175b61b9fb36d34",
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json"
+    }
+  ]
+}

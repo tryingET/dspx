@@ -1,0 +1,296 @@
+{
+  "claims": {
+    "behavior_quality": "not_evaluated",
+    "dspy_3_3_materialization_compatibility": "established_for_declared_original_shape",
+    "fresh_runtime_reproduction": "established_under_bounded_stub_fixture",
+    "optimized_or_gepa_compatibility": "not_evaluated",
+    "production_activation": false,
+    "receipt_integrity": "established_for_captured_local_artifacts",
+    "runtime_dspy_3_3_identity": "hash_bound_local_environment_observation_not_external_attestation",
+    "semantic_equivalence": "not_evaluated",
+    "version_causality": "not_evaluated"
+  },
+  "command_results": {
+    "comparison-command-result.json": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/comparison-command-result.json",
+      "sha256": "2b807cd60bc8d9fdd8c522d1b799a21a321d75bc91af14f487804049e0532bd1",
+      "size": 9734
+    },
+    "program-gen-command-result.txt": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/program-gen-command-result.txt",
+      "sha256": "388f6291f8a95a3a1157f598c7448936716ad42f74e6dd011bf019376fb9885d",
+      "size": 114
+    },
+    "runtime-canary-command-result.json": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-canary-command-result.json",
+      "sha256": "33b0fa83bcc4bc377e8af58747c26188c868b69fa6ceaa59f6fa01d33483bc40",
+      "size": 5275
+    },
+    "runtime-historical-command-result.json": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-historical-command-result.json",
+      "sha256": "ddc4c70ccfb44af47524463b2011a2da1cbad08fb75a3b4465347efe831d6fb1",
+      "size": 5293
+    }
+  },
+  "comparison": {
+    "artifact": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/comparison.json",
+      "sha256": "2b807cd60bc8d9fdd8c522d1b799a21a321d75bc91af14f487804049e0532bd1",
+      "size": 9734
+    },
+    "causal_dspy_version_claim": false,
+    "generated_status_changed": false,
+    "needs_more_evidence": true,
+    "quality_regression_claim": false,
+    "same_runtime_status_changed": false,
+    "semantic_equivalence_claim": false,
+    "status": "compared"
+  },
+  "effects": {
+    "activation": false,
+    "ak_runtime_called_by_candidate": false,
+    "credentials": false,
+    "external_tools": false,
+    "governance_mutated_by_candidate": false,
+    "live_provider_or_model": false,
+    "network": false,
+    "oracle_index_or_semantic_call": false,
+    "promotion": false,
+    "publication": false
+  },
+  "fresh_candidate": {
+    "excluded_capabilities": [
+      "GEPA",
+      "pickle",
+      "custom_import",
+      "external_tool",
+      "live_external_retriever",
+      "ReAct",
+      "ReActV2",
+      "ProgramOfThought",
+      "streaming",
+      "async"
+    ],
+    "generated_behavior": {
+      "behavior_quality": "not_evaluated",
+      "fixture_output_kind": "bounded_stub_fixture",
+      "quality_approved": false,
+      "semantic_equivalence": "not_evaluated",
+      "status": "failed"
+    },
+    "generation_dspy": {
+      "distribution": "dspy",
+      "prerelease": false,
+      "version": "3.3.0"
+    },
+    "historical_manifest_sha256": "d9479c2981d4382fdbd9d54f5f5ba6684bdd1afcf73e1585a1d2a9664b342fd5",
+    "identity": {
+      "assembly_id": "prog-asm-c9d1908eacb9",
+      "candidate_id": "prog-cand-3f26182ab33f",
+      "episode_id": "prog-ep-a5dc92070233",
+      "receipt_bundle_id": "prog-rb-e284bd36b7e0",
+      "request_id": "prog-req-b6db3b684620"
+    },
+    "identity_freshness": {
+      "fresh_fields": [
+        "assembly_id",
+        "candidate_id",
+        "episode_id",
+        "receipt_bundle_id"
+      ],
+      "fresh_fields_all_distinct": true,
+      "request_id": "shared_intent_lineage",
+      "request_id_matches_historical": true
+    },
+    "lineage_kind": "regenerated_from_same_versioned_intent_with_historical_manifest_hash_binding",
+    "manifest": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/candidate/manifest.json",
+      "sha256": "01b28caa003943e616ad07815870f1abb0f200d0990e52f487271c79ed855fac",
+      "size": 177645
+    },
+    "manifest_receipt": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/candidate/manifest.json.meta.json",
+      "sha256": "48760064bc40949fd346cc63576826d51d7a7b1a838196baf4dba61095119b6a",
+      "size": 212775
+    },
+    "provider": {
+      "credentials_used": false,
+      "live_model_used": false,
+      "model": "stub/echo",
+      "name": "stub",
+      "network_used": false,
+      "typed_contract": "typed_lm"
+    },
+    "topology": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "kind": "pipeline",
+      "module_order": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "outputs": [
+        "response"
+      ],
+      "primitives": [
+        "Predict",
+        "ChainOfThought"
+      ]
+    }
+  },
+  "historical_lineage": {
+    "authorized_inventory_amendment": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/historical-inventory-amendment-AK-4793.json",
+    "behavior_posture": "historical_evidence_not_semantic_baseline",
+    "generation_dspy": {
+      "distribution": "dspy",
+      "prerelease": false,
+      "version": "3.1.3"
+    },
+    "identity": {
+      "assembly_id": "prog-asm-43c16b7ca8af",
+      "candidate_id": "prog-cand-34daf659208a",
+      "episode_id": "prog-ep-b00b2db3eea4",
+      "receipt_bundle_id": "prog-rb-220496194f3b",
+      "request_id": "prog-req-b6db3b684620"
+    },
+    "intent": {
+      "path": "examples/voice_turn_brains/intents/socratic.yaml",
+      "sha256": "7761e8b8f15f64f69c66ecfad18a7e693f143354183e7e0385268da7afc9b837",
+      "size": 1895
+    },
+    "manifest": {
+      "path": "examples/voice_turn_brains/candidates/socratic/original/manifest.json",
+      "sha256": "d9479c2981d4382fdbd9d54f5f5ba6684bdd1afcf73e1585a1d2a9664b342fd5",
+      "size": 188234
+    },
+    "manifest_receipt": {
+      "path": "examples/voice_turn_brains/candidates/socratic/original/manifest.json.meta.json",
+      "sha256": "4ce7b6b8afaaa59bacce091a0131d15737c2fc6462bbfd3d3d108e1b47e99a5b",
+      "size": 227605
+    },
+    "optimized_candidate_in_scope": false,
+    "pre_canary_inventory": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/historical-inventory.json",
+      "sha256": "a4f458dfebba82d589315899194df9bf7a6083bf0b05bf856df7afec32503379"
+    }
+  },
+  "mode": "socratic",
+  "posture": "non_destructive_offline_compatibility_canary",
+  "routing": {
+    "ai_control_brains_updated": false,
+    "canary_selected_for_runtime": false,
+    "manifest_index_updated": false
+  },
+  "runtime_environment_binding": {
+    "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-environment-binding.json",
+    "sha256": "2f6340348e54ddc5f7d22d094f6491f3d162d7088d96aa282b891e431d90c542",
+    "size": 4369
+  },
+  "same_runtime_control": {
+    "fresh_candidate_runtime": {
+      "attempt_total": 4,
+      "episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/canary-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "c2b5d6c8da45a8db1a3e2852fa611a1b9fa8333a0964d1bf289312ab47c7ab8f",
+        "size": 3131
+      },
+      "execution_status": "executed",
+      "quality_approved": false,
+      "receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/canary-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "6c523af8730fb8fc75b04d8876c1e37f899bd14c798c9238eddb49c43f790d1a",
+        "size": 7146
+      },
+      "replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/canary-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "bb9b6bd064967035c5fe2681222fb88092d25bae3e44173ff0c7b5ab0be5f926",
+        "size": 4232
+      },
+      "runtime_episode_id": "prog-run-74eaf0edb2554805",
+      "source_manifest_sha256": "01b28caa003943e616ad07815870f1abb0f200d0990e52f487271c79ed855fac",
+      "terminal_effect": "completed_success"
+    },
+    "historical_artifact_runtime": {
+      "attempt_total": 4,
+      "episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "80eefcfa16f7046fcef793cfd1bd9fe1226dd8ca288210e58d58da755e0de532",
+        "size": 3125
+      },
+      "execution_status": "executed",
+      "quality_approved": false,
+      "receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "5f8213cef147ddbbe8c3468fb5e0f70a86a4235d09a28f3ebc40737cffb95c9c",
+        "size": 7138
+      },
+      "replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "0bfb26a916cfb60432a680f3a25faa1017362107e5037f8a938ab3fabccf6554",
+        "size": 4232
+      },
+      "runtime_episode_id": "prog-run-ffcb53eb8d5520a0",
+      "source_manifest_sha256": "d9479c2981d4382fdbd9d54f5f5ba6684bdd1afcf73e1585a1d2a9664b342fd5",
+      "terminal_effect": "completed_success"
+    },
+    "model": "stub/echo",
+    "provider": "stub",
+    "receipt_checks": {
+      "candidate-manifest-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/candidate-manifest-receipt-check.json",
+        "sha256": "b67b83f5e7c24df94f4aa7a2cc4daa88e1cf446162777072c2f8b8accf28f3c3",
+        "size": 43100
+      },
+      "historical-manifest-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/historical-manifest-receipt-check.json",
+        "sha256": "97f2f51d95edbef4c1d5945630edf7bd281a1c54008fc6960dcd6c45a6a37b3f",
+        "size": 42540
+      },
+      "runtime-canary-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-canary-receipt-check.json",
+        "sha256": "b989d4ebd9b5d418c618ce9b691464d081e61362b982ab0d037f27d695e727cf",
+        "size": 2568
+      },
+      "runtime-historical-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-historical-receipt-check.json",
+        "sha256": "d49226dde86bb7f3988c91d3e7c21c1316b912c37093f190c7505b43553fbe0e",
+        "size": 2580
+      }
+    },
+    "runtime_inputs": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-inputs.json",
+      "sha256": "0d03829483b09f20a598cf18064603cfeeab1f5580ff98b242d644511569d99a",
+      "size": 125
+    },
+    "runtime_replay_results": {
+      "runtime-canary-replay-result.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-canary-replay-result.json",
+        "sha256": "37eea99039c65f710c423373a1c588952c354af31048f9060325dfc4d8a17744",
+        "size": 8769
+      },
+      "runtime-historical-replay-result.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-historical-replay-result.json",
+        "sha256": "43b7804fc0384cd8c1bdb57907f9d956a54f5372d6c229af8fe9ca6a76af2a8d",
+        "size": 8793
+      }
+    },
+    "stub_response": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/stub-response.json",
+      "sha256": "e3eefb0ddf3eab47ccae3c6f320c87bb0e0215e3ad9b42830e8edcf14b804377",
+      "size": 226
+    },
+    "typed_contract": "typed_lm"
+  },
+  "schema_version": "voice-turn-dspy-3.3-migration-canary-v1",
+  "source_identity": {
+    "dspx_core": "0.1.0",
+    "dspy": "3.3.0",
+    "dspy_ai": "3.3.0",
+    "generation_receipt_git_dirty": true,
+    "git_commit": "d123a205e705be9530f6d8836ff8e935a79b9bf9",
+    "python": "3.13.12"
+  },
+  "task_id": 4794
+}

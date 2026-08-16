@@ -1,0 +1,5125 @@
+{
+  "behavior_episode_artifact": {
+    "content_hash": "9a2cb7b18ae542591a496e54638b3170571932883d1c92e516b882efdfe7a85f",
+    "path": "behavior_episode.json",
+    "schema_version": "program-behavior-episode-v1"
+  },
+  "candidate_assembly": {
+    "artifact_kind": "program",
+    "assembly_id": "prog-asm-c9d1908eacb9",
+    "candidate_id": "prog-cand-3f26182ab33f",
+    "content_hash": "1c6b9268d0b77954f24027dcb54cc9b44f320b018671b4fb613fbd29edf85934",
+    "entrypoint": "program.py",
+    "request_id": "prog-req-b6db3b684620",
+    "root_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/candidate",
+    "status": "materialized",
+    "surface_kinds": [
+      "plan",
+      "jury",
+      "jury_selection",
+      "jury_rubric",
+      "promotion_review",
+      "promotion_adjudication_request",
+      "promotion_decision_template",
+      "intent",
+      "module_surfaces",
+      "runtime_outcomes",
+      "runtime_traces",
+      "tool_contracts",
+      "execution_episode",
+      "capability_registry",
+      "generated_module_policy",
+      "intent_normalization",
+      "examples",
+      "behavior_results",
+      "behavior_harness",
+      "behavior_episode",
+      "oracle_evidence",
+      "signature",
+      "module",
+      "program",
+      "direct_runner",
+      "eval_harness",
+      "jury_harness",
+      "promotion_harness"
+    ],
+    "surfaces": [
+      {
+        "content_hash": "b396c71e58c59157f5f35b373a1595b60cac945cc746cde608fc6b413c81b8b3",
+        "generator": "program-gen",
+        "kind": "plan",
+        "path": "plan.json",
+        "schema_version": "program-plan-v1"
+      },
+      {
+        "content_hash": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886",
+        "generator": "program-gen",
+        "kind": "jury",
+        "path": "jury.json",
+        "schema_version": "program-jury-v1"
+      },
+      {
+        "content_hash": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40",
+        "generator": "program-gen",
+        "kind": "jury_selection",
+        "path": "jury_selection.json",
+        "schema_version": "program-jury-selection-v1",
+        "status": "selected"
+      },
+      {
+        "content_hash": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3",
+        "generator": "program-gen",
+        "kind": "jury_rubric",
+        "path": "jury_rubric.json",
+        "schema_version": "program-jury-rubric-v1"
+      },
+      {
+        "content_hash": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a",
+        "generator": "program-gen",
+        "kind": "promotion_review",
+        "path": "promotion_review.json",
+        "promotion_state": "not_promoted",
+        "schema_version": "program-promotion-review-v1"
+      },
+      {
+        "content_hash": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f",
+        "generator": "program-gen",
+        "kind": "promotion_adjudication_request",
+        "path": "promotion_adjudication_request.json",
+        "schema_version": "program-promotion-adjudication-request-v1",
+        "status": "not_ready_blocked"
+      },
+      {
+        "content_hash": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c",
+        "generator": "program-gen",
+        "kind": "promotion_decision_template",
+        "path": "promotion_decision_template.json",
+        "schema_version": "program-promotion-decision-v1",
+        "status": "pending"
+      },
+      {
+        "content_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00",
+        "generator": "program-gen",
+        "kind": "module_surfaces",
+        "module_surface_count": 2,
+        "path": "module_surfaces.json",
+        "schema_version": "program-module-surfaces-v1",
+        "status": "materialized"
+      },
+      {
+        "content_hash": "cd74fb5a621e3ac0284474ac680ab778e6daba5e38f09178d6b6dcca1cda1957",
+        "generator": "program-gen",
+        "kind": "runtime_outcomes",
+        "module_outcome_count": 2,
+        "path": "program_runtime_outcomes.json",
+        "schema_version": "program-runtime-outcomes-v1",
+        "status": "outcome_contracts_declared"
+      },
+      {
+        "content_hash": "07f8cd4dfb65b4cd46326c2f6b41e163aa6cfe8fc05458bf188981590437837e",
+        "final_output_trace_count": 2,
+        "generator": "program-gen",
+        "kind": "runtime_traces",
+        "module_call_count": 4,
+        "path": "program_runtime_traces.json",
+        "schema_version": "program-runtime-traces-v1",
+        "status": "runtime_traces_captured"
+      },
+      {
+        "content_hash": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620",
+        "generator": "program-gen",
+        "kind": "tool_contracts",
+        "path": "program_tool_contracts.json",
+        "schema_version": "program-tool-contracts-v1",
+        "status": "descriptor_only_no_tool_binding",
+        "tool_contract_count": 0
+      },
+      {
+        "content_hash": "c14011fa656cfa5463868e23a61379cf3d110175721ec8b9664fe65b33b9670d",
+        "generator": "program-gen",
+        "kind": "execution_episode",
+        "path": "execution_episode.json",
+        "schema_version": "program-execution-episode-v1",
+        "status": "passed"
+      },
+      {
+        "content_hash": "d51c9c703a425c9702a69e5e17a787c05a7f08e1021b7154dc1dde80e4415c14",
+        "generator": "program-gen",
+        "kind": "capability_registry",
+        "path": "program_capability_registry.json",
+        "schema_version": "program-capability-registry-v1",
+        "status": "descriptor_only_no_runtime_binding"
+      },
+      {
+        "content_hash": "e26ffd473d806cec03901fc7ee3ca99ab48b86c79643fdada31e8a41dac0ed1b",
+        "generator": "program-gen",
+        "kind": "generated_module_policy",
+        "path": "generated_module_policy.json",
+        "schema_version": "program-generated-module-policy-v1",
+        "status": "passed"
+      },
+      {
+        "content_hash": "2ff5fc8a0eb505707f43d5db359be763d608c01f0e74af2209c3c31903da719d",
+        "generator": "program-gen",
+        "kind": "intent_normalization",
+        "path": "intent_normalization.json",
+        "schema_version": "program-intent-normalization-v1",
+        "status": "normalized_for_direct_materialization"
+      },
+      {
+        "content_hash": "010e9ac3debf1449fca8dc4875eb1151ec47bb23dd95a9f3a79e0a662debdc50",
+        "generator": "signature-gen",
+        "kind": "signature",
+        "metadata": {
+          "signature_classes": [
+            "DefinePersona",
+            "GuideSocratically"
+          ],
+          "topology_kind": "pipeline",
+          "topology_materialized": true
+        },
+        "path": "signature.py"
+      },
+      {
+        "content_hash": "beb5f4468700777fe1079afac9a54897812a20c73c8f54233c25b3938749c2db",
+        "generator": "module-gen",
+        "kind": "module",
+        "metadata": {
+          "module_classes": [
+            "DefinePersonaModule",
+            "GuideSocraticallyModule"
+          ],
+          "topology_kind": "pipeline",
+          "topology_materialized": true
+        },
+        "path": "module.py"
+      },
+      {
+        "content_hash": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449",
+        "generator": "program-gen",
+        "kind": "program",
+        "path": "program.py"
+      },
+      {
+        "content_hash": "76d480148ba92375890024d82fd102c2e910cec76583ec3384bba1bebe2bd46b",
+        "generator": "program-gen",
+        "kind": "direct_runner",
+        "path": "direct_run.py"
+      },
+      {
+        "content_hash": "607cef04070698bec5e6a3ce78cfe05eac80036108fb8d8a71b5b6383378f882",
+        "generator": "program-gen",
+        "kind": "eval_harness",
+        "path": "eval_smoke.py"
+      },
+      {
+        "content_hash": "6774acaa995c82022d348061f1990938f8450abc109c03b936f4ac3c992cb992",
+        "generator": "program-gen",
+        "kind": "jury_harness",
+        "path": "eval_jury.py"
+      },
+      {
+        "content_hash": "e1bb315d005f536f8b9c057f855773dd87aaa8d558d5dd438159ec51ef21b841",
+        "generator": "program-gen",
+        "kind": "promotion_harness",
+        "path": "eval_promotion.py"
+      },
+      {
+        "content_hash": "0570f3ee0cb9553272fa1a2ef25cf8c60c3cfcf7b80645f525cf517fa0cdf4df",
+        "generator": "program-gen",
+        "kind": "examples_harness",
+        "path": "eval_examples.py"
+      },
+      {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "generator": "program-gen",
+        "kind": "behavior_results",
+        "path": "behavior_results.json",
+        "schema_version": "program-behavior-results-v1",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      {
+        "content_hash": "1925accd8d4565de742a273095c5deb04a5a1a712d42a5f3e9b040a5311152e0",
+        "generator": "program-gen",
+        "kind": "behavior_harness",
+        "path": "eval_behavior.py"
+      },
+      {
+        "content_hash": "9a2cb7b18ae542591a496e54638b3170571932883d1c92e516b882efdfe7a85f",
+        "generator": "program-gen",
+        "kind": "behavior_episode",
+        "path": "behavior_episode.json",
+        "schema_version": "program-behavior-episode-v1",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "source_count": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1
+          },
+          "total": 2
+        }
+      },
+      {
+        "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+        "facets": {
+          "behavior_source_kinds": [
+            "inline_examples"
+          ],
+          "behavior_status": "failed",
+          "dataset_split_count": 0,
+          "evidence_source_count": 1,
+          "example_count": 2,
+          "failure_mode_count": 1,
+          "has_dataset_splits": false,
+          "has_examples": true,
+          "has_failures": true,
+          "input_fields": [
+            "transcription",
+            "persona_intent"
+          ],
+          "metric": "f1",
+          "output_fields": [
+            "response"
+          ],
+          "runtime_trace_coverage_status": "complete",
+          "runtime_trace_final_output_trace_count": 2,
+          "runtime_trace_module_call_count": 4,
+          "runtime_trace_source_record_coverage_status": "complete",
+          "runtime_trace_status": "runtime_traces_captured",
+          "status_counts": {
+            "failed": 1
+          },
+          "task_type": "single_module",
+          "total_evaluation_count": 2
+        },
+        "generator": "program-gen",
+        "kind": "oracle_evidence",
+        "path": "oracle_evidence.json",
+        "schema_version": "program-oracle-evidence-v1",
+        "summary": {
+          "authority": "oracle_readability_only_non_authoritative",
+          "behavior_status": "failed",
+          "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+          "evidence_kind": "program_execution_episode",
+          "example_count": 2,
+          "failure_mode_count": 1,
+          "has_failures": true,
+          "oracle_text_hash": "ab715cf1ca124992bd7a5336cd700cc004675e56896ef1e26276698cac6393d5",
+          "path": "oracle_evidence.json",
+          "schema_version": "program-oracle-evidence-v1",
+          "status_counts": {
+            "failed": 1
+          }
+        }
+      }
+    ]
+  },
+  "capability_registry_artifact": {
+    "content_hash": "d51c9c703a425c9702a69e5e17a787c05a7f08e1021b7154dc1dde80e4415c14",
+    "path": "program_capability_registry.json",
+    "schema_version": "program-capability-registry-v1"
+  },
+  "dataset_manifest": null,
+  "dataset_manifest_artifact": null,
+  "dataset_split_evidence": null,
+  "execution_episode": {
+    "assembly_id": "prog-asm-c9d1908eacb9",
+    "authority": "execution_episode_evidence_only_non_authoritative",
+    "behavior_evidence_summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed_source_count": 1,
+      "failed": 1,
+      "no_examples_source_count": 0,
+      "passed": 1,
+      "source_count": 1,
+      "source_statuses": [
+        {
+          "behavior_results_path": "behavior_results.json",
+          "count": 2,
+          "kind": "examples",
+          "source_kind": "inline_examples",
+          "split": null,
+          "status": "failed"
+        }
+      ],
+      "status": "failed",
+      "status_counts": {
+        "failed": 1
+      },
+      "total": 2
+    },
+    "behavior_orchestration": {
+      "harness": "eval_behavior.py",
+      "result_artifact": "behavior_episode.json",
+      "result_hash": "9a2cb7b18ae542591a496e54638b3170571932883d1c92e516b882efdfe7a85f",
+      "returncode": 0,
+      "status": "passed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 1,
+        "passed": 1,
+        "source_count": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1
+        },
+        "total": 2
+      }
+    },
+    "behavior_results": {
+      "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+      "path": "behavior_results.json",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 1,
+        "passed": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1,
+          "passed": 1
+        },
+        "total": 2
+      }
+    },
+    "behavior_status": "failed",
+    "behavioral_evaluation": {
+      "examples_count": 2,
+      "result_artifact": "behavior_results.json",
+      "result_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+      "status": "failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 1,
+        "passed": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1,
+          "passed": 1
+        },
+        "total": 2
+      }
+    },
+    "candidate_id": "prog-cand-3f26182ab33f",
+    "checks": {
+      "compile": {
+        "files": [
+          "direct_run.py",
+          "eval_behavior.py",
+          "eval_examples.py",
+          "eval_jury.py",
+          "eval_promotion.py",
+          "eval_smoke.py",
+          "module.py",
+          "program.py",
+          "signature.py"
+        ],
+        "status": "passed"
+      },
+      "dataset_binding": {
+        "dataset_manifest": null,
+        "split_artifacts": {},
+        "status": "not_applicable"
+      },
+      "examples_binding": {
+        "artifact_refs": [
+          "examples.json",
+          "eval_examples.py"
+        ],
+        "examples_count": 2,
+        "status": "passed"
+      },
+      "jury_binding": {
+        "artifact_refs": [
+          "jury.json",
+          "jury_selection.json",
+          "jury_rubric.json",
+          "eval_jury.py"
+        ],
+        "returncode": 0,
+        "status": "passed"
+      },
+      "promotion_binding": {
+        "artifact_refs": [
+          "promotion_review.json",
+          "promotion_adjudication_request.json",
+          "promotion_decision_template.json",
+          "eval_promotion.py"
+        ],
+        "returncode": 0,
+        "status": "passed"
+      },
+      "smoke": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_smoke.py"
+        ],
+        "returncode": 0,
+        "status": "passed"
+      }
+    },
+    "dataset_evaluation": {
+      "dataset_manifest": null,
+      "split_results": {
+        "test": {
+          "behavior_results_hash": null,
+          "behavior_results_path": null,
+          "harness": {},
+          "summary": {}
+        },
+        "train": {
+          "behavior_results_hash": null,
+          "behavior_results_path": null,
+          "harness": {},
+          "summary": {}
+        },
+        "validation": {
+          "behavior_results_hash": null,
+          "behavior_results_path": null,
+          "harness": {},
+          "summary": {}
+        }
+      },
+      "status": "not_applicable"
+    },
+    "episode_id": "prog-ep-a5dc92070233",
+    "evaluation_sources": [
+      {
+        "behavior_results_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "behavior_results_path": "behavior_results.json",
+        "count": 2,
+        "harness": {
+          "path": "eval_examples.py",
+          "returncode": 0,
+          "status": "passed"
+        },
+        "input_artifact_hash": "4c5fe55249b89b00942087d6a9deef59707f80f982413582a7fe2c1b489bd5c4",
+        "input_artifact_path": "examples.json",
+        "kind": "examples",
+        "metric": "f1",
+        "provider": {
+          "provider": "stub/echo",
+          "status": "configured"
+        },
+        "source_kind": "inline_examples",
+        "source_path": null,
+        "status": "failed",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      }
+    ],
+    "evaluator": "deterministic_program_bundle_smoke",
+    "materialization": {
+      "generated_file_count": 30,
+      "generated_files": [
+        "behavior_episode.json",
+        "behavior_results.json",
+        "direct_run.py",
+        "eval_behavior.py",
+        "eval_examples.py",
+        "eval_jury.py",
+        "eval_promotion.py",
+        "eval_smoke.py",
+        "examples.json",
+        "execution_episode.json",
+        "generated_module_policy.json",
+        "intent.json",
+        "intent_normalization.json",
+        "jury.json",
+        "jury_rubric.json",
+        "jury_selection.json",
+        "manifest.json",
+        "module.py",
+        "module_surfaces.json",
+        "oracle_evidence.json",
+        "plan.json",
+        "program.py",
+        "program_capability_registry.json",
+        "program_runtime_outcomes.json",
+        "program_runtime_traces.json",
+        "program_tool_contracts.json",
+        "promotion_adjudication_request.json",
+        "promotion_decision_template.json",
+        "promotion_review.json",
+        "signature.py"
+      ],
+      "status": "passed"
+    },
+    "metadata": {
+      "behavior_episode": {
+        "authority": "behavior_evidence_only_non_authoritative",
+        "non_authority": {
+          "external_authority_mutated": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "optimization_authority": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "quality_evaluation": {
+          "criteria_declared": false,
+          "evaluations_failed": 0,
+          "evaluations_passed": 0,
+          "evaluations_total": 0,
+          "quality_approved": false,
+          "status": "not_declared"
+        },
+        "schema_version": "program-behavior-episode-v1",
+        "sources": [
+          {
+            "behavior_results_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+            "behavior_results_path": "behavior_results.json",
+            "behavior_status": "failed",
+            "command": [
+              "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+              "eval_examples.py"
+            ],
+            "count": 2,
+            "harness_path": "eval_examples.py",
+            "kind": "examples",
+            "provider": {
+              "provider": "stub/echo",
+              "status": "configured"
+            },
+            "quality_evaluation": {
+              "criteria_declared": false,
+              "evaluations_failed": 0,
+              "evaluations_passed": 0,
+              "evaluations_total": 0,
+              "quality_approved": false,
+              "status": "not_declared"
+            },
+            "returncode": 0,
+            "source_kind": "inline_examples",
+            "split": null,
+            "status": "passed",
+            "stderr": "",
+            "stdout": "program examples ok: 2 example(s); behavior status: failed",
+            "summary": {
+              "degraded": 0,
+              "error": 0,
+              "failed": 1,
+              "passed": 1,
+              "status": "failed",
+              "status_counts": {
+                "failed": 1,
+                "passed": 1
+              },
+              "total": 2
+            }
+          }
+        ],
+        "status": "failed",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "source_count": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1
+          },
+          "total": 2
+        }
+      },
+      "behavior_results": {
+        "authority": "behavior_evidence_only_non_authoritative",
+        "examples": [
+          {
+            "expected_outputs": {
+              "response": "What properties define a rectangle, and does a square satisfy each of them?"
+            },
+            "index": 0,
+            "inputs": {
+              "persona_intent": "A warm mathematics tutor.",
+              "transcription": "Is every square a rectangle?"
+            },
+            "notes": [],
+            "observed_outputs": {
+              "response": "What properties define a rectangle, and does a square satisfy each of them?"
+            },
+            "quality_evaluation": {
+              "criteria": [],
+              "criteria_failed": 0,
+              "criteria_passed": 0,
+              "criteria_total": 0,
+              "quality_approved": false,
+              "schema_version": "program-quality-evaluation-v1",
+              "status": "not_declared"
+            },
+            "runtime_trace": {
+              "final_outputs": {
+                "response": "What properties define a rectangle, and does a square satisfy each of them?"
+              },
+              "module_calls": [
+                {
+                  "inputs": {
+                    "persona_intent": "A warm mathematics tutor."
+                  },
+                  "module_id": "define_persona",
+                  "outputs": {
+                    "persona": "A warm mathematics tutor."
+                  },
+                  "primitive": "Predict",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                },
+                {
+                  "inputs": {
+                    "persona": "A warm mathematics tutor.",
+                    "transcription": "Is every square a rectangle?"
+                  },
+                  "module_id": "guide_socratically",
+                  "outputs": {
+                    "response": "What properties define a rectangle, and does a square satisfy each of them?"
+                  },
+                  "primitive": "ChainOfThought",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                }
+              ],
+              "scheduler_events": [
+                {
+                  "missing_outputs": [],
+                  "pending": [],
+                  "status": "completed"
+                }
+              ],
+              "schema_version": "program-runtime-trace-fragment-v1"
+            },
+            "status": "passed"
+          },
+          {
+            "expected_outputs": {
+              "response": "What happens to roots when soil stays saturated, and how might that affect the plant's ability to take up oxygen and water?"
+            },
+            "index": 1,
+            "inputs": {
+              "persona_intent": "A curious biology mentor.",
+              "transcription": "Why did my plant wilt after I watered it every day?"
+            },
+            "notes": [
+              "output mismatch: ['response']"
+            ],
+            "observed_outputs": {
+              "response": "What properties define a rectangle, and does a square satisfy each of them?"
+            },
+            "quality_evaluation": {
+              "criteria": [],
+              "criteria_failed": 0,
+              "criteria_passed": 0,
+              "criteria_total": 0,
+              "quality_approved": false,
+              "schema_version": "program-quality-evaluation-v1",
+              "status": "not_declared"
+            },
+            "runtime_trace": {
+              "final_outputs": {
+                "response": "What properties define a rectangle, and does a square satisfy each of them?"
+              },
+              "module_calls": [
+                {
+                  "inputs": {
+                    "persona_intent": "A curious biology mentor."
+                  },
+                  "module_id": "define_persona",
+                  "outputs": {
+                    "persona": "A warm mathematics tutor."
+                  },
+                  "primitive": "Predict",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                },
+                {
+                  "inputs": {
+                    "persona": "A warm mathematics tutor.",
+                    "transcription": "Why did my plant wilt after I watered it every day?"
+                  },
+                  "module_id": "guide_socratically",
+                  "outputs": {
+                    "response": "What properties define a rectangle, and does a square satisfy each of them?"
+                  },
+                  "primitive": "ChainOfThought",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                }
+              ],
+              "scheduler_events": [
+                {
+                  "missing_outputs": [],
+                  "pending": [],
+                  "status": "completed"
+                }
+              ],
+              "schema_version": "program-runtime-trace-fragment-v1"
+            },
+            "status": "failed"
+          }
+        ],
+        "input_fields": [
+          "transcription",
+          "persona_intent"
+        ],
+        "intent": {
+          "constraints": [
+            "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+            "Define a concrete persona from persona_intent before responding.",
+            "Ask one or two focused questions that expose the next useful reasoning step.",
+            "Offer only the minimum scaffold needed to make the question answerable.",
+            "Do not echo the transcription or persona intent.",
+            "Return only the response field."
+          ],
+          "declared_topology": {
+            "edges": [
+              {
+                "from": "input",
+                "to": "define_persona"
+              },
+              {
+                "from": "define_persona",
+                "to": "guide_socratically"
+              },
+              {
+                "from": "guide_socratically",
+                "to": "output"
+              }
+            ],
+            "execution_status": "declared_not_materialized",
+            "kind": "pipeline",
+            "modules": [
+              {
+                "id": "define_persona",
+                "primitive": "Predict",
+                "role": "define_persona",
+                "signature": {
+                  "inputs": [
+                    "persona_intent"
+                  ],
+                  "name": "DefinePersona",
+                  "outputs": [
+                    "persona"
+                  ]
+                }
+              },
+              {
+                "id": "guide_socratically",
+                "primitive": "ChainOfThought",
+                "role": "socratic_guide",
+                "signature": {
+                  "inputs": [
+                    "transcription",
+                    "persona"
+                  ],
+                  "name": "GuideSocratically",
+                  "outputs": [
+                    "response"
+                  ]
+                }
+              }
+            ]
+          },
+          "inferred_topology": {},
+          "io": {
+            "inputs": [
+              "transcription",
+              "persona_intent"
+            ],
+            "outputs": [
+              "response"
+            ]
+          },
+          "materialization_scope": {
+            "current_renderer": "pipeline_topology_renderer",
+            "topology_declared": true,
+            "topology_inferred": false,
+            "topology_materialized": true
+          },
+          "materialized_topology": {
+            "edges": [
+              {
+                "from": "input",
+                "to": "define_persona"
+              },
+              {
+                "from": "define_persona",
+                "to": "guide_socratically"
+              },
+              {
+                "from": "guide_socratically",
+                "to": "output"
+              }
+            ],
+            "execution_status": "pipeline_materialized",
+            "kind": "pipeline",
+            "modules": [
+              {
+                "id": "define_persona",
+                "primitive": "Predict",
+                "role": "define_persona",
+                "signature": {
+                  "inputs": [
+                    "persona_intent"
+                  ],
+                  "name": "DefinePersona",
+                  "outputs": [
+                    "persona"
+                  ]
+                }
+              },
+              {
+                "id": "guide_socratically",
+                "primitive": "ChainOfThought",
+                "role": "socratic_guide",
+                "signature": {
+                  "inputs": [
+                    "transcription",
+                    "persona"
+                  ],
+                  "name": "GuideSocratically",
+                  "outputs": [
+                    "response"
+                  ]
+                }
+              }
+            ],
+            "scheduler_plan": {
+              "declaration_order": [
+                "define_persona",
+                "guide_socratically"
+              ],
+              "effect": {
+                "authority_mutated": false,
+                "custom_import_loaded": false,
+                "provider_called": false,
+                "retriever_called": false,
+                "tool_called": false
+              },
+              "module_order": [
+                "define_persona",
+                "guide_socratically"
+              ],
+              "module_readiness": {
+                "define_persona": {
+                  "inbound_edges": [
+                    {
+                      "from": "input",
+                      "to": "define_persona"
+                    }
+                  ],
+                  "primitive": "Predict",
+                  "produced_outputs": [
+                    "persona"
+                  ],
+                  "required_inputs": [
+                    "persona_intent"
+                  ]
+                },
+                "guide_socratically": {
+                  "inbound_edges": [
+                    {
+                      "from": "define_persona",
+                      "to": "guide_socratically"
+                    }
+                  ],
+                  "primitive": "ChainOfThought",
+                  "produced_outputs": [
+                    "response"
+                  ],
+                  "required_inputs": [
+                    "transcription",
+                    "persona"
+                  ]
+                }
+              },
+              "output_producers": [
+                "guide_socratically"
+              ],
+              "scheduler": "bounded_ready_queue",
+              "schema_version": "program-topology-scheduler-plan-v1",
+              "status": "deterministic_local_dag_schedule"
+            }
+          },
+          "metric": "f1",
+          "module_order": [
+            "define_persona",
+            "guide_socratically"
+          ],
+          "name": "VoiceTurnSocraticBrain",
+          "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+          "program_class": "VoiceTurnSocraticBrainPipelineProgram",
+          "quality_criteria": [],
+          "scheduler_plan": {
+            "declaration_order": [
+              "define_persona",
+              "guide_socratically"
+            ],
+            "effect": {
+              "authority_mutated": false,
+              "custom_import_loaded": false,
+              "provider_called": false,
+              "retriever_called": false,
+              "tool_called": false
+            },
+            "module_order": [
+              "define_persona",
+              "guide_socratically"
+            ],
+            "module_readiness": {
+              "define_persona": {
+                "inbound_edges": [
+                  {
+                    "from": "input",
+                    "to": "define_persona"
+                  }
+                ],
+                "primitive": "Predict",
+                "produced_outputs": [
+                  "persona"
+                ],
+                "required_inputs": [
+                  "persona_intent"
+                ]
+              },
+              "guide_socratically": {
+                "inbound_edges": [
+                  {
+                    "from": "define_persona",
+                    "to": "guide_socratically"
+                  }
+                ],
+                "primitive": "ChainOfThought",
+                "produced_outputs": [
+                  "response"
+                ],
+                "required_inputs": [
+                  "transcription",
+                  "persona"
+                ]
+              }
+            },
+            "output_producers": [
+              "guide_socratically"
+            ],
+            "scheduler": "bounded_ready_queue",
+            "schema_version": "program-topology-scheduler-plan-v1",
+            "status": "deterministic_local_dag_schedule"
+          },
+          "topology_execution_status": "pipeline_materialized"
+        },
+        "intent_name": "VoiceTurnSocraticBrain",
+        "non_authority": {
+          "external_authority_mutated": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "optimization_authority": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "output_fields": [
+          "response"
+        ],
+        "provider": {
+          "provider": "stub/echo",
+          "status": "configured"
+        },
+        "quality_evaluation": {
+          "criteria_declared": false,
+          "evaluations_failed": 0,
+          "evaluations_passed": 0,
+          "evaluations_total": 0,
+          "quality_approved": false,
+          "status": "not_declared"
+        },
+        "schema_version": "program-behavior-results-v1",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "examples": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_examples.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program examples ok: 2 example(s); behavior status: failed"
+      },
+      "jury": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_jury.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program jury artifacts ok: 3 selected juror(s)"
+      },
+      "promotion": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_promotion.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program promotion artifacts ok: not_ready_blocked"
+      },
+      "smoke": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_smoke.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program smoke ok: VoiceTurnSocraticBrain"
+      }
+    },
+    "non_authority": {
+      "ak_mutation": false,
+      "automatic_promotion": false,
+      "evidence_only": true,
+      "external_authority_mutated": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "governance_mutation": false,
+      "oracle_authority": false,
+      "oracle_promotion": false,
+      "oracle_pruning": false,
+      "oracle_ranking": false,
+      "oracle_role": "not_invoked",
+      "promotion_authority": false,
+      "ranking_pruning_promotion": false,
+      "winner_selection": false
+    },
+    "notes": [
+      "Materialization, binding checks, behavioral evaluation, and Oracle readability are separate episode sections.",
+      "eval_examples.py is the example-backed behavior harness when examples exist.",
+      "Oracle readability is captured without invoking Oracle or mutating an index.",
+      "This artifact is evidence only and cannot rank, prune, promote, export, or mutate governance authority."
+    ],
+    "oracle_evidence": {
+      "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+      "facets": {
+        "behavior_source_kinds": [
+          "inline_examples"
+        ],
+        "behavior_status": "failed",
+        "dataset_split_count": 0,
+        "evidence_source_count": 1,
+        "example_count": 2,
+        "failure_mode_count": 1,
+        "has_dataset_splits": false,
+        "has_examples": true,
+        "has_failures": true,
+        "input_fields": [
+          "transcription",
+          "persona_intent"
+        ],
+        "metric": "f1",
+        "output_fields": [
+          "response"
+        ],
+        "runtime_trace_coverage_status": "complete",
+        "runtime_trace_final_output_trace_count": 2,
+        "runtime_trace_module_call_count": 4,
+        "runtime_trace_source_record_coverage_status": "complete",
+        "runtime_trace_status": "runtime_traces_captured",
+        "status_counts": {
+          "failed": 1
+        },
+        "task_type": "single_module",
+        "total_evaluation_count": 2
+      },
+      "path": "oracle_evidence.json",
+      "summary": {
+        "authority": "oracle_readability_only_non_authoritative",
+        "behavior_status": "failed",
+        "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+        "evidence_kind": "program_execution_episode",
+        "example_count": 2,
+        "failure_mode_count": 1,
+        "has_failures": true,
+        "oracle_text_hash": "ab715cf1ca124992bd7a5336cd700cc004675e56896ef1e26276698cac6393d5",
+        "path": "oracle_evidence.json",
+        "schema_version": "program-oracle-evidence-v1",
+        "status_counts": {
+          "failed": 1
+        }
+      }
+    },
+    "oracle_readability": {
+      "facets": {
+        "behavior_source_kinds": [
+          "inline_examples"
+        ],
+        "behavior_status": "failed",
+        "dataset_split_count": 0,
+        "evidence_source_count": 1,
+        "example_count": 2,
+        "failure_mode_count": 1,
+        "has_dataset_splits": false,
+        "has_examples": true,
+        "has_failures": true,
+        "input_fields": [
+          "transcription",
+          "persona_intent"
+        ],
+        "metric": "f1",
+        "output_fields": [
+          "response"
+        ],
+        "runtime_trace_coverage_status": "complete",
+        "runtime_trace_final_output_trace_count": 2,
+        "runtime_trace_module_call_count": 4,
+        "runtime_trace_source_record_coverage_status": "complete",
+        "runtime_trace_status": "runtime_traces_captured",
+        "status_counts": {
+          "failed": 1
+        },
+        "task_type": "single_module",
+        "total_evaluation_count": 2
+      },
+      "oracle_invoked": false,
+      "result_artifact": "oracle_evidence.json",
+      "result_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+      "status": "captured",
+      "summary": {
+        "authority": "oracle_readability_only_non_authoritative",
+        "behavior_status": "failed",
+        "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+        "evidence_kind": "program_execution_episode",
+        "example_count": 2,
+        "failure_mode_count": 1,
+        "has_failures": true,
+        "oracle_text_hash": "ab715cf1ca124992bd7a5336cd700cc004675e56896ef1e26276698cac6393d5",
+        "path": "oracle_evidence.json",
+        "schema_version": "program-oracle-evidence-v1",
+        "status_counts": {
+          "failed": 1
+        }
+      }
+    },
+    "phase": "materialize",
+    "request_id": "prog-req-b6db3b684620",
+    "runtime_conditions": {
+      "metric": "f1",
+      "providers": {
+        "examples": {
+          "provider": "stub/echo",
+          "status": "configured"
+        }
+      },
+      "runtime": {}
+    },
+    "schema_version": "program-execution-episode-v1",
+    "status": "passed",
+    "status_scope": "materialization_and_binding_checks",
+    "topology_execution": {
+      "current_renderer": "pipeline_topology_renderer",
+      "declared_topology_kind": "pipeline",
+      "declared_topology_present": true,
+      "materialized": true,
+      "materialized_topology_kind": "pipeline",
+      "notes": [
+        "Explicit pipeline topology was rendered into signature.py, module.py, and program.py.",
+        "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated."
+      ],
+      "status": "pipeline_materialized"
+    }
+  },
+  "execution_episode_artifact": {
+    "content_hash": "c14011fa656cfa5463868e23a61379cf3d110175721ec8b9664fe65b33b9670d",
+    "path": "execution_episode.json",
+    "schema_version": "program-execution-episode-v1"
+  },
+  "generated_module_policy_artifact": {
+    "content_hash": "e26ffd473d806cec03901fc7ee3ca99ab48b86c79643fdada31e8a41dac0ed1b",
+    "path": "generated_module_policy.json",
+    "schema_version": "program-generated-module-policy-v1"
+  },
+  "intent": {
+    "capabilities": {},
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before responding.",
+      "Ask one or two focused questions that expose the next useful reasoning step.",
+      "Offer only the minimum scaffold needed to make the question answerable.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "dataset": {},
+    "datasets": {},
+    "examples": [
+      {
+        "inputs": {
+          "persona_intent": "A warm mathematics tutor.",
+          "transcription": "Is every square a rectangle?"
+        },
+        "outputs": {
+          "response": "What properties define a rectangle, and does a square satisfy each of them?"
+        }
+      },
+      {
+        "inputs": {
+          "persona_intent": "A curious biology mentor.",
+          "transcription": "Why did my plant wilt after I watered it every day?"
+        },
+        "outputs": {
+          "response": "What happens to roots when soil stays saturated, and how might that affect the plant's ability to take up oxygen and water?"
+        }
+      }
+    ],
+    "input_fields": [],
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "jury": {},
+    "metric": "f1",
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+    "options": {
+      "module_inference": false
+    },
+    "output_fields": [],
+    "outputs": [
+      "response"
+    ],
+    "promotion": {},
+    "quality_criteria": [],
+    "runtime": {},
+    "schema_version": "program-intent-v2",
+    "task_type": "single_module",
+    "topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "guide_socratically"
+        },
+        {
+          "from": "guide_socratically",
+          "to": "output"
+        }
+      ],
+      "execution_status": "declared_not_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "guide_socratically",
+          "primitive": "ChainOfThought",
+          "role": "socratic_guide",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "GuideSocratically",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "intent_normalization": {
+    "assumptions": [],
+    "effect": {
+      "ak_called": false,
+      "external_authority_mutated": false,
+      "governance_mutated": false,
+      "normalized_intent_written": false,
+      "oracle_index_mutated": false,
+      "program_materialized": false,
+      "promotion_applied": false,
+      "provider_called": false,
+      "winner_selected": false
+    },
+    "generation_assumptions_preview": {
+      "capability_boundaries": {
+        "custom_modules": {
+          "boundary": "Custom module/import requests remain declarations and policy metadata only.",
+          "imports_enabled": false,
+          "requested": false,
+          "status": "blocked_policy_only"
+        },
+        "program_of_thought": {
+          "boundary": "No filesystem, network, env vars, tools, or sync files are exposed.",
+          "requested": false,
+          "sandbox": "empty",
+          "status": "empty_sandbox_boundary"
+        },
+        "react": {
+          "boundary": "ReAct materialization is explicit, bounded, and tools=[] only.",
+          "requested": false,
+          "status": "no_tool_boundary",
+          "tools_enabled": false
+        },
+        "react_v2": {
+          "boundary": "ReActV2 materialization is unavailable during the typed Core cutover.",
+          "requested": false,
+          "safe_next_action": "Retain the request as descriptor-only evidence; do not materialize or execute ReActV2.",
+          "status": "unavailable_typed_core_cutover",
+          "tool_binding_status": "disabled",
+          "tool_need_detected": false,
+          "tools_enabled": false,
+          "why_tools_not_enabled": [
+            "DSPy 3.3 ReActV2 availability does not authorize DSPx runtime or tool execution.",
+            "ReActV2 and its tool references remain descriptor-only in this cutover."
+          ]
+        },
+        "retrievers": {
+          "boundary": "Retriever materialization requires an explicit bounded Retriever topology module; external/live retrievers remain disabled.",
+          "live_retrievers_enabled": false,
+          "need_detected": false,
+          "safe_modes_available": [
+            "inline_corpus",
+            "local_corpus_snapshot"
+          ],
+          "status": "not_requested"
+        },
+        "tools": {
+          "boundary": "Tool declarations may be recorded, but dspy.Tool/live tool execution is not bound by program-gen.",
+          "enabled": false,
+          "need_detected": false,
+          "status": "disabled_descriptor_only"
+        }
+      },
+      "effect": {
+        "authority_mutated": false,
+        "custom_import_loaded": false,
+        "program_materialized": false,
+        "retriever_called": false,
+        "tool_called": false
+      },
+      "missing_questions": [],
+      "safe_next_actions": [
+        "Review this preview before materialization.",
+        "Add explicit topology when the inferred candidate is wrong or too vague.",
+        "Use only bounded inline/local retriever declarations; do not expect live retriever/tool execution.",
+        "Keep custom module/import requests declared-only until a reviewed safe import policy exists."
+      ],
+      "schema_version": "program-generation-assumptions-preview-v1",
+      "status": "preview_only_not_materialization_authority",
+      "topology_candidates": [
+        {
+          "confidence": "operator_declared",
+          "kind": "pipeline",
+          "materializable_now": true,
+          "reason": "The intent includes an explicit topology.kind; program-gen preserves it before deciding what subset can materialize.",
+          "renderer": "pipeline_topology_renderer",
+          "safety_boundary": "Declared topology is evidence/assumption metadata unless the bounded renderer validates it; custom remains policy-only.",
+          "source": "declared_topology"
+        }
+      ],
+      "unsupported_or_preserved_declared_only_features": []
+    },
+    "generation_risks": [],
+    "materialization_gate": {
+      "blocks_materialization": false,
+      "notes": [
+        "Direct program-gen now emits this assumption/risk sidecar before writing candidate surfaces.",
+        "This sidecar does not approve generation, promotion, activation, or external authority mutation."
+      ],
+      "review_required_before_trusting_outputs": true,
+      "status": "emitted_before_candidate_materialization"
+    },
+    "missing_evidence": [
+      {
+        "kind": "dataset",
+        "message": "No dataset or explicit splits were supplied; tournament evaluation cannot compare broader data behavior.",
+        "severity": "medium"
+      }
+    ],
+    "next_actions": [
+      "Inspect assumptions, missing evidence, topology hints, and generation risks before materialization.",
+      "Run `dspx program-architect plan --intent <normalized-intent>` to inspect candidate architectures.",
+      "Add examples or datasets before using tournament evidence for serious comparison."
+    ],
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "normalization_only": true,
+      "oracle_authority": false,
+      "program_generation": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "winner_selection": false
+    },
+    "normalized_intent": {
+      "capabilities": {},
+      "constraints": [
+        "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+        "Define a concrete persona from persona_intent before responding.",
+        "Ask one or two focused questions that expose the next useful reasoning step.",
+        "Offer only the minimum scaffold needed to make the question answerable.",
+        "Do not echo the transcription or persona intent.",
+        "Return only the response field."
+      ],
+      "dataset": {},
+      "datasets": {},
+      "examples": [
+        {
+          "inputs": {
+            "persona_intent": "A warm mathematics tutor.",
+            "transcription": "Is every square a rectangle?"
+          },
+          "outputs": {
+            "response": "What properties define a rectangle, and does a square satisfy each of them?"
+          }
+        },
+        {
+          "inputs": {
+            "persona_intent": "A curious biology mentor.",
+            "transcription": "Why did my plant wilt after I watered it every day?"
+          },
+          "outputs": {
+            "response": "What happens to roots when soil stays saturated, and how might that affect the plant's ability to take up oxygen and water?"
+          }
+        }
+      ],
+      "input_fields": [],
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "jury": {},
+      "metric": "f1",
+      "name": "VoiceTurnSocraticBrain",
+      "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+      "options": {
+        "module_inference": false
+      },
+      "output_fields": [],
+      "outputs": [
+        "response"
+      ],
+      "promotion": {},
+      "quality_criteria": [],
+      "runtime": {},
+      "schema_version": "program-intent-v2",
+      "task_type": "single_module",
+      "topology": {
+        "edges": [
+          {
+            "from": "input",
+            "to": "define_persona"
+          },
+          {
+            "from": "define_persona",
+            "to": "guide_socratically"
+          },
+          {
+            "from": "guide_socratically",
+            "to": "output"
+          }
+        ],
+        "execution_status": "declared_not_materialized",
+        "kind": "pipeline",
+        "modules": [
+          {
+            "id": "define_persona",
+            "primitive": "Predict",
+            "role": "define_persona",
+            "signature": {
+              "inputs": [
+                "persona_intent"
+              ],
+              "name": "DefinePersona",
+              "outputs": [
+                "persona"
+              ]
+            }
+          },
+          {
+            "id": "guide_socratically",
+            "primitive": "ChainOfThought",
+            "role": "socratic_guide",
+            "signature": {
+              "inputs": [
+                "transcription",
+                "persona"
+              ],
+              "name": "GuideSocratically",
+              "outputs": [
+                "response"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "normalized_intent_hash": "f10ee49ec503ae7202e354f2c73f1e7333d28b0b139b314505b1caef58cf1f81",
+    "primitive_hints": [
+      {
+        "primitive": "ChainOfThought",
+        "reason": "Reasoned generation/review/validation can use the current generated ChainOfThought primitive.",
+        "status": "supported"
+      }
+    ],
+    "schema_version": "program-intent-normalization-v1",
+    "source": {
+      "content_hash": "7761e8b8f15f64f69c66ecfad18a7e693f143354183e7e0385268da7afc9b837",
+      "kind": "intent_file",
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/intents/socratic.yaml"
+    },
+    "status": "normalized_for_direct_materialization",
+    "support_level_preview": {
+      "classifications": {
+        "features": [],
+        "primitives": [
+          {
+            "blockers": [],
+            "capability_kind": "primitive",
+            "materialization_effects_allowed": true,
+            "name": "ChainOfThought",
+            "safe_next_actions": [
+              "Materialize ChainOfThought only through the bounded local renderer.",
+              "Run generated-module policy checks and receipt replay before trusting evidence."
+            ],
+            "source_status": "supported",
+            "support_level": "executable_local"
+          }
+        ],
+        "production_activation": {
+          "blockers": [
+            "Generated-program artifacts remain non-authoritative.",
+            "Activation requires a separate owner-authorized governance path."
+          ],
+          "capability_kind": "authority_boundary",
+          "in_scope": false,
+          "materialization_effects_allowed": false,
+          "name": "production_activation",
+          "safe_next_actions": [
+            "Route production activation through the owner-authorized governance boundary; this blocker does not grant activation authority."
+          ],
+          "support_level": "production_activation"
+        },
+        "topology_candidates": [
+          {
+            "blockers": [
+              "Declared topology is evidence/assumption metadata unless the bounded renderer validates it; custom remains policy-only."
+            ],
+            "capability_kind": "topology_candidate",
+            "materialization_effects_allowed": true,
+            "name": "pipeline",
+            "renderer": "pipeline_topology_renderer",
+            "safe_next_actions": [
+              "Materialize pipeline only through the bounded local renderer.",
+              "Run generated-module policy checks and receipt replay before trusting evidence."
+            ],
+            "source": "declared_topology",
+            "support_level": "executable_local"
+          }
+        ]
+      },
+      "effect": {
+        "authority_mutated": false,
+        "custom_import_loaded": false,
+        "program_materialized": false,
+        "retriever_called": false,
+        "tool_called": false
+      },
+      "safe_next_actions": [
+        "Review support levels, blockers, missing evidence, and topology candidates before materialization.",
+        "Treat descriptor-only capabilities as preserved contracts, not executable behavior.",
+        "Keep production activation outside program-gen blocker #1 unless the owning governance surface explicitly authorizes it."
+      ],
+      "schema_version": "program-support-level-preview-v1",
+      "status": "preview_only_not_materialization_authority",
+      "taxonomy": [
+        {
+          "allowed_in_blocker": true,
+          "effect_allowed": false,
+          "label": "Descriptor-only",
+          "level": "descriptor_only",
+          "meaning": "Capability is represented in the normalized intent/preview evidence but is not executed."
+        },
+        {
+          "allowed_in_blocker": true,
+          "effect_allowed": false,
+          "label": "Local dry-run/evaluation",
+          "level": "local_dry_run_evaluation",
+          "meaning": "Capability may be checked locally through schema/hash/preview validation without live tool, retriever, import, or authority effects."
+        },
+        {
+          "allowed_in_blocker": true,
+          "effect_allowed": true,
+          "label": "Executable local",
+          "level": "executable_local",
+          "meaning": "Capability may execute only inside the generated candidate's declared local runtime/evaluation boundary."
+        },
+        {
+          "allowed_in_blocker": false,
+          "effect_allowed": false,
+          "label": "Production activation",
+          "level": "production_activation",
+          "meaning": "Capability affects live routing, canonical state, source-owner systems, or external authority."
+        }
+      ]
+    },
+    "topology_hints": []
+  },
+  "intent_normalization_artifact": {
+    "content_hash": "2ff5fc8a0eb505707f43d5db359be763d608c01f0e74af2209c3c31903da719d",
+    "path": "intent_normalization.json",
+    "schema_version": "program-intent-normalization-v1",
+    "status": "normalized_for_direct_materialization"
+  },
+  "module_surfaces_artifact": {
+    "content_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00",
+    "path": "module_surfaces.json",
+    "schema_version": "program-module-surfaces-v1"
+  },
+  "oracle_readability": {
+    "path": "oracle_evidence.json",
+    "schema_version": "program-oracle-evidence-v1"
+  },
+  "pre_materialization_review": {
+    "assumption_count": 0,
+    "blocks_materialization": false,
+    "capability_boundary_keys": [
+      "custom_modules",
+      "program_of_thought",
+      "react",
+      "react_v2",
+      "retrievers",
+      "tools"
+    ],
+    "content_hash": "2ff5fc8a0eb505707f43d5db359be763d608c01f0e74af2209c3c31903da719d",
+    "generation_risk_count": 0,
+    "missing_evidence_count": 1,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "normalization_only": true,
+      "oracle_authority": false,
+      "program_generation": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "winner_selection": false
+    },
+    "path": "intent_normalization.json",
+    "status": "emitted_before_candidate_materialization",
+    "topology_candidate_count": 1
+  },
+  "program_architecture_contract_verification": null,
+  "program_architecture_contract_verification_artifact": null,
+  "program_capability_registry": {
+    "builtin_capabilities": [
+      {
+        "allowed_topology_kinds": [
+          "single_module",
+          "pipeline",
+          "router",
+          "retrieve_then_answer",
+          "extract_transform_validate",
+          "generate_critique_revise"
+        ],
+        "capability_id": "dspy.primitive.Predict",
+        "conditional_materializable": false,
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "experimental": false,
+        "kind": "dspy_primitive",
+        "materializable": true,
+        "materialization_policy": {
+          "bounded_inline_retriever_adapter_allowed": false,
+          "custom_import_allowed": false,
+          "fail_closed_without_explicit_adapter": true,
+          "generated_code_only": true,
+          "live_external_retriever_binding_allowed": false,
+          "local_corpus_snapshot_adapter_allowed": false,
+          "program_of_thought_allowed": false,
+          "provider_call_allowed_by_contract": false,
+          "react_loop_allowed": false,
+          "react_v2_declared_only": false,
+          "react_v2_materialization_requires_explicit_opt_in": false,
+          "react_v2_requires_public_dspy_react_v2": false,
+          "react_v2_tool_binding_allowed": false,
+          "retriever_binding_allowed": false,
+          "tool_binding_allowed": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false
+        },
+        "primitive": "Predict",
+        "routing_policy": {
+          "arbitrary_expression": false,
+          "when_field_equals": true
+        },
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      },
+      {
+        "allowed_topology_kinds": [
+          "single_module",
+          "pipeline",
+          "router",
+          "retrieve_then_answer",
+          "extract_transform_validate",
+          "generate_critique_revise"
+        ],
+        "capability_id": "dspy.primitive.ChainOfThought",
+        "conditional_materializable": false,
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "experimental": false,
+        "kind": "dspy_primitive",
+        "materializable": true,
+        "materialization_policy": {
+          "bounded_inline_retriever_adapter_allowed": false,
+          "custom_import_allowed": false,
+          "fail_closed_without_explicit_adapter": true,
+          "generated_code_only": true,
+          "live_external_retriever_binding_allowed": false,
+          "local_corpus_snapshot_adapter_allowed": false,
+          "program_of_thought_allowed": false,
+          "provider_call_allowed_by_contract": false,
+          "react_loop_allowed": false,
+          "react_v2_declared_only": false,
+          "react_v2_materialization_requires_explicit_opt_in": false,
+          "react_v2_requires_public_dspy_react_v2": false,
+          "react_v2_tool_binding_allowed": false,
+          "retriever_binding_allowed": false,
+          "tool_binding_allowed": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false
+        },
+        "primitive": "ChainOfThought",
+        "routing_policy": {
+          "arbitrary_expression": false,
+          "when_field_equals": true
+        },
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      },
+      {
+        "allowed_topology_kinds": [
+          "pipeline",
+          "router",
+          "retrieve_then_answer",
+          "extract_transform_validate",
+          "generate_critique_revise"
+        ],
+        "capability_id": "dspy.primitive.Retriever",
+        "conditional_materializable": true,
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "experimental": false,
+        "kind": "dspy_primitive",
+        "materializable": false,
+        "materialization_policy": {
+          "bounded_inline_retriever_adapter_allowed": true,
+          "custom_import_allowed": false,
+          "fail_closed_without_explicit_adapter": true,
+          "generated_code_only": true,
+          "live_external_retriever_binding_allowed": false,
+          "local_corpus_snapshot_adapter_allowed": true,
+          "program_of_thought_allowed": false,
+          "provider_call_allowed_by_contract": false,
+          "react_loop_allowed": false,
+          "react_v2_declared_only": false,
+          "react_v2_materialization_requires_explicit_opt_in": false,
+          "react_v2_requires_public_dspy_react_v2": false,
+          "react_v2_tool_binding_allowed": false,
+          "retriever_binding_allowed": false,
+          "tool_binding_allowed": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false
+        },
+        "primitive": "Retriever",
+        "routing_policy": {
+          "arbitrary_expression": false,
+          "when_field_equals": true
+        },
+        "schema_version": "program-capability-contract-v1",
+        "status": "conditionally_materializable_with_adapter"
+      },
+      {
+        "allowed_topology_kinds": [
+          "pipeline",
+          "router",
+          "retrieve_then_answer",
+          "extract_transform_validate",
+          "generate_critique_revise"
+        ],
+        "capability_id": "dspy.primitive.ReAct",
+        "conditional_materializable": true,
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "experimental": false,
+        "kind": "dspy_primitive",
+        "materializable": false,
+        "materialization_policy": {
+          "bounded_inline_retriever_adapter_allowed": false,
+          "custom_import_allowed": false,
+          "fail_closed_without_explicit_adapter": true,
+          "generated_code_only": true,
+          "live_external_retriever_binding_allowed": false,
+          "local_corpus_snapshot_adapter_allowed": false,
+          "program_of_thought_allowed": false,
+          "provider_call_allowed_by_contract": false,
+          "react_loop_allowed": true,
+          "react_v2_declared_only": false,
+          "react_v2_materialization_requires_explicit_opt_in": false,
+          "react_v2_requires_public_dspy_react_v2": false,
+          "react_v2_tool_binding_allowed": false,
+          "retriever_binding_allowed": false,
+          "tool_binding_allowed": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false
+        },
+        "primitive": "ReAct",
+        "routing_policy": {
+          "arbitrary_expression": false,
+          "when_field_equals": true
+        },
+        "schema_version": "program-capability-contract-v1",
+        "status": "conditionally_materializable_with_adapter"
+      },
+      {
+        "allowed_topology_kinds": [
+          "pipeline",
+          "router",
+          "retrieve_then_answer",
+          "extract_transform_validate",
+          "generate_critique_revise"
+        ],
+        "capability_id": "dspy.primitive.ProgramOfThought",
+        "conditional_materializable": true,
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "experimental": false,
+        "kind": "dspy_primitive",
+        "materializable": false,
+        "materialization_policy": {
+          "bounded_inline_retriever_adapter_allowed": false,
+          "custom_import_allowed": false,
+          "fail_closed_without_explicit_adapter": true,
+          "generated_code_only": true,
+          "live_external_retriever_binding_allowed": false,
+          "local_corpus_snapshot_adapter_allowed": false,
+          "program_of_thought_allowed": true,
+          "provider_call_allowed_by_contract": false,
+          "react_loop_allowed": false,
+          "react_v2_declared_only": false,
+          "react_v2_materialization_requires_explicit_opt_in": false,
+          "react_v2_requires_public_dspy_react_v2": false,
+          "react_v2_tool_binding_allowed": false,
+          "retriever_binding_allowed": false,
+          "tool_binding_allowed": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false
+        },
+        "primitive": "ProgramOfThought",
+        "routing_policy": {
+          "arbitrary_expression": false,
+          "when_field_equals": true
+        },
+        "schema_version": "program-capability-contract-v1",
+        "status": "conditionally_materializable_with_adapter"
+      },
+      {
+        "allowed_topology_kinds": [],
+        "capability_id": "dspy.primitive.ReActV2",
+        "conditional_materializable": false,
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "experimental": true,
+        "kind": "dspy_primitive",
+        "materializable": false,
+        "materialization_policy": {
+          "bounded_inline_retriever_adapter_allowed": false,
+          "custom_import_allowed": false,
+          "fail_closed_without_explicit_adapter": true,
+          "generated_code_only": false,
+          "live_external_retriever_binding_allowed": false,
+          "local_corpus_snapshot_adapter_allowed": false,
+          "program_of_thought_allowed": false,
+          "provider_call_allowed_by_contract": false,
+          "react_loop_allowed": false,
+          "react_v2_declared_only": true,
+          "react_v2_materialization_requires_explicit_opt_in": false,
+          "react_v2_requires_public_dspy_react_v2": false,
+          "react_v2_tool_binding_allowed": false,
+          "retriever_binding_allowed": false,
+          "tool_binding_allowed": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false
+        },
+        "primitive": "ReActV2",
+        "routing_policy": {
+          "arbitrary_expression": false,
+          "when_field_equals": false
+        },
+        "schema_version": "program-capability-contract-v1",
+        "status": "experimental_declared_only_not_materializable"
+      },
+      {
+        "allowed_topology_kinds": [],
+        "capability_id": "dspy.primitive.Custom",
+        "conditional_materializable": false,
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "experimental": false,
+        "kind": "dspy_primitive",
+        "materializable": false,
+        "materialization_policy": {
+          "bounded_inline_retriever_adapter_allowed": false,
+          "custom_import_allowed": false,
+          "fail_closed_without_explicit_adapter": true,
+          "generated_code_only": false,
+          "live_external_retriever_binding_allowed": false,
+          "local_corpus_snapshot_adapter_allowed": false,
+          "program_of_thought_allowed": false,
+          "provider_call_allowed_by_contract": false,
+          "react_loop_allowed": false,
+          "react_v2_declared_only": false,
+          "react_v2_materialization_requires_explicit_opt_in": false,
+          "react_v2_requires_public_dspy_react_v2": false,
+          "react_v2_tool_binding_allowed": false,
+          "retriever_binding_allowed": false,
+          "tool_binding_allowed": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false
+        },
+        "primitive": "Custom",
+        "routing_policy": {
+          "arbitrary_expression": false,
+          "when_field_equals": false
+        },
+        "schema_version": "program-capability-contract-v1",
+        "status": "declared_only_not_materializable"
+      }
+    ],
+    "custom_module_readiness": {
+      "custom_declaration_count": 0,
+      "custom_declaration_ids": [],
+      "custom_module_execution_allowed": false,
+      "effect": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "network": false,
+        "subprocess": false
+      },
+      "imports_enabled": false,
+      "required_before_enablement": [],
+      "schema_version": "program-custom-module-readiness-v1",
+      "status": "not_requested"
+    },
+    "declared_capabilities": [],
+    "effects": {
+      "custom_import_loaded": false,
+      "external_authority": false,
+      "filesystem_read": false,
+      "filesystem_write": false,
+      "network": false,
+      "provider_called": false,
+      "subprocess": false,
+      "tool_called": false
+    },
+    "external_retriever_readiness": {
+      "effect": {
+        "external_authority": false,
+        "filesystem_read": false,
+        "network": false,
+        "retriever_called": false,
+        "subprocess": false
+      },
+      "external_retriever_execution_allowed": false,
+      "live_retrievers_enabled": false,
+      "required_before_enablement": [],
+      "retriever_declaration_count": 0,
+      "retriever_declaration_ids": [],
+      "safe_materializable_modes": [
+        "inline_corpus",
+        "local_corpus_snapshot"
+      ],
+      "schema_version": "program-external-retriever-readiness-v1",
+      "status": "not_requested"
+    },
+    "materialization_policy": {
+      "conditional_materializable_primitives": {
+        "ProgramOfThought": "explicit bounded materializable topology module with empty PythonInterpreter sandbox only",
+        "ReAct": "explicit bounded materializable topology module with tools=[] and bounded max_iters only",
+        "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus or local_corpus_snapshot only; local snapshots are normalized into generated inline adapters during materialization"
+      },
+      "custom_imports_are_declarations_only": true,
+      "default": "fail_closed",
+      "experimental_primitives": {
+        "ReActV2": "descriptor-only and unavailable for materialization during the typed Core cutover"
+      },
+      "external_tools_retrievers_are_not_bound_or_executed": true,
+      "materializable_primitives": [
+        "ChainOfThought",
+        "Predict"
+      ],
+      "program_of_thought_uses_empty_sandbox": true,
+      "react_materialization_requires_empty_tools": true,
+      "unsupported_primitives_are_declared_only": true
+    },
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false
+    },
+    "notes": [
+      "This registry is descriptor-only evidence for generated program capability boundaries.",
+      "It does not import custom modules, bind live external tools/retrievers, call providers during materialization, rank candidates, promote programs, or mutate external authority.",
+      "Current materialization supports generated Predict/ChainOfThought/ReAct/ProgramOfThought primitives, explicit bounded inline Retriever adapters, and materialization-time local_corpus_snapshot Retriever adapters in bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies only; ReActV2 remains descriptor-only during the typed Core cutover.",
+      "ReAct is generated only with an empty tools list; ReActV2 is not materialized; ProgramOfThought is generated only with an empty PythonInterpreter sandbox."
+    ],
+    "registry_kind": "generated_program_capability_contracts",
+    "schema_version": "program-capability-registry-v1",
+    "status": "descriptor_only_no_runtime_binding",
+    "used_capability_refs": [
+      {
+        "capability_id": "dspy.primitive.Predict",
+        "materializable": true,
+        "module_id": "define_persona",
+        "primitive": "Predict",
+        "runtime_binding": "generated_dspy_primitive",
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      },
+      {
+        "capability_id": "dspy.primitive.ChainOfThought",
+        "materializable": true,
+        "module_id": "guide_socratically",
+        "primitive": "ChainOfThought",
+        "runtime_binding": "generated_dspy_primitive",
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      }
+    ]
+  },
+  "program_generated_module_policy": {
+    "allowed_from_imports": [
+      "signature",
+      "typing"
+    ],
+    "allowed_imports": [
+      "dspy",
+      "json"
+    ],
+    "checked_module_surface_count": 2,
+    "checked_surface": "module.py",
+    "denied_dspy_calls": [
+      "dspy.ColBERTv2",
+      "dspy.LM",
+      "dspy.ReActV2",
+      "dspy.Retrieve",
+      "dspy.Tool",
+      "dspy.configure",
+      "dspy.settings.configure"
+    ],
+    "effects": {
+      "custom_import_loaded": false,
+      "external_authority": false,
+      "filesystem_read": false,
+      "filesystem_write": false,
+      "network": false,
+      "provider_called": false,
+      "subprocess": false,
+      "tool_called": false
+    },
+    "policy_version": "program-module-surface-strict-v1",
+    "schema_version": "program-generated-module-policy-v1",
+    "status": "passed",
+    "violations": []
+  },
+  "program_jury_rubric": {
+    "authority": "rubric_contract_only_non_authoritative",
+    "constraints_under_review": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before responding.",
+      "Ask one or two focused questions that expose the next useful reasoning step.",
+      "Offer only the minimum scaffold needed to make the question answerable.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "intent_name": "VoiceTurnSocraticBrain",
+    "juror_rubrics": [
+      {
+        "adversarial_questions": [
+          "Where could the produced answer be simply wrong?",
+          "Does the output satisfy every declared output field?"
+        ],
+        "criteria": [
+          "answer_correctness",
+          "objective_satisfaction"
+        ],
+        "juror_id": "inferred_correctness",
+        "perspective": "correctness"
+      },
+      {
+        "adversarial_questions": [
+          "Which edge case would break this program first?",
+          "Are failure modes explicit enough to debug?"
+        ],
+        "criteria": [
+          "edge_case_resilience",
+          "failure_mode_visibility"
+        ],
+        "juror_id": "inferred_robustness",
+        "perspective": "robustness"
+      },
+      {
+        "adversarial_questions": [
+          "Does the output drift from the stated objective?",
+          "Does the output honor the requested field contract?"
+        ],
+        "criteria": [
+          "objective_adherence",
+          "format_and_field_adherence"
+        ],
+        "juror_id": "inferred_instruction_following",
+        "perspective": "instruction_following"
+      }
+    ],
+    "notes": [
+      "Rubrics are deterministic prompts for future jury execution binding.",
+      "No juror model is called during deterministic materialization.",
+      "Rubric results cannot rank, prune, promote, or grant Oracle authority."
+    ],
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+    "schema_version": "program-jury-rubric-v1",
+    "selected_juror_count": 3,
+    "selection_status": "selected"
+  },
+  "program_jury_selection": {
+    "authority": "selection_contract_only_non_authoritative",
+    "eligible_juror_count": 5,
+    "jury_schema_version": "program-jury-v1",
+    "minimum_jurors": 3,
+    "notes": [
+      "Selection is deterministic metadata for future jury execution binding.",
+      "No juror model is called during deterministic materialization.",
+      "Selected jurors cannot rank, prune, promote, or grant Oracle authority."
+    ],
+    "schema_version": "program-jury-selection-v1",
+    "selected_juror_count": 3,
+    "selected_jurors": [
+      {
+        "id": "inferred_correctness",
+        "model": null,
+        "perspective": "correctness",
+        "reason": "baseline behavior correctness coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_robustness",
+        "model": null,
+        "perspective": "robustness",
+        "reason": "baseline edge-case and failure-mode coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_instruction_following",
+        "model": null,
+        "perspective": "instruction_following",
+        "reason": "baseline objective and instruction adherence coverage",
+        "source": "inferred_from_intent"
+      }
+    ],
+    "selected_perspectives": [
+      "correctness",
+      "robustness",
+      "instruction_following"
+    ],
+    "selection_constraints": {
+      "prefer_diverse_models": true,
+      "prefer_diverse_perspectives": true
+    },
+    "selection_model": "perspective_balanced_explicit_pool",
+    "status": "selected"
+  },
+  "program_module_surfaces": {
+    "authority": "module_surface_contracts_only_non_authoritative",
+    "module_surface_count": 2,
+    "module_surfaces": [
+      {
+        "authority": "module_surface_contract_only_non_authoritative",
+        "capability_ref": {
+          "capability_id": "dspy.primitive.Predict",
+          "materializable": true,
+          "primitive": "Predict",
+          "runtime_binding": "generated_dspy_primitive",
+          "schema_version": "program-capability-contract-v1",
+          "status": "materializable"
+        },
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "generated": {
+          "module_class": "DefinePersonaModule",
+          "module_path": "module.py",
+          "signature_class": "DefinePersona",
+          "signature_path": "signature.py"
+        },
+        "io": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "outputs": [
+            "persona"
+          ]
+        },
+        "module_id": "define_persona",
+        "non_authority": {
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "promotion_authority": false
+        },
+        "primitive": "Predict",
+        "schema_version": "program-module-surface-v1",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        },
+        "source_kind": "generated_topology_module",
+        "stage": {
+          "metadata_source": "program_intent_topology_module.role",
+          "role": "define_persona"
+        }
+      },
+      {
+        "authority": "module_surface_contract_only_non_authoritative",
+        "capability_ref": {
+          "capability_id": "dspy.primitive.ChainOfThought",
+          "materializable": true,
+          "primitive": "ChainOfThought",
+          "runtime_binding": "generated_dspy_primitive",
+          "schema_version": "program-capability-contract-v1",
+          "status": "materializable"
+        },
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "generated": {
+          "module_class": "GuideSocraticallyModule",
+          "module_path": "module.py",
+          "signature_class": "GuideSocratically",
+          "signature_path": "signature.py"
+        },
+        "io": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "outputs": [
+            "response"
+          ]
+        },
+        "module_id": "guide_socratically",
+        "non_authority": {
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "promotion_authority": false
+        },
+        "primitive": "ChainOfThought",
+        "schema_version": "program-module-surface-v1",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "GuideSocratically",
+          "outputs": [
+            "response"
+          ]
+        },
+        "source_kind": "generated_topology_module",
+        "stage": {
+          "metadata_source": "program_intent_topology_module.role",
+          "role": "socratic_guide"
+        }
+      }
+    ],
+    "non_authority": {
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_promotion": false,
+      "oracle_pruning": false,
+      "oracle_ranking": false,
+      "promotion_authority": false
+    },
+    "notes": [
+      "program-gen composes generated module surfaces through this replayable contract.",
+      "No-topology intents may deterministically infer bounded generated Predict/ChainOfThought modules from clear prompt cues when those modules are more valuable than the default Predict scaffold.",
+      "Capability refs bind each generated surface to the descriptor-only program_capability_registry.json boundary contract.",
+      "Future local custom module references can use the same IO-declared surface shape once a safe declared-only/import-free contract lands.",
+      "This artifact does not execute arbitrary custom Python modules and carries no ranking, promotion, governance, or external mutation authority."
+    ],
+    "schema_version": "program-module-surfaces-v1",
+    "status": "materialized"
+  },
+  "program_plan": {
+    "capability_contracts": {
+      "path": "program_capability_registry.json",
+      "schema_version": "program-capability-registry-v1",
+      "status": "descriptor_only_no_runtime_binding"
+    },
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before responding.",
+      "Ask one or two focused questions that expose the next useful reasoning step.",
+      "Offer only the minimum scaffold needed to make the question answerable.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "dataset": {
+      "source": "none"
+    },
+    "declared_topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "guide_socratically"
+        },
+        {
+          "from": "guide_socratically",
+          "to": "output"
+        }
+      ],
+      "execution_status": "declared_not_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "guide_socratically",
+          "primitive": "ChainOfThought",
+          "role": "socratic_guide",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "GuideSocratically",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ]
+    },
+    "evaluation_strategy": {
+      "aggregation": "deliberation_summary",
+      "authority": "advisory_evidence_only",
+      "jurors": [
+        {
+          "id": "inferred_correctness",
+          "model": null,
+          "perspective": "correctness",
+          "reason": "baseline behavior correctness coverage",
+          "source": "inferred_from_intent"
+        },
+        {
+          "id": "inferred_robustness",
+          "model": null,
+          "perspective": "robustness",
+          "reason": "baseline edge-case and failure-mode coverage",
+          "source": "inferred_from_intent"
+        },
+        {
+          "id": "inferred_instruction_following",
+          "model": null,
+          "perspective": "instruction_following",
+          "reason": "baseline objective and instruction adherence coverage",
+          "source": "inferred_from_intent"
+        },
+        {
+          "id": "inferred_example_generalization",
+          "model": null,
+          "perspective": "example_generalization",
+          "reason": "examples are present, so held-out/generalization behavior matters",
+          "source": "inferred_from_intent"
+        },
+        {
+          "id": "inferred_constraint_adherence",
+          "model": null,
+          "perspective": "constraint_adherence",
+          "reason": "declared constraints require adversarial checking",
+          "source": "inferred_from_intent"
+        }
+      ],
+      "minimum_jurors": 3,
+      "mode": "jury",
+      "notes": [
+        "ProgramPlan records the intended evaluation shape only.",
+        "No juror model is called during deterministic materialization.",
+        "Jury evidence cannot rank, prune, promote, or grant Oracle authority."
+      ],
+      "perspectives": [
+        "constraint_adherence",
+        "correctness",
+        "example_generalization",
+        "instruction_following",
+        "robustness"
+      ],
+      "pool": {
+        "explicit_juror_count": 0,
+        "explicit_perspective_count": 0,
+        "explicit_perspective_juror_count": 0,
+        "inference_basis": [
+          "intent.name",
+          "intent.objective",
+          "intent.task_type",
+          "intent.metric",
+          "intent.inputs",
+          "intent.outputs",
+          "intent.constraints",
+          "intent.examples"
+        ],
+        "inferred_juror_count": 5,
+        "merged_juror_count": 5,
+        "scope": "program"
+      },
+      "schema_version": "program-jury-v1",
+      "selection_constraints": {
+        "prefer_diverse_models": true,
+        "prefer_diverse_perspectives": true
+      },
+      "selection_model": "perspective_balanced_explicit_pool",
+      "status": "planned_not_executed"
+    },
+    "examples": {
+      "count": 2,
+      "hash": "4c5fe55249b89b00942087d6a9deef59707f80f982413582a7fe2c1b489bd5c4",
+      "path": null,
+      "source": "inline"
+    },
+    "fields": {
+      "inputs": [
+        {
+          "desc": "transcription (input)",
+          "name": "transcription",
+          "type": "str"
+        },
+        {
+          "desc": "persona intent (input)",
+          "name": "persona_intent",
+          "type": "str"
+        }
+      ],
+      "outputs": [
+        {
+          "desc": "response (output)",
+          "name": "response",
+          "type": "str"
+        }
+      ]
+    },
+    "generated_module_policy": {
+      "path": "generated_module_policy.json",
+      "schema_version": "program-generated-module-policy-v1",
+      "status": "passed"
+    },
+    "inferred_topology": null,
+    "intent": {
+      "name": "VoiceTurnSocraticBrain",
+      "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+      "schema_version": "program-intent-v2"
+    },
+    "materialization_scope": {
+      "current_renderer": "pipeline_topology_renderer",
+      "notes": [
+        "Explicit pipeline topology is preserved as declared input and rendered as a bounded composed program.",
+        "Only Predict, ChainOfThought, bounded no-tool ReAct, sandboxed ProgramOfThought, explicit bounded inline Retriever modules, and materialization-time local_corpus_snapshot Retriever modules plus simple when.field/equals routing are supported in this slice.",
+        "No topology inference, broad graph engine, live external tools/retrievers, ReAct tool binding, or ProgramOfThought filesystem/network/env/tool sandbox access is performed."
+      ],
+      "topology_declared": true,
+      "topology_inferred": false,
+      "topology_materialized": true
+    },
+    "materialized_topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "guide_socratically"
+        },
+        {
+          "from": "guide_socratically",
+          "to": "output"
+        }
+      ],
+      "execution_status": "pipeline_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "guide_socratically",
+          "primitive": "ChainOfThought",
+          "role": "socratic_guide",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "GuideSocratically",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ],
+      "scheduler_plan": {
+        "declaration_order": [
+          "define_persona",
+          "guide_socratically"
+        ],
+        "effect": {
+          "authority_mutated": false,
+          "custom_import_loaded": false,
+          "provider_called": false,
+          "retriever_called": false,
+          "tool_called": false
+        },
+        "module_order": [
+          "define_persona",
+          "guide_socratically"
+        ],
+        "module_readiness": {
+          "define_persona": {
+            "inbound_edges": [
+              {
+                "from": "input",
+                "to": "define_persona"
+              }
+            ],
+            "primitive": "Predict",
+            "produced_outputs": [
+              "persona"
+            ],
+            "required_inputs": [
+              "persona_intent"
+            ]
+          },
+          "guide_socratically": {
+            "inbound_edges": [
+              {
+                "from": "define_persona",
+                "to": "guide_socratically"
+              }
+            ],
+            "primitive": "ChainOfThought",
+            "produced_outputs": [
+              "response"
+            ],
+            "required_inputs": [
+              "transcription",
+              "persona"
+            ]
+          }
+        },
+        "output_producers": [
+          "guide_socratically"
+        ],
+        "scheduler": "bounded_ready_queue",
+        "schema_version": "program-topology-scheduler-plan-v1",
+        "status": "deterministic_local_dag_schedule"
+      }
+    },
+    "metric": "f1",
+    "non_authority": {
+      "candidate_assembly": "materialized_not_promoted",
+      "governance_authority": false,
+      "oracle_role": "behavioral_interpreter_only",
+      "program_gen_evidence": "non_authoritative",
+      "ranking_pruning_promotion": false
+    },
+    "retriever_snapshots": null,
+    "runtime": {},
+    "runtime_outcomes": {
+      "content_hash": "cd74fb5a621e3ac0284474ac680ab778e6daba5e38f09178d6b6dcca1cda1957",
+      "path": "program_runtime_outcomes.json",
+      "schema_version": "program-runtime-outcomes-v1",
+      "status": "outcome_contracts_declared"
+    },
+    "runtime_traces": {
+      "content_hash": "07f8cd4dfb65b4cd46326c2f6b41e163aa6cfe8fc05458bf188981590437837e",
+      "path": "program_runtime_traces.json",
+      "schema_version": "program-runtime-traces-v1",
+      "status": "runtime_traces_captured_or_not_applicable"
+    },
+    "schema_version": "program-plan-v1",
+    "surfaces": [
+      {
+        "generator": "program-gen",
+        "kind": "plan",
+        "path": "plan.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "jury",
+        "path": "jury.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "jury_selection",
+        "path": "jury_selection.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "jury_rubric",
+        "path": "jury_rubric.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "promotion_review",
+        "path": "promotion_review.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "promotion_adjudication_request",
+        "path": "promotion_adjudication_request.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "promotion_decision_template",
+        "path": "promotion_decision_template.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "intent",
+        "path": "intent.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "module_surfaces",
+        "path": "module_surfaces.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "execution_episode",
+        "path": "execution_episode.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "capability_registry",
+        "path": "program_capability_registry.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "generated_module_policy",
+        "path": "generated_module_policy.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "runtime_outcomes",
+        "path": "program_runtime_outcomes.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "runtime_traces",
+        "path": "program_runtime_traces.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "tool_contracts",
+        "path": "program_tool_contracts.json"
+      },
+      {
+        "generator": "signature-gen",
+        "kind": "signature",
+        "path": "signature.py"
+      },
+      {
+        "generator": "module-gen",
+        "kind": "module",
+        "path": "module.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "program",
+        "path": "program.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "direct_runner",
+        "path": "direct_run.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "smoke_harness",
+        "path": "eval_smoke.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "jury_harness",
+        "path": "eval_jury.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "promotion_harness",
+        "path": "eval_promotion.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "examples",
+        "path": "examples.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "examples_harness",
+        "path": "eval_examples.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "behavior_results",
+        "path": "behavior_results.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "behavior_harness",
+        "path": "eval_behavior.py"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "behavior_episode",
+        "path": "behavior_episode.json"
+      },
+      {
+        "generator": "program-gen",
+        "kind": "oracle_evidence",
+        "path": "oracle_evidence.json"
+      }
+    ],
+    "task_type": "single_module",
+    "tool_contracts": {
+      "content_hash": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620",
+      "path": "program_tool_contracts.json",
+      "schema_version": "program-tool-contracts-v1",
+      "status": "descriptor_only_no_tool_binding"
+    },
+    "topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "guide_socratically"
+        },
+        {
+          "from": "guide_socratically",
+          "to": "output"
+        }
+      ],
+      "execution_status": "declared_not_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "guide_socratically",
+          "primitive": "ChainOfThought",
+          "role": "socratic_guide",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "GuideSocratically",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ]
+    },
+    "topology_execution_status": "pipeline_materialized"
+  },
+  "program_promotion_adjudication_request": {
+    "adjudicator": {
+      "authority": "required_for_promotion",
+      "id": "local_operator",
+      "kind": "human_operator",
+      "status": "pending"
+    },
+    "allowed_outcomes": [
+      "promote",
+      "withhold",
+      "reject",
+      "request_more_evidence"
+    ],
+    "authority": "adjudication_request_only_non_authoritative",
+    "candidate_refs": {
+      "intent": "intent.json",
+      "manifest": "manifest.json",
+      "plan": "plan.json",
+      "program": "program.py"
+    },
+    "decision_question": "Should this exact program candidate be promoted, withheld, rejected, or returned for more evidence?",
+    "decision_record_template": {
+      "adjudicator_kind": "human_operator",
+      "adjudicator_ref": "local_operator",
+      "decided_by": null,
+      "evidence_refs": [],
+      "outcome": null,
+      "rationale": null,
+      "schema_version": "program-promotion-decision-v1",
+      "status": "pending"
+    },
+    "evidence_packet": [
+      {
+        "kind": "plan",
+        "path": "plan.json"
+      },
+      {
+        "kind": "jury_pool",
+        "path": "jury.json"
+      },
+      {
+        "kind": "jury_selection",
+        "path": "jury_selection.json"
+      },
+      {
+        "kind": "jury_rubric",
+        "path": "jury_rubric.json"
+      },
+      {
+        "kind": "promotion_review",
+        "path": "promotion_review.json"
+      },
+      {
+        "kind": "smoke_harness",
+        "path": "eval_smoke.py"
+      },
+      {
+        "kind": "jury_binding_harness",
+        "path": "eval_jury.py"
+      }
+    ],
+    "external_authority": {
+      "notes": [
+        "External authority references are preserved as opaque metadata.",
+        "DSPx core does not validate, call, or mutate external authority systems."
+      ],
+      "refs": [],
+      "status": "not_exported"
+    },
+    "missing_required_evidence": [
+      "no_model_jury_execution_episode",
+      "no_promotion_adjudicator_decision"
+    ],
+    "notes": [
+      "This packet prepares an explicit adjudicator decision; it is not a decision.",
+      "Promotion remains blocked until required evidence and an adjudicator decision exist.",
+      "No human, AI agent, council, policy gate, or Oracle is invoked during materialization."
+    ],
+    "schema_version": "program-promotion-adjudication-request-v1",
+    "status": "not_ready_blocked"
+  },
+  "program_promotion_decision_template": {
+    "adjudicator_kind": "human_operator",
+    "adjudicator_ref": "local_operator",
+    "decided_by": null,
+    "evidence_refs": [],
+    "outcome": null,
+    "rationale": null,
+    "schema_version": "program-promotion-decision-v1",
+    "status": "pending"
+  },
+  "program_promotion_review": {
+    "adjudicator": {
+      "authority": "required_for_promotion",
+      "id": "local_operator",
+      "kind": "human_operator",
+      "status": "pending"
+    },
+    "available_local_evidence": {
+      "behavior_result_artifacts": [
+        "behavior_results.json"
+      ],
+      "behavior_results": "behavior_results.json",
+      "examples_binding": true,
+      "jury": "jury.json",
+      "jury_harness": "eval_jury.py",
+      "jury_rubric_status": "available",
+      "jury_selection_status": "selected",
+      "plan": "plan.json",
+      "smoke_harness": "eval_smoke.py"
+    },
+    "blocking_conditions": [
+      "no_model_jury_execution_episode",
+      "no_promotion_adjudicator_decision"
+    ],
+    "candidate_status": "exploratory",
+    "decision": {
+      "decided_at": null,
+      "decided_by": null,
+      "evidence_refs": [],
+      "outcome": null,
+      "status": "pending"
+    },
+    "decision_authority": "required_for_promotion",
+    "evidence_requirements": [
+      {
+        "artifact_refs": [
+          "program.py",
+          "manifest.json"
+        ],
+        "name": "candidate_materialized",
+        "status": "satisfied_by_current_materialization"
+      },
+      {
+        "artifact_refs": [
+          "eval_smoke.py"
+        ],
+        "name": "smoke_validation",
+        "status": "satisfied_by_current_materialization"
+      },
+      {
+        "artifact_refs": [
+          "jury.json",
+          "jury_selection.json",
+          "jury_rubric.json"
+        ],
+        "name": "jury_artifact_binding",
+        "status": "satisfied_by_current_materialization"
+      },
+      {
+        "artifact_refs": [
+          "examples.json",
+          "eval_examples.py"
+        ],
+        "name": "examples_binding",
+        "status": "satisfied_by_current_materialization"
+      },
+      {
+        "artifact_refs": [
+          "behavior_results.json"
+        ],
+        "name": "behavioral_evaluation_episode",
+        "status": "satisfied_by_current_behavior_episode"
+      },
+      {
+        "artifact_refs": [],
+        "name": "model_jury_execution_episode",
+        "status": "pending"
+      },
+      {
+        "adjudicator_ref": "local_operator",
+        "artifact_refs": [],
+        "name": "promotion_adjudicator_decision",
+        "status": "pending"
+      }
+    ],
+    "external_authority": {
+      "notes": [
+        "External authority references are preserved as opaque metadata.",
+        "DSPx core does not validate, call, or mutate external authority systems."
+      ],
+      "refs": [],
+      "status": "not_exported"
+    },
+    "intent_name": "VoiceTurnSocraticBrain",
+    "non_authority": {
+      "automatic_promotion": false,
+      "external_authority_export": false,
+      "jury_artifacts": "planned_contracts_only",
+      "oracle_role": "behavioral_interpreter_only",
+      "program_gen_materialization": "evidence_only",
+      "ranking_pruning_promotion": false
+    },
+    "notes": [
+      "This shell records what would be needed before local promotion review.",
+      "It does not promote the generated program or activate any policy.",
+      "The promotion adjudicator may be human, one AI agent, an AI council, a hybrid, or a policy gate.",
+      "Jury artifacts are planning/binding evidence until a later model jury episode runs."
+    ],
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+    "promotion_policy": {
+      "automatic_promotion": false,
+      "requires_adjudicator_decision": true,
+      "requires_behavioral_evaluation": true,
+      "requires_jury_execution": true
+    },
+    "promotion_state": "not_promoted",
+    "review_required": true,
+    "schema_version": "program-promotion-review-v1"
+  },
+  "program_runtime_outcomes": {
+    "dspy_runtime": {
+      "distribution": "dspy",
+      "prerelease": false,
+      "version": "3.3.0"
+    },
+    "intent": {
+      "name": "VoiceTurnSocraticBrain",
+      "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away."
+    },
+    "module_outcome_count": 2,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true
+    },
+    "notes": [
+      "This sidecar normalizes the expected runtime outcome/trajectory shape for generated modules.",
+      "It is inspired by DSPy ReActV2-style structured history/tool-call/final-submit outcomes, but it does not enable tools or live external retrievers by itself.",
+      "Actual behavior evidence remains in behavior_results.json, dataset split behavior results, behavior_episode.json, and later explicit runtime traces when such traces exist."
+    ],
+    "outcomes": [
+      {
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "final_outputs": [
+          "persona"
+        ],
+        "module_id": "define_persona",
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true
+        },
+        "primitive": "Predict",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        },
+        "source_kind": "generated_topology_module",
+        "status": "outcome_contract_declared_not_runtime_trace",
+        "trace_contract": {
+          "kind": "prediction",
+          "records_history": false,
+          "records_tool_call_intents": false,
+          "records_tool_call_results": false,
+          "termination_reason": "prediction_returned_or_error"
+        }
+      },
+      {
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "final_outputs": [
+          "response"
+        ],
+        "module_id": "guide_socratically",
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true
+        },
+        "primitive": "ChainOfThought",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "GuideSocratically",
+          "outputs": [
+            "response"
+          ]
+        },
+        "source_kind": "generated_topology_module",
+        "status": "outcome_contract_declared_not_runtime_trace",
+        "trace_contract": {
+          "kind": "prediction",
+          "records_history": false,
+          "records_tool_call_intents": false,
+          "records_tool_call_results": false,
+          "termination_reason": "prediction_returned_or_error"
+        }
+      }
+    ],
+    "primitives": [
+      "ChainOfThought",
+      "Predict"
+    ],
+    "runtime_policy": {
+      "filesystem_access_allowed": false,
+      "live_external_retriever_allowed": false,
+      "materialization_executed_modules": false,
+      "network_allowed": false,
+      "react_v2_tools_require_program_tool_contracts": true,
+      "records_actual_runtime_trace": false,
+      "tool_binding_allowed": false
+    },
+    "schema_version": "program-runtime-outcomes-v1",
+    "status": "outcome_contracts_declared"
+  },
+  "program_runtime_traces": {
+    "coverage": {
+      "captured_final_output_fields": [
+        "response"
+      ],
+      "captured_module_ids": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "expected_module_ids": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "final_output_trace_count": 2,
+      "missing_final_output_fields": [],
+      "missing_module_ids": [],
+      "module_call_count": 4,
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "program_outputs": [
+        "response"
+      ],
+      "schema_version": "program-runtime-trace-coverage-v1",
+      "source_count": 1,
+      "source_record_coverage_status": "complete",
+      "status": "complete"
+    },
+    "final_output_trace_count": 2,
+    "final_outputs": [
+      {
+        "example_index": 0,
+        "final_output_linkage": [
+          {
+            "field": "response",
+            "present": true
+          }
+        ],
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true,
+          "winner_selection": false
+        },
+        "outputs": {
+          "response": "What properties define a rectangle, and does a square satisfy each of them?"
+        },
+        "schema_version": "program-runtime-final-output-v1",
+        "source": {
+          "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+          "kind": "examples",
+          "path": "behavior_results.json",
+          "record_count": 2,
+          "split": null,
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 1,
+            "passed": 1,
+            "status": "failed",
+            "status_counts": {
+              "failed": 1,
+              "passed": 1
+            },
+            "total": 2
+          }
+        },
+        "status": "passed",
+        "trace_hash": "e7eee764671f6cc3d899300e69d88b2121018dee22e16e3754e6292bc3100e78"
+      },
+      {
+        "example_index": 1,
+        "final_output_linkage": [
+          {
+            "field": "response",
+            "present": true
+          }
+        ],
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true,
+          "winner_selection": false
+        },
+        "outputs": {
+          "response": "What properties define a rectangle, and does a square satisfy each of them?"
+        },
+        "schema_version": "program-runtime-final-output-v1",
+        "source": {
+          "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+          "kind": "examples",
+          "path": "behavior_results.json",
+          "record_count": 2,
+          "split": null,
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 1,
+            "passed": 1,
+            "status": "failed",
+            "status_counts": {
+              "failed": 1,
+              "passed": 1
+            },
+            "total": 2
+          }
+        },
+        "status": "failed",
+        "trace_hash": "304b2f41649bc7bc52c7efe8e7cef00ef6d874c91b8bc026fefb64a22e7ce399"
+      }
+    ],
+    "intent": {
+      "name": "VoiceTurnSocraticBrain",
+      "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away."
+    },
+    "module_call_count": 4,
+    "module_calls": [
+      {
+        "call_index": 0,
+        "capture_status": "actual_module_call_captured",
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "example_index": 0,
+        "final_output_linkage": [
+          {
+            "field": "response",
+            "present": false,
+            "source_module_id": null
+          }
+        ],
+        "input_field_linkage": [
+          {
+            "declared_available_from_prior_output": false,
+            "field": "persona_intent",
+            "present": true,
+            "source": "program_input"
+          }
+        ],
+        "inputs": {
+          "persona_intent": "A warm mathematics tutor."
+        },
+        "intermediate_field_lineage": {
+          "inputs": [
+            {
+              "field": "persona_intent",
+              "source": "program_input",
+              "source_module_id": null
+            }
+          ],
+          "outputs": [
+            {
+              "field": "persona",
+              "source": "module_output"
+            }
+          ]
+        },
+        "module_id": "define_persona",
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true,
+          "winner_selection": false
+        },
+        "output_field_linkage": [
+          {
+            "delivered_to_final_output": false,
+            "field": "persona",
+            "present": true,
+            "source": "module_output"
+          }
+        ],
+        "outputs": {
+          "persona": "A warm mathematics tutor."
+        },
+        "primitive": "Predict",
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-module-call-v1",
+        "source": {
+          "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+          "kind": "examples",
+          "path": "behavior_results.json",
+          "record_count": 2,
+          "split": null,
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 1,
+            "passed": 1,
+            "status": "failed",
+            "status_counts": {
+              "failed": 1,
+              "passed": 1
+            },
+            "total": 2
+          }
+        },
+        "stage": {
+          "metadata_source": "program_intent_topology_module.role",
+          "role": "define_persona"
+        },
+        "status": "executed",
+        "trace_hash": "0834cea0621aa75636a61b9436f192abde040560cdb38b2ce9bccf4306f245bc",
+        "trajectory_slots": {
+          "prediction_steps": [],
+          "tool_call_intents": [],
+          "tool_call_results": [],
+          "tool_calls_executed": false
+        }
+      },
+      {
+        "call_index": 1,
+        "capture_status": "actual_module_call_captured",
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "example_index": 0,
+        "final_output_linkage": [
+          {
+            "field": "response",
+            "present": true,
+            "source_module_id": "guide_socratically"
+          }
+        ],
+        "input_field_linkage": [
+          {
+            "declared_available_from_prior_output": false,
+            "field": "transcription",
+            "present": true,
+            "source": "program_input"
+          },
+          {
+            "declared_available_from_prior_output": true,
+            "field": "persona",
+            "present": true,
+            "source": "upstream_module_output"
+          }
+        ],
+        "inputs": {
+          "persona": "A warm mathematics tutor.",
+          "transcription": "Is every square a rectangle?"
+        },
+        "intermediate_field_lineage": {
+          "inputs": [
+            {
+              "field": "persona",
+              "source": "upstream_module_output",
+              "source_module_id": "define_persona"
+            },
+            {
+              "field": "transcription",
+              "source": "program_input",
+              "source_module_id": null
+            }
+          ],
+          "outputs": [
+            {
+              "field": "response",
+              "source": "module_output"
+            }
+          ]
+        },
+        "module_id": "guide_socratically",
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true,
+          "winner_selection": false
+        },
+        "output_field_linkage": [
+          {
+            "delivered_to_final_output": true,
+            "field": "response",
+            "present": true,
+            "source": "module_output"
+          }
+        ],
+        "outputs": {
+          "response": "What properties define a rectangle, and does a square satisfy each of them?"
+        },
+        "primitive": "ChainOfThought",
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-module-call-v1",
+        "source": {
+          "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+          "kind": "examples",
+          "path": "behavior_results.json",
+          "record_count": 2,
+          "split": null,
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 1,
+            "passed": 1,
+            "status": "failed",
+            "status_counts": {
+              "failed": 1,
+              "passed": 1
+            },
+            "total": 2
+          }
+        },
+        "stage": {
+          "metadata_source": "program_intent_topology_module.role",
+          "role": "socratic_guide"
+        },
+        "status": "executed",
+        "trace_hash": "07268edb9d3ea2d975d5d578fe45d814f58b771fe4a5acfd34a1ba535645987b",
+        "trajectory_slots": {
+          "prediction_steps": [],
+          "tool_call_intents": [],
+          "tool_call_results": [],
+          "tool_calls_executed": false
+        }
+      },
+      {
+        "call_index": 0,
+        "capture_status": "actual_module_call_captured",
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "example_index": 1,
+        "final_output_linkage": [
+          {
+            "field": "response",
+            "present": false,
+            "source_module_id": null
+          }
+        ],
+        "input_field_linkage": [
+          {
+            "declared_available_from_prior_output": false,
+            "field": "persona_intent",
+            "present": true,
+            "source": "program_input"
+          }
+        ],
+        "inputs": {
+          "persona_intent": "A curious biology mentor."
+        },
+        "intermediate_field_lineage": {
+          "inputs": [
+            {
+              "field": "persona_intent",
+              "source": "program_input",
+              "source_module_id": null
+            }
+          ],
+          "outputs": [
+            {
+              "field": "persona",
+              "source": "module_output"
+            }
+          ]
+        },
+        "module_id": "define_persona",
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true,
+          "winner_selection": false
+        },
+        "output_field_linkage": [
+          {
+            "delivered_to_final_output": false,
+            "field": "persona",
+            "present": true,
+            "source": "module_output"
+          }
+        ],
+        "outputs": {
+          "persona": "A warm mathematics tutor."
+        },
+        "primitive": "Predict",
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-module-call-v1",
+        "source": {
+          "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+          "kind": "examples",
+          "path": "behavior_results.json",
+          "record_count": 2,
+          "split": null,
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 1,
+            "passed": 1,
+            "status": "failed",
+            "status_counts": {
+              "failed": 1,
+              "passed": 1
+            },
+            "total": 2
+          }
+        },
+        "stage": {
+          "metadata_source": "program_intent_topology_module.role",
+          "role": "define_persona"
+        },
+        "status": "executed",
+        "trace_hash": "4d6e037c9307afaeed1a13b375a3e91933884b34218711d24710f0742bf80c68",
+        "trajectory_slots": {
+          "prediction_steps": [],
+          "tool_call_intents": [],
+          "tool_call_results": [],
+          "tool_calls_executed": false
+        }
+      },
+      {
+        "call_index": 1,
+        "capture_status": "actual_module_call_captured",
+        "effects": {
+          "custom_import_loaded": false,
+          "external_authority": false,
+          "filesystem_read": false,
+          "filesystem_write": false,
+          "network": false,
+          "provider_called": false,
+          "subprocess": false,
+          "tool_called": false
+        },
+        "example_index": 1,
+        "final_output_linkage": [
+          {
+            "field": "response",
+            "present": true,
+            "source_module_id": "guide_socratically"
+          }
+        ],
+        "input_field_linkage": [
+          {
+            "declared_available_from_prior_output": false,
+            "field": "transcription",
+            "present": true,
+            "source": "program_input"
+          },
+          {
+            "declared_available_from_prior_output": true,
+            "field": "persona",
+            "present": true,
+            "source": "upstream_module_output"
+          }
+        ],
+        "inputs": {
+          "persona": "A warm mathematics tutor.",
+          "transcription": "Why did my plant wilt after I watered it every day?"
+        },
+        "intermediate_field_lineage": {
+          "inputs": [
+            {
+              "field": "persona",
+              "source": "upstream_module_output",
+              "source_module_id": "define_persona"
+            },
+            {
+              "field": "transcription",
+              "source": "program_input",
+              "source_module_id": null
+            }
+          ],
+          "outputs": [
+            {
+              "field": "response",
+              "source": "module_output"
+            }
+          ]
+        },
+        "module_id": "guide_socratically",
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true,
+          "winner_selection": false
+        },
+        "output_field_linkage": [
+          {
+            "delivered_to_final_output": true,
+            "field": "response",
+            "present": true,
+            "source": "module_output"
+          }
+        ],
+        "outputs": {
+          "response": "What properties define a rectangle, and does a square satisfy each of them?"
+        },
+        "primitive": "ChainOfThought",
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-module-call-v1",
+        "source": {
+          "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+          "kind": "examples",
+          "path": "behavior_results.json",
+          "record_count": 2,
+          "split": null,
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 1,
+            "passed": 1,
+            "status": "failed",
+            "status_counts": {
+              "failed": 1,
+              "passed": 1
+            },
+            "total": 2
+          }
+        },
+        "stage": {
+          "metadata_source": "program_intent_topology_module.role",
+          "role": "socratic_guide"
+        },
+        "status": "executed",
+        "trace_hash": "7c39132933a555756d15d396a822c20a02b8f7c20ead85c25af17e2f968e8a85",
+        "trajectory_slots": {
+          "prediction_steps": [],
+          "tool_call_intents": [],
+          "tool_call_results": [],
+          "tool_calls_executed": false
+        }
+      }
+    ],
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "notes": [
+      "This sidecar records local generated-harness runtime trace evidence only.",
+      "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+      "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+    ],
+    "runtime_policy": {
+      "dspy_tool_materialization_allowed": false,
+      "external_authority_mutation_allowed": false,
+      "filesystem_mutation_allowed_by_trace_contract": false,
+      "live_external_retriever_allowed": false,
+      "network_allowed_by_trace_contract": false,
+      "provider_calls_may_have_occurred_in_behavior_harness": true,
+      "react_tool_binding_allowed": false,
+      "react_v2_tool_binding_allowed": false,
+      "source": "local_generated_behavior_harnesses_only",
+      "tool_binding_allowed": false,
+      "tool_execution_allowed": false
+    },
+    "schema_version": "program-runtime-traces-v1",
+    "source_count": 1,
+    "source_record_coverage": [
+      {
+        "expected_module_ids": [
+          "define_persona",
+          "guide_socratically"
+        ],
+        "final_output_coverage_gaps": [],
+        "final_output_trace_count": 2,
+        "missing_final_output_record_indexes": [],
+        "missing_module_call_record_indexes": [],
+        "module_call_count": 4,
+        "module_coverage_gaps": [],
+        "non_authority": {
+          "activation_authority": false,
+          "canonical_mutation": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "oracle_authority": false,
+          "promotion_authority": false,
+          "ranking_authority": false,
+          "runtime_evidence_only": true,
+          "winner_selection": false
+        },
+        "path": "behavior_results.json",
+        "program_outputs": [
+          "response"
+        ],
+        "record_count": 2,
+        "records_with_complete_final_outputs": [
+          0,
+          1
+        ],
+        "records_with_complete_module_calls": [
+          0,
+          1
+        ],
+        "records_with_final_outputs": [
+          0,
+          1
+        ],
+        "records_with_module_calls": [
+          0,
+          1
+        ],
+        "schema_version": "program-runtime-trace-source-coverage-v1",
+        "split": null,
+        "status": "complete"
+      }
+    ],
+    "sources": [
+      {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      }
+    ],
+    "status": "runtime_traces_captured",
+    "trace_hashes": {
+      "final_outputs": [
+        "e7eee764671f6cc3d899300e69d88b2121018dee22e16e3754e6292bc3100e78",
+        "304b2f41649bc7bc52c7efe8e7cef00ef6d874c91b8bc026fefb64a22e7ce399"
+      ],
+      "module_calls": [
+        "0834cea0621aa75636a61b9436f192abde040560cdb38b2ce9bccf4306f245bc",
+        "07268edb9d3ea2d975d5d578fe45d814f58b771fe4a5acfd34a1ba535645987b",
+        "4d6e037c9307afaeed1a13b375a3e91933884b34218711d24710f0742bf80c68",
+        "7c39132933a555756d15d396a822c20a02b8f7c20ead85c25af17e2f968e8a85"
+      ]
+    }
+  },
+  "program_tool_contracts": {
+    "contracts": [],
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_binding_authority": false,
+      "tool_contracts_only": true,
+      "tool_execution_authority": false
+    },
+    "notes": [
+      "Tool contracts are descriptor-only and hash-bound evidence for future safe adapters.",
+      "This sidecar does not enable dspy.Tool, ReAct tools, custom imports, live retrievers, network access, filesystem access, subprocesses, or external authority mutation.",
+      "Future generated adapters must record adapter hashes/provenance and remain replay-checked before any runtime effect is allowed."
+    ],
+    "react_v2_tool_readiness": {
+      "declared_tool_contract_count": 0,
+      "declared_tool_ids": [],
+      "effect": {
+        "dspy_tool_bound": false,
+        "external_authority_mutated": false,
+        "filesystem_write": false,
+        "network": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "missing_tool_contracts": [],
+      "next_actions": [
+        "Keep ReActV2 and its tool references descriptor-only during the typed Core cutover.",
+        "For every desired tool, retain a descriptor-only capability with schemas, effect class, allowlists, timeout, redaction, and mutation posture."
+      ],
+      "production_readiness_blockers": [],
+      "pure_tool_adapter_preflight": {
+        "all_referenced_adapter_blueprints_hash_bound": false,
+        "all_referenced_tool_schemas_bounded": false,
+        "all_referenced_tools_have_pure_contracts": false,
+        "all_referenced_tools_have_replay_policy_preconditions": false,
+        "blueprint_unready_tool_refs": [],
+        "materialization_status": "blocked_until_pure_contracts_schemas_blueprints_and_replay_policy",
+        "missing_tool_contracts": [],
+        "non_pure_tool_refs": [],
+        "ready_for_tool_adapter_materialization": false,
+        "referenced_tool_ids": [],
+        "replay_policy_unready_tool_refs": [],
+        "schema_unready_tool_refs": []
+      },
+      "react_v2_module_count": 0,
+      "react_v2_module_tool_refs": [],
+      "react_v2_requested": false,
+      "ready_for_react_v2_no_tool_materialization": false,
+      "ready_for_react_v2_tool_binding": false,
+      "schema_version": "program-react-v2-tool-readiness-v1",
+      "status": "not_requested_or_no_tool_need"
+    },
+    "runtime_policy": {
+      "dspy_tool_materialization_allowed": false,
+      "fail_closed_without_explicit_future_adapter": true,
+      "filesystem_allowed": false,
+      "generated_adapters_allowed": false,
+      "mutation_allowed": false,
+      "network_allowed": false,
+      "subprocess_allowed": false,
+      "tool_execution_allowed": false
+    },
+    "schema_version": "program-tool-contracts-v1",
+    "status": "descriptor_only_no_tool_binding",
+    "tool_adapter_policy": {
+      "adapter_blueprint_count": 0,
+      "all_adapters_hash_bound": false,
+      "all_adapters_replay_checked": false,
+      "dspy_tool_binding_allowed": false,
+      "generated_adapter_count": 0,
+      "next_required_slice": "generate_hash_bound_dspy_tool_adapters_with_replay_visible_traces",
+      "schema_version": "program-tool-adapter-policy-v1",
+      "status": "no_generated_adapters_present",
+      "tool_execution_allowed": false
+    },
+    "tool_contract_count": 0
+  },
+  "receipt_bundle": {
+    "assembly_id": "prog-asm-c9d1908eacb9",
+    "candidate_id": "prog-cand-3f26182ab33f",
+    "episode_id": "prog-ep-a5dc92070233",
+    "evidence": {
+      "assembly_hash": "1c6b9268d0b77954f24027dcb54cc9b44f320b018671b4fb613fbd29edf85934",
+      "behavior_episode": {
+        "authority": "behavior_evidence_only_non_authoritative",
+        "non_authority": {
+          "external_authority_mutated": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "optimization_authority": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "quality_evaluation": {
+          "criteria_declared": false,
+          "evaluations_failed": 0,
+          "evaluations_passed": 0,
+          "evaluations_total": 0,
+          "quality_approved": false,
+          "status": "not_declared"
+        },
+        "schema_version": "program-behavior-episode-v1",
+        "sources": [
+          {
+            "behavior_results_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+            "behavior_results_path": "behavior_results.json",
+            "behavior_status": "failed",
+            "command": [
+              "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+              "eval_examples.py"
+            ],
+            "count": 2,
+            "harness_path": "eval_examples.py",
+            "kind": "examples",
+            "provider": {
+              "provider": "stub/echo",
+              "status": "configured"
+            },
+            "quality_evaluation": {
+              "criteria_declared": false,
+              "evaluations_failed": 0,
+              "evaluations_passed": 0,
+              "evaluations_total": 0,
+              "quality_approved": false,
+              "status": "not_declared"
+            },
+            "returncode": 0,
+            "source_kind": "inline_examples",
+            "split": null,
+            "status": "passed",
+            "stderr": "",
+            "stdout": "program examples ok: 2 example(s); behavior status: failed",
+            "summary": {
+              "degraded": 0,
+              "error": 0,
+              "failed": 1,
+              "passed": 1,
+              "status": "failed",
+              "status_counts": {
+                "failed": 1,
+                "passed": 1
+              },
+              "total": 2
+            }
+          }
+        ],
+        "status": "failed",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "source_count": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1
+          },
+          "total": 2
+        }
+      },
+      "behavior_episode_hash": "9a2cb7b18ae542591a496e54638b3170571932883d1c92e516b882efdfe7a85f",
+      "behavior_episode_path": "behavior_episode.json",
+      "behavior_results": {
+        "authority": "behavior_evidence_only_non_authoritative",
+        "examples": [
+          {
+            "expected_outputs": {
+              "response": "What properties define a rectangle, and does a square satisfy each of them?"
+            },
+            "index": 0,
+            "inputs": {
+              "persona_intent": "A warm mathematics tutor.",
+              "transcription": "Is every square a rectangle?"
+            },
+            "notes": [],
+            "observed_outputs": {
+              "response": "What properties define a rectangle, and does a square satisfy each of them?"
+            },
+            "quality_evaluation": {
+              "criteria": [],
+              "criteria_failed": 0,
+              "criteria_passed": 0,
+              "criteria_total": 0,
+              "quality_approved": false,
+              "schema_version": "program-quality-evaluation-v1",
+              "status": "not_declared"
+            },
+            "runtime_trace": {
+              "final_outputs": {
+                "response": "What properties define a rectangle, and does a square satisfy each of them?"
+              },
+              "module_calls": [
+                {
+                  "inputs": {
+                    "persona_intent": "A warm mathematics tutor."
+                  },
+                  "module_id": "define_persona",
+                  "outputs": {
+                    "persona": "A warm mathematics tutor."
+                  },
+                  "primitive": "Predict",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                },
+                {
+                  "inputs": {
+                    "persona": "A warm mathematics tutor.",
+                    "transcription": "Is every square a rectangle?"
+                  },
+                  "module_id": "guide_socratically",
+                  "outputs": {
+                    "response": "What properties define a rectangle, and does a square satisfy each of them?"
+                  },
+                  "primitive": "ChainOfThought",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                }
+              ],
+              "scheduler_events": [
+                {
+                  "missing_outputs": [],
+                  "pending": [],
+                  "status": "completed"
+                }
+              ],
+              "schema_version": "program-runtime-trace-fragment-v1"
+            },
+            "status": "passed"
+          },
+          {
+            "expected_outputs": {
+              "response": "What happens to roots when soil stays saturated, and how might that affect the plant's ability to take up oxygen and water?"
+            },
+            "index": 1,
+            "inputs": {
+              "persona_intent": "A curious biology mentor.",
+              "transcription": "Why did my plant wilt after I watered it every day?"
+            },
+            "notes": [
+              "output mismatch: ['response']"
+            ],
+            "observed_outputs": {
+              "response": "What properties define a rectangle, and does a square satisfy each of them?"
+            },
+            "quality_evaluation": {
+              "criteria": [],
+              "criteria_failed": 0,
+              "criteria_passed": 0,
+              "criteria_total": 0,
+              "quality_approved": false,
+              "schema_version": "program-quality-evaluation-v1",
+              "status": "not_declared"
+            },
+            "runtime_trace": {
+              "final_outputs": {
+                "response": "What properties define a rectangle, and does a square satisfy each of them?"
+              },
+              "module_calls": [
+                {
+                  "inputs": {
+                    "persona_intent": "A curious biology mentor."
+                  },
+                  "module_id": "define_persona",
+                  "outputs": {
+                    "persona": "A warm mathematics tutor."
+                  },
+                  "primitive": "Predict",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                },
+                {
+                  "inputs": {
+                    "persona": "A warm mathematics tutor.",
+                    "transcription": "Why did my plant wilt after I watered it every day?"
+                  },
+                  "module_id": "guide_socratically",
+                  "outputs": {
+                    "response": "What properties define a rectangle, and does a square satisfy each of them?"
+                  },
+                  "primitive": "ChainOfThought",
+                  "program_of_thought_steps": [],
+                  "react_steps": [],
+                  "react_v2_steps": [],
+                  "status": "executed",
+                  "tool_call_intents": [],
+                  "tool_call_results": []
+                }
+              ],
+              "scheduler_events": [
+                {
+                  "missing_outputs": [],
+                  "pending": [],
+                  "status": "completed"
+                }
+              ],
+              "schema_version": "program-runtime-trace-fragment-v1"
+            },
+            "status": "failed"
+          }
+        ],
+        "input_fields": [
+          "transcription",
+          "persona_intent"
+        ],
+        "intent": {
+          "constraints": [
+            "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+            "Define a concrete persona from persona_intent before responding.",
+            "Ask one or two focused questions that expose the next useful reasoning step.",
+            "Offer only the minimum scaffold needed to make the question answerable.",
+            "Do not echo the transcription or persona intent.",
+            "Return only the response field."
+          ],
+          "declared_topology": {
+            "edges": [
+              {
+                "from": "input",
+                "to": "define_persona"
+              },
+              {
+                "from": "define_persona",
+                "to": "guide_socratically"
+              },
+              {
+                "from": "guide_socratically",
+                "to": "output"
+              }
+            ],
+            "execution_status": "declared_not_materialized",
+            "kind": "pipeline",
+            "modules": [
+              {
+                "id": "define_persona",
+                "primitive": "Predict",
+                "role": "define_persona",
+                "signature": {
+                  "inputs": [
+                    "persona_intent"
+                  ],
+                  "name": "DefinePersona",
+                  "outputs": [
+                    "persona"
+                  ]
+                }
+              },
+              {
+                "id": "guide_socratically",
+                "primitive": "ChainOfThought",
+                "role": "socratic_guide",
+                "signature": {
+                  "inputs": [
+                    "transcription",
+                    "persona"
+                  ],
+                  "name": "GuideSocratically",
+                  "outputs": [
+                    "response"
+                  ]
+                }
+              }
+            ]
+          },
+          "inferred_topology": {},
+          "io": {
+            "inputs": [
+              "transcription",
+              "persona_intent"
+            ],
+            "outputs": [
+              "response"
+            ]
+          },
+          "materialization_scope": {
+            "current_renderer": "pipeline_topology_renderer",
+            "topology_declared": true,
+            "topology_inferred": false,
+            "topology_materialized": true
+          },
+          "materialized_topology": {
+            "edges": [
+              {
+                "from": "input",
+                "to": "define_persona"
+              },
+              {
+                "from": "define_persona",
+                "to": "guide_socratically"
+              },
+              {
+                "from": "guide_socratically",
+                "to": "output"
+              }
+            ],
+            "execution_status": "pipeline_materialized",
+            "kind": "pipeline",
+            "modules": [
+              {
+                "id": "define_persona",
+                "primitive": "Predict",
+                "role": "define_persona",
+                "signature": {
+                  "inputs": [
+                    "persona_intent"
+                  ],
+                  "name": "DefinePersona",
+                  "outputs": [
+                    "persona"
+                  ]
+                }
+              },
+              {
+                "id": "guide_socratically",
+                "primitive": "ChainOfThought",
+                "role": "socratic_guide",
+                "signature": {
+                  "inputs": [
+                    "transcription",
+                    "persona"
+                  ],
+                  "name": "GuideSocratically",
+                  "outputs": [
+                    "response"
+                  ]
+                }
+              }
+            ],
+            "scheduler_plan": {
+              "declaration_order": [
+                "define_persona",
+                "guide_socratically"
+              ],
+              "effect": {
+                "authority_mutated": false,
+                "custom_import_loaded": false,
+                "provider_called": false,
+                "retriever_called": false,
+                "tool_called": false
+              },
+              "module_order": [
+                "define_persona",
+                "guide_socratically"
+              ],
+              "module_readiness": {
+                "define_persona": {
+                  "inbound_edges": [
+                    {
+                      "from": "input",
+                      "to": "define_persona"
+                    }
+                  ],
+                  "primitive": "Predict",
+                  "produced_outputs": [
+                    "persona"
+                  ],
+                  "required_inputs": [
+                    "persona_intent"
+                  ]
+                },
+                "guide_socratically": {
+                  "inbound_edges": [
+                    {
+                      "from": "define_persona",
+                      "to": "guide_socratically"
+                    }
+                  ],
+                  "primitive": "ChainOfThought",
+                  "produced_outputs": [
+                    "response"
+                  ],
+                  "required_inputs": [
+                    "transcription",
+                    "persona"
+                  ]
+                }
+              },
+              "output_producers": [
+                "guide_socratically"
+              ],
+              "scheduler": "bounded_ready_queue",
+              "schema_version": "program-topology-scheduler-plan-v1",
+              "status": "deterministic_local_dag_schedule"
+            }
+          },
+          "metric": "f1",
+          "module_order": [
+            "define_persona",
+            "guide_socratically"
+          ],
+          "name": "VoiceTurnSocraticBrain",
+          "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+          "program_class": "VoiceTurnSocraticBrainPipelineProgram",
+          "quality_criteria": [],
+          "scheduler_plan": {
+            "declaration_order": [
+              "define_persona",
+              "guide_socratically"
+            ],
+            "effect": {
+              "authority_mutated": false,
+              "custom_import_loaded": false,
+              "provider_called": false,
+              "retriever_called": false,
+              "tool_called": false
+            },
+            "module_order": [
+              "define_persona",
+              "guide_socratically"
+            ],
+            "module_readiness": {
+              "define_persona": {
+                "inbound_edges": [
+                  {
+                    "from": "input",
+                    "to": "define_persona"
+                  }
+                ],
+                "primitive": "Predict",
+                "produced_outputs": [
+                  "persona"
+                ],
+                "required_inputs": [
+                  "persona_intent"
+                ]
+              },
+              "guide_socratically": {
+                "inbound_edges": [
+                  {
+                    "from": "define_persona",
+                    "to": "guide_socratically"
+                  }
+                ],
+                "primitive": "ChainOfThought",
+                "produced_outputs": [
+                  "response"
+                ],
+                "required_inputs": [
+                  "transcription",
+                  "persona"
+                ]
+              }
+            },
+            "output_producers": [
+              "guide_socratically"
+            ],
+            "scheduler": "bounded_ready_queue",
+            "schema_version": "program-topology-scheduler-plan-v1",
+            "status": "deterministic_local_dag_schedule"
+          },
+          "topology_execution_status": "pipeline_materialized"
+        },
+        "intent_name": "VoiceTurnSocraticBrain",
+        "non_authority": {
+          "external_authority_mutated": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "optimization_authority": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "output_fields": [
+          "response"
+        ],
+        "provider": {
+          "provider": "stub/echo",
+          "status": "configured"
+        },
+        "quality_evaluation": {
+          "criteria_declared": false,
+          "evaluations_failed": 0,
+          "evaluations_passed": 0,
+          "evaluations_total": 0,
+          "quality_approved": false,
+          "status": "not_declared"
+        },
+        "schema_version": "program-behavior-results-v1",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "behavior_results_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+      "behavior_summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 1,
+        "passed": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1,
+          "passed": 1
+        },
+        "total": 2
+      },
+      "capability_registry_hash": "d51c9c703a425c9702a69e5e17a787c05a7f08e1021b7154dc1dde80e4415c14",
+      "capability_registry_path": "program_capability_registry.json",
+      "examples": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_examples.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program examples ok: 2 example(s); behavior status: failed"
+      },
+      "examples_hash": "4c5fe55249b89b00942087d6a9deef59707f80f982413582a7fe2c1b489bd5c4",
+      "execution_episode_hash": "c14011fa656cfa5463868e23a61379cf3d110175721ec8b9664fe65b33b9670d",
+      "execution_episode_path": "execution_episode.json",
+      "generated_files": [
+        "behavior_episode.json",
+        "behavior_results.json",
+        "direct_run.py",
+        "eval_behavior.py",
+        "eval_examples.py",
+        "eval_jury.py",
+        "eval_promotion.py",
+        "eval_smoke.py",
+        "examples.json",
+        "execution_episode.json",
+        "generated_module_policy.json",
+        "intent.json",
+        "intent_normalization.json",
+        "jury.json",
+        "jury_rubric.json",
+        "jury_selection.json",
+        "manifest.json",
+        "module.py",
+        "module_surfaces.json",
+        "oracle_evidence.json",
+        "plan.json",
+        "program.py",
+        "program_capability_registry.json",
+        "program_runtime_outcomes.json",
+        "program_runtime_traces.json",
+        "program_tool_contracts.json",
+        "promotion_adjudication_request.json",
+        "promotion_decision_template.json",
+        "promotion_review.json",
+        "signature.py"
+      ],
+      "generated_module_policy_hash": "e26ffd473d806cec03901fc7ee3ca99ab48b86c79643fdada31e8a41dac0ed1b",
+      "generated_module_policy_path": "generated_module_policy.json",
+      "intent_hash": "f10ee49ec503ae7202e354f2c73f1e7333d28b0b139b314505b1caef58cf1f81",
+      "intent_normalization_hash": "2ff5fc8a0eb505707f43d5db359be763d608c01f0e74af2209c3c31903da719d",
+      "intent_normalization_path": "intent_normalization.json",
+      "jury": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_jury.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program jury artifacts ok: 3 selected juror(s)"
+      },
+      "jury_hash": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886",
+      "jury_rubric_hash": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3",
+      "jury_selection_hash": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40",
+      "module_surfaces_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00",
+      "module_surfaces_path": "module_surfaces.json",
+      "oracle_evidence_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+      "oracle_evidence_path": "oracle_evidence.json",
+      "oracle_readability": {
+        "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+        "facets": {
+          "behavior_source_kinds": [
+            "inline_examples"
+          ],
+          "behavior_status": "failed",
+          "dataset_split_count": 0,
+          "evidence_source_count": 1,
+          "example_count": 2,
+          "failure_mode_count": 1,
+          "has_dataset_splits": false,
+          "has_examples": true,
+          "has_failures": true,
+          "input_fields": [
+            "transcription",
+            "persona_intent"
+          ],
+          "metric": "f1",
+          "output_fields": [
+            "response"
+          ],
+          "runtime_trace_coverage_status": "complete",
+          "runtime_trace_final_output_trace_count": 2,
+          "runtime_trace_module_call_count": 4,
+          "runtime_trace_source_record_coverage_status": "complete",
+          "runtime_trace_status": "runtime_traces_captured",
+          "status_counts": {
+            "failed": 1
+          },
+          "task_type": "single_module",
+          "total_evaluation_count": 2
+        },
+        "path": "oracle_evidence.json",
+        "summary": {
+          "authority": "oracle_readability_only_non_authoritative",
+          "behavior_status": "failed",
+          "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+          "evidence_kind": "program_execution_episode",
+          "example_count": 2,
+          "failure_mode_count": 1,
+          "has_failures": true,
+          "oracle_text_hash": "ab715cf1ca124992bd7a5336cd700cc004675e56896ef1e26276698cac6393d5",
+          "path": "oracle_evidence.json",
+          "schema_version": "program-oracle-evidence-v1",
+          "status_counts": {
+            "failed": 1
+          }
+        }
+      },
+      "oracle_readability_facets": {
+        "behavior_source_kinds": [
+          "inline_examples"
+        ],
+        "behavior_status": "failed",
+        "dataset_split_count": 0,
+        "evidence_source_count": 1,
+        "example_count": 2,
+        "failure_mode_count": 1,
+        "has_dataset_splits": false,
+        "has_examples": true,
+        "has_failures": true,
+        "input_fields": [
+          "transcription",
+          "persona_intent"
+        ],
+        "metric": "f1",
+        "output_fields": [
+          "response"
+        ],
+        "runtime_trace_coverage_status": "complete",
+        "runtime_trace_final_output_trace_count": 2,
+        "runtime_trace_module_call_count": 4,
+        "runtime_trace_source_record_coverage_status": "complete",
+        "runtime_trace_status": "runtime_traces_captured",
+        "status_counts": {
+          "failed": 1
+        },
+        "task_type": "single_module",
+        "total_evaluation_count": 2
+      },
+      "oracle_readability_summary": {
+        "authority": "oracle_readability_only_non_authoritative",
+        "behavior_status": "failed",
+        "content_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+        "evidence_kind": "program_execution_episode",
+        "example_count": 2,
+        "failure_mode_count": 1,
+        "has_failures": true,
+        "oracle_text_hash": "ab715cf1ca124992bd7a5336cd700cc004675e56896ef1e26276698cac6393d5",
+        "path": "oracle_evidence.json",
+        "schema_version": "program-oracle-evidence-v1",
+        "status_counts": {
+          "failed": 1
+        }
+      },
+      "plan_hash": "b396c71e58c59157f5f35b373a1595b60cac945cc746cde608fc6b413c81b8b3",
+      "program_hash": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449",
+      "promotion": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_promotion.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program promotion artifacts ok: not_ready_blocked"
+      },
+      "promotion_adjudication_request_hash": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f",
+      "promotion_decision_template_hash": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c",
+      "promotion_review_hash": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a",
+      "runtime_outcomes_hash": "cd74fb5a621e3ac0284474ac680ab778e6daba5e38f09178d6b6dcca1cda1957",
+      "runtime_outcomes_path": "program_runtime_outcomes.json",
+      "runtime_traces_hash": "07f8cd4dfb65b4cd46326c2f6b41e163aa6cfe8fc05458bf188981590437837e",
+      "runtime_traces_path": "program_runtime_traces.json",
+      "smoke": {
+        "command": [
+          "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+          "eval_smoke.py"
+        ],
+        "returncode": 0,
+        "stderr": "",
+        "stdout": "program smoke ok: VoiceTurnSocraticBrain"
+      },
+      "surface_generation": {
+        "behavior_episode": "program-gen",
+        "behavior_harness": "program-gen",
+        "behavior_results": "program-gen",
+        "capability_registry": "program-gen",
+        "direct_runner": "program-gen",
+        "eval_harness": "program-gen",
+        "examples_harness": "program-gen",
+        "execution_episode": "program-gen",
+        "generated_module_policy": "program-gen",
+        "intent_normalization": "program-gen",
+        "jury": "program-gen",
+        "jury_harness": "program-gen",
+        "jury_rubric": "program-gen",
+        "jury_selection": "program-gen",
+        "module": "module-gen",
+        "module_surfaces": "program-gen",
+        "oracle_evidence": "program-gen",
+        "plan": "program-gen",
+        "program": "program-gen",
+        "promotion_adjudication_request": "program-gen",
+        "promotion_decision_template": "program-gen",
+        "promotion_harness": "program-gen",
+        "promotion_review": "program-gen",
+        "runtime_outcomes": "program-gen",
+        "runtime_traces": "program-gen",
+        "signature": "signature-gen",
+        "tool_contracts": "program-gen"
+      },
+      "surface_hashes": {
+        "behavior_episode.json": "9a2cb7b18ae542591a496e54638b3170571932883d1c92e516b882efdfe7a85f",
+        "behavior_results.json": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "direct_run.py": "76d480148ba92375890024d82fd102c2e910cec76583ec3384bba1bebe2bd46b",
+        "eval_behavior.py": "1925accd8d4565de742a273095c5deb04a5a1a712d42a5f3e9b040a5311152e0",
+        "eval_examples.py": "0570f3ee0cb9553272fa1a2ef25cf8c60c3cfcf7b80645f525cf517fa0cdf4df",
+        "eval_jury.py": "6774acaa995c82022d348061f1990938f8450abc109c03b936f4ac3c992cb992",
+        "eval_promotion.py": "e1bb315d005f536f8b9c057f855773dd87aaa8d558d5dd438159ec51ef21b841",
+        "eval_smoke.py": "607cef04070698bec5e6a3ce78cfe05eac80036108fb8d8a71b5b6383378f882",
+        "execution_episode.json": "c14011fa656cfa5463868e23a61379cf3d110175721ec8b9664fe65b33b9670d",
+        "generated_module_policy.json": "e26ffd473d806cec03901fc7ee3ca99ab48b86c79643fdada31e8a41dac0ed1b",
+        "intent_normalization.json": "2ff5fc8a0eb505707f43d5db359be763d608c01f0e74af2209c3c31903da719d",
+        "jury.json": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886",
+        "jury_rubric.json": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3",
+        "jury_selection.json": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40",
+        "module.py": "beb5f4468700777fe1079afac9a54897812a20c73c8f54233c25b3938749c2db",
+        "module_surfaces.json": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00",
+        "oracle_evidence.json": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+        "plan.json": "b396c71e58c59157f5f35b373a1595b60cac945cc746cde608fc6b413c81b8b3",
+        "program.py": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449",
+        "program_capability_registry.json": "d51c9c703a425c9702a69e5e17a787c05a7f08e1021b7154dc1dde80e4415c14",
+        "program_runtime_outcomes.json": "cd74fb5a621e3ac0284474ac680ab778e6daba5e38f09178d6b6dcca1cda1957",
+        "program_runtime_traces.json": "07f8cd4dfb65b4cd46326c2f6b41e163aa6cfe8fc05458bf188981590437837e",
+        "program_tool_contracts.json": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620",
+        "promotion_adjudication_request.json": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f",
+        "promotion_decision_template.json": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c",
+        "promotion_review.json": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a",
+        "signature.py": "010e9ac3debf1449fca8dc4875eb1151ec47bb23dd95a9f3a79e0a662debdc50"
+      },
+      "tool_contracts_hash": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620",
+      "tool_contracts_path": "program_tool_contracts.json",
+      "topology_execution": {
+        "current_renderer": "pipeline_topology_renderer",
+        "declared_topology_kind": "pipeline",
+        "declared_topology_present": true,
+        "materialized": true,
+        "materialized_topology_kind": "pipeline",
+        "notes": [
+          "Explicit pipeline topology was rendered into signature.py, module.py, and program.py.",
+          "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated."
+        ],
+        "status": "pipeline_materialized"
+      }
+    },
+    "receipt_bundle_id": "prog-rb-e284bd36b7e0",
+    "request_id": "prog-req-b6db3b684620",
+    "status": "captured"
+  },
+  "request": {
+    "behavior_episode_hash": "9a2cb7b18ae542591a496e54638b3170571932883d1c92e516b882efdfe7a85f",
+    "behavior_results_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+    "capability_registry_hash": "d51c9c703a425c9702a69e5e17a787c05a7f08e1021b7154dc1dde80e4415c14",
+    "dataset_manifest_hash": null,
+    "dataset_split_behavior_results_hashes": {},
+    "execution_episode_hash": "c14011fa656cfa5463868e23a61379cf3d110175721ec8b9664fe65b33b9670d",
+    "generated_module_policy_hash": "e26ffd473d806cec03901fc7ee3ca99ab48b86c79643fdada31e8a41dac0ed1b",
+    "goal": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+    "intent_hash": "f10ee49ec503ae7202e354f2c73f1e7333d28b0b139b314505b1caef58cf1f81",
+    "intent_normalization_hash": "2ff5fc8a0eb505707f43d5db359be763d608c01f0e74af2209c3c31903da719d",
+    "intent_source": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/intents/socratic.yaml",
+    "jury_hash": "9f2d2596350d65f45bd921be6d1896ca79495f741c64c69cd2ee51c2f4521886",
+    "jury_rubric_hash": "0137a2ef9d0a676178c5c5d897957042e4342778873812c83b9bd1432923adf3",
+    "jury_selection_hash": "057cba310c042c93c0d2b1b093bd7c76871be1141658b5eda307b22ffddf7a40",
+    "module_surfaces_hash": "b2da3f793d84affa0c5557775dbfe6f330924b79e0e668e3a6550dc152d2ca00",
+    "oracle_evidence_hash": "5c14136fe7146d3c68ddbdd8012fce52caead166eb46529c42ed8f83ae61b050",
+    "plan_hash": "b396c71e58c59157f5f35b373a1595b60cac945cc746cde608fc6b413c81b8b3",
+    "promotion_adjudication_request_hash": "69222a3895ea49095923c3a00760127377d315bfd864c86f19aa3bea72e9f05f",
+    "promotion_decision_template_hash": "28f27bf4b47b866fe8798f147cd338bf196255c5c126f3026ba8c047ac07038c",
+    "promotion_review_hash": "c2f3aa602bfb8d93dec4df3db70ced5fe21142132580ba97741e584344054a4a",
+    "request_id": "prog-req-b6db3b684620",
+    "retriever_snapshots_hash": null,
+    "runtime_outcomes_hash": "cd74fb5a621e3ac0284474ac680ab778e6daba5e38f09178d6b6dcca1cda1957",
+    "runtime_traces_hash": "07f8cd4dfb65b4cd46326c2f6b41e163aa6cfe8fc05458bf188981590437837e",
+    "source_command": "program-gen",
+    "tool_contracts_hash": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620"
+  },
+  "retriever_snapshots": null,
+  "retriever_snapshots_artifact": null,
+  "runtime_episode": {
+    "behavior_results_path": "behavior_results.json",
+    "behavior_results_sha256": "bf59458c804aa0d9803b8c5cbf50364dc98d28ce8ad2d1a34c485084cb70d283",
+    "contract_mode": "none",
+    "inputs_path": "runtime_inputs.json",
+    "inputs_sha256": "0d03829483b09f20a598cf18064603cfeeab1f5580ff98b242d644511569d99a",
+    "runtime_episode_id": "prog-run-74eaf0edb2554805",
+    "schema_version": "program-runtime-episode-v1"
+  },
+  "runtime_outcomes_artifact": {
+    "content_hash": "cd74fb5a621e3ac0284474ac680ab778e6daba5e38f09178d6b6dcca1cda1957",
+    "path": "program_runtime_outcomes.json",
+    "schema_version": "program-runtime-outcomes-v1",
+    "status": "outcome_contracts_declared"
+  },
+  "runtime_traces_artifact": {
+    "content_hash": "07f8cd4dfb65b4cd46326c2f6b41e163aa6cfe8fc05458bf188981590437837e",
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "status": "runtime_traces_captured"
+  },
+  "schema_version": "program-candidate-assembly-v1",
+  "source_candidate_manifest": {
+    "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/candidate/manifest.json",
+    "sha256": "01b28caa003943e616ad07815870f1abb0f200d0990e52f487271c79ed855fac"
+  },
+  "tool_contracts_artifact": {
+    "content_hash": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620",
+    "path": "program_tool_contracts.json",
+    "schema_version": "program-tool-contracts-v1",
+    "status": "descriptor_only_no_tool_binding"
+  },
+  "topology_execution": {
+    "current_renderer": "pipeline_topology_renderer",
+    "declared_topology_kind": "pipeline",
+    "declared_topology_present": true,
+    "materialized": true,
+    "materialized_topology_kind": "pipeline",
+    "notes": [
+      "Explicit pipeline topology was rendered into signature.py, module.py, and program.py.",
+      "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated."
+    ],
+    "status": "pipeline_materialized"
+  }
+}

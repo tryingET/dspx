@@ -1,0 +1,719 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "define_persona",
+      "guide_socratically"
+    ],
+    "expected_module_ids": [
+      "define_persona",
+      "guide_socratically"
+    ],
+    "final_output_trace_count": 2,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 4,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 2,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "What properties define a rectangle, and does a square satisfy each of them?"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "status": "passed",
+      "trace_hash": "e7eee764671f6cc3d899300e69d88b2121018dee22e16e3754e6292bc3100e78"
+    },
+    {
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "What properties define a rectangle, and does a square satisfy each of them?"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "304b2f41649bc7bc52c7efe8e7cef00ef6d874c91b8bc026fefb64a22e7ce399"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away."
+  },
+  "module_call_count": 4,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A warm mathematics tutor."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A warm mathematics tutor."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "0834cea0621aa75636a61b9436f192abde040560cdb38b2ce9bccf4306f245bc",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "guide_socratically"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "A warm mathematics tutor.",
+        "transcription": "Is every square a rectangle?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "guide_socratically",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "What properties define a rectangle, and does a square satisfy each of them?"
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "socratic_guide"
+      },
+      "status": "executed",
+      "trace_hash": "07268edb9d3ea2d975d5d578fe45d814f58b771fe4a5acfd34a1ba535645987b",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A curious biology mentor."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A warm mathematics tutor."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "4d6e037c9307afaeed1a13b375a3e91933884b34218711d24710f0742bf80c68",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "guide_socratically"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "A warm mathematics tutor.",
+        "transcription": "Why did my plant wilt after I watered it every day?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "guide_socratically",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "What properties define a rectangle, and does a square satisfy each of them?"
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 1,
+          "passed": 1,
+          "status": "failed",
+          "status_counts": {
+            "failed": 1,
+            "passed": 1
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "socratic_guide"
+      },
+      "status": "executed",
+      "trace_hash": "7c39132933a555756d15d396a822c20a02b8f7c20ead85c25af17e2f968e8a85",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 2,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 4,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 2,
+      "records_with_complete_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_complete_module_calls": [
+        0,
+        1
+      ],
+      "records_with_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_module_calls": [
+        0,
+        1
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "e8ab0588d5e3e6ac681987300dd785abd81a22c63abc1b83e88c3e8febbb47ef",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 2,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 1,
+        "passed": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1,
+          "passed": 1
+        },
+        "total": 2
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "e7eee764671f6cc3d899300e69d88b2121018dee22e16e3754e6292bc3100e78",
+      "304b2f41649bc7bc52c7efe8e7cef00ef6d874c91b8bc026fefb64a22e7ce399"
+    ],
+    "module_calls": [
+      "0834cea0621aa75636a61b9436f192abde040560cdb38b2ce9bccf4306f245bc",
+      "07268edb9d3ea2d975d5d578fe45d814f58b771fe4a5acfd34a1ba535645987b",
+      "4d6e037c9307afaeed1a13b375a3e91933884b34218711d24710f0742bf80c68",
+      "7c39132933a555756d15d396a822c20a02b8f7c20ead85c25af17e2f968e8a85"
+    ]
+  }
+}

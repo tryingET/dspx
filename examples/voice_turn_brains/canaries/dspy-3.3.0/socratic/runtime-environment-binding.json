@@ -1,0 +1,102 @@
+{
+  "binding_kind": "hash_bound_local_post_execution_environment_observation",
+  "effect": {
+    "authority_mutation": false,
+    "credentials": false,
+    "external_tools": false,
+    "live_provider_or_model": false,
+    "network": false
+  },
+  "environment": {
+    "dspx_core": "0.1.0",
+    "dspy": "3.3.0",
+    "dspy_ai": "3.3.0",
+    "git_commit": "d123a205e705be9530f6d8836ff8e935a79b9bf9",
+    "platform": "linux",
+    "python": "3.13.12"
+  },
+  "executions": {
+    "fresh_candidate": {
+      "execution_status": "executed",
+      "model": "stub/echo",
+      "provider": "stub",
+      "receipt_created_at": "2026-08-16T06:52:09.245082+00:00",
+      "receipt_execution_context": {
+        "env_hash": "c77ef81cbfe72e7c",
+        "git_commit": "d123a205e705",
+        "git_dirty": true,
+        "platform": "linux",
+        "python_version": "3.13.12"
+      },
+      "replay_runtime_reproduction": "passed",
+      "replay_status": "executed",
+      "runtime_episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/canary-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "c2b5d6c8da45a8db1a3e2852fa611a1b9fa8333a0964d1bf289312ab47c7ab8f",
+        "size": 3131
+      },
+      "runtime_episode_id": "prog-run-74eaf0edb2554805",
+      "runtime_receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/canary-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "6c523af8730fb8fc75b04d8876c1e37f899bd14c798c9238eddb49c43f790d1a",
+        "size": 7146
+      },
+      "runtime_replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/canary-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "bb9b6bd064967035c5fe2681222fb88092d25bae3e44173ff0c7b5ab0be5f926",
+        "size": 4232
+      },
+      "runtime_replay_result": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-canary-replay-result.json",
+        "sha256": "37eea99039c65f710c423373a1c588952c354af31048f9060325dfc4d8a17744",
+        "size": 8769
+      },
+      "typed_contract": "typed_lm"
+    },
+    "historical_original": {
+      "execution_status": "executed",
+      "model": "stub/echo",
+      "provider": "stub",
+      "receipt_created_at": "2026-08-16T06:52:08.093597+00:00",
+      "receipt_execution_context": {
+        "env_hash": "c77ef81cbfe72e7c",
+        "git_commit": "d123a205e705",
+        "git_dirty": true,
+        "platform": "linux",
+        "python_version": "3.13.12"
+      },
+      "replay_runtime_reproduction": "passed",
+      "replay_status": "executed",
+      "runtime_episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "80eefcfa16f7046fcef793cfd1bd9fe1226dd8ca288210e58d58da755e0de532",
+        "size": 3125
+      },
+      "runtime_episode_id": "prog-run-ffcb53eb8d5520a0",
+      "runtime_receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "5f8213cef147ddbbe8c3468fb5e0f70a86a4235d09a28f3ebc40737cffb95c9c",
+        "size": 7138
+      },
+      "runtime_replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "0bfb26a916cfb60432a680f3a25faa1017362107e5037f8a938ab3fabccf6554",
+        "size": 4232
+      },
+      "runtime_replay_result": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime-historical-replay-result.json",
+        "sha256": "43b7804fc0384cd8c1bdb57907f9d956a54f5372d6c229af8fe9ca6a76af2a8d",
+        "size": 8793
+      },
+      "typed_contract": "typed_lm"
+    }
+  },
+  "limitations": [
+    "This local binding is not an external attestation or process sandbox proof.",
+    "It binds the observed environment identity to exact runtime receipts, episodes, and replay results; source-generation DSPy provenance remains distinct.",
+    "Semantic equivalence, quality, version causality, optimized/GEPA compatibility, promotion, and activation remain not evaluated."
+  ],
+  "mode": "socratic",
+  "schema_version": "voice-turn-runtime-environment-binding-v1",
+  "task_id": 4794
+}

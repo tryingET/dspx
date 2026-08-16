@@ -1,0 +1,145 @@
+{
+  "authority": "module_surface_contracts_only_non_authoritative",
+  "module_surface_count": 2,
+  "module_surfaces": [
+    {
+      "authority": "module_surface_contract_only_non_authoritative",
+      "capability_ref": {
+        "capability_id": "dspy.primitive.Predict",
+        "materializable": true,
+        "primitive": "Predict",
+        "runtime_binding": "generated_dspy_primitive",
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      },
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "generated": {
+        "module_class": "DefinePersonaModule",
+        "module_path": "module.py",
+        "signature_class": "DefinePersona",
+        "signature_path": "signature.py"
+      },
+      "io": {
+        "inputs": [
+          "persona_intent"
+        ],
+        "outputs": [
+          "persona"
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false
+      },
+      "primitive": "Predict",
+      "schema_version": "program-module-surface-v1",
+      "signature": {
+        "inputs": [
+          "persona_intent"
+        ],
+        "name": "DefinePersona",
+        "outputs": [
+          "persona"
+        ]
+      },
+      "source_kind": "generated_topology_module",
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      }
+    },
+    {
+      "authority": "module_surface_contract_only_non_authoritative",
+      "capability_ref": {
+        "capability_id": "dspy.primitive.ChainOfThought",
+        "materializable": true,
+        "primitive": "ChainOfThought",
+        "runtime_binding": "generated_dspy_primitive",
+        "schema_version": "program-capability-contract-v1",
+        "status": "materializable"
+      },
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "generated": {
+        "module_class": "AnswerElaborateModule",
+        "module_path": "module.py",
+        "signature_class": "AnswerElaborate",
+        "signature_path": "signature.py"
+      },
+      "io": {
+        "inputs": [
+          "transcription",
+          "persona"
+        ],
+        "outputs": [
+          "response"
+        ]
+      },
+      "module_id": "answer_elaborate",
+      "non_authority": {
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false
+      },
+      "primitive": "ChainOfThought",
+      "schema_version": "program-module-surface-v1",
+      "signature": {
+        "inputs": [
+          "transcription",
+          "persona"
+        ],
+        "name": "AnswerElaborate",
+        "outputs": [
+          "response"
+        ]
+      },
+      "source_kind": "generated_topology_module",
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "developed_answer"
+      }
+    }
+  ],
+  "non_authority": {
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false
+  },
+  "notes": [
+    "program-gen composes generated module surfaces through this replayable contract.",
+    "No-topology intents may deterministically infer bounded generated Predict/ChainOfThought modules from clear prompt cues when those modules are more valuable than the default Predict scaffold.",
+    "Capability refs bind each generated surface to the descriptor-only program_capability_registry.json boundary contract.",
+    "Future local custom module references can use the same IO-declared surface shape once a safe declared-only/import-free contract lands.",
+    "This artifact does not execute arbitrary custom Python modules and carries no ranking, promotion, governance, or external mutation authority."
+  ],
+  "schema_version": "program-module-surfaces-v1",
+  "status": "materialized"
+}

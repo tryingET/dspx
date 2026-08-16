@@ -1,0 +1,107 @@
+{
+  "capabilities": {},
+  "constraints": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before responding.",
+    "The define_persona step must output one concise sentence describing role, tone, and teaching method.",
+    "First identify and correct any misconception without shaming the learner.",
+    "Then explain the concept, model one application, and raise the learner one Bloom level.",
+    "Finish with a short question that checks transfer rather than rote repetition.",
+    "The final sentence must be a new unanswered re-quiz question ending with a question mark.",
+    "Do not answer or solve the final re-quiz question.",
+    "Do not echo the persona intent.",
+    "Return only the response field."
+  ],
+  "dataset": {},
+  "datasets": {},
+  "examples": [
+    {
+      "inputs": {
+        "persona_intent": "An encouraging physics teacher.",
+        "transcription": "I think heavier objects always fall faster than lighter ones."
+      },
+      "outputs": {
+        "response": "In a vacuum, heavy and light objects accelerate equally; air resistance creates many everyday differences. Imagine dropping a coin and a feather in a vacuum chamber: both land together. How would changing the feather into a compact ball affect the result in ordinary air, and why?"
+      }
+    },
+    {
+      "inputs": {
+        "persona_intent": "A supportive mathematics coach.",
+        "transcription": "Multiplying two negative numbers should stay negative."
+      },
+      "outputs": {
+        "response": "The product of two negative numbers is positive. One way to see it is that reversing direction twice returns you to the original direction. If negative three times negative four is positive twelve, what sign should negative five times negative two have, and how can you justify it?"
+      }
+    }
+  ],
+  "input_fields": [],
+  "inputs": [
+    "transcription",
+    "persona_intent"
+  ],
+  "jury": {},
+  "metric": "f1",
+  "name": "VoiceTurnBloomBrain",
+  "objective": "Define the requested persona, correct the learner, teach the next concept with Bloom-style scaffolding, and finish with a re-quiz.",
+  "options": {
+    "module_inference": false
+  },
+  "output_fields": [],
+  "outputs": [
+    "response"
+  ],
+  "promotion": {},
+  "quality_criteria": [],
+  "runtime": {},
+  "schema_version": "program-intent-v2",
+  "task_type": "single_module",
+  "topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "define_persona",
+        "to": "teach_with_bloom"
+      },
+      {
+        "from": "teach_with_bloom",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "pipeline",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "teach_with_bloom",
+        "primitive": "Predict",
+        "role": "bloom_correct_teach_end_with_unanswered_requiz_question",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "TeachWithBloom",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  }
+}
