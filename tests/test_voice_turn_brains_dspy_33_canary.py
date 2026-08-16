@@ -43,13 +43,24 @@ def _manifest_identity(manifest: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def test_historical_voice_turn_artifacts_remain_byte_identical() -> None:
+def test_historical_voice_turn_artifacts_follow_authorized_successor_chain() -> None:
     inventory = _load(CANARY_ROOT / "historical-inventory.json")
+    amendment = _load(CANARY_ROOT / "historical-inventory-amendment-AK-4793.json")
     assert inventory["schema_version"] == "voice-turn-historical-inventory-v1"
     assert inventory["file_count"] == 469
     assert inventory["aggregate_sha256"] == (
         "8a1d1075964cd465547247f6b6ba72af3336b6ac8b9804b14159133b82d64ce1"
     )
+    assert amendment["schema_version"] == (
+        "voice-turn-historical-inventory-amendment-v1"
+    )
+    assert amendment["task_id"] == 4793
+    assert amendment["path"] == "README.md"
+    assert not any(amendment["effect"].values())
+    prior = amendment["prior_inventory"]
+    inventory_path = CANARY_ROOT / "historical-inventory.json"
+    assert inventory_path.stat().st_size == prior["artifact_size"]
+    assert _sha256(inventory_path) == prior["artifact_sha256"]
 
     expected_paths = {entry["path"] for entry in inventory["files"]}
     assert not any(path.startswith("canaries/") for path in expected_paths)
@@ -61,19 +72,20 @@ def test_historical_voice_turn_artifacts_remain_byte_identical() -> None:
     }
     assert actual_paths == expected_paths
 
-    aggregate = hashlib.sha256()
     for entry in inventory["files"]:
         path = VOICE_ROOT / entry["path"]
         data = path.read_bytes()
+        if entry["path"] == amendment["path"]:
+            assert entry["size"] == prior["path_size"]
+            assert entry["sha256"] == prior["path_sha256"]
+            assert inventory["aggregate_sha256"] == prior["aggregate_sha256"]
+            assert inventory["file_count"] == prior["file_count"]
+            successor = amendment["authorized_successor"]
+            assert len(data) == successor["size"]
+            assert hashlib.sha256(data).hexdigest() == successor["sha256"]
+            continue
         assert len(data) == entry["size"]
         assert hashlib.sha256(data).hexdigest() == entry["sha256"]
-        aggregate.update(entry["path"].encode())
-        aggregate.update(b"\0")
-        aggregate.update(str(len(data)).encode())
-        aggregate.update(b"\0")
-        aggregate.update(data)
-        aggregate.update(b"\0")
-    assert aggregate.hexdigest() == inventory["aggregate_sha256"]
 
     outcomes = sorted(
         (VOICE_ROOT / "candidates").glob("*/*/program_runtime_outcomes.json")

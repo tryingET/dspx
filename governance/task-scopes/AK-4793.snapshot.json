@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-16T06:21:31.876018252+00:00",
+  "task_id": 4793,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "Justfile",
+      "docs/engineering.local.md",
+      "examples/voice_turn_brains/README.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/README.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/historical-inventory-amendment-AK-4793.json",
+      "governance/task-scopes/AK-4793.snapshot.json",
+      "scripts/workflow_contracts/repository.py",
+      "tests/test_adversarial_boundary_contracts.py",
+      "tests/test_dspy_typed_lm.py",
+      "tests/test_nexus_adversarial_fixes.py",
+      "tests/test_optimize_gepa_stub.py",
+      "tests/test_program_architecture_cli.py",
+      "tests/test_program_dataset_splits.py",
+      "tests/test_program_foundry.py",
+      "tests/test_program_quality_conversation.py",
+      "tests/test_run_receipts_identity_lineage.py",
+      "tests/test_voice_turn_brains_dspy_33_canary.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "required_paths": [
+      "Justfile",
+      "docs/engineering.local.md",
+      "examples/voice_turn_brains/README.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/historical-inventory-amendment-AK-4793.json",
+      "scripts/workflow_contracts/repository.py",
+      "tests/test_dspy_typed_lm.py",
+      "tests/test_optimize_gepa_stub.py",
+      "tests/test_program_foundry.py",
+      "tests/test_voice_turn_brains_dspy_33_canary.py",
+      "tests/test_workflow_contracts.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/ai-control-brains.json",
+      "examples/voice_turn_brains/candidates/**",
+      "examples/voice_turn_brains/intents/**",
+      "examples/voice_turn_brains/manifest-index.json",
+      "examples/voice_turn_brains/refinement/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -1,3 +1,11 @@
+---
+summary: "Six separately selected DSPy voice-turn brain candidates with immutable generation evidence and explicit runtime boundaries."
+read_when:
+  - "Running, regenerating, or reviewing the voice-turn brain example family."
+  - "Changing voice-turn manifest selection, grounding, GEPA, or runtime evidence posture."
+type: "reference"
+---
+
 # Voice-turn brain candidates
 
 This example set contains six **separate** DSPy programs for the batch hardware voice-turn. It is deliberately not an answering-mode router: the caller selects one manifest before invoking `dspx program-run`.

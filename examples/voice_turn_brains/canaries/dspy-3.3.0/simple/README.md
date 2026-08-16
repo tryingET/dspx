@@ -15,7 +15,7 @@ This directory is a receipt-backed **offline compatibility canary** created by A
 - The current DSPy/DSPy-AI 3.3.0 program generator materialized the same declared two-`Predict` pipeline into a fresh candidate identity.
 - The historical original artifact and the fresh candidate both executed under the same credential-free `stub/echo` typed-LM adapter and frozen input/fixture.
 - Candidate and runtime receipts passed integrity checks, and both runtime receipts produced fresh receipt-bound replay output.
-- `historical-inventory.json` freezes every file that existed under `examples/voice_turn_brains` before this canary. The regression test checks those 469 path/size/hash identities byte-for-byte.
+- `historical-inventory.json` freezes every file that existed under `examples/voice_turn_brains` before this canary. The regression test checks unamended identities byte-for-byte and requires an explicit hash-bound successor record for any later authorized non-candidate change. `historical-inventory-amendment-AK-4793.json` records the documentation-only front-matter repair without rewriting the original inventory or any candidate, receipt, refinement, routing, or GEPA artifact.
 - `comparison.json` records generated-behavior and same-runtime status evidence without selecting or promoting either candidate.
 
 The authoritative compact map is `canary-index.json`. Generated manifests and receipts retain the canonical local absolute paths observed during execution; they are local evidence, not relocatable release artifacts. The regression test validates their bytes and bindings from a relocated checkout without treating embedded paths as portable authority.
@@ -33,7 +33,8 @@ This slice does not cover the historical optimized candidate, GEPA, pickle-backe
 - `runtime/canary-artifact-under-3.3-stub/` — equivalent execution and replay evidence for the fresh candidate.
 - `comparison.json` — non-authoritative comparison over generated and same-runtime evidence.
 - `*-receipt-check.json`, `*-replay-result.json` — captured local verification reports.
-- `historical-inventory.json` — pre-canary byte inventory.
+- `historical-inventory.json` — immutable pre-canary byte inventory.
+- `historical-inventory-amendment-AK-4793.json` — hash-bound successor record for the later root README front-matter repair.
 
 ## Reproduction boundary
 

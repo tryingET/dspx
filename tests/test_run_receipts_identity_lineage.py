@@ -23,7 +23,9 @@ from run_receipts_helpers import (
 )
 
 
-def test_receipt_provider_identity_is_canonicalized(tmp_path: Path, monkeypatch) -> None:
+def test_receipt_provider_identity_is_canonicalized(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setenv("DSPX_PROVIDER", "  STUB  ")
     receipt = build_run_receipt(
         run_kind="module-gen",

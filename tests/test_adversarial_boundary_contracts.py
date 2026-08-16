@@ -760,15 +760,15 @@ def test_generated_direct_child_nonzero_is_never_retried(
     exec(render_direct_run_code(object()), namespace, namespace)
     calls = 0
 
-    def fail_once(*args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def fail_once(*args: Any, **kwargs: object) -> subprocess.CompletedProcess[str]:
         nonlocal calls
         calls += 1
-        return subprocess.CompletedProcess(args=args, returncode=1, stdout="", stderr="failed")
+        return subprocess.CompletedProcess(
+            args=args, returncode=1, stdout="", stderr="failed"
+        )
 
     monkeypatch.setattr(namespace["subprocess"], "run", fail_once)
-    result = namespace["_run_child"](
-        tmp_path / "input.json", tmp_path / "out", 1, None
-    )
+    result = namespace["_run_child"](tmp_path / "input.json", tmp_path / "out", 1, None)
 
     assert calls == 1
     assert result["status"] == "failed"
@@ -973,7 +973,6 @@ def test_cli_boundary_failures_are_concise(
     assert missing_spec.exit_code == 2
     assert "failed to load OpenAPI spec /no/such" in missing_spec.output
     assert "Traceback" not in missing_spec.output
-
 
 
 def test_cli_boundary_errors_redact_secrets(monkeypatch: pytest.MonkeyPatch) -> None:

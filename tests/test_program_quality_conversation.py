@@ -48,6 +48,9 @@ class _FakeQualityLM:
             usage={"input_tokens": 100, "output_tokens": 50},
         )
 
+    def dump_state(self) -> dict[str, object]:
+        return {"kind": "quality-test-double"}
+
 
 class _IndeterminateQualityLM(_FakeQualityLM):
     def invoke(self, request: ProviderRequest) -> ProviderResult:
@@ -128,9 +131,7 @@ def test_proposal_uses_normalized_fields_and_stays_pending() -> None:
 def test_indeterminate_provider_result_cannot_become_proposal_text() -> None:
     lm = _IndeterminateQualityLM(_model_payload())
 
-    with pytest.raises(
-        ProgramQualityConversationError, match="effect_indeterminate"
-    ):
+    with pytest.raises(ProgramQualityConversationError, match="effect_indeterminate"):
         propose_program_quality_criteria(
             "Route support tickets by classifying billing versus technical issues, then draft a helpful response with rationale.",
             lm=lm,

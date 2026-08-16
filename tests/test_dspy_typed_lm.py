@@ -8,7 +8,7 @@ import asyncio
 from collections.abc import Iterator, Mapping
 import inspect
 from threading import Event, Thread
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import dspy
 import pytest
@@ -28,7 +28,7 @@ pytestmark = pytest.mark.skipif(
     reason="DSPy 3.3 typed-LM contract is proved in the retained exact target",
 )
 
-if _TYPED_LM_AVAILABLE:
+if TYPE_CHECKING or _TYPED_LM_AVAILABLE:
     from dspy import (
         BaseLM,
         LMRequest,
@@ -366,17 +366,19 @@ def test_copy_resets_dspy_history_and_does_not_alias_provider_events() -> None:
     assert lm.model_type == "text"
 
     copied = lm.copy(cache=False)
+    copied_provider = copied.provider
 
     assert copied is not lm
     assert copied.cache is False
-    assert copied.provider is not provider
+    assert copied_provider is not provider
+    assert isinstance(copied_provider, StubProvider)
     assert copied.history == []
     assert copied.callbacks is not lm.callbacks
     assert copied.kwargs is not lm.kwargs
-    assert copied.provider.provider_events == ()
+    assert copied_provider.provider_events == ()
     copied(request=_request("copy"))
     assert len(provider.provider_events) == 1
-    assert len(copied.provider.provider_events) == 1
+    assert len(copied_provider.provider_events) == 1
 
 
 class _RecordingCallback(BaseCallback):
@@ -456,8 +458,10 @@ def test_copied_adapter_and_provider_share_isolated_lock_during_postprocessing(
     original_provider = StubProvider()
     original = DSPyTypedLMAdapter(original_provider)
     copied = original.copy()
-    assert copied.provider is not original_provider
-    assert copied._operation_lock is copied.provider.operation_lock
+    copied_provider = copied.provider
+    assert copied_provider is not original_provider
+    assert isinstance(copied_provider, StubProvider)
+    assert copied._operation_lock is copied_provider.operation_lock
     assert copied._operation_lock is not original._operation_lock
 
     postprocessing = Event()
@@ -483,7 +487,7 @@ def test_copied_adapter_and_provider_share_isolated_lock_during_postprocessing(
     def direct_call() -> None:
         direct_started.set()
         try:
-            copied.provider.invoke(
+            copied_provider.invoke(
                 ProviderRequest(
                     model="stub/echo",
                     messages=(ProviderMessage(role="user", text="direct"),),
@@ -512,10 +516,10 @@ def test_copied_adapter_and_provider_share_isolated_lock_during_postprocessing(
     ]
     assert original_provider.provider_events == ()
     assert original_provider.attempt_total == 0
-    assert copied.provider.attempt_total == 1
-    assert copied.provider.terminal_effect is EffectDisposition.EFFECT_INDETERMINATE
-    assert copied.provider.provider_events == (copied.provider.provider_events[0],)
-    event = copied.provider.provider_events[0]
+    assert copied_provider.attempt_total == 1
+    assert copied_provider.terminal_effect is EffectDisposition.EFFECT_INDETERMINATE
+    assert copied_provider.provider_events == (copied_provider.provider_events[0],)
+    event = copied_provider.provider_events[0]
     assert event.requested_model == "stub/echo"
     assert event.observed_model == "stub/echo"
     assert event.dispatch_count == 1

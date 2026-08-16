@@ -122,9 +122,9 @@ def test_program_gen_materializes_ratio_dataset_splits_and_replay_checks_drift(
     for split in ("train", "validation", "test"):
         assert (root / "splits" / f"{split}.jsonl").exists()
         assert (root / f"eval_{split}.py").exists()
-        assert "create_from_env()" in (
-            root / f"eval_{split}.py"
-        ).read_text(encoding="utf-8")
+        assert "create_from_env()" in (root / f"eval_{split}.py").read_text(
+            encoding="utf-8"
+        )
         assert (root / f"behavior_results.{split}.json").exists()
     assert (root / "eval_behavior.py").exists()
     assert (root / "behavior_episode.json").exists()

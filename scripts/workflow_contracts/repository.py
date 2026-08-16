@@ -250,6 +250,7 @@ def collect_issues(root: Path) -> list[Issue]:
             "forbidden": [
                 "next_session_prompt checkpoint before failing closed",
                 "legacy manifest fallback",
+                "uvx ty",
             ],
         },
         "scripts/ci/smoke.sh": {
@@ -361,7 +362,7 @@ def collect_issues(root: Path) -> list[Issue]:
                 text,
                 relpath,
                 "typecheck-tests:",
-                ["uvx ty check tests"],
+                ["uv run --no-sync ty check tests"],
                 issues,
             )
             _check_recipe_body_contains(

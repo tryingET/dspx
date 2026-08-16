@@ -8,6 +8,7 @@ import csv
 import json
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 import dspy
 import httpx
@@ -87,11 +88,11 @@ def test_gepa_optimize_saves_loadable_program(
     gepa_kwargs: dict[str, object] = {}
 
     class RecordingGEPA:
-        def __init__(self, *args: object, **kwargs: object) -> None:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             gepa_kwargs.update(kwargs)
             self._delegate = RealGEPA(*args, **kwargs)
 
-        def compile(self, **kwargs: object) -> object:
+        def compile(self, **kwargs: Any) -> object:
             return self._delegate.compile(**kwargs)
 
     monkeypatch.setattr("dspy.teleprompt.gepa.gepa.GEPA", RecordingGEPA)
@@ -182,19 +183,19 @@ def test_optimizer_restores_prior_global_lm_before_closing_owned_provider(
     original_lm = getattr(dspy.settings, "lm", None)
     prior_lm = DSPyTypedLMAdapter(StubProvider())
     dspy.configure(lm=prior_lm)
-    owned = DSPyTypedLMAdapter(
-        OpenAICompatibleProvider(
-            base_url="http://127.0.0.1:8000/v1",
-            model="local-model",
-            _transport=httpx.MockTransport(
-                lambda request: httpx.Response(500, request=request)
-            ),
-        )
+    owned_provider = OpenAICompatibleProvider(
+        base_url="http://127.0.0.1:8000/v1",
+        model="local-model",
+        _transport=httpx.MockTransport(
+            lambda request: httpx.Response(500, request=request)
+        ),
     )
+    owned = DSPyTypedLMAdapter(owned_provider)
 
     def fake_impl(**kwargs: object) -> GEPAResult:
-        owned_lms = kwargs["_owned_lms"]
-        assert isinstance(owned_lms, list)
+        owned_lms_value = kwargs["_owned_lms"]
+        assert isinstance(owned_lms_value, list)
+        owned_lms = cast(list[DSPyTypedLMAdapter], owned_lms_value)
         owned_lms.append(owned)
         dspy.configure(lm=owned)
         if fails:
@@ -227,7 +228,7 @@ def test_optimizer_restores_prior_global_lm_before_closing_owned_provider(
             )
             assert result.student_provider == "openai-compatible"
         assert getattr(dspy.settings, "lm", None) is prior_lm
-        assert owned.provider._client.is_closed
+        assert owned_provider._client.is_closed
         assert getattr(dspy.settings, "lm", None) is not owned
     finally:
         dspy.configure(lm=original_lm)

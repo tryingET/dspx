@@ -51,6 +51,9 @@ class _QualityLM:
             effect_disposition=EffectDisposition.COMPLETED_SUCCESS,
         )
 
+    def dump_state(self) -> dict[str, object]:
+        return {"kind": "quality-test-double"}
+
 
 def _quality_artifacts(
     intent_path: Path,

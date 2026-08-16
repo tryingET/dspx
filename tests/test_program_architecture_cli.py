@@ -115,7 +115,9 @@ def test_architecture_planner_cli_writes_contract_drafts(tmp_path: Path) -> None
     assert not (contract_dir / "program.py").exists()
 
 
-def test_architecture_planner_cli_records_react_v2_contract_rejection(tmp_path: Path) -> None:
+def test_architecture_planner_cli_records_react_v2_contract_rejection(
+    tmp_path: Path,
+) -> None:
     payload = build_program_architecture_candidates(
         ProgramIntent(
             name="ReactV2CliVerifyProgram",

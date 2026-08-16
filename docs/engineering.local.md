@@ -26,7 +26,7 @@ Unknown disciplines, symbolic or malformed pins, failed upstream retrieval, and 
 
 Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
-- Typechecking uses `ty` (not mypy): `uvx ty check packages/dspx-core/src apps/forge/src`
+- Typechecking uses the lockfile-pinned `ty` (not mypy): `uv run --no-sync ty check packages/dspx-core/src apps/forge/src`. Do not use unpinned `uvx ty`; it resolves the latest tool independently of `uv.lock` and can change the validation contract.
 - Canonical local workflow contract: `docs/project/developer_workflow.md`
 - Commands are standardized in `Justfile` via the owned-lane contract: `just help`, `just test`, `just check`, `just build`, `just lint`, `just fmt`, `just ci`, `just doctor`, plus repo-specific helpers like `just typecheck`.
 - `just run ...` is the truthful one-shot entrypoint and delegates to the DSPx CLI surface; plain `just run` falls back to CLI help and keeps the lockfile untouched.
