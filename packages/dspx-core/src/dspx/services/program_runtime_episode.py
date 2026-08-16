@@ -28,6 +28,7 @@ from dspx.services.program_oracle_publication_preflight import (
     build_program_oracle_publication_preflight,
     write_program_oracle_publication_preflight,
 )
+from dspx.services.python_import_guard import suppress_bytecode_writes
 from dspx.security import confine_path, confine_relative_path
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
@@ -99,6 +100,7 @@ _ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS = {
     "hashlib",
     "json",
     "module",
+    "os",
     "pathlib",
     "signature",
     "typing",
@@ -877,7 +879,7 @@ def _generated_program_module(candidate_root: Path) -> Iterator[Any]:
     # Generated program candidates import sibling modules by process-global names
     # (program/module/signature). Keep the whole candidate context serialized so
     # concurrent runtime episodes cannot pop or replace each other's modules.
-    with _GENERATED_PROGRAM_IMPORT_LOCK:
+    with _GENERATED_PROGRAM_IMPORT_LOCK, suppress_bytecode_writes():
         saved: dict[str, ModuleType | None] = {
             name: sys.modules.get(name) for name in names
         }

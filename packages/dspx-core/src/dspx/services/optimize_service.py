@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from _thread import RLock as ReentrantLock
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, cast
@@ -17,6 +19,9 @@ from dspx.services.gepa_proposal_policy import (
     validate_gepa_budget,
     validate_num_threads,
 )
+from dspx.services.python_import_guard import suppress_bytecode_writes
+
+_PROGRAM_IMPORT_LOCK = ReentrantLock()
 
 
 @dataclass
@@ -63,36 +68,44 @@ def _import_program_module(program_path: Path) -> object:
     spec = importlib.util.spec_from_file_location(program_path.stem, program_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Failed to import program module from {program_path}")
-    mod = importlib.util.module_from_spec(spec)
-    # Ensure imports beside the program file work for generated program assemblies
-    # whose program.py imports sibling module.py/signature.py artifacts.
-    sys.modules[spec.name] = mod
-    program_dir = str(program_path.parent)
-    inserted = False
-    if program_dir not in sys.path:
-        sys.path.insert(0, program_dir)
-        inserted = True
-    sibling_module_names = [
-        path.stem
-        for path in program_path.parent.glob("*.py")
-        if path.stem != program_path.stem
-    ]
-    previous_siblings = {name: sys.modules.get(name) for name in sibling_module_names}
-    try:
-        spec.loader.exec_module(mod)
-    finally:
-        if inserted:
-            try:
-                sys.path.remove(program_dir)
-            except ValueError:
-                pass
-        for name in sibling_module_names:
-            previous = previous_siblings.get(name)
-            if previous is None:
-                sys.modules.pop(name, None)
+    with _PROGRAM_IMPORT_LOCK, suppress_bytecode_writes():
+        mod = importlib.util.module_from_spec(spec)
+        # Keep optimization observational over the trusted source candidate. The
+        # imported program and sibling modules must not create __pycache__ there.
+        previous_program_module = sys.modules.get(spec.name)
+        sys.modules[spec.name] = mod
+        program_dir = str(program_path.parent)
+        inserted = False
+        if program_dir not in sys.path:
+            sys.path.insert(0, program_dir)
+            inserted = True
+        sibling_module_names = [
+            path.stem
+            for path in program_path.parent.glob("*.py")
+            if path.stem != program_path.stem
+        ]
+        previous_siblings = {
+            name: sys.modules.get(name) for name in sibling_module_names
+        }
+        try:
+            spec.loader.exec_module(mod)
+        finally:
+            if previous_program_module is None:
+                sys.modules.pop(spec.name, None)
             else:
-                sys.modules[name] = previous
-    return mod
+                sys.modules[spec.name] = previous_program_module
+            if inserted:
+                try:
+                    sys.path.remove(program_dir)
+                except ValueError:
+                    pass
+            for name in sibling_module_names:
+                previous = previous_siblings.get(name)
+                if previous is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = previous
+        return mod
 
 
 def _build_student(mod: object) -> object:

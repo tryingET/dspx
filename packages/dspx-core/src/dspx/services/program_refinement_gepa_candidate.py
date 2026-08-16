@@ -42,6 +42,7 @@ def _render_gepa_program_code(
     loader_code = "\n".join(
         [
             "import json",
+            "import os",
             "from pathlib import Path",
             "from typing import Any",
             "",
@@ -256,6 +257,9 @@ def _render_gepa_program_code(
             "            raise RuntimeError('GEPA optimizer payload size changed before load')",
             "    if declared.get('tree_hash') != actual.get('tree_hash'):",
             "        raise RuntimeError('GEPA optimizer payload tree hash changed before load')",
+            "    unsafe_pickle_opt_in = os.getenv('DSPX_ALLOW_UNSAFE_GEPA_PICKLE_SHA256', '')",
+            "    if unsafe_pickle_opt_in != expected_manifest_hash:",
+            "        raise RuntimeError('GEPA pickle load requires explicit exact optimizer-manifest SHA-256 opt-in')",
             "",
             "",
             "def build_program() -> dspy.Module:",
