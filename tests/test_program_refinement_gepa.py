@@ -72,6 +72,14 @@ def _fake_gepa(
             self.output_weights: dict[str, float] = {}
             self.student_provider = "stub"
             self.reflection_provider = "stub"
+            self.proposal_config = {
+                "schema_version": "dspx-gepa-proposal-config-v1",
+                "sampling": "single",
+            }
+            self.run_stats = {
+                "schema_version": "dspx-gepa-run-stats-v1",
+                "total_metric_calls": 2,
+            }
 
     def fake_run_gepa_optimize(**kwargs: Any) -> FakeResult:
         out_dir = Path(kwargs["out_dir"])
@@ -293,6 +301,8 @@ def test_program_refine_optimize_gepa_inline_examples_writes_sidecar_only(
     assert payload["gepa"]["status"] == "completed"
     assert payload["gepa"]["metric"] == "exact_match"
     assert payload["gepa"]["optimizer_metric"] == "exact"
+    assert payload["gepa"]["proposal_config"]["sampling"] == "single"
+    assert payload["gepa"]["run_stats"]["total_metric_calls"] == 2
     assert payload["gepa"]["prepared_inputs"]["train_csv_sha256"]
     assert payload["gepa"]["prepared_inputs"]["validation_csv_sha256"]
     assert payload["candidate"] is None

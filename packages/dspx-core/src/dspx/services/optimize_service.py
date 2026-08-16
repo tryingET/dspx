@@ -8,6 +8,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, cast
 
+from dspx.services.gepa_proposal_policy import (
+    GEPAProposalConfig,
+    GEPAReceiptCallback,
+    TerminalGEPAReflectionLM,
+    compile_with_terminal_reflection_effects,
+    detach_gepa_run_stats,
+    validate_gepa_budget,
+    validate_num_threads,
+)
+
 
 @dataclass
 class GEPAResult:
@@ -19,6 +29,8 @@ class GEPAResult:
     output_weights: Dict[str, float]
     student_provider: str
     reflection_provider: str
+    proposal_config: dict[str, object] | None = None
+    run_stats: dict[str, object] | None = None
 
 
 def _trusted_program_roots() -> List[Path]:
@@ -375,10 +387,20 @@ def run_gepa_optimize(
     seed: int = 0,
     nrows: Optional[int] = None,
     num_threads: int = 1,
+    proposal_config: GEPAProposalConfig | None = None,
 ) -> GEPAResult:
     """Run GEPA while deterministically closing owned HTTP providers."""
 
     import dspy
+
+    validate_num_threads(num_threads)
+    effective_proposal_config = proposal_config or GEPAProposalConfig()
+    validate_gepa_budget(
+        effective_proposal_config,
+        auto=auto,
+        max_metric_calls=max_metric_calls,
+        max_full_evals=max_full_evals,
+    )
 
     owned_lms: list[Any] = []
     previous_lm = getattr(dspy.settings, "lm", None)
@@ -400,6 +422,7 @@ def run_gepa_optimize(
             seed=seed,
             nrows=nrows,
             num_threads=num_threads,
+            proposal_config=effective_proposal_config,
             _owned_lms=owned_lms,
         )
     finally:
@@ -428,6 +451,7 @@ def _run_gepa_optimize_impl(
     seed: int = 0,
     nrows: Optional[int] = None,
     num_threads: int = 1,
+    proposal_config: GEPAProposalConfig,
     _owned_lms: list[Any],
 ) -> GEPAResult:
     """
@@ -450,9 +474,6 @@ def _run_gepa_optimize_impl(
 
     import dspy
     from dspx.provider_runtime import provider_metadata_from_instance
-
-    if not 1 <= num_threads <= 32:
-        raise ValueError("num_threads must be between 1 and 32")
 
     student_lm = _resolve_optimizer_provider(student_provider)
     _owned_lms.append(student_lm)
@@ -506,15 +527,11 @@ def _run_gepa_optimize_impl(
 
     from dspy.teleprompt.gepa.gepa import GEPA
 
-    budget_set = sum(
-        1 for x in (auto, max_metric_calls, max_full_evals) if x is not None
-    )
-    if budget_set != 1:
-        raise ValueError(
-            "Exactly one of auto, max_metric_calls, max_full_evals must be set."
-        )
-
     normalize_output = _normalize_output_from_program(mod)
+    receipt_callback = GEPAReceiptCallback()
+    guarded_reflection_lm = TerminalGEPAReflectionLM(reflection_lm)
+    advanced_kwargs = proposal_config.to_gepa_kwargs()
+    advanced_kwargs["callbacks"] = [receipt_callback]
 
     gepa: Any = GEPA(
         _default_gepa_metric(
@@ -526,15 +543,22 @@ def _run_gepa_optimize_impl(
         auto=auto,
         max_full_evals=max_full_evals,
         max_metric_calls=max_metric_calls,
-        reflection_lm=cast(Any, reflection_lm),
+        reflection_lm=cast(Any, guarded_reflection_lm),
         seed=seed,
         num_threads=num_threads,
+        track_stats=True,
+        track_best_outputs=False,
+        gepa_kwargs=advanced_kwargs,
     )
 
-    compiled: Any = gepa.compile(
+    compiled: Any = compile_with_terminal_reflection_effects(
+        gepa,
         student=cast(Any, student),
         trainset=cast(Any, trainset),
         valset=cast(Any, valset),
+    )
+    run_stats = detach_gepa_run_stats(
+        compiled, event_counts=receipt_callback.to_manifest()
     )
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -597,6 +621,9 @@ def _run_gepa_optimize_impl(
             "max_metric_calls": max_metric_calls,
             "max_full_evals": max_full_evals,
             "seed": seed,
+            "proposal_config": proposal_config.to_manifest(),
+            "run_stats": run_stats,
+            "metric_budget_semantics": "iteration_boundary_stop_threshold_not_hard_ceiling",
         },
         "providers": {
             "student": student_metadata,
@@ -618,6 +645,8 @@ def _run_gepa_optimize_impl(
         output_weights=weights,
         student_provider=str(student_metadata["provider"]),
         reflection_provider=str(reflection_metadata["provider"]),
+        proposal_config=proposal_config.to_manifest(),
+        run_stats=run_stats,
     )
 
 

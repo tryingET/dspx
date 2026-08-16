@@ -678,7 +678,99 @@ def _monkeypatch_adapter_available(available: bool):
 def test_optimize_help_names_configured_openai_provider() -> None:
     result = runner.invoke(app, ["optimize", "gepa", "--help"])
     assert result.exit_code == 0
-    assert "configured openai-compatible" in result.stdout
+    normalized_help = " ".join(result.stdout.split())
+    assert "configured" in normalized_help
+    assert "openai-compatible" in normalized_help
+    assert "--proposal-sampling" in result.stdout
+    assert "--proposal-selection" in result.stdout
+    assert "--proposal-acceptance" in result.stdout
+    assert "--num-threads" in result.stdout
+
+
+def test_optimize_cli_passes_bounded_multi_proposal_config(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import dspx.services.optimize_service as optimize_service
+    from dspx.services.gepa_proposal_policy import GEPAProposalConfig
+
+    captured: dict[str, object] = {}
+
+    class Result:
+        out_dir = tmp_path / "optimized"
+
+    def fake_run_gepa_optimize(**kwargs: object) -> Result:
+        captured.update(kwargs)
+        return Result()
+
+    monkeypatch.setattr(optimize_service, "run_gepa_optimize", fake_run_gepa_optimize)
+    program = tmp_path / "program.py"
+    program.write_text("def build_student(): ...\n", encoding="utf-8")
+    train = tmp_path / "train.csv"
+    train.write_text("question,answer\nq,a\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "gepa",
+            "--program",
+            str(program),
+            "--train",
+            str(train),
+            "--out",
+            str(tmp_path / "optimized"),
+            "--student-provider",
+            "stub",
+            "--max-metric-calls",
+            "8",
+            "--proposal-sampling",
+            "same-parent",
+            "--proposal-n",
+            "2",
+            "--proposal-selection",
+            "top-k-improvements",
+            "--proposal-top-k",
+            "2",
+            "--proposal-acceptance",
+            "improvement-or-equal",
+            "--num-threads",
+            "4",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    config = captured["proposal_config"]
+    assert isinstance(config, GEPAProposalConfig)
+    assert config.sampling == "same-parent"
+    assert config.proposal_n == 2
+    assert config.selection == "top-k-improvements"
+    assert config.top_k == 2
+    assert config.acceptance == "improvement-or-equal"
+    assert captured["max_metric_calls"] == 8
+    assert captured["num_threads"] == 4
+
+    invalid_threads = runner.invoke(
+        app,
+        [
+            "optimize",
+            "gepa",
+            "--program",
+            str(program),
+            "--train",
+            str(train),
+            "--out",
+            str(tmp_path / "invalid"),
+            "--student-provider",
+            "stub",
+            "--max-metric-calls",
+            "1",
+            "--num-threads",
+            "33",
+        ],
+    )
+    assert invalid_threads.exit_code == 2
+    assert "--num-threads" in invalid_threads.output
+    assert "num_threads must be between 1 and 32" in invalid_threads.output
 
 
 def test_optimize_explicit_empty_provider_does_not_fall_back_to_env(

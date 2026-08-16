@@ -17,6 +17,7 @@ import pytest
 import dspx.openai_compatible_provider as openai_provider
 from dspx.dspy_typed_lm import DSPyTypedLMAdapter
 from dspx.openai_compatible_provider import OpenAICompatibleProvider
+from dspx.services.gepa_proposal_policy import GEPAProposalConfig
 import dspx.services.optimize_service as optimize_service
 from dspx.services.optimize_service import (
     GEPAResult,
@@ -77,8 +78,27 @@ def test_import_program_module_allows_env_trusted_program_root(
         assert getattr(mod, "VALUE") == 7
 
 
+@pytest.mark.parametrize(
+    ("proposal_config", "max_metric_calls"),
+    [
+        pytest.param(GEPAProposalConfig(), 2, id="single-default"),
+        pytest.param(
+            GEPAProposalConfig(
+                sampling="same-parent",
+                proposal_n=2,
+                selection="top-k-improvements",
+                top_k=2,
+            ),
+            8,
+            id="same-parent-two-top-two",
+        ),
+    ],
+)
 def test_gepa_optimize_saves_loadable_program(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    proposal_config: GEPAProposalConfig,
+    max_metric_calls: int,
 ) -> None:
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("DSPX_TRUSTED_PROGRAM_ROOTS", str(tmp_path))
@@ -132,8 +152,9 @@ def test_gepa_optimize_saves_loadable_program(
         train_path=train,
         out_dir=out_dir,
         auto=None,
-        max_metric_calls=2,
+        max_metric_calls=max_metric_calls,
         seed=0,
+        proposal_config=proposal_config,
     )
 
     assert set(gepa_kwargs) == {
@@ -143,13 +164,54 @@ def test_gepa_optimize_saves_loadable_program(
         "num_threads",
         "reflection_lm",
         "seed",
+        "track_best_outputs",
+        "track_stats",
+        "gepa_kwargs",
     }
     assert gepa_kwargs["num_threads"] == 1
+    assert gepa_kwargs["track_stats"] is True
+    assert gepa_kwargs["track_best_outputs"] is False
+    assert type(gepa_kwargs["reflection_lm"]).__name__ == "TerminalGEPAReflectionLM"
+    advanced = cast(dict[str, object], gepa_kwargs["gepa_kwargs"])
+    assert set(advanced) == {
+        "acceptance_criterion",
+        "callbacks",
+        "sampling_strategy",
+        "selection_strategy",
+    }
+    assert advanced["acceptance_criterion"] == "strict_improvement"
+    callbacks = cast(list[object], advanced["callbacks"])
+    assert len(callbacks) == 1
+    assert type(callbacks[0]).__name__ == "GEPAReceiptCallback"
+    assert (
+        type(advanced["sampling_strategy"]).__name__
+        == proposal_config.to_manifest()["upstream_sampling_type"]
+    )
+    assert (
+        type(advanced["selection_strategy"]).__name__
+        == proposal_config.to_manifest()["upstream_selection_type"]
+    )
 
     assert res.out_dir.exists() and res.out_dir.is_dir()
     manifest = json.loads((res.out_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["dspy_version"] == "3.3.0"
     assert manifest["gepa_version"] == "0.1.4"
+    assert manifest["gepa"]["proposal_config"] == proposal_config.to_manifest()
+    assert manifest["gepa"]["metric_budget_semantics"] == (
+        "iteration_boundary_stop_threshold_not_hard_ceiling"
+    )
+    run_stats = manifest["gepa"]["run_stats"]
+    assert run_stats == res.run_stats
+    assert run_stats["candidate_count"] >= 1
+    assert run_stats["total_metric_calls"] >= 1
+    assert len(run_stats["candidate_component_sha256"]) == run_stats["candidate_count"]
+    assert len(run_stats["parents"]) == run_stats["retained_candidate_count"]
+    event_counts = run_stats["event_counts"]
+    assert event_counts["event_payloads_retained"] is False
+    if proposal_config.is_multi_proposal:
+        assert event_counts["proposal_starts"] >= proposal_config.task_count
+        assert event_counts["proposal_ends"] >= proposal_config.task_count
+    assert run_stats["raw_detailed_result_candidates_or_outputs_retained"] is False
     payload = manifest["output_payload"]
     assert payload["hash_algorithm"] == "sha256"
     assert payload["tree_hash"]
@@ -157,6 +219,7 @@ def test_gepa_optimize_saves_loadable_program(
     assert "manifest.json" not in {item["path"] for item in payload["files"]}
 
     loaded = dspy.load(str(res.out_dir), allow_pickle=True)
+    assert not hasattr(loaded, "detailed_results")
     with dspy.context(lm=DSPyTypedLMAdapter(StubProvider())):
         pred = loaded(question="hello")
     assert isinstance(pred, dspy.Prediction)
