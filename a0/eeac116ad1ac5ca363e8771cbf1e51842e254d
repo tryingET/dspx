@@ -1,0 +1,20 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "a0eeac116ad1ac5ca363e8771cbf1e51842e254d"
+created_at: "2026-08-17T08:10:53Z"
+intent: "Keep local .ontology runtime artifacts (SQLite DB + pi-mcp logs) out of git per repo no-secrets/local-artifact policy"
+files:
+  - ".gitignore"
+validation:
+  fast_gate:
+    command: "just hooks-run files=\".gitignore\""
+    status: "pass"
+  full_gate:
+    command: "just ci-quality"
+    status: "pending"
+group:
+  index: 1
+  total: 1
+  rationale: "Operator-approved ignore rule for untracked local ontology runtime artifacts"
