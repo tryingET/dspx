@@ -3,10 +3,11 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "779edf509ecbf476e604ba6275cb7860d86e2c81"
-created_at: "2026-08-17T09:05:21Z"
+created_at: "2026-08-17T09:05:37Z"
 intent: "ci-package must reflect the AK-4798 GEPA 0.1.4 compatibility override instead of stale 0.1.1 pins"
 files:
-  []
+  - "scripts/ci/package-check.sh"
+  - "scripts/ci/core_release_environment_sbom.py"
 validation:
   fast_gate:
     command: "just hooks-run files=<group files>"
@@ -14,6 +15,10 @@ validation:
   full_gate:
     command: "just verify-full && just ci-package"
     status: "pass"
+group:
+  index: 4
+  total: 4
+  rationale: "Exact narrow override allowlist referencing the documented transition contract; all other mismatches stay hard failures"
 links:
   task_ids:
     - 4827
