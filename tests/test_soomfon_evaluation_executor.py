@@ -42,7 +42,7 @@ from test_program_execution_replay import _single_runtime
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "c52a99bb78199d8ec27462ad30e1b24c61346744a396eb187b9709ea33baf719"
+CONTRACT_SHA256 = "c65d6771c2b4267acb41a0615131ab8789a168fae30db72b7a225cf47e495840"
 
 
 def _patch_roots(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
@@ -369,7 +369,7 @@ def test_contract_safety_value_drift_fails(
 def test_exact_runtime_identity_matches_frozen_environment() -> None:
     assert validate_exact_runtime_identity() == {
         "python": "3.13.12",
-        "dspx-core": "0.1.0",
+        "dspx-core": "0.2.0",
         "dspy": "3.3.0",
         "dspy-ai": "3.3.0",
         "gepa": "0.1.4",

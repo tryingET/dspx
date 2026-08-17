@@ -115,7 +115,7 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
 
     assert contract["runtime_target"] == {
         "python": "3.13.12",
-        "dspx_core": "0.1.0",
+        "dspx_core": "0.2.0",
         "dspy": "3.3.0",
         "dspy_ai": "3.3.0",
         "gepa": "0.1.4",

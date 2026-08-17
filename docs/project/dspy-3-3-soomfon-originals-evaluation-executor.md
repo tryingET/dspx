@@ -18,7 +18,7 @@ Frozen contract:
 
 Reviewed out-of-band SHA-256:
 
-`c52a99bb78199d8ec27462ad30e1b24c61346744a396eb187b9709ea33baf719`
+`c65d6771c2b4267acb41a0615131ab8789a168fae30db72b7a225cf47e495840`
 
 The executor does not derive or default this digest. The operator must supply it explicitly:
 
@@ -29,7 +29,7 @@ DSPX_OPENAI_COMPAT_API_BASE=http://127.0.0.1:1234/v1 \
 DSPX_OPENAI_COMPAT_TIMEOUT=30 \
 DSPX_POLICY_ALLOW_NETWORK_MUTATE=1 \
 just dspx soomfon evaluate-originals \
-  --expected-contract-sha256 c52a99bb78199d8ec27462ad30e1b24c61346744a396eb187b9709ea33baf719
+  --expected-contract-sha256 c65d6771c2b4267acb41a0615131ab8789a168fae30db72b7a225cf47e495840
 ```
 
 Do not run that command without the separate exact execution task. The URL proves only the client hop; backend process, model artifact, no-egress, and locality remain unverified.
