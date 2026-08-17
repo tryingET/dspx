@@ -3,10 +3,10 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "948ccc5cbd269dea0d6be827d4039deea41cb78e"
-created_at: "2026-08-17T09:05:20Z"
+created_at: "2026-08-17T09:05:36Z"
 intent: "Generated GEPA candidate programs must satisfy the widened read-side surface policy from 48b0071c; replace denied path.open chunked hashing with read_bytes"
 files:
-  []
+  - "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate.py"
 validation:
   fast_gate:
     command: "just hooks-run files=<group files>"
@@ -14,6 +14,10 @@ validation:
   full_gate:
     command: "just verify-full && just ci-package"
     status: "pass"
+group:
+  index: 1
+  total: 4
+  rationale: "Policy kept, generator template adapted; regression introduced by 48b0071c widening _DENIED_GENERATED_PROGRAM_METHODS"
 links:
   task_ids:
     - 4827
