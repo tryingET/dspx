@@ -3,22 +3,17 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "779edf509ecbf476e604ba6275cb7860d86e2c81"
-created_at: "2026-08-17T09:03:16Z"
+created_at: "2026-08-17T09:05:21Z"
 intent: "ci-package must reflect the AK-4798 GEPA 0.1.4 compatibility override instead of stale 0.1.1 pins"
 files:
-  - "scripts/ci/package-check.sh"
-  - "scripts/ci/core_release_environment_sbom.py"
+  []
 validation:
   fast_gate:
-    command: "just hooks-run files=<group-4 files>"
+    command: "just hooks-run files=<group files>"
     status: "pass"
   full_gate:
     command: "just verify-full && just ci-package"
-    status: "pending"
-group:
-  index: 4
-  total: 4
-  rationale: "Root cause: 55a0f1d7 moved workspace to gepa 0.1.4 via pyproject override; ci-package out-of-band pin (0.1.1) and environment-SBOM edge check never updated. Override encoded as exact narrow allowlist referencing the transition contract"
+    status: "pass"
 links:
   task_ids:
     - 4827
