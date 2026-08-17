@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "418f58c2837da9a37913c4dfcd39b69af4368282"
+created_at: "2026-08-17T08:57:17Z"
+intent: "Release evidence/bundle fixtures must track the live core pyproject version instead of hardcoded 0.1.0 literals"
+files:
+  - "tests/test_release_evidence.py"
+  - "tests/test_release_bundle.py"
+validation:
+  fast_gate:
+    command: "just hooks-run files=\"tests/test_release_evidence.py tests/test_release_bundle.py\""
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 2
+  total: 3
+  rationale: "Class fix: every version bump previously re-broke 37 fixture assertions; single source of truth removes the recurrence class"
+links:
+  task_ids:
+    - 4827
