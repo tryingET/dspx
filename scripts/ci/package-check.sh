@@ -63,7 +63,7 @@ import tomllib
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 
-expected = {"dspy": "3.3.0", "dspy-ai": "3.3.0", "gepa": "0.1.1"}
+expected = {"dspy": "3.3.0", "dspy-ai": "3.3.0", "gepa": "0.1.4"}
 with Path(sys.argv[1]).open("rb") as stream:
     lock = tomllib.load(stream)
 locked = {
