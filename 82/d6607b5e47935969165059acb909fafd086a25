@@ -3,7 +3,7 @@ tool: "/commit"
 actor: "tryinget"
 repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
 commit: "82d6607b5e47935969165059acb909fafd086a25"
-created_at: "2026-08-24T16:16:12Z"
+created_at: "2026-08-24T16:36:25Z"
 intent: "Add a generator profile that fails before materialization unless topology surfaces satisfy the unchanged protected snapshot policy."
 files:
   - "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
@@ -16,7 +16,7 @@ validation:
     status: "pass"
   full_gate:
     command: "just verify-full"
-    status: "pending"
+    status: "pass"
 group:
   index: 1
   total: 2
