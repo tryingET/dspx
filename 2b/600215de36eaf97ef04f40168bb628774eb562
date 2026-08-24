@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "2b600215de36eaf97ef04f40168bb628774eb562"
+created_at: "2026-08-24T15:23:04Z"
+intent: "Record task #4969 terminal simple-case effect-indeterminate evidence and independent retained-custody acceptance; no retry or authority widening"
+files:
+  - "docs/project/product-posture.md"
+  - "governance/task-scopes/AK-4969.snapshot.json"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "not required: retained runtime receipt projection; d1e4b1d0 full gate pass"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+links:
+  task_ids:
+    - 4969
