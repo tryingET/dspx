@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "1a6defcfec10132b0f979f45d69f84cd75a22598"
+created_at: "2026-08-24T15:15:14Z"
+intent: "Record setup-only DSPx state-parent mode repair from 0755 to 0700 with no executor/provider effect"
+files:
+  - "docs/project/product-posture.md"
+  - "governance/task-scopes/AK-4968.snapshot.json"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "not required: setup receipt only"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+links:
+  task_ids:
+    - 4968
