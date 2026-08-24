@@ -1,467 +1,735 @@
-# summary: "Canonical AK-backed Gate-4 authority adapter for dormant semantic v11 execution."
+# summary: "Monolithic canonical-read, consume, execute, and retain Gate-4 one-shot."
 from __future__ import annotations
 
-import json
+import importlib
 import os
-import stat
-import subprocess
+import sys
+import time
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from typing import Any
+from urllib.parse import urlsplit
 
-from dspx.services.program_oracle_semantic_contract_v11 import (
-    CONTRACT_SHA256,
+import dspx.services.program_oracle_semantic_state_v11 as _state_io
+from dspx.services.program_oracle_semantic_authority_v11 import (
+    machine_payload,
+    run_ak,
+)
+from dspx.services.program_oracle_semantic_gate4_contract_v11 import (
+    CANDIDATE_REVIEW_NAME,
+    CANDIDATE_REVIEW_SCHEMA,
+    EXPECTED_ENDPOINT_ORIGIN_SHA256,
+    GATE2_TASK_ID,
+    LEDGER_NAME,
+    LEDGER_SCHEMA,
+    LIVE_GATE_NAME,
+    LIVE_GATE_SCHEMA,
+    PRELEDGER_ALLOWED_DSPX_MODULES,
+    PRELEDGER_FORBIDDEN_PREFIXES,
+    PROVIDER_OUTCOMES_NAME,
+    REMEDIATION_TASK_ID,
+    REQUIRED_POSTLEDGER_RUNTIME_MODULES,
+    RESULT_FRAGMENTS_NAME,
+    RESULT_SCHEMA,
+    RESULT_NAME,
+    REVIEWED_RUNTIME_MODULES,
     SemanticV11Error,
-    assert_sha256,
+    TerminalPersistenceError,
     canonical,
     mapping,
     sha256,
 )
-
-from dspx.services.program_oracle_semantic_gate4_contract_v11 import (
-    CANDIDATE_SOURCE_PATHS,
-    EXACT_ROUTE,
-    GATE4_DONE_CONTRACT,
-    GATE4_GUARDRAILS,
-    REQUIRED_LIVE_COMPLETION_KIND,
-    REQUIRED_REVIEW_COMPLETION_KIND,
+from dspx.services.program_oracle_semantic_gate4_validation_v11 import (
+    _derive_gate4_documents,
+    candidate_source_manifest,
+    candidate_source_manifest_sha256,
+    validate_gate4_authority_documents,
+)
+from dspx.services.program_oracle_semantic_state_v11 import (
+    ConsumedAttempt,
+    TaskBinding,
+    _binding_marker,
+    _collision_path,
+    _prepare_attempt_directories,
+    _validate_artifact,
+    _validate_ledger,
+    current_process_identity_sha256,
+    state_root_identity_sha256,
 )
 
-AK_EXECUTABLE = Path.home() / ".local/bin/ak"
-_AUTHORITY_TOKEN = object()
-_GIT_ID_LENGTH = 40
+__all__ = [
+    "candidate_source_manifest",
+    "candidate_source_manifest_sha256",
+    "execute_live_once",
+    "validate_gate4_authority_documents",
+    "verify_loaded_runtime_modules",
+]
+
+_ENDPOINT_ORIGIN_DOMAIN = b"dspx-oracle-semantic-v11-endpoint-origin-v1\0"
 
 
-class Gate4AuthorityCapability:
-    """Non-serializable, single-process capability minted from canonical AK reads."""
-
-    __slots__ = (
-        "live_task_id",
-        "candidate_commit",
-        "candidate_tree",
-        "candidate_source_manifest_sha256",
-        "contract_sha256",
-        "candidate_review_sha256",
-        "live_gate_sha256",
-        "authority_snapshot_sha256",
-        "task_entity_version",
-        "_pid",
-        "_claimed",
-        "_sealed",
-    )
-
-    live_task_id: int
-    candidate_commit: str
-    candidate_tree: str
-    candidate_source_manifest_sha256: str
-    contract_sha256: str
-    candidate_review_sha256: str
-    live_gate_sha256: str
-    authority_snapshot_sha256: str
-    task_entity_version: int
-    _pid: int
-    _claimed: bool
-    _sealed: bool
-
-    def __init__(
-        self,
-        *,
-        live_task_id: int,
-        candidate_commit: str,
-        candidate_tree: str,
-        candidate_source_manifest_sha256: str,
-        contract_sha256: str,
-        candidate_review_sha256: str,
-        live_gate_sha256: str,
-        authority_snapshot_sha256: str,
-        task_entity_version: int,
-        token: object,
-    ) -> None:
-        if token is not _AUTHORITY_TOKEN:
-            raise TypeError(
-                "Gate4AuthorityCapability requires canonical AK authentication"
-            )
-        object.__setattr__(self, "live_task_id", live_task_id)
-        object.__setattr__(self, "candidate_commit", candidate_commit)
-        object.__setattr__(self, "candidate_tree", candidate_tree)
-        object.__setattr__(
-            self,
-            "candidate_source_manifest_sha256",
-            candidate_source_manifest_sha256,
+def _assert_preledger_import_posture() -> None:
+    loaded_dspx = {
+        name for name in sys.modules if name == "dspx" or name.startswith("dspx.")
+    }
+    if loaded_dspx != PRELEDGER_ALLOWED_DSPX_MODULES:
+        raise SemanticV11Error("pre-ledger DSPx import allowlist drift")
+    forbidden = {
+        name
+        for name in sys.modules
+        if any(
+            name == prefix or name.startswith(prefix + ".")
+            for prefix in PRELEDGER_FORBIDDEN_PREFIXES
         )
-        object.__setattr__(self, "contract_sha256", contract_sha256)
-        object.__setattr__(self, "candidate_review_sha256", candidate_review_sha256)
-        object.__setattr__(self, "live_gate_sha256", live_gate_sha256)
-        object.__setattr__(self, "authority_snapshot_sha256", authority_snapshot_sha256)
-        object.__setattr__(self, "task_entity_version", task_entity_version)
-        object.__setattr__(self, "_pid", os.getpid())
-        object.__setattr__(self, "_claimed", False)
-        object.__setattr__(self, "_sealed", True)
-        self.require_current()
+    }
+    if forbidden:
+        raise SemanticV11Error("backend/evaluation/adapter/DSPy imported before ledger")
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        if getattr(self, "_sealed", False):
-            raise TypeError("Gate4AuthorityCapability is immutable")
-        object.__setattr__(self, name, value)
 
-    def require_current(self) -> None:
+def _module_source(module: ModuleType) -> Path:
+    value = getattr(module, "__file__", None)
+    if (
+        not isinstance(value, str)
+        or value.endswith((".pyc", ".pyo"))
+        or getattr(module, "__cached__", None) is not None
+    ):
+        raise SemanticV11Error("reviewed runtime module origin drift")
+    try:
+        return Path(value).resolve(strict=True)
+    except OSError as exc:
+        raise SemanticV11Error("reviewed runtime module origin drift") from exc
+
+
+def verify_loaded_runtime_modules(
+    repo_root: Path,
+    reviewed_manifest: Mapping[str, str],
+    *,
+    require_all: bool,
+) -> None:
+    root = repo_root.expanduser().resolve(strict=True)
+    package_roots = {
+        "dspx": root / "packages/dspx-core/src/dspx",
+        "dspx.services": root / "packages/dspx-core/src/dspx/services",
+    }
+    for package_name, expected_root in package_roots.items():
+        package = sys.modules.get(package_name)
+        search = getattr(package, "__path__", None) if package is not None else None
+        if search is None or {Path(item).resolve(strict=True) for item in search} != {
+            expected_root.resolve(strict=True)
+        }:
+            raise SemanticV11Error("reviewed runtime package search path drift")
+    loaded_dspx = {
+        name for name in sys.modules if name == "dspx" or name.startswith("dspx.")
+    }
+    if loaded_dspx - set(REVIEWED_RUNTIME_MODULES):
+        raise SemanticV11Error("unreviewed DSPx runtime module loaded")
+    for name, relative in REVIEWED_RUNTIME_MODULES.items():
+        expected_path = (root / relative).resolve(strict=True)
+        expected_hash = reviewed_manifest.get(relative)
+        if expected_hash is None or sha256(expected_path.read_bytes()) != expected_hash:
+            raise SemanticV11Error("reviewed runtime source hash drift")
+        module = sys.modules.get(name)
+        if module is None:
+            if require_all and name in REQUIRED_POSTLEDGER_RUNTIME_MODULES:
+                raise SemanticV11Error(
+                    "required reviewed runtime module was not loaded"
+                )
+            continue
         if (
-            type(self) is not Gate4AuthorityCapability
-            or self.live_task_id <= 0
-            or self.live_task_id == 4643
-            or self._pid != os.getpid()
-            or len(self.candidate_commit) != _GIT_ID_LENGTH
-            or len(self.candidate_tree) != _GIT_ID_LENGTH
-            or any(
-                character not in "0123456789abcdef"
-                for character in self.candidate_commit + self.candidate_tree
-            )
-            or self.contract_sha256 != CONTRACT_SHA256
-            or self.task_entity_version <= 0
+            not isinstance(module, ModuleType)
+            or _module_source(module) != expected_path
         ):
-            raise SemanticV11Error("Gate-4 authority capability drift")
-        for value, label in (
-            (
-                self.candidate_source_manifest_sha256,
-                "candidate_source_manifest_sha256",
-            ),
-            (self.candidate_review_sha256, "candidate_review_sha256"),
-            (self.live_gate_sha256, "live_gate_sha256"),
-            (self.authority_snapshot_sha256, "authority_snapshot_sha256"),
-        ):
-            assert_sha256(value, label)
+            raise SemanticV11Error("reviewed runtime module origin/hash drift")
 
-    def claim_for_entry(self) -> None:
-        self.require_current()
-        if self._claimed:
-            raise SemanticV11Error("Gate-4 authority capability already consumed")
-        object.__setattr__(self, "_claimed", True)
 
-    def payload(self) -> dict[str, Any]:
-        self.require_current()
-        return {
-            "live_task_id": self.live_task_id,
-            "candidate_commit": self.candidate_commit,
-            "candidate_tree": self.candidate_tree,
-            "candidate_source_manifest_sha256": (self.candidate_source_manifest_sha256),
-            "contract_sha256": self.contract_sha256,
-            "candidate_review_sha256": self.candidate_review_sha256,
-            "live_gate_sha256": self.live_gate_sha256,
-            "authority_snapshot_sha256": self.authority_snapshot_sha256,
-            "task_entity_version": self.task_entity_version,
+def _runtime_modules() -> SimpleNamespace:
+    """Import computation-only helpers after the live ledger is durable."""
+
+    names = {
+        "adapter": "program_oracle_semantic_adapter_v11",
+        "backend": "program_oracle_semantic_backend",
+        "contract": "program_oracle_semantic_contract_v11",
+        "evaluation": "program_oracle_semantic_evaluation_v11",
+        "identity": "program_oracle_semantic_identity_v11",
+        "journal": "provider_outcome_receipt_journal",
+        "result": "program_oracle_semantic_result_artifact_v11",
+        "semantic": "program_oracle_semantic_result_v11",
+    }
+    return SimpleNamespace(
+        **{
+            key: importlib.import_module(f"dspx.services.{suffix}")
+            for key, suffix in names.items()
         }
-
-
-def candidate_source_manifest(repo_root: Path) -> dict[str, str]:
-    """Hash the exact Gate-3-reviewed v11 candidate source set."""
-
-    root = repo_root.expanduser().resolve(strict=True)
-    manifest: dict[str, str] = {}
-    for relative in CANDIDATE_SOURCE_PATHS:
-        path = root / relative
-        try:
-            info = path.lstat()
-            raw = path.read_bytes()
-        except OSError as exc:
-            raise SemanticV11Error("candidate source member unavailable") from exc
-        if not stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode):
-            raise SemanticV11Error("candidate source member posture drift")
-        manifest[relative] = sha256(raw)
-    return manifest
-
-
-def candidate_source_manifest_sha256(repo_root: Path) -> str:
-    return sha256(canonical(candidate_source_manifest(repo_root)))
-
-
-def _machine_payload(value: object, surface: str) -> dict[str, Any]:
-    envelope = mapping(value, f"{surface} machine envelope")
-    if (
-        envelope.get("surface") != surface
-        or envelope.get("ok") is not True
-        or envelope.get("error") is not None
-    ):
-        raise SemanticV11Error("canonical AK machine envelope rejected")
-    return mapping(envelope.get("payload"), f"{surface} payload")
-
-
-def _evidence(value: object, expected_id: int) -> dict[str, Any]:
-    payload = _machine_payload(value, "evidence.show")
-    evidence = mapping(payload.get("evidence"), "AK evidence")
-    if evidence.get("id") != expected_id or evidence.get("result") != "pass":
-        raise SemanticV11Error("canonical AK evidence rejected")
-    return evidence
-
-
-def _resolved_repo(value: object, label: str) -> Path:
-    if not isinstance(value, str) or not value:
-        raise SemanticV11Error(f"{label} repo binding rejected")
-    try:
-        return Path(value).expanduser().resolve(strict=True)
-    except OSError as exc:
-        raise SemanticV11Error(f"{label} repo binding rejected") from exc
-
-
-def _git_identity(repo_root: Path) -> tuple[str, str]:
-    root = repo_root.expanduser().resolve(strict=True)
-    commands = (
-        ("commit", ["git", "-C", str(root), "rev-parse", "HEAD"]),
-        ("tree", ["git", "-C", str(root), "rev-parse", "HEAD^{tree}"]),
-        (
-            "status",
-            [
-                "git",
-                "-C",
-                str(root),
-                "status",
-                "--porcelain=v1",
-                "--untracked-files=normal",
-            ],
-        ),
     )
-    values: dict[str, str] = {}
-    for label, command in commands:
-        completed = subprocess.run(
-            command,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=30,
-            env={"HOME": str(Path.home()), "PATH": "/usr/bin:/bin"},
-        )
-        if completed.returncode != 0:
-            raise SemanticV11Error("candidate Git identity unavailable")
-        values[label] = completed.stdout.strip()
-    status_lines = [line for line in values["status"].splitlines() if line]
-    allowed_protected = {"?? .ontology/", "?? .ontology"}
-    if set(status_lines) - allowed_protected:
-        raise SemanticV11Error("candidate worktree is not review-clean")
-    return values["commit"], values["tree"]
 
 
-def validate_gate4_authority_documents(
+def _owner_api() -> tuple[type[Any], type[Any], str, type[Any]]:
+    package = importlib.import_module("dspy_lm_auth")
+    lm_module = importlib.import_module("dspy_lm_auth.lm")
+    event_type = getattr(package, "OutcomeReceiptEvent", None)
+    receipt_type = getattr(package, "ProviderOutcomeReceipt", None)
+    endpoint = getattr(lm_module, "DEFAULT_CODEX_API_BASE", None)
+    lm_type = getattr(lm_module, "LM", None)
+    if (
+        not isinstance(event_type, type)
+        or not isinstance(receipt_type, type)
+        or not isinstance(lm_type, type)
+        or not isinstance(endpoint, str)
+    ):
+        raise SemanticV11Error("loaded owner API shape drift")
+    return event_type, receipt_type, endpoint, lm_type
+
+
+def _validate_endpoint(endpoint: str) -> None:
+    parsed = urlsplit(endpoint)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+    ):
+        raise SemanticV11Error("owner endpoint origin drift")
+    digest = sha256(
+        _ENDPOINT_ORIGIN_DOMAIN
+        + canonical({"scheme": parsed.scheme, "hostname": parsed.hostname})
+    )
+    if digest != EXPECTED_ENDPOINT_ORIGIN_SHA256:
+        raise SemanticV11Error("owner endpoint origin identity drift")
+
+
+def _persistence_error(
+    *,
+    external_effect_possible: bool,
+    empirical_disposition: str,
+) -> TerminalPersistenceError:
+    return TerminalPersistenceError(
+        external_effect_possible=external_effect_possible,
+        empirical_disposition=empirical_disposition,
+    )
+
+
+def execute_live_once(
     *,
     repo_root: Path,
+    state_root: Path,
+    owner_source_root: Path,
     live_task_id: int,
+    remediation_validation_evidence_id: int,
     review_evidence_id: int,
-    gate_evidence_id: int,
-    task_document: Mapping[str, Any],
-    contract_document: Mapping[str, Any],
-    review_task_document: Mapping[str, Any],
-    review_contract_document: Mapping[str, Any],
-    review_evidence_document: Mapping[str, Any],
-    gate_evidence_document: Mapping[str, Any],
-) -> dict[str, Any]:
-    """Pure provider-free validator; returns facts and never mints authority."""
+    operator_evidence_id: int,
+    live_gate_evidence_id: int,
+) -> dict[str, object]:
+    """Trusted one-shot Gate 4; no document, report, or bearer input is accepted.
 
-    if (
-        isinstance(live_task_id, bool)
-        or not isinstance(live_task_id, int)
-        or live_task_id <= 0
-        or live_task_id == 4643
-        or review_evidence_id <= 0
-        or gate_evidence_id <= 0
-        or review_evidence_id == gate_evidence_id
-    ):
-        raise SemanticV11Error("Gate-4 AK selector rejected")
-    root = repo_root.expanduser().resolve(strict=True)
-    task_payload = _machine_payload(task_document, "task.show")
-    task = mapping(task_payload.get("task"), "AK task")
-    if (
-        task.get("id") != live_task_id
-        or task.get("status") not in {"claimed", "running"}
-        or _resolved_repo(task.get("repo"), "Gate-4 task") != root
-        or not isinstance(task.get("entity_version"), int)
-        or isinstance(task.get("entity_version"), bool)
-        or task["entity_version"] <= 0
-    ):
-        raise SemanticV11Error("canonical Gate-4 task rejected")
-    contract = dict(contract_document)
-    done = mapping(contract.get("done_contract"), "Gate-4 done contract version")
-    done_payload = mapping(done.get("contract"), "Gate-4 done contract")
-    guardrail_version = mapping(contract.get("guardrails"), "Gate-4 guardrails version")
-    guardrails = mapping(guardrail_version.get("guardrails"), "Gate-4 guardrails")
-    if (
-        contract.get("task_id") != live_task_id
-        or _resolved_repo(contract.get("repo"), "Gate-4 contract") != root
-        or contract.get("status") != task.get("status")
-        or done.get("task_id") != live_task_id
-        or guardrail_version.get("task_id") != live_task_id
-        or done_payload != GATE4_DONE_CONTRACT
-        or guardrails != GATE4_GUARDRAILS
-    ):
-        raise SemanticV11Error("canonical Gate-4 task contract rejected")
-    review_evidence = _evidence(review_evidence_document, review_evidence_id)
-    review_task_ref = review_evidence.get("task_ref")
-    if (
-        isinstance(review_task_ref, bool)
-        or not isinstance(review_task_ref, int)
-        or review_task_ref <= 0
-        or review_task_ref == live_task_id
-    ):
-        raise SemanticV11Error("canonical Gate-3 task reference rejected")
-    review_task_payload = _machine_payload(review_task_document, "task.show")
-    review_task = mapping(review_task_payload.get("task"), "Gate-3 task")
-    review_contract = dict(review_contract_document)
-    review_done = mapping(
-        review_contract.get("done_contract"), "Gate-3 done contract version"
+    Arbitrary code execution, monkeypatching, tracing, or reflection inside this
+    interpreter is outside the capability boundary, consistent with the accepted
+    same-UID sink boundary. Supported public and caller-data paths fail closed.
+    """
+
+    _assert_preledger_import_posture()
+    review_document = run_ak("evidence", "show", str(review_evidence_id), "--machine")
+    review_payload = machine_payload(review_document, "evidence.show")
+    review_task_id = mapping(review_payload.get("evidence"), "review evidence").get(
+        "task_ref"
     )
-    review_done_payload = mapping(review_done.get("contract"), "Gate-3 done contract")
-    if (
-        review_task.get("id") != review_task_ref
-        or review_task.get("status") != "done"
-        or _resolved_repo(review_task.get("repo"), "Gate-3 task") != root
-        or review_contract.get("task_id") != review_task_ref
-        or review_contract.get("status") != "done"
-        or _resolved_repo(review_contract.get("repo"), "Gate-3 contract") != root
-        or review_done.get("task_id") != review_task_ref
-        or review_done_payload.get("completion_kind") != REQUIRED_REVIEW_COMPLETION_KIND
-    ):
-        raise SemanticV11Error("canonical Gate-3 task lifecycle rejected")
-    gate_evidence = _evidence(gate_evidence_document, gate_evidence_id)
-    review = mapping(review_evidence.get("details"), "Gate-3 review details")
-    gate = mapping(gate_evidence.get("details"), "Gate-4 authority details")
-    commit, tree = _git_identity(root)
-    source_manifest_digest = candidate_source_manifest_sha256(root)
-    expected_review = {
-        "schema_version": "dspx-oracle-semantic-v11-candidate-review-v1",
-        "gate_2_task_id": 4691,
-        "gate_3_task_id": review_task_ref,
-        "decision": "ACCEPT_V11_CANDIDATE_FOR_SEPARATE_LIVE_GATE",
-        "contract_sha256": CONTRACT_SHA256,
-        "candidate_commit": commit,
-        "candidate_tree": tree,
-        "candidate_source_manifest_sha256": source_manifest_digest,
-        "provider_free_gate": "passed",
-    }
-    if (
-        review_evidence.get("check_type") != "oracle_semantic_v11_candidate_review"
-        or review != expected_review
-    ):
-        raise SemanticV11Error("canonical Gate-3 acceptance rejected")
-    review_digest = sha256(canonical(review))
-    contract_digest = sha256(canonical(contract))
-    expected_gate = {
-        "schema_version": "dspx-oracle-semantic-v11-live-gate-v1",
-        "live_task_id": live_task_id,
-        "completion_kind": REQUIRED_LIVE_COMPLETION_KIND,
-        "decision": "AUTHORIZE_EXACTLY_ONE_V11_CORPUS_PROCESS",
-        "operator_authorization": (
-            "OPERATOR_AUTHORIZED_EXACTLY_ONE_V11_CORPUS_PROCESS"
-        ),
-        "candidate_review_evidence_id": review_evidence_id,
-        "candidate_review_sha256": review_digest,
-        "contract_sha256": CONTRACT_SHA256,
-        "candidate_commit": commit,
-        "candidate_tree": tree,
-        "candidate_source_manifest_sha256": source_manifest_digest,
-        "task_entity_version": task["entity_version"],
-        "task_contract_sha256": contract_digest,
-        "route": EXACT_ROUTE,
-        "maximum_corpus_processes": 1,
-        "maximum_health_probes": 0,
-        "maximum_dspx_managed_retries": 0,
-        "fallback_allowed": False,
-    }
-    if (
-        gate_evidence.get("task_ref") != live_task_id
-        or gate_evidence.get("check_type") != "oracle_semantic_v11_live_gate"
-        or gate != expected_gate
-    ):
-        raise SemanticV11Error("canonical Gate-4 authorization rejected")
-    gate_digest = sha256(canonical(gate))
-    snapshot = {
-        "task_sha256": sha256(canonical(task)),
-        "task_contract_sha256": contract_digest,
-        "review_task_sha256": sha256(canonical(review_task)),
-        "review_task_contract_sha256": sha256(canonical(review_contract)),
-        "review_evidence_sha256": sha256(canonical(review_evidence)),
-        "gate_evidence_sha256": sha256(canonical(gate_evidence)),
-    }
-    return {
-        "live_task_id": live_task_id,
-        "candidate_commit": commit,
-        "candidate_tree": tree,
-        "candidate_source_manifest_sha256": source_manifest_digest,
-        "contract_sha256": CONTRACT_SHA256,
-        "candidate_review_sha256": review_digest,
-        "live_gate_sha256": gate_digest,
-        "authority_snapshot_sha256": sha256(canonical(snapshot)),
-        "task_entity_version": task["entity_version"],
-    }
-
-
-def _run_ak(*args: str) -> dict[str, Any]:
-    try:
-        info = AK_EXECUTABLE.resolve(strict=True).stat()
-    except OSError as exc:
-        raise SemanticV11Error("canonical AK executable unavailable") from exc
-    if (
-        not stat.S_ISREG(info.st_mode)
-        or info.st_uid != os.getuid()
-        or not info.st_mode & stat.S_IXUSR
-    ):
-        raise SemanticV11Error("canonical AK executable posture drift")
-    environment = {
-        "HOME": str(Path.home()),
-        "PATH": "/usr/bin:/bin",
-        "XDG_CONFIG_HOME": str(Path.home() / ".config"),
-        "XDG_DATA_HOME": str(Path.home() / ".local/share"),
-        "XDG_STATE_HOME": str(Path.home() / ".local/state"),
-    }
-    completed = subprocess.run(
-        [str(AK_EXECUTABLE), *args],
-        check=False,
-        capture_output=True,
-        timeout=30,
-        env=environment,
-    )
-    if completed.returncode != 0 or completed.stderr:
-        raise SemanticV11Error("canonical AK authority read failed")
-    try:
-        value = json.loads(completed.stdout)
-    except (UnicodeError, json.JSONDecodeError) as exc:
-        raise SemanticV11Error("canonical AK authority output invalid") from exc
-    return mapping(value, "canonical AK authority output")
-
-
-def authenticate_gate4_authority(
-    *,
-    repo_root: Path,
-    live_task_id: int,
-    review_evidence_id: int,
-    gate_evidence_id: int,
-) -> Gate4AuthorityCapability:
-    """Authenticate current AK task/evidence and mint one dormant-runner capability."""
-
-    review_evidence_document = _run_ak(
-        "evidence", "show", str(review_evidence_id), "--machine"
-    )
-    review_evidence = _evidence(review_evidence_document, review_evidence_id)
-    review_task_id = review_evidence.get("task_ref")
     if isinstance(review_task_id, bool) or not isinstance(review_task_id, int):
-        raise SemanticV11Error("canonical Gate-3 task reference rejected")
+        raise SemanticV11Error("Gate-3 task selector rejected")
     documents = {
-        "task_document": _run_ak("task", "show", str(live_task_id), "--machine"),
-        "contract_document": _run_ak(
-            "task", "contract", "show", str(live_task_id), "-F", "json"
+        "gate_2_task_document": run_ak("task", "show", str(GATE2_TASK_ID), "--machine"),
+        "gate_2_contract_document": run_ak(
+            "task", "contract", "show", str(GATE2_TASK_ID), "-F", "json"
         ),
-        "review_task_document": _run_ak(
+        "gate_2_evidence_6729_document": run_ak(
+            "evidence", "show", "6729", "--machine"
+        ),
+        "gate_2_evidence_6730_document": run_ak(
+            "evidence", "show", "6730", "--machine"
+        ),
+        "remediation_task_document": run_ak(
+            "task", "show", str(REMEDIATION_TASK_ID), "--machine"
+        ),
+        "remediation_contract_document": run_ak(
+            "task", "contract", "show", str(REMEDIATION_TASK_ID), "-F", "json"
+        ),
+        "review_task_document": run_ak(
             "task", "show", str(review_task_id), "--machine"
         ),
-        "review_contract_document": _run_ak(
+        "review_contract_document": run_ak(
             "task", "contract", "show", str(review_task_id), "-F", "json"
         ),
-        "review_evidence_document": review_evidence_document,
-        "gate_evidence_document": _run_ak(
-            "evidence", "show", str(gate_evidence_id), "--machine"
+        "live_task_document": run_ak("task", "show", str(live_task_id), "--machine"),
+        "live_contract_document": run_ak(
+            "task", "contract", "show", str(live_task_id), "-F", "json"
+        ),
+        "remediation_validation_evidence_document": run_ak(
+            "evidence",
+            "show",
+            str(remediation_validation_evidence_id),
+            "--machine",
+        ),
+        "review_evidence_document": review_document,
+        "operator_evidence_document": run_ak(
+            "evidence", "show", str(operator_evidence_id), "--machine"
+        ),
+        "live_gate_evidence_document": run_ak(
+            "evidence", "show", str(live_gate_evidence_id), "--machine"
+        ),
+        "live_task_evidence_set_document": run_ak(
+            "evidence", "task", str(live_task_id), "--machine"
         ),
     }
-    payload = validate_gate4_authority_documents(
+    facts, review, gate = _derive_gate4_documents(
         repo_root=repo_root,
+        state_root=state_root,
         live_task_id=live_task_id,
+        remediation_validation_evidence_id=remediation_validation_evidence_id,
         review_evidence_id=review_evidence_id,
-        gate_evidence_id=gate_evidence_id,
+        operator_evidence_id=operator_evidence_id,
+        live_gate_evidence_id=live_gate_evidence_id,
         **documents,
     )
-    return Gate4AuthorityCapability(**payload, token=_AUTHORITY_TOKEN)
+    process_digest = current_process_identity_sha256()
+    root_digest = state_root_identity_sha256(state_root)
+    if facts["state_root_identity_sha256"] != root_digest:
+        raise SemanticV11Error("validated state-root binding drift")
+    binding = TaskBinding(live_task_id, root_digest)
+    ledger: dict[str, Any] = {
+        "schema_version": LEDGER_SCHEMA,
+        "artifact_kind": "consumed_attempt",
+        **binding.payload(),
+        "root_binding_sha256": "0" * 64,
+        "status": "consumed",
+        "maximum_evaluation_processes": 1,
+        "retry_allowed": False,
+        "process_identity_sha256": process_digest,
+        "process_admitted": True,
+        **{
+            key: value
+            for key, value in facts.items()
+            if key not in {"live_task_id", "state_root_identity_sha256"}
+        },
+        "live_authorized": True,
+    }
+    _validate_artifact(review, CANDIDATE_REVIEW_SCHEMA, "candidate_review")
+    _validate_artifact(gate, LIVE_GATE_SCHEMA, "live_gate")
+    if (
+        sha256(canonical(review)) != ledger["candidate_review_sha256"]
+        or sha256(canonical(gate)) != ledger["live_gate_sha256"]
+    ):
+        raise SemanticV11Error("live authority artifact digest drift")
+    _validate_ledger(binding, ledger)
+    attempt_root = _prepare_attempt_directories(state_root, binding)
+    marker_raw = _state_io._persist_no_replace(
+        _collision_path(state_root.expanduser(), binding),
+        _binding_marker(binding, ledger),
+    )
+    ledger["root_binding_sha256"] = sha256(marker_raw)
+    _validate_ledger(binding, ledger)
+    _state_io._persist_no_replace(attempt_root / CANDIDATE_REVIEW_NAME, review)
+    _state_io._persist_no_replace(attempt_root / LIVE_GATE_NAME, gate)
+    ledger_raw = _state_io._persist_no_replace(attempt_root / LEDGER_NAME, ledger)
+    attempt = ConsumedAttempt(binding, attempt_root, ledger_raw)
+    authority_digest = sha256(canonical(facts))
+    pid = os.getpid()
+
+    def guard() -> None:
+        if (
+            os.getpid() != pid
+            or current_process_identity_sha256() != process_digest
+            or state_root_identity_sha256(state_root) != root_digest
+            or sha256(canonical(facts)) != authority_digest
+            or attempt.ledger.get("live_authorized") is not True
+        ):
+            raise SemanticV11Error("integrated Gate-4 one-shot drift")
+
+    def persist(
+        path: Path,
+        payload: Mapping[str, Any],
+        *,
+        effect_possible: bool,
+        disposition: str,
+    ) -> None:
+        guard()
+        try:
+            _state_io._persist_no_replace(path, payload)
+        except BaseException as exc:
+            raise _persistence_error(
+                external_effect_possible=effect_possible,
+                empirical_disposition=disposition,
+            ) from exc
+
+    def setup_fragment(stage: str) -> dict[str, Any]:
+        return {
+            "schema_version": RESULT_SCHEMA,
+            "artifact_kind": "setup_result_fragment",
+            "live_task_id": live_task_id,
+            "setup_stage": stage,
+            "external_effect_possible": False,
+            "empirical_disposition": "error",
+            "reason": f"post_entry_{stage}_failed_before_provider_effect",
+            "dspx_generate_entered": False,
+            "invocation_admitted": False,
+            "effect_capable_delegations": 0,
+            "fixture_only": False,
+            "v11_authorized": True,
+            "live_execution_authorized": True,
+        }
+
+    def setup_result() -> dict[str, Any]:
+        current = attempt.ledger
+        return {
+            "schema_version": RESULT_SCHEMA,
+            "artifact_kind": "evaluation_result",
+            "live_task_id": live_task_id,
+            "task_binding": binding.payload(),
+            "ledger_sha256": attempt.ledger_sha256,
+            "root_binding_sha256": current["root_binding_sha256"],
+            "candidate_commit": current["candidate_commit"],
+            "candidate_tree": current["candidate_tree"],
+            "candidate_source_manifest_sha256": current[
+                "candidate_source_manifest_sha256"
+            ],
+            "contract_sha256": current["contract_sha256"],
+            "candidate_review_sha256": current["candidate_review_sha256"],
+            "live_gate_sha256": current["live_gate_sha256"],
+            "authority_snapshot_sha256": current["authority_snapshot_sha256"],
+            "provider_owner_source_identity_sha256": None,
+            "dependency_identity_sha256": None,
+            "artifact_integrity_review": "not_evaluated",
+            "empirical_gate": "error",
+            "cases": [],
+            "operation_counts": {
+                "corpus_processes": 1,
+                "reached_requests": 0,
+                "admitted_invocations": 0,
+                "dspx_generate_calls": 0,
+                "effect_capable_delegations": 0,
+                "receipt_journals": 0,
+                "separate_health_probes": 0,
+                "dspx_managed_retries": 0,
+                "fallback_routes": 0,
+                "provider_transport_calls": "not_proven",
+            },
+            "observed_model": None,
+            "fixture_only": False,
+            "v11_authorized": True,
+            "live_execution_authorized": True,
+        }
+
+    def terminalize_setup(original: BaseException, stage: str) -> None:
+        try:
+            persist(
+                attempt_root / RESULT_FRAGMENTS_NAME / "00-setup.json",
+                setup_fragment(stage),
+                effect_possible=False,
+                disposition="error",
+            )
+            persist(
+                attempt_root / RESULT_NAME,
+                setup_result(),
+                effect_possible=False,
+                disposition="error",
+            )
+        except TerminalPersistenceError:
+            raise
+        except BaseException as fallback:
+            raise original.with_traceback(original.__traceback__) from fallback
+        raise original
+
+    try:
+        runtime = _runtime_modules()
+    except BaseException as original:
+        terminalize_setup(original, "runtime_import")
+    try:
+        guard()
+        reviewed_manifest = candidate_source_manifest(repo_root)
+        verify_loaded_runtime_modules(repo_root, reviewed_manifest, require_all=True)
+    except BaseException as original:
+        terminalize_setup(original, "runtime_origin")
+    try:
+        event_type, receipt_type, endpoint, lm_type = _owner_api()
+    except BaseException as original:
+        terminalize_setup(original, "owner_api")
+    try:
+        owner = runtime.identity.verify_exact_owner(
+            owner_source_root, event_type, receipt_type, lm_type
+        )
+    except BaseException as original:
+        terminalize_setup(original, "owner_verification")
+    try:
+        cases = runtime.contract.load_bound_cases(repo_root)
+    except BaseException as original:
+        terminalize_setup(original, "case_load")
+    try:
+        requests = tuple(
+            (
+                case,
+                runtime.evaluation.normalized_semantic_request(
+                    case.materialized_request()
+                ),
+            )
+            for case in cases
+        )
+    except BaseException as original:
+        terminalize_setup(original, "request_normalization")
+    try:
+        reservations = tuple(
+            runtime.identity.expected_reservation(
+                attempt,
+                case=case,
+                semantic_request=semantic,
+                artifact=owner.artifact,
+            )
+            for case, semantic in requests
+        )
+        snapshots = tuple(
+            runtime.result.CaseSnapshot(
+                attempt=attempt,
+                case=case,
+                semantic_request=semantic,
+                reservation=reservation,
+                artifact=owner.artifact,
+            )
+            for (case, semantic), reservation in zip(
+                requests, reservations, strict=True
+            )
+        )
+    except BaseException as original:
+        terminalize_setup(original, "reservation")
+    try:
+        _validate_endpoint(endpoint)
+    except BaseException as original:
+        terminalize_setup(original, "endpoint")
+    try:
+        lm = runtime.adapter.ReceiptSafeDspyLMAuthLM()
+    except BaseException as original:
+        terminalize_setup(original, "adapter_construction")
+
+    @dataclass(slots=True)
+    class CaseState:
+        snapshot: Any
+        generate_entered: bool = False
+        fragment: dict[str, Any] | None = None
+        sealed: bool = False
+        marker_written: bool = False
+        failure_stage: str = "adapter_call"
+
+    states = tuple(CaseState(snapshot) for snapshot in snapshots)
+
+    def fragment_effect(payload: Mapping[str, Any]) -> tuple[bool, str]:
+        provider = payload.get("provider_outcome")
+        if not isinstance(provider, Mapping):
+            return True, "effect_indeterminate"
+        possible = provider.get("external_effect_possible") is True
+        disposition = provider.get("empirical_disposition")
+        return possible, (
+            str(disposition)
+            if disposition in {"effect_indeterminate", "error", "failed", "passed"}
+            else "effect_indeterminate"
+        )
+
+    def persist_fragment(
+        state: CaseState,
+        payload: Mapping[str, Any],
+        *,
+        application_check: bool = True,
+    ) -> None:
+        if application_check:
+            runtime.result.validate_case_fragment_write(state.snapshot, payload)
+        else:
+            # The primary application check failed; this local exact-shape check
+            # uses only the immutable snapshot before attempting fallback bytes.
+            if (
+                payload.get("schema_version") != RESULT_SCHEMA
+                or payload.get("artifact_kind") != "case_result_fragment"
+                or payload.get("live_task_id") != live_task_id
+                or payload.get("case_id") != state.snapshot.case.case_id
+                or payload.get("case_ordinal") != state.snapshot.case.case_ordinal
+                or payload.get("semantic_request_sha256")
+                != state.snapshot.reservation.semantic_request_sha256
+            ):
+                raise SemanticV11Error("fallback fragment snapshot drift")
+        possible, _ = fragment_effect(payload)
+        persist(
+            attempt_root
+            / RESULT_FRAGMENTS_NAME
+            / f"{state.snapshot.case.case_ordinal:02d}-case.json",
+            payload,
+            effect_possible=possible,
+            disposition="effect_indeterminate" if possible else "error",
+        )
+
+    def persist_marker(state: CaseState, stage: str) -> None:
+        if state.fragment is None or state.marker_written:
+            raise SemanticV11Error("case terminal marker state drift")
+        marker = runtime.result.build_case_terminal_marker(
+            state.snapshot, state.fragment, stage
+        )
+        persist(
+            attempt_root
+            / RESULT_FRAGMENTS_NAME
+            / f"{state.snapshot.case.case_ordinal:02d}-terminal.json",
+            marker,
+            effect_possible=True,
+            disposition="effect_indeterminate",
+        )
+        state.marker_written = True
+
+    def persist_aggregate(*, fallback_state: CaseState | None = None) -> dict[str, Any]:
+        try:
+            payload = runtime.result.derive_evaluation_result(attempt, snapshots)
+        except BaseException as original:
+            if (
+                fallback_state is None
+                or fallback_state.fragment is None
+                or fallback_state.marker_written
+            ):
+                raise
+            persist_marker(fallback_state, "result_fragment")
+            try:
+                payload = runtime.result.derive_evaluation_result(attempt, snapshots)
+            except BaseException as fallback:
+                raise original.with_traceback(original.__traceback__) from fallback
+        effect = any(
+            case["provider_outcome"]["external_effect_possible"] is True
+            for case in payload["cases"]
+        )
+        persist(
+            attempt_root / RESULT_NAME,
+            payload,
+            effect_possible=effect,
+            disposition="effect_indeterminate" if effect else "error",
+        )
+        return payload
+
+    def terminalize_case(original: BaseException, stage: str, state: CaseState) -> None:
+        try:
+            if not state.generate_entered:
+                state.fragment = runtime.result.build_pre_generate_failure(
+                    state.snapshot, stage
+                )
+                persist_fragment(state, state.fragment, application_check=False)
+                state.sealed = True
+            elif state.fragment is None:
+                state.fragment = runtime.result.build_case_call_failure(state.snapshot)
+                persist_fragment(state, state.fragment, application_check=False)
+                state.sealed = True
+            if stage in {"post_return_projection", "result_fragment"}:
+                persist_marker(state, stage)
+            persist_aggregate(fallback_state=state)
+        except TerminalPersistenceError:
+            raise
+        except BaseException as fallback:
+            raise original.with_traceback(original.__traceback__) from fallback
+        raise original
+
+    def invoke_case(state: CaseState) -> dict[str, Any]:
+        snapshot = state.snapshot
+        case = snapshot.case
+        semantic = snapshot.semantic_request
+        request = case.materialized_request()
+        expected = runtime.evaluation.normalized_semantic_request(request)
+        if (
+            semantic != expected
+            or runtime.contract.semantic_request_sha256(expected)
+            != snapshot.reservation.semantic_request_sha256
+        ):
+            raise SemanticV11Error("prepared semantic request drift")
+        owner.revalidate()
+        root = (
+            attempt_root
+            / PROVIDER_OUTCOMES_NAME
+            / f"{case.case_ordinal:02d}-{case.case_id}"
+        )
+        started = time.time()
+        failed = True
+        try:
+            journal = runtime.journal.ReceiptJournal.create(
+                root, snapshot.reservation, snapshot.artifact
+            )
+            receipt = journal.provider_receipt()
+            base = importlib.import_module(
+                "dspx.services.program_oracle_semantic_owner_bridge_v11"
+            )
+            if base._check_capability is not None:
+                base._check_capability("network.mutate")
+            inner = lm._build_inner()
+            if (
+                type(inner) is not owner.lm_type
+                or lm._uses_codex_route is not True
+                or getattr(inner, "_uses_codex_route", None) is not True
+                or getattr(inner, "num_retries", None) != 0
+            ):
+                raise SemanticV11Error("v11 owner route/retry configuration drift")
+            response = inner.forward(
+                prompt=runtime.backend._analysis_prompt(request),
+                messages=None,
+                outcome_receipt=receipt,
+                response_format=dict(
+                    runtime.backend._analysis_response_format(request)
+                ),
+                cache=False,
+                num_retries=0,
+            )
+            text = runtime.adapter.ReceiptSafeDspyLMAuthLM._receipt_text(response)
+            if len(text.encode("utf-8")) > lm.MAX_RESPONSE_TEXT_BYTES:
+                raise SemanticV11Error("provider response exceeds bounded size")
+            model = runtime.adapter.ReceiptSafeDspyLMAuthLM._receipt_model(response)
+            state.failure_stage = "result_fragment"
+            report = runtime.semantic.validate_semantic_response(case, text)
+            fragment = runtime.result.build_case_result_fragment(
+                snapshot,
+                semantic=report.semantic_payload(),
+                observed_model=model,
+            )
+            persist_fragment(state, fragment)
+            state.fragment = fragment
+            runtime.result.validate_case_fragment_seal(snapshot, fragment)
+            state.sealed = True
+            failed = False
+            return fragment
+        finally:
+            call_type = (
+                getattr(base, "DspyLmAuthCall", None) if "base" in locals() else None
+            )
+            if isinstance(call_type, type):
+                lm.history.append(
+                    call_type(
+                        model=lm.requested_model,
+                        auth_provider=lm.auth_provider,
+                        started_at=started,
+                        ended_at=time.time(),
+                        text="",
+                        usage=None,
+                        transport=None,
+                        error="receipt_mode_error" if failed else None,
+                    )
+                )
+
+    entered_ordinals: set[int] = set()
+    last_state: CaseState | None = None
+    for state in states:
+        last_state = state
+        try:
+            runtime.result.validate_generate_entry(
+                state.snapshot, frozenset(entered_ordinals)
+            )
+            state.generate_entered = True
+            entered_ordinals.add(state.snapshot.case.case_ordinal)
+        except BaseException as original:
+            terminalize_case(original, "mark_generate_entered", state)
+        try:
+            fragment = invoke_case(state)
+        except TerminalPersistenceError:
+            raise
+        except BaseException as original:
+            terminalize_case(original, state.failure_stage, state)
+        try:
+            disposition = runtime.evaluation.projection_disposition(fragment)
+        except BaseException as original:
+            terminalize_case(original, "post_return_projection", state)
+        if disposition != "passed":
+            break
+    return persist_aggregate(fallback_state=last_state)

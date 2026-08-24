@@ -1,14 +1,27 @@
 # summary: "Validates the provider-free receipt-bound Oracle semantic v11 candidate."
 from __future__ import annotations
 
-import hashlib
 import json
-import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
 from dspx.services.program_oracle_semantic_contract import OracleSemanticRequest
+from dspx.services.program_oracle_semantic_gate4_contract_v11 import (
+    CASE_ORDER,
+    CONSUMER_MODULE_HASHES,
+    CONTRACT_SHA256,
+    OPTIONAL_UNSET_KEYS,
+    PROPOSAL_SHA256,
+    SEMANTIC_KEYS,
+    SemanticV11Error,
+    assert_sha256,
+    canonical,
+    mapping,
+    semantic_request_projection,
+    semantic_request_sha256,
+    sha256,
+)
 from dspx.services.program_oracle_semantic_contract_v10 import (
     INHERITED_KEYS,
     SEMANTICS_PATH,
@@ -19,35 +32,20 @@ from dspx.services.program_oracle_semantic_contract_v10 import (
     score_v10,
 )
 
+__all__ = [
+    "assert_sha256",
+    "semantic_request_projection",
+    "semantic_request_sha256",
+]
+
 CANDIDATE_TASK_ID = 4691
 CONTRACT_PATH = Path("benchmarks/semantic/oracle-semantic-analysis-evaluation-v11.json")
 V10_PATH = Path("benchmarks/semantic/oracle-semantic-analysis-evaluation-v10.json")
 PROPOSAL_PATH = Path("docs/project/oracle-semantic-analysis-v11-contract-proposal.md")
 V10_SHA256 = "fb90f0c266e984489110fc3ae945c3bd37bf71b6ec8f725f56d6167241ab4128"
-CONTRACT_SHA256 = "23eea0a89ab4e62cb19e18f9165399c5b91dce39e9997aec6070412ac310b624"
-PROPOSAL_SHA256 = "931ba8f5d71f1514bd3b4952bc28f471be1e6205889813f7801ca9261385a6d9"
-CASE_ORDER = (
-    "authority-boundary",
-    "causal-calibration",
-    "review-only-transition",
-    "provenance-drift",
-)
 SCHEMA = "dspx-oracle-semantic-analysis-evaluation-v11"
 STATUS = "candidate_requires_receipt_review_and_separate_live_gate"
 TEMPLATE_SCHEMA = "dspx-oracle-semantic-analysis-v11-contract-template-v1"
-SEMANTIC_REQUEST_DOMAIN = b"dspx-oracle-semantic-request-v1\0"
-SEMANTIC_KEYS = frozenset(
-    {"input", "instructions", "model", "reasoning", "store", "stream", "text"}
-)
-OPTIONAL_UNSET_KEYS = frozenset(
-    {"max_output_tokens", "temperature", "top_p", "truncation"}
-)
-CONSUMER_MODULE_HASHES = {
-    "provider_outcome_receipt_contract.py": "08310ff976c47bb2a5a3003131ab4ce4b45787f1380418a96b109de6f1664d30",
-    "provider_outcome_receipt_identity.py": "9f8a40b1b22f5fc377fb44ceb21919d2c37b48e23c04802bf340cd3fa35fc5a2",
-    "provider_outcome_receipt_journal.py": "6e2df68d71f081192ac460ecab9acbc0c44445cc5014409279595a87a0a340a5",
-    "provider_outcome_receipt_reducer.py": "33efcd28db0443c30069bdcb2a77ae6c9772dde25c34b2b411892302d5e48a4c",
-}
 EXPECTED_SCHEMA_BINDINGS = {
     "producer_event_family": "dspy-lm-provider-outcome-receipt-v1",
     "reservation": "dspx-provider-outcome-reservation-v1",
@@ -84,13 +82,6 @@ V11_KEYS = {
     "gate_policy",
     *INHERITED_KEYS,
 }
-_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
-
-
-class SemanticV11Error(ValueError):
-    """Fixed-message fail-closed v11 candidate error."""
-
-
 _BOUND_CASE_TOKEN = object()
 
 
@@ -197,34 +188,11 @@ class BoundContractCase:
         )
 
 
-def canonical(value: object) -> bytes:
-    try:
-        return json.dumps(
-            value,
-            allow_nan=False,
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        ).encode("utf-8")
-    except (TypeError, ValueError, UnicodeError) as exc:
-        raise SemanticV11Error("value is not canonical JSON") from exc
-
-
-def sha256(raw: bytes) -> str:
-    return hashlib.sha256(raw).hexdigest()
-
-
 def file_sha256(path: Path) -> str:
     try:
         return sha256(path.read_bytes())
     except OSError as exc:
         raise SemanticV11Error("bound file is unavailable") from exc
-
-
-def mapping(value: object, label: str) -> dict[str, Any]:
-    if not isinstance(value, Mapping):
-        raise SemanticV11Error(f"{label} must be an object")
-    return {str(key): item for key, item in value.items()}
 
 
 def sequence(value: object, label: str) -> list[Any]:
@@ -240,24 +208,6 @@ def _read_json(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise SemanticV11Error(f"{label} is unavailable or invalid") from exc
     return mapping(value, label), raw
-
-
-def semantic_request_projection(request: Mapping[str, Any]) -> dict[str, Any]:
-    keys = set(request)
-    if not SEMANTIC_KEYS.issubset(keys):
-        raise SemanticV11Error("semantic request is missing a required key")
-    unknown = keys - SEMANTIC_KEYS - OPTIONAL_UNSET_KEYS
-    if unknown or any(
-        request.get(key) is not None for key in OPTIONAL_UNSET_KEYS & keys
-    ):
-        raise SemanticV11Error("semantic request contains unsupported fields")
-    return {key: request[key] for key in sorted(SEMANTIC_KEYS)}
-
-
-def semantic_request_sha256(request: Mapping[str, Any]) -> str:
-    return sha256(
-        SEMANTIC_REQUEST_DOMAIN + canonical(semantic_request_projection(request))
-    )
 
 
 def materialized_request(
@@ -379,12 +329,6 @@ def load_candidate(
             if file_sha256(base / name) != digest:
                 raise SemanticV11Error("accepted consumer source drift")
     return contract, semantics, sha256(raw)
-
-
-def assert_sha256(value: object, label: str) -> str:
-    if not isinstance(value, str) or not _HASH_RE.fullmatch(value):
-        raise SemanticV11Error(f"{label} must be lowercase SHA-256")
-    return value
 
 
 def load_bound_cases(

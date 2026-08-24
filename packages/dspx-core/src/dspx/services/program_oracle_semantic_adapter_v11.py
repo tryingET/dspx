@@ -1,23 +1,18 @@
-# summary: "Opt-in receipt-safe DSPx adapter used only by Oracle semantic v11."
+# summary: "Exact configuration and bounded response parsing for the Gate-4 one-shot."
 from __future__ import annotations
 
-import time
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-import dspx.dspy_lm_auth_lm as base
-from dspx.dspy_lm_auth_lm import (
+from dspx.services.program_oracle_semantic_owner_bridge_v11 import (
     DspyLMAuthLM,
-    DspyLMAuthMinimalResponse,
     DspyLMAuthResponseError,
-    DspyLmAuthCall,
 )
 from dspx.services.program_oracle_semantic_contract_v11 import SemanticV11Error
-from dspx.services.program_oracle_semantic_identity_v11 import PreparedReceipt
 
 
 class ReceiptSafeDspyLMAuthLM(DspyLMAuthLM):
-    """Exact v11 adapter with no generic response/error/usage retention."""
+    """Configuration shell; provider invocation exists only inside execute_live_once."""
 
     def __init__(
         self,
@@ -45,8 +40,7 @@ class ReceiptSafeDspyLMAuthLM(DspyLMAuthLM):
             )
         ):
             raise SemanticV11Error("v11 adapter configuration drift")
-        configured["reasoning_effort"] = "max"
-        configured["num_retries"] = 0
+        configured.update({"reasoning_effort": "max", "num_retries": 0})
         super().__init__(
             model=model,
             auth_provider=auth_provider,
@@ -64,8 +58,6 @@ class ReceiptSafeDspyLMAuthLM(DspyLMAuthLM):
 
     @classmethod
     def _receipt_text(cls, response: Any) -> str:
-        """Read only the exact typed Responses output; never stringify objects."""
-
         output = cls._field(response, "output")
         if isinstance(output, list):
             texts: list[str] = []
@@ -110,106 +102,10 @@ class ReceiptSafeDspyLMAuthLM(DspyLMAuthLM):
         prompt: str | None = None,
         messages: Iterable[dict[str, Any]] | None = None,
         **kwargs: Any,
-    ) -> DspyLMAuthMinimalResponse:
-        if (
-            not isinstance(prompt, str)
-            or not prompt
-            or messages is not None
-            or set(kwargs)
-            != {
-                "prepared_receipt",
-                "response_format",
-                "cache",
-                "num_retries",
-            }
-            or type(kwargs.get("prepared_receipt")) is not PreparedReceipt
-            or kwargs.get("cache") is not False
-            or kwargs.get("num_retries") != 0
-        ):
-            raise SemanticV11Error("v11 receipt call shape drift")
-        prepared = kwargs["prepared_receipt"]
-        if type(prepared) is not PreparedReceipt:  # narrowed above
-            raise SemanticV11Error("v11 prepared-receipt capability drift")
-        semantic = prepared.semantic_request
-        expected_input = [
-            {
-                "role": "user",
-                "content": [{"type": "input_text", "text": prompt}],
-            }
-        ]
-        if (
-            set(semantic)
-            != {
-                "input",
-                "instructions",
-                "model",
-                "reasoning",
-                "store",
-                "stream",
-                "text",
-            }
-            or semantic.get("input") != expected_input
-            or semantic.get("instructions") != "You are a helpful assistant."
-            or semantic.get("text") != {"format": kwargs["response_format"]}
-            or semantic.get("model") != "openai/gpt-5.6-sol"
-            or semantic.get("reasoning") != {"effort": "max", "summary": "auto"}
-            or semantic.get("store") is not False
-            or semantic.get("stream") is not True
-            or self.requested_model != "codex/gpt-5.6-sol"
-            or self.auth_provider != "codex"
-            or self.auth_storage is not None
-            or self.timeout != 60.0
-            or self.strict is not True
-            or self.kwargs != {"reasoning_effort": "max", "num_retries": 0}
-        ):
-            raise SemanticV11Error("v11 adapter/request configuration drift")
-        started = time.time()
-        failed = True
-        try:
-            prepared.require_effect_capability()
-            if base._check_capability is not None:
-                base._check_capability("network.mutate")
-            inner = self._build_inner()
-            if (
-                type(inner) is not prepared.owner_lm_type
-                or self._uses_codex_route is not True
-                or getattr(inner, "_uses_codex_route", None) is not True
-                or getattr(inner, "num_retries", None) != 0
-            ):
-                raise SemanticV11Error("v11 owner route/retry configuration drift")
-            prepared.require_effect_capability()
-            response = inner.forward(
-                prompt=prompt,
-                messages=None,
-                outcome_receipt=prepared._provider_receipt,
-                response_format=kwargs["response_format"],
-                cache=False,
-                num_retries=0,
-            )
-            text = self._receipt_text(response)
-            if len(text.encode("utf-8")) > self.MAX_RESPONSE_TEXT_BYTES:
-                raise DspyLMAuthResponseError("provider response exceeds bounded size")
-            model = self._receipt_model(response)
-            failed = False
-            return DspyLMAuthMinimalResponse(
-                model=model,
-                choices=[{"text": text}],
-                usage={},
-                raw=None,
-            )
-        except BaseException:
-            # Preserve the exact interruption; never stringify or serialize it.
-            raise
-        finally:
-            self.history.append(
-                DspyLmAuthCall(
-                    model=self.requested_model,
-                    auth_provider=self.auth_provider,
-                    started_at=started,
-                    ended_at=time.time(),
-                    text="",
-                    usage=None,
-                    transport=None,
-                    error="receipt_mode_error" if failed else None,
-                )
-            )
+    ) -> Any:
+        del prompt, messages, kwargs
+        raise SemanticV11Error("direct v11 adapter invocation is forbidden")
+
+    def generate(self, request: Any, **kwargs: Any) -> Any:
+        del request, kwargs
+        raise SemanticV11Error("direct v11 adapter invocation is forbidden")
