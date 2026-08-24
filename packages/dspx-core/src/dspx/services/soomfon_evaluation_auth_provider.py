@@ -259,7 +259,10 @@ def configure_soomfon_provider(
 ) -> tuple[dict[str, object], SoomfonConfiguredProvider, object | None]:
     """Configure only from an exact validated SoomfonRuntimeCustody object."""
 
-    from dspx.services.soomfon_evaluation_contract import REVIEWED_CONTRACT_SHA256
+    from dspx.services.soomfon_evaluation_contract import (
+        CONTRACT_PREPARATION_TASK_ID,
+        REVIEWED_CONTRACT_SHA256,
+    )
     from dspx.services.soomfon_evaluation_custody import (
         SoomfonRuntimeCustody,
         marker_sha256,
@@ -268,7 +271,7 @@ def configure_soomfon_provider(
     if (
         type(custody) is not SoomfonRuntimeCustody
         or custody.contract_sha256 != REVIEWED_CONTRACT_SHA256
-        or custody.execution_task_id <= 4987
+        or custody.execution_task_id <= CONTRACT_PREPARATION_TASK_ID
     ):
         raise SoomfonProviderError("runtime_custody_identity_drift")
     journal_parent = Path(f"/proc/self/fd/{custody.provider_journal_fd}").resolve(

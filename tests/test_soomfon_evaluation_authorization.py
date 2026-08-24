@@ -130,10 +130,12 @@ def test_missing_or_forged_authorization_digest_fails_closed(
         )
 
 
-def test_task_4987_cannot_authorize_execution(tmp_path: Path) -> None:
+def test_task_5028_cannot_authorize_execution(tmp_path: Path) -> None:
     path = tmp_path / "authorization.json"
-    digest = _write(path, _artifact(task_id=4987))
-    with pytest.raises(authorization.SoomfonExecutionAuthorizationError):
+    digest = _write(path, _artifact(task_id=5028))
+    with pytest.raises(
+        authorization.SoomfonExecutionAuthorizationError, match="task or repo binding"
+    ):
         authorization.validate_execution_authorization(
             path=path,
             expected_sha256=digest,
@@ -221,7 +223,7 @@ def test_missing_authorization_refuses_before_marker_owner_import_or_state(
     with pytest.raises(authorization.SoomfonExecutionAuthorizationError):
         executor.execute_soomfon_evaluation_suite(
             expected_contract_sha256=(
-                "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+                "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
             ),
             execution_authorization_path=None,
             expected_authorization_sha256=None,
@@ -263,7 +265,7 @@ def _machine_task(
                 "lease_expires_at": (now + timedelta(seconds=lease_seconds)).isoformat()
                 if status == "claimed"
                 else None,
-                "depends_on": [4987] if task_id != 4987 else [],
+                "depends_on": [5028] if task_id != 5028 else [4987],
                 "evidence": None,
                 "result": None,
                 "created_at": now.isoformat(),
@@ -291,7 +293,8 @@ def _canonical_runner(
     operator = payload["operator_authorization"]
     operator_id = operator["evidence_id"]
     common = {
-        "schema_version": "soomfon-ak4987-authorization-evidence-v2",
+        "schema_version": "soomfon-ak5028-authorization-evidence-v3",
+        "preparation_task_id": 5028,
         "contract_sha256": payload["contract_sha256"],
         "dspx_artifact": payload["dspx_artifact"],
         "owner_artifact": payload["owner_artifact"],
@@ -359,8 +362,8 @@ def _canonical_runner(
             return _machine_task(
                 task_id=task_id, status=task_status, lease_seconds=lease_seconds
             )
-        if arguments == ("task", "show", "4987", "--machine"):
-            return _machine_task(task_id=4987, status="done", completed=True)
+        if arguments == ("task", "show", "5028", "--machine"):
+            return _machine_task(task_id=5028, status="done", completed=True)
         if arguments[:3] == ("task", "contract", "show"):
             return contract
         if arguments[:2] == ("evidence", "task"):
@@ -399,6 +402,50 @@ def test_canonical_ak_reconciliation_rejects_self_hashed_self_assertion(
             repo_root=REPO,
             contract_sha256=CONTRACT_SHA256,
         )
+
+
+@pytest.mark.parametrize("depends_on", [[], [4987], [5028, 4987]])
+def test_canonical_ak_requires_exact_preparation_dependency(
+    depends_on: list[int],
+) -> None:
+    import copy
+    from dspx.services import soomfon_evaluation_ak_authorization as ak_authorization
+
+    payload = _artifact()
+    valid = _canonical_runner(payload)
+
+    def drifted(arguments: tuple[str, ...]) -> object:
+        value = valid(arguments)
+        if arguments == ("task", "show", "6000", "--machine"):
+            value = copy.deepcopy(value)
+            value["payload"]["task"]["depends_on"] = depends_on
+        return value
+
+    with pytest.raises(ak_authorization.CanonicalAKAuthorizationError):
+        ak_authorization.reconcile_canonical_ak_authorization(
+            task_id=6000,
+            repo=str(REPO),
+            contract_sha256=CONTRACT_SHA256,
+            dspx_artifact=payload["dspx_artifact"],
+            owner_artifact=payload["owner_artifact"],
+            review_references=tuple(payload["independent_reviews"]),
+            operator_evidence_id=91003,
+            operator_request_id=payload["operator_authorization"]["request_id"],
+            effect_budget=payload["effect_budget"],
+            minimum_lease_seconds=1800,
+            runner=drifted,
+        )
+
+
+def test_live_completion_contract_binds_current_hash_and_preparation_task() -> None:
+    from dspx.services import soomfon_evaluation_ak_authorization as ak_authorization
+
+    contract = ak_authorization.expected_execution_task_contract()
+    outcomes = cast(list[str], contract["required_outcomes"])
+    assert outcomes[0] == (
+        "Authorize exactly one six-case Soomfon suite for contract "
+        "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207 prepared under AK-5028"
+    )
 
 
 def test_canonical_ak_reconciliation_binds_task_contract_and_all_evidence() -> None:
@@ -694,9 +741,9 @@ def test_pinned_ak_binary_is_hashed_and_executed_through_open_fd(
     monkeypatch.setattr(runtime.subprocess, "Popen", tracked_popen)
     result = cast(
         dict[str, Any],
-        runtime.run_ak_json(("task", "show", "4987", "--machine")),
+        runtime.run_ak_json(("task", "show", "5028", "--machine")),
     )
-    assert result["payload"]["task"]["id"] == 4987
+    assert result["payload"]["task"]["id"] == 5028
     argv = cast(tuple[str, ...], observed["argv"])
     passed = observed["pass_fds"]
     assert argv[0].startswith("/proc/self/fd/")

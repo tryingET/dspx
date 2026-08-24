@@ -14,6 +14,7 @@ from dspx.services.run_replay_service import check_run_receipt
 from dspx.services.soomfon_evaluation_filesystem import open_private_directory
 
 from dspx.services.soomfon_evaluation_contract import (
+    CONTRACT_PREPARATION_TASK_ID,
     classify_provider_disposition,
     EXPECTED_MODES,
     REVIEWED_CONTRACT_SHA256,
@@ -267,7 +268,7 @@ def is_complete_terminal_marker(
         and first.get("contract_sha256") == REVIEWED_CONTRACT_SHA256
         and first.get("mode") == mode
         and type(first.get("execution_task_id")) is int
-        and first["execution_task_id"] > 4987
+        and first["execution_task_id"] > CONTRACT_PREPARATION_TASK_ID
         and isinstance(first.get("authorization_sha256"), str)
         and _SHA256_RE.fullmatch(first["authorization_sha256"]) is not None
         and isinstance(first.get("ak_reconciliation_sha256"), str)

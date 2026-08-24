@@ -319,6 +319,25 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
         contract_sha256="a" * 64,
         expected_marker_sha256="b" * 64,
     )
+    reduced_summary = {
+        key: evidence[key]
+        for key in (
+            "artifact_verification",
+            "logical_call_total",
+            "maximum_provider_transports",
+            "call_records",
+        )
+    }
+    with pytest.raises(SoomfonProviderError):
+        verify_retained_soomfon_journals(
+            parent,
+            reduced_summary,
+            mode="simple",
+            execution_task_id=6000,
+            contract_sha256="a" * 64,
+            expected_marker_sha256="b" * 64,
+        )
+
     forged = json.loads(json.dumps(evidence))
     forged["call_records"][1]["journal_sha256"] = "f" * 64
     with pytest.raises(SoomfonProviderError):

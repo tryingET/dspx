@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, cast
 
+from dspx.services.soomfon_evaluation_contract import CONTRACT_PREPARATION_TASK_ID
 from dspx.services.soomfon_evaluation_owner import owner_authorization_identity
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -143,7 +144,7 @@ def validate_execution_authorization(
         payload.get("schema_version") != "soomfon-execution-authorization-v3"
         or isinstance(task_id, bool)
         or not isinstance(task_id, int)
-        or task_id <= 4987
+        or task_id <= CONTRACT_PREPARATION_TASK_ID
         or payload.get("repo") != str(root)
         or payload.get("contract_sha256") != contract_sha256
     ):

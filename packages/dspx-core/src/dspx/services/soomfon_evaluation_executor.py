@@ -162,9 +162,19 @@ def _evaluate_case(
             )
 
             verify_soomfon_owner_source(owner_source_root)
+            provider = bundle.behavior_results.get("provider")
+            if not isinstance(provider, Mapping):
+                raise SoomfonEvaluationExecutorError(
+                    "validated provider evidence envelope is missing"
+                )
+            full_provider_evidence = provider.get("effect_evidence")
+            if not isinstance(full_provider_evidence, Mapping):
+                raise SoomfonEvaluationExecutorError(
+                    "validated provider evidence envelope is missing"
+                )
             verify_retained_soomfon_journals(
                 Path(f"/proc/self/fd/{provider_journal_fd}"),
-                provider_details,
+                full_provider_evidence,
                 mode=str(case["mode"]),
                 execution_task_id=execution_task_id,
                 contract_sha256=contract_sha256,

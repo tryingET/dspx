@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Mapping
 
 from dspx.services.soomfon_evaluation_contract import (
+    CONTRACT_PREPARATION_TASK_ID,
     EXPECTED_INPUT_SHA256,
     EXPECTED_RECEIPT_SHA256,
     REVIEWED_CONTRACT_SHA256,
@@ -227,7 +228,7 @@ def create_attempt_marker(
     if (
         isinstance(execution_task_id, bool)
         or not isinstance(execution_task_id, int)
-        or execution_task_id <= 4987
+        or execution_task_id <= CONTRACT_PREPARATION_TASK_ID
         or _SHA256_RE.fullmatch(authorization_sha256) is None
         or _SHA256_RE.fullmatch(ak_reconciliation_sha256) is None
     ):
@@ -379,7 +380,7 @@ def validate_runtime_custody(
         or custody.staged_manifest_path != manifest_path.resolve()
         or custody.inputs_path != inputs_path.resolve()
         or custody.outdir != outdir.resolve()
-        or custody.execution_task_id <= 4987
+        or custody.execution_task_id <= CONTRACT_PREPARATION_TASK_ID
         or _SHA256_RE.fullmatch(custody.authorization_sha256) is None
         or _SHA256_RE.fullmatch(custody.ak_reconciliation_sha256) is None
     ):

@@ -22,6 +22,7 @@ from dspx.services.provider_outcome_receipt_journal import (
     ReceiptJournal,
     load_verified_journal,
 )
+from dspx.services.soomfon_evaluation_contract import CONTRACT_PREPARATION_TASK_ID
 from dspx.services.provider_outcome_receipt_reducer import (
     reduce_verified_chain,
     verify_receipt_chain,
@@ -137,7 +138,7 @@ class SoomfonCallCustodian:
             type(artifact) is not VerifiedOwnerArtifact
             or isinstance(execution_task_id, bool)
             or not isinstance(execution_task_id, int)
-            or execution_task_id <= 4987
+            or execution_task_id <= CONTRACT_PREPARATION_TASK_ID
             or _SHA256_RE.fullmatch(contract_sha256) is None
             or _SHA256_RE.fullmatch(ledger_sha256) is None
             or not callable(authority_revalidator)

@@ -16,6 +16,10 @@ from dspx.services.soomfon_evaluation_ak_runtime import (
     AK_EXECUTABLE_SHA256,
     run_ak_json as _run_ak_json,
 )
+from dspx.services.soomfon_evaluation_contract import (
+    CONTRACT_PREPARATION_TASK_ID,
+    REVIEWED_CONTRACT_SHA256,
+)
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -31,7 +35,8 @@ _OPERATOR_REQUEST_RE = re.compile(
 )
 
 _EXPECTED_OUTCOMES = [
-    "Authorize exactly one six-case Soomfon suite for the current hash-bound AK-4987 contract",
+    f"Authorize exactly one six-case Soomfon suite for contract {REVIEWED_CONTRACT_SHA256} "
+    f"prepared under AK-{CONTRACT_PREPARATION_TASK_ID}",
     "Bind the exact reviewed DSPx source commit and tree or exact installed wheel payload",
     "Bind the exact AK-4991 owner artifact, codex/gpt-5.6-sol, reasoning max, and no-refresh custody",
     "Limit the suite to twelve provider transports with zero retry, fallback, health probe, resume, or selective rerun",
@@ -199,7 +204,7 @@ def _validate_claim(task: Mapping[str, Any], *, minimum_lease_seconds: float) ->
         or not isinstance(claimed_by, str)
         or not claimed_by.strip()
         or lease.timestamp() - time.time() < minimum_lease_seconds
-        or task.get("depends_on") != [4987]
+        or task.get("depends_on") != [CONTRACT_PREPARATION_TASK_ID]
         or task.get("completed_at") is not None
     ):
         _reject()
@@ -248,7 +253,8 @@ def _common_evidence_details(
     effect_budget: Mapping[str, Any],
 ) -> dict[str, object]:
     return {
-        "schema_version": "soomfon-ak4987-authorization-evidence-v2",
+        "schema_version": "soomfon-ak5028-authorization-evidence-v3",
+        "preparation_task_id": CONTRACT_PREPARATION_TASK_ID,
         "contract_sha256": contract_sha256,
         "dspx_artifact": dict(dspx_artifact),
         "owner_artifact": dict(owner_artifact),
@@ -322,7 +328,9 @@ def reconcile_canonical_ak_authorization(
         _reject()
     _validate_claim(task, minimum_lease_seconds=minimum_lease_seconds)
     dependency = _task_from_machine(
-        runner(("task", "show", "4987", "--machine")), task_id=4987, repo=repo
+        runner(("task", "show", str(CONTRACT_PREPARATION_TASK_ID), "--machine")),
+        task_id=CONTRACT_PREPARATION_TASK_ID,
+        repo=repo,
     )
     _validate_dependency(dependency)
     contract = _validate_contract(

@@ -1,5 +1,5 @@
 ---
-summary: "AK-4987 final-hardened Soomfon custody contract; pending rereview and execution unauthorized."
+summary: "AK-5028 provider-free Soomfon forward repair; pending review and execution unauthorized."
 read_when:
   - "Before considering any model-backed evaluation of the six fresh DSPy 3.3 voice originals."
   - "Before changing Soomfon evaluation custody, authorization, provider receipts, or routing."
@@ -10,9 +10,10 @@ type: "reference"
 
 ## Disposition
 
-Task AK-4987 implements a narrow Soomfon-custody-only path for the six regenerated DSPy
-3.3.1 originals. After final corrective hardening, its posture is **pending independent rereview, execution unauthorized**. No task
-4987 artifact authorizes a provider/model call, OAuth flow, credential inspection, physical key,
+Task AK-5028 repairs the parent post-return journal-verification seam without invoking a
+provider and issues a fresh schema-v3 contract for the same six regenerated DSPy 3.3.1
+originals. Its posture is **pending independent review, execution unauthorized**. No task 5028
+artifact authorizes a provider/model call, OAuth flow, credential inspection, physical key,
 microphone, TTS, routing, promotion, activation, release, or publication.
 
 The active machine contract is:
@@ -20,21 +21,33 @@ The active machine contract is:
 `examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json`
 
 Its current raw SHA-256 is
-`9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b`.
+`0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207`.
 The digest must be supplied out-of-band; deriving the trust anchor from contract bytes is
 forbidden.
 
-## Immutable predecessor history
+## Consumed predecessor and immutable history
 
-Before v3 replaced the active file, the prior raw contract was copied byte-for-byte to:
+The formerly active contract is archived byte-for-byte at:
 
-`examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json`
+`examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b.json`
 
 Its raw SHA-256 remains
-`a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18`.
-The earlier `07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb`
-predecessor remains untouched and terminal `effect_indeterminate`. Neither predecessor ledger
-namespace may be reused, retried, relabeled, or treated as authority for v3.
+`9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b`.
+Execution task #5027 consumed only `simple`. The dspy-lm-auth attempt completed exactly two
+attributable receipt chains and retained only response SHA-256
+`1ad1fd227ca1d37421d54f608ac1cc2fab5f041a53a009b117855bb548c833a3` and length
+`431` as response evidence. The child returned successfully, but parent `_evaluate_case` passed
+the reduced classifier projection to `verify_retained_soomfon_journals`, which requires the full
+`soomfon-provider-outcome-evidence-v1` envelope. The immutable terminal disposition therefore
+remains `effect_indeterminate` with reason `provider_receipt_journal_invalid`. Provider-free
+re-verification establishes journal integrity only; it does not relabel, retry, score, or resume
+the consumed attempt.
+
+The five unattempted modes receive no execution-authority transfer. The predecessor namespace
+may not be reused, retried, or relabeled. The existing archives
+`a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18` and
+`07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb` remain untouched; the
+latter remains terminal `effect_indeterminate`.
 
 ## Frozen six-case matrix
 
@@ -137,7 +150,7 @@ The JSON is an integrity/binding projection only. It is neither produced nor aut
 AK and cannot authorize itself. Before state-root creation the parent requires at least 1800
 seconds on the claim lease; immediately before every marker it repeats that minimum and the
 exact read-only canonical AK queries for the later task, live completion contract and guardrails,
-attached evidence, each named evidence record, and done dependency #4987. The child reconciles
+attached evidence, each named evidence record, and done dependency #5028. The child reconciles
 again before task-local provider import or any possible credential access. Each logical call
 reconciles once more with a 90-second minimum and requires the task, contract, evidence,
 projection, and authorization state to remain unchanged.
@@ -170,14 +183,15 @@ check types are `review:independent-security`, `test:independent-provider-free`,
 bytes to exact Git blobs at the authorized clean commit/tree. Installed mode compares origins
 and complete payload to the exact distribution/RECORD. Any package shadow, `__pycache__`,
 `.pyc`, or existing security-module `__cached__` artifact rejects. No AK mutation occurs.
-Task #4987 cannot satisfy this execution authorization gate.
+Task #5028 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5028 and depend exactly on `[5028]`.
 
 ## Private response behavior
 
 Raw responses are confined to the protected private runtime tree used by the scorer/reviewer.
-They are never printed to stdout or general logs and never enter provider evidence. Suite and
-CLI output may expose only response SHA-256, length, closed receipt disposition, runtime hashes,
-and non-authority fields.
+They are never printed to stdout or general logs and never enter provider evidence. The retained
+#5027 raw response must not be read, deleted, or rewritten during this provider-free repair. Suite
+and CLI output may expose only response SHA-256, length, closed receipt disposition, runtime
+hashes, and non-authority fields.
 
 ## Nonclaims and next lawful move
 
@@ -185,8 +199,8 @@ This implementation proves no live model compatibility, answer quality, semantic
 GEPA improvement, backend locality, physical Soomfon execution, routing, promotion, activation,
 release, or publication.
 
-The next lawful move is independent rereview of this corrected diff, followed only then by a
-separate exact claimed AK execution task with canonical attached review/operator evidence and a
-local integrity projection for one suite.
+The next lawful move is independent review of this provider-free forward repair, followed only
+then by a separate exact claimed AK task greater than 5028, depending exactly on `[5028]`, with
+canonical attached review/operator evidence and a local integrity projection for one suite.
 Only independently reviewed resulting evidence could inform a later, distinct owner binding
 decision. The active routing file must remain unchanged until that separate decision exists.

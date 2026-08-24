@@ -9,6 +9,8 @@ from typing import Any
 
 import pytest
 
+from dspx.services import soomfon_evaluation_contract as contract_service
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = (
@@ -17,9 +19,13 @@ CONTRACT_PATH = (
 )
 PREDECESSOR = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b.json"
 )
 EARLIER = (
+    REPO_ROOT
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json"
+)
+EARLIEST = (
     REPO_ROOT
     / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json"
 )
@@ -34,9 +40,10 @@ EXPECTED_MODES = (
     "bloom",
 )
 RESEARCH_MODES = {"researched", "deep-research"}
-CURRENT_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
-PREDECESSOR_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
-EARLIER_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
+CURRENT_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
+PREDECESSOR_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+EARLIER_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
+EARLIEST_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -58,6 +65,190 @@ def _hash_json(value: object) -> str:
     ).hexdigest()
 
 
+def _copy_contract_chain(root: Path) -> None:
+    for source in (CONTRACT_PATH, PREDECESSOR, EARLIER, EARLIEST):
+        target = root / source.relative_to(REPO_ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(source.read_bytes())
+
+
+def _write_chain_archive(root: Path, relative: str, payload: object) -> str:
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    raw = (json.dumps(payload, sort_keys=True) + "\n").encode()
+    path.write_bytes(raw)
+    return hashlib.sha256(raw).hexdigest()
+
+
+def test_production_loader_reaches_complete_predecessor_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: set[Path] = set()
+    read_stable = contract_service._read_stable_regular_file
+
+    def track(path: Path, *, max_bytes: int) -> bytes:
+        observed.add(path.resolve())
+        return read_stable(path, max_bytes=max_bytes)
+
+    monkeypatch.setattr(contract_service, "_read_stable_regular_file", track)
+    contract_service.load_hash_bound_soomfon_contract(
+        repo_root=REPO_ROOT, expected_sha256=CURRENT_SHA256
+    )
+
+    assert {PREDECESSOR.resolve(), EARLIER.resolve(), EARLIEST.resolve()} <= observed
+
+
+@pytest.mark.parametrize("mutation", ["missing", "tampered"])
+def test_loader_rejects_missing_or_tampered_earliest_archive(
+    tmp_path: Path, mutation: str
+) -> None:
+    _copy_contract_chain(tmp_path)
+    earliest = tmp_path / EARLIEST.relative_to(REPO_ROOT)
+    if mutation == "missing":
+        earliest.unlink()
+    else:
+        earliest.write_bytes(earliest.read_bytes() + b" ")
+
+    with pytest.raises(contract_service.SoomfonEvaluationContractError):
+        contract_service.load_hash_bound_soomfon_contract(
+            repo_root=tmp_path, expected_sha256=CURRENT_SHA256
+        )
+
+
+def test_loader_rejects_nested_predecessor_summary_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    load_json = contract_service._load_json_bytes
+
+    def drift_nested_summary(raw: bytes, *, label: str) -> dict[str, Any]:
+        value = load_json(raw, label=label)
+        if label == "predecessor contract archive" and value.get("task_id") == 4987:
+            value = copy.deepcopy(value)
+            value["predecessor_contract"]["earlier_predecessor"]["raw_sha256"] = (
+                "f" * 64
+            )
+        return value
+
+    canonical_sha256 = contract_service._canonical_json_sha256
+
+    def preserve_bound_canonical(value: dict[str, Any]) -> str:
+        if value.get("task_id") == 4987:
+            return "f9924fcf0bd7a402d91c0dca55bced09a827aad08b8f49a21408ae1175fa0c64"
+        return canonical_sha256(value)
+
+    monkeypatch.setattr(contract_service, "_load_json_bytes", drift_nested_summary)
+    monkeypatch.setattr(
+        contract_service, "_canonical_json_sha256", preserve_bound_canonical
+    )
+    with pytest.raises(
+        contract_service.SoomfonEvaluationContractError, match="summary"
+    ):
+        contract_service.load_hash_bound_soomfon_contract(
+            repo_root=REPO_ROOT, expected_sha256=CURRENT_SHA256
+        )
+
+
+def test_recursive_predecessor_verifier_rejects_cycle(tmp_path: Path) -> None:
+    relative = "archives/cycle.json"
+    payload = {
+        "predecessor_contract": {
+            "archive_path": relative,
+            "raw_sha256": "0" * 64,
+        }
+    }
+    digest = _write_chain_archive(tmp_path, relative, payload)
+    contract = {
+        "predecessor_contract": {
+            "archive_path": relative,
+            "raw_sha256": digest,
+        }
+    }
+
+    with pytest.raises(
+        contract_service.SoomfonEvaluationContractError, match="cycle|duplicate"
+    ):
+        contract_service.validate_predecessor_contract_bindings(
+            repo_root=tmp_path, contract=contract
+        )
+
+
+def test_recursive_predecessor_verifier_rejects_depth_overflow(
+    tmp_path: Path,
+) -> None:
+    binding: dict[str, Any] | None = None
+    for depth in range(10):
+        relative = f"archives/{depth}.json"
+        payload = {} if binding is None else {"predecessor_contract": binding}
+        digest = _write_chain_archive(tmp_path, relative, payload)
+        binding = {"archive_path": relative, "raw_sha256": digest}
+    assert binding is not None
+
+    with pytest.raises(contract_service.SoomfonEvaluationContractError, match="depth"):
+        contract_service.validate_predecessor_contract_bindings(
+            repo_root=tmp_path, contract={"predecessor_contract": binding}
+        )
+
+
+@pytest.mark.parametrize("canonical_sha256", [None, "0" * 64])
+def test_recursive_predecessor_verifier_rejects_invalid_present_canonical_hash(
+    tmp_path: Path, canonical_sha256: object
+) -> None:
+    relative = "archives/canonical.json"
+    digest = _write_chain_archive(tmp_path, relative, {})
+    binding = {
+        "archive_path": relative,
+        "raw_sha256": digest,
+        "canonical_sha256": canonical_sha256,
+    }
+
+    with pytest.raises(
+        contract_service.SoomfonEvaluationContractError, match="canonical"
+    ):
+        contract_service.validate_predecessor_contract_bindings(
+            repo_root=tmp_path, contract={"predecessor_contract": binding}
+        )
+
+
+def test_recursive_predecessor_verifier_rejects_symlink_and_escape(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}\n", encoding="utf-8")
+    digest = hashlib.sha256(outside.read_bytes()).hexdigest()
+    (root / "linked.json").symlink_to(outside)
+    for archive_path in ("linked.json", "../outside.json"):
+        with pytest.raises(contract_service.SoomfonEvaluationContractError):
+            contract_service.validate_predecessor_contract_bindings(
+                repo_root=root,
+                contract={
+                    "predecessor_contract": {
+                        "archive_path": archive_path,
+                        "raw_sha256": digest,
+                    }
+                },
+            )
+
+
+def test_recursive_predecessor_verifier_rejects_malformed_archive(
+    tmp_path: Path,
+) -> None:
+    relative = "archives/malformed.json"
+    archive = tmp_path / relative
+    archive.parent.mkdir(parents=True)
+    archive.write_bytes(b"not-json")
+    binding = {
+        "archive_path": relative,
+        "raw_sha256": hashlib.sha256(b"not-json").hexdigest(),
+    }
+
+    with pytest.raises(contract_service.SoomfonEvaluationContractError, match="JSON"):
+        contract_service.validate_predecessor_contract_bindings(
+            repo_root=tmp_path, contract={"predecessor_contract": binding}
+        )
+
+
 def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
     contract = _load(CONTRACT_PATH)
     assert _sha256(CONTRACT_PATH) == CURRENT_SHA256
@@ -65,13 +256,10 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
         contract["schema_version"]
         == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
     )
-    assert contract["task_id"] == 4987
-    assert (
-        contract["status"]
-        == "implementation_final_hardened_execution_unauthorized_pending_rereview"
-    )
+    assert contract["task_id"] == 5028
+    assert contract["status"] == "forward_repair_execution_unauthorized_pending_review"
     assert contract["executor_contract"]["execution_authorized"] is False
-    assert contract["executor_contract"]["task_4987_can_authorize_execution"] is False
+    assert contract["executor_contract"]["task_5028_can_authorize_execution"] is False
     assert (
         contract["executor_contract"]["implementation_requires_later_exact_ak_task"]
         is True
@@ -87,31 +275,47 @@ def test_predecessors_are_byte_exact_and_namespaces_are_immutable() -> None:
     contract = _load(CONTRACT_PATH)
     predecessor = contract["predecessor_contract"]
     assert _sha256(PREDECESSOR) == predecessor["raw_sha256"] == PREDECESSOR_SHA256
-    assert (
-        _sha256(EARLIER)
-        == predecessor["earlier_predecessor"]["raw_sha256"]
-        == EARLIER_SHA256
-    )
+    assert _sha256(EARLIER) == EARLIER_SHA256
+    assert _sha256(EARLIEST) == EARLIEST_SHA256
     archived = _load(PREDECESSOR)
     assert (
         archived["schema_version"]
-        == "soomfon-dspy-3.3-originals-evaluation-contract-v2"
+        == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
     )
-    assert archived["task_id"] == 4971
-    assert predecessor["attempted_modes"] == []
-    assert predecessor["unattempted_modes"] == list(EXPECTED_MODES)
+    assert archived["task_id"] == 4987
+    assert predecessor["task_id"] == 4987
+    assert predecessor["execution_task_id"] == 5027
+    assert predecessor["attempted_modes"] == ["simple"]
+    assert predecessor["unattempted_modes"] == list(EXPECTED_MODES[1:])
+    assert predecessor["terminal_disposition"] == "effect_indeterminate"
+    assert predecessor["terminal_reason"] == "provider_receipt_journal_invalid"
+    assert predecessor["response_sha256"] == (
+        "1ad1fd227ca1d37421d54f608ac1cc2fab5f041a53a009b117855bb548c833a3"
+    )
+    assert predecessor["response_length"] == 431
+    assert len(predecessor["completed_receipt_chains"]) == 2
+    assert all(
+        row["provider_outcome_receipt"] == "accepted"
+        and row["producer_terminal"] == "provider_response_completed"
+        for row in predecessor["completed_receipt_chains"]
+    )
     assert predecessor["retry_allowed"] is False
+    assert predecessor["empirical_relabel_allowed"] is False
     assert predecessor["ledger_namespace_reuse_allowed"] is False
-    assert (
-        predecessor["earlier_predecessor"]["terminal_disposition"]
-        == "effect_indeterminate"
-    )
+    assert predecessor["unattempted_modes_execution_authority_transferred"] is False
+    assert predecessor["earlier_predecessor"]["raw_sha256"] == EARLIER_SHA256
 
 
 def test_contract_binds_all_six_fresh_originals_exactly() -> None:
     contract = _load(CONTRACT_PATH)
     predecessor = _load(PREDECESSOR)
     assert contract["cases"] == predecessor["cases"]
+    assert contract["rubric"] == predecessor["rubric"]
+    assert (
+        contract["provider_owner_candidate"] == predecessor["provider_owner_candidate"]
+    )
+    assert contract["runtime_target"] == predecessor["runtime_target"]
+    assert contract["effect_budget"] == predecessor["effect_budget"]
     assert contract["effect_budget"]["fixed_case_order"] == list(EXPECTED_MODES)
     active = _load(ACTIVE_BINDING_PATH)
     for case in contract["cases"]:
@@ -278,7 +482,7 @@ def test_unknown_missing_or_safety_drift_fails_exact_validator() -> None:
 def test_documentation_and_nonclaims_match_machine_contract() -> None:
     document = DOC_PATH.read_text(encoding="utf-8")
     for phrase in (
-        "pending independent rereview, execution unauthorized",
+        "pending independent review, execution unauthorized",
         "dspy-lm-auth",
         "no-refresh",
         "exactly two",

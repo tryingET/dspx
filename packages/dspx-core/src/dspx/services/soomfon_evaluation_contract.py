@@ -94,8 +94,9 @@ CONTRACT_RELATIVE_PATH = Path(
     "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json"
 )
 CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v3"
+CONTRACT_PREPARATION_TASK_ID = 5028
 REVIEWED_CONTRACT_SHA256 = (
-    "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+    "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
 )
 EXPECTED_MODES = (
     "simple",
@@ -146,6 +147,7 @@ _TOP_LEVEL_KEYS = {
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _MAX_CONTRACT_BYTES = 256 * 1024
+_MAX_PREDECESSOR_DEPTH = 8
 
 
 class SoomfonEvaluationContractError(RuntimeError):
@@ -258,29 +260,117 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     validate(contract)
 
 
+def _canonical_json_sha256(value: Mapping[str, Any]) -> str:
+    raw = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    return _sha256(raw)
+
+
+def _predecessor_terminal(binding: Mapping[str, Any]) -> object:
+    terminal = binding.get("terminal_disposition")
+    if terminal is not None:
+        return terminal
+    if binding.get("attempted_modes") == []:
+        return "execution_unattempted"
+    return None
+
+
+def _validate_predecessor_summary(summary: object, nested: Mapping[str, Any]) -> None:
+    if not isinstance(summary, Mapping):
+        raise SoomfonEvaluationContractError("earlier predecessor summary is invalid")
+    typed_summary = cast(Mapping[str, Any], summary)
+    expected = {
+        "archive_path": nested.get("archive_path"),
+        "raw_sha256": nested.get("raw_sha256"),
+        "terminal_disposition": _predecessor_terminal(nested),
+        "retry_allowed": nested.get("retry_allowed"),
+    }
+    if any(typed_summary.get(key) != value for key, value in expected.items()):
+        raise SoomfonEvaluationContractError(
+            "earlier predecessor summary disagrees with nested binding"
+        )
+
+
+def _validate_predecessor_binding(
+    *,
+    repo_root: Path,
+    binding: Mapping[str, Any],
+    depth: int,
+    seen_paths: set[Path],
+    seen_hashes: set[str],
+) -> None:
+    if depth >= _MAX_PREDECESSOR_DEPTH:
+        raise SoomfonEvaluationContractError(
+            "predecessor contract chain exceeds depth bound"
+        )
+    expected_sha256 = binding.get("raw_sha256")
+    if (
+        not isinstance(expected_sha256, str)
+        or _SHA256_RE.fullmatch(expected_sha256) is None
+    ):
+        raise SoomfonEvaluationContractError("predecessor contract SHA-256 is invalid")
+    archive = _artifact_path(
+        repo_root, binding.get("archive_path"), label="predecessor contract"
+    )
+    if archive in seen_paths or expected_sha256 in seen_hashes:
+        raise SoomfonEvaluationContractError(
+            "predecessor contract chain contains a cycle or duplicate"
+        )
+    seen_paths.add(archive)
+    seen_hashes.add(expected_sha256)
+
+    raw = _read_stable_regular_file(archive, max_bytes=_MAX_CONTRACT_BYTES)
+    if _sha256(raw) != expected_sha256:
+        raise SoomfonEvaluationContractError("predecessor contract SHA-256 drifts")
+    archived = _load_json_bytes(raw, label="predecessor contract archive")
+    canonical_sha256 = binding.get("canonical_sha256")
+    if "canonical_sha256" in binding and (
+        not isinstance(canonical_sha256, str)
+        or _SHA256_RE.fullmatch(canonical_sha256) is None
+        or _canonical_json_sha256(archived) != canonical_sha256
+    ):
+        raise SoomfonEvaluationContractError(
+            "predecessor contract canonical SHA-256 drifts"
+        )
+
+    nested = archived.get("predecessor_contract")
+    summary = binding.get("earlier_predecessor")
+    if nested is None:
+        if summary is not None:
+            raise SoomfonEvaluationContractError(
+                "earlier predecessor summary has no nested binding"
+            )
+        return
+    if not isinstance(nested, Mapping):
+        raise SoomfonEvaluationContractError(
+            "nested predecessor contract binding is invalid"
+        )
+    if summary is not None:
+        _validate_predecessor_summary(summary, nested)
+    _validate_predecessor_binding(
+        repo_root=repo_root,
+        binding=nested,
+        depth=depth + 1,
+        seen_paths=seen_paths,
+        seen_hashes=seen_hashes,
+    )
+
+
 def validate_predecessor_contract_bindings(
     *, repo_root: Path, contract: Mapping[str, Any]
 ) -> None:
     predecessor = contract.get("predecessor_contract")
     if not isinstance(predecessor, Mapping):
         raise SoomfonEvaluationContractError("predecessor contract binding is missing")
-    archive = _artifact_path(
-        repo_root, predecessor.get("archive_path"), label="predecessor contract"
+    root = repo_root.expanduser().resolve()
+    _validate_predecessor_binding(
+        repo_root=root,
+        binding=predecessor,
+        depth=0,
+        seen_paths=set(),
+        seen_hashes=set(),
     )
-    raw = _read_stable_regular_file(archive, max_bytes=_MAX_CONTRACT_BYTES)
-    if _sha256(raw) != predecessor.get("raw_sha256"):
-        raise SoomfonEvaluationContractError("predecessor contract SHA-256 drifts")
-    earlier = predecessor.get("earlier_predecessor")
-    if not isinstance(earlier, Mapping):
-        raise SoomfonEvaluationContractError("earlier predecessor binding is missing")
-    earlier_path = _artifact_path(
-        repo_root, earlier.get("archive_path"), label="earlier predecessor contract"
-    )
-    earlier_raw = _read_stable_regular_file(earlier_path, max_bytes=_MAX_CONTRACT_BYTES)
-    if _sha256(earlier_raw) != earlier.get("raw_sha256"):
-        raise SoomfonEvaluationContractError(
-            "earlier predecessor contract SHA-256 drifts"
-        )
 
 
 def validate_case_artifact_bindings(
@@ -447,6 +537,7 @@ def classify_provider_disposition(
 
 
 __all__ = [
+    "CONTRACT_PREPARATION_TASK_ID",
     "CONTRACT_RELATIVE_PATH",
     "EXPECTED_MODES",
     "EXPECTED_INPUT_SHA256",

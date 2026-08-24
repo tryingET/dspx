@@ -40,7 +40,7 @@ from dspx.services.soomfon_evaluation_custody import SoomfonCustodyError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+CONTRACT_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
 
 
 @pytest.fixture(autouse=True)
@@ -619,6 +619,80 @@ def test_provider_disposition_is_conservative() -> None:
     forged = json.loads(json.dumps(behavior))
     forged["provider"]["metadata"]["cache"] = True
     assert classify_provider_disposition(forged)[0] == "effect_indeterminate"
+
+
+def test_parent_verifies_exact_full_provider_evidence_envelope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dspx.services import soomfon_evaluation_provider as provider_service
+
+    behavior = _effect_behavior("completed_success", dispatch_count=1)
+    behavior["examples"] = [{"observed_outputs": {"response": "bounded"}}]
+    provider = cast(dict[str, Any], behavior["provider"])
+    full_evidence = cast(dict[str, Any], provider["effect_evidence"])
+    received: list[object] = []
+
+    raw, raw_fd = custody.ensure_private_tree(tmp_path / "raw")
+    os.close(raw_fd)
+    (raw / "runtime").mkdir(mode=0o700)
+    monkeypatch.setattr(executor, "_run_child", lambda **_: (0, 4))
+    monkeypatch.setattr(executor, "fsync_private_tree", lambda *_: None)
+    monkeypatch.setattr(
+        executor, "private_runtime_tree_sha256_path", lambda _: "d" * 64
+    )
+    monkeypatch.setattr(
+        executor,
+        "load_validated_program_runtime_episode_bundle",
+        lambda **_: SimpleNamespace(
+            runtime_episode={"execution_status": "executed"},
+            behavior_results=behavior,
+            runtime_episode_sha256="a" * 64,
+            runtime_receipt_sha256="c" * 64,
+            behavior_results_sha256="b" * 64,
+        ),
+    )
+    monkeypatch.setattr(
+        executor,
+        "runtime_evidence_hashes",
+        lambda *_: {"runtime_tree_sha256": "d" * 64},
+    )
+    monkeypatch.setattr(executor, "marker_sha256", lambda *_: "e" * 64)
+    monkeypatch.setattr(provider_service, "verify_soomfon_owner_source", lambda *_: {})
+
+    def capture_full_envelope(
+        _journal_parent: Path, evidence: object, **_: object
+    ) -> None:
+        provider_service.validate_soomfon_provider_evidence(
+            cast(dict[str, Any], evidence), mode="simple"
+        )
+        received.append(evidence)
+
+    monkeypatch.setattr(
+        provider_service, "verify_retained_soomfon_journals", capture_full_envelope
+    )
+    state, details = executor._evaluate_case(
+        case={"manifest_payload": {}, "manifest_sha256": "c" * 64, "mode": "simple"},
+        staged_manifest=tmp_path / "manifest.json",
+        raw_root=raw,
+        child_environment={},
+        contract_sha256=CONTRACT_SHA256,
+        marker_fd=-1,
+        ledger_fd=-1,
+        lock_fd=-1,
+        provider_journal_fd=-1,
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
+        owner_source_root=REPO_ROOT,
+        authorization_path=Path("fixture-authorization.json"),
+        repo_root=REPO_ROOT,
+    )
+
+    assert state == "succeeded"
+    assert received == [full_evidence]
+    outward = cast(dict[str, Any], details["provider"])
+    assert "schema_version" not in outward
+    assert outward["logical_call_total"] == 2
 
 
 def test_suite_consumes_all_cases_once_without_exposing_responses(
