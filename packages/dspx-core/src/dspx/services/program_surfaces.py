@@ -826,7 +826,23 @@ def render_program_code(intent: Any) -> str:
     """Render the program assembly surface that composes generated surfaces."""
 
     if has_materializable_pipeline_topology(intent):
-        return render_pipeline_program_code(intent)
+        program_code = render_pipeline_program_code(intent)
+        runtime = getattr(intent, "runtime", {}) or {}
+        if runtime.get("generated_source_profile") == "protected_snapshot":
+            from dspx.services.program_runtime_episode import (
+                validate_generated_program_snapshot_sources,
+            )
+
+            module_code, _ = render_pipeline_module_surface(intent)
+            signature_code, _ = render_pipeline_signature_surface(intent)
+            validate_generated_program_snapshot_sources(
+                {
+                    "program": program_code,
+                    "module": module_code,
+                    "signature": signature_code,
+                }
+            )
+        return program_code
 
     names = intent_surface_names(intent)
     constraints = list(intent.constraints)

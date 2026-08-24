@@ -772,6 +772,21 @@ def _verify_generated_program_surfaces_safety(candidate_root: Path) -> None:
         )
 
 
+def validate_generated_program_snapshot_sources(
+    sources: Mapping[str, str],
+) -> None:
+    """Apply the unchanged protected-runtime policy before materialization.
+
+    The Soomfon runtime remains the policy owner for its fixed snapshot membrane.
+    This entrypoint lets a generator profile fail before writing candidate artifacts
+    instead of discovering incompatibility only after an execution marker exists.
+    """
+
+    from dspx.services.soomfon_evaluation_runtime import _validate_snapshot_sources
+
+    _validate_snapshot_sources(sources)
+
+
 @contextmanager
 def _generated_program_module(candidate_root: Path) -> Iterator[Any]:
     names = ("program", "module", "signature")

@@ -17,11 +17,44 @@ import pytest
 from dspx.services import program_service
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_service import materialize_program_from_intent
-from dspx.services.program_topology import render_pipeline_module_surface
+from dspx.services.program_surfaces import render_program_code
+from dspx.services.program_topology import (
+    render_pipeline_module_surface,
+    render_pipeline_signature_surface,
+)
 from dspx.services.run_replay_service import check_run_receipt
 from program_topology_intent_helpers import (
     _explicit_topology_intent,
 )
+
+
+def test_protected_snapshot_profile_renders_policy_compatible_static_program() -> None:
+    intent = _explicit_topology_intent().model_copy(
+        update={"runtime": {"generated_source_profile": "protected_snapshot"}}
+    )
+
+    program_code = render_program_code(intent)
+    module_code, _ = render_pipeline_module_surface(intent)
+    signature_code, _ = render_pipeline_signature_surface(intent)
+
+    from dspx.services.program_runtime_episode import (
+        validate_generated_program_snapshot_sources,
+    )
+
+    validate_generated_program_snapshot_sources(
+        {
+            "program": program_code,
+            "module": module_code,
+            "signature": signature_code,
+        }
+    )
+    assert "dspx.tracing" not in program_code
+    assert "getattr(" not in program_code
+    assert "hasattr(" not in program_code
+    assert "prediction = self.classify_ticket(**kwargs)" in program_code
+    assert "prediction = self.draft_response(**kwargs)" in program_code
+    assert "def configure_observability(" in program_code
+    assert "    return False" in program_code
 
 
 @pytest.mark.slow
