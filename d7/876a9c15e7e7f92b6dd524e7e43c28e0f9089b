@@ -1,0 +1,22 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "d7876a9c15e7e7f92b6dd524e7e43c28e0f9089b"
+created_at: "2026-08-24T14:50:37Z"
+intent: "Record AK-4713 renewed provider-free exact Gate-3 acceptance without implying Gate-4/Gate-5/live authority"
+files:
+  - "docs/project/product-posture.md"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "just verify-full (candidate commit 6ea779d0)"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+links:
+  task_ids:
+    - 4713
