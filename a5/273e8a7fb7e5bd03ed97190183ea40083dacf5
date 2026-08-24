@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "a5273e8a7fb7e5bd03ed97190183ea40083dacf5"
+created_at: "2026-08-24T15:13:42Z"
+intent: "Record task #4967 terminal pre-effect refusal caused by unsafe state-parent mode, with no marker/provider/network effect and no retry"
+files:
+  - "docs/project/product-posture.md"
+  - "governance/task-scopes/AK-4967.snapshot.json"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "not required: projection/runtime receipt only; prior d1e4b1d0 verify-full pass"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+links:
+  task_ids:
+    - 4967
