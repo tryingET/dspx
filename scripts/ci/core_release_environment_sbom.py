@@ -49,14 +49,6 @@ _MAX_REQUIREMENTS_PER_DISTRIBUTION = 2_000
 _MAX_REQUIREMENT_CHARS = 4_096
 _ROOT_NAME = "dspx-core"
 _MARKER_ENVIRONMENT_KEYS = frozenset(default_environment())
-# Documented resolver overrides (AK-4798; docs/project/dspy-3-3-gepa-0-1-4-transition.md):
-# DSPy 3.3.0 declares gepa[dspy]==0.1.1, and the repository lock deliberately
-# overrides that stale transitive pin to the reviewed compatibility matrix
-# version below. Keep this map in lockstep with [tool.uv] override-dependencies
-# in the root pyproject.toml; any other mismatch stays a hard failure.
-_DOCUMENTED_REQUIREMENT_OVERRIDES: dict[tuple[str, str], tuple[str, str]] = {
-    ("dspy", "gepa"): ("0.1.1", "0.1.4"),
-}
 
 
 def _safe_text(value: object, label: str, *, limit: int = 1_024) -> str:
@@ -294,16 +286,9 @@ def _resolved_closure(
                     f"resolved environment dependency version is invalid: {target}"
                 ) from exc
             if requirement.specifier and installed_version not in requirement.specifier:
-                override = _DOCUMENTED_REQUIREMENT_OVERRIDES.get((owner, target))
-                override_applies = (
-                    override is not None
-                    and str(installed_version) == override[1]
-                    and str(requirement.specifier) == f"=={override[0]}"
+                raise CoreReleaseEvidenceError(
+                    f"resolved environment dependency version mismatch: {owner} -> {target}"
                 )
-                if not override_applies:
-                    raise CoreReleaseEvidenceError(
-                        f"resolved environment dependency version mismatch: {owner} -> {target}"
-                    )
             dependencies.add(target)
             requested_extras = {
                 canonicalize_name(extra) for extra in requirement.extras

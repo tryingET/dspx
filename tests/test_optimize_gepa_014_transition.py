@@ -1,4 +1,4 @@
-# summary: "Pins the explicit DSPy 3.3.0 / GEPA 0.1.4 compatibility override and capability surface."
+# summary: "Pins the DSPy 3.3.1 native GEPA 0.1.4 agreement and capability surface."
 # read_when:
 #   - "Changing the GEPA dependency override or adopting GEPA 0.1.4 capabilities."
 
@@ -10,12 +10,12 @@ from pathlib import Path
 import tomllib
 
 
-def test_gepa_014_override_is_explicit_and_active() -> None:
+def test_gepa_014_is_natively_pinned_without_override() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     project = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
 
-    assert project["tool"]["uv"]["override-dependencies"] == ["gepa[dspy]==0.1.4"]
-    assert version("dspy") == "3.3.0"
+    assert "override-dependencies" not in project["tool"]["uv"]
+    assert version("dspy") == "3.3.1"
     assert version("gepa") == "0.1.4"
 
     dspy_gepa_requirements = [
@@ -23,7 +23,7 @@ def test_gepa_014_override_is_explicit_and_active() -> None:
         for requirement in requires("dspy") or ()
         if requirement.lower().startswith("gepa")
     ]
-    assert dspy_gepa_requirements == ["gepa[dspy]==0.1.1"]
+    assert dspy_gepa_requirements == ["gepa[dspy]==0.1.4"]
 
 
 def test_gepa_014_usefulness_surface_is_available_but_not_implicitly_enabled() -> None:

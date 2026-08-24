@@ -61,6 +61,7 @@ class ProgramTopologyMaterializationError(ValueError):
 _PROGRAM_OF_THOUGHT_INTERPRETER_KEYWORDS = {
     "3.1.3": "interpreter",
     "3.3.0": "interpreter_factory",
+    "3.3.1": "interpreter_factory",
 }
 
 

@@ -972,7 +972,7 @@ def test_program_of_thought_renderer_uses_exact_reviewed_interpreter_lifecycle(
         "excluded_lm_generated_runtime_code"
     )
     dspy_version = version("dspy")
-    if dspy_version == "3.3.0":
+    if dspy_version in {"3.3.0", "3.3.1"}:
         assert "interpreter_factory=lambda:" in module_code
         assert "interpreter=dspy.PythonInterpreter" not in module_code
         first = instance.predict._interpreter_factory()

@@ -194,7 +194,7 @@ def test_gepa_optimize_saves_loadable_program(
 
     assert res.out_dir.exists() and res.out_dir.is_dir()
     manifest = json.loads((res.out_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["dspy_version"] == "3.3.0"
+    assert manifest["dspy_version"] == "3.3.1"
     assert manifest["gepa_version"] == "0.1.4"
     assert manifest["gepa"]["proposal_config"] == proposal_config.to_manifest()
     assert manifest["gepa"]["metric_budget_semantics"] == (

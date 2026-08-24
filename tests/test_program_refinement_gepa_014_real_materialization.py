@@ -101,7 +101,7 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
     optimizer_manifest = json.loads(
         (optimizer_root / "manifest.json").read_text(encoding="utf-8")
     )
-    assert optimizer_manifest["dspy_version"] == "3.3.0"
+    assert optimizer_manifest["dspy_version"] == "3.3.1"
     assert optimizer_manifest["gepa_version"] == "0.1.4"
     assert optimizer_manifest["providers"]["student"]["provider"] == "stub"
     assert optimizer_manifest["providers"]["reflection"]["provider"] == "stub"

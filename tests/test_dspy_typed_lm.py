@@ -383,7 +383,7 @@ def test_copy_resets_dspy_history_and_does_not_alias_provider_events() -> None:
 
 class _RecordingCallback(BaseCallback):
     def __init__(self) -> None:
-        self.events: list[tuple[str, Exception | None]] = []
+        self.events: list[tuple[str, BaseException | None]] = []
 
     def on_lm_start(
         self,
@@ -398,7 +398,7 @@ class _RecordingCallback(BaseCallback):
         self,
         call_id: str,
         outputs: dict[str, Any] | None,
-        exception: Exception | None = None,
+        exception: BaseException | None = None,
     ) -> None:
         del call_id, outputs
         self.events.append(("end", exception))

@@ -12,8 +12,8 @@ classifiers = [
 ]
 dependencies = [
   "beautifulsoup4>=4.13.5",
-  "dspy==3.3.0",
-  "dspy-ai==3.3.0",
+  "dspy==3.3.1",
+  "dspy-ai==3.3.1",
   "duckduckgo-search>=8.1.1",
   "httpx>=0.28.1",
   "jsonschema>=4.23.0",

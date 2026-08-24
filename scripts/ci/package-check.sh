@@ -63,7 +63,7 @@ import tomllib
 from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 
-expected = {"dspy": "3.3.0", "dspy-ai": "3.3.0", "gepa": "0.1.4"}
+expected = {"dspy": "3.3.1", "dspy-ai": "3.3.1", "gepa": "0.1.4"}
 with Path(sys.argv[1]).open("rb") as stream:
     lock = tomllib.load(stream)
 locked = {
@@ -86,8 +86,8 @@ core = distribution("dspx-core")
 assert core.version == locked["dspx-core"], (core.version, locked["dspx-core"])
 assert SpecifierSet(core.metadata["Requires-Python"]) == SpecifierSet(">=3.13,<3.15")
 requirements = set(core.requires or ())
-assert "dspy==3.3.0" in requirements
-assert "dspy-ai==3.3.0" in requirements
+assert "dspy==3.3.1" in requirements
+assert "dspy-ai==3.3.1" in requirements
 try:
     distribution("tryinget-dspy-lm-auth")
 except PackageNotFoundError:
