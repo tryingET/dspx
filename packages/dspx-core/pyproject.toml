@@ -1,6 +1,6 @@
 [project]
 name = "dspx-core"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local-first behavioral intelligence runtime for DSPy programs"
 readme = { text = "DSPx Core provides the local-first DSPx runtime, provider and tool contracts, replayable receipts, Oracle analysis, and the `dspx` and `dspx-server` command-line interfaces.", content-type = "text/markdown" }
 requires-python = ">=3.13,<3.15"

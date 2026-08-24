@@ -31,7 +31,7 @@ from test_soomfon_evaluation_executor import _write_mock_runtime_evidence
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "f349a6be93b062c1b1eb937a52d9e820a1f7c4bd79afcef750546694218887db"
+CONTRACT_SHA256 = "b720939ac2b299dab51ededabde9659166647a9e0e2e4d33c37cfd04a17bb625"
 
 
 def _patch_roots(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:

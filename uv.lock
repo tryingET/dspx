@@ -552,7 +552,7 @@ wheels = [
 
 [[package]]
 name = "dspx-core"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/dspx-core" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -602,7 +602,7 @@ provides-extras = ["oracle-embeddings", "oracle-postgres"]
 
 [[package]]
 name = "dspx-forge"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "apps/forge" }
 dependencies = [
     { name = "dspx-core" },
