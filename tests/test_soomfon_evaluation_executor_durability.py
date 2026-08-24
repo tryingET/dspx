@@ -20,6 +20,7 @@ from dspx.cli.dspx import app
 
 from dspx.services import soomfon_evaluation_custody as custody
 from dspx.services import soomfon_evaluation_executor as executor
+from dspx.services import soomfon_evaluation_filesystem as filesystem
 from dspx.services import soomfon_evaluation_ledger as soomfon_ledger
 from dspx.services import soomfon_evaluation_runtime as soomfon_runtime
 from dspx.services.soomfon_evaluation_contract import (
@@ -31,7 +32,7 @@ from test_soomfon_evaluation_executor import _write_mock_runtime_evidence
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "b720939ac2b299dab51ededabde9659166647a9e0e2e4d33c37cfd04a17bb625"
+CONTRACT_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
 
 
 def _patch_roots(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
@@ -74,6 +75,72 @@ def test_private_tree_rejects_wrong_mode_and_intermediate_symlink(
     link.symlink_to(target, target_is_directory=True)
     with pytest.raises(custody.SoomfonCustodyError, match="unavailable"):
         custody.ensure_private_tree(link / "child")
+
+
+def test_existing_ledger_directory_rejects_wrong_owner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ledger = tmp_path / "ledger"
+    ledger.mkdir(mode=0o700)
+    ledger.chmod(0o700)
+    real_fstat = filesystem.os.fstat
+
+    def wrong_ledger_owner(fd: int):
+        info = real_fstat(fd)
+        try:
+            opened = Path(os.readlink(f"/proc/self/fd/{fd}")).resolve()
+        except OSError:
+            return info
+        if opened == ledger.resolve():
+            return SimpleNamespace(st_mode=info.st_mode, st_uid=info.st_uid + 1)
+        return info
+
+    monkeypatch.setattr(filesystem.os, "fstat", wrong_ledger_owner)
+    with pytest.raises(filesystem.SoomfonCustodyError, match="unsafe"):
+        filesystem.ensure_private_tree(ledger)
+
+
+def test_suite_lock_rejects_wrong_owner(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, root_fd = custody.ensure_private_tree(tmp_path / "suite")
+    del root
+    real_fstat = custody.os.fstat
+
+    def wrong_owner(fd: int):
+        info = real_fstat(fd)
+        return SimpleNamespace(st_mode=info.st_mode, st_uid=info.st_uid + 1)
+
+    monkeypatch.setattr(custody.os, "fstat", wrong_owner)
+    try:
+        with pytest.raises(custody.SoomfonCustodyError, match="identity"):
+            custody.acquire_suite_lock(root_fd)
+    finally:
+        os.close(root_fd)
+
+
+def test_attempt_marker_directory_fsync_failure_blocks_effect_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ledger, ledger_fd = custody.ensure_private_tree(tmp_path / "ledger")
+    del ledger
+    real_fsync = custody.os.fsync
+
+    def fail_ledger_fsync(fd: int) -> None:
+        if fd == ledger_fd:
+            raise OSError("injected containing-directory fsync failure")
+        real_fsync(fd)
+
+    monkeypatch.setattr(custody.os, "fsync", fail_ledger_fsync)
+    try:
+        with pytest.raises(OSError, match="containing-directory"):
+            executor._persist_attempt_before_effect(
+                ledger_fd=ledger_fd,
+                contract_sha256=CONTRACT_SHA256,
+                mode="simple",
+            )
+    finally:
+        os.close(ledger_fd)
 
 
 def test_private_tree_creation_fsyncs_each_new_parent(

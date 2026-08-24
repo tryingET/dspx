@@ -90,7 +90,7 @@ CONTRACT_RELATIVE_PATH = Path(
 )
 CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v1"
 REVIEWED_CONTRACT_SHA256 = (
-    "b720939ac2b299dab51ededabde9659166647a9e0e2e4d33c37cfd04a17bb625"
+    "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
 )
 EXPECTED_MODES = (
     "simple",

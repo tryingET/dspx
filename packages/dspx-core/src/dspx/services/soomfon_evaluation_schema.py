@@ -27,7 +27,7 @@ PROTECTED_DENIED_ATTRIBUTES = set(
 
 
 _EXPECTED_CANONICAL_SHA256 = (
-    "7a725aca103d15879a149a4b319a1de586ea0ec8b3d77f53fa9a091ab3ada881"
+    "a8ec67b7ddf711142312ffd6caf0a7d57eeb48617e92025a0d45ae48dedd26c0"
 )
 
 
@@ -41,7 +41,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     if (
         payload.get("schema_version") != CONTRACT_SCHEMA
         or payload.get("task_id") != 4808
-        or payload.get("status") != "design_only_execution_blocked"
+        or payload.get("status") != "implementation_reviewed_execution_unauthorized"
     ):
         raise SoomfonEvaluationContractError("contract identity is invalid")
     source = _require_exact_keys(
@@ -103,7 +103,8 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     executor = _require_exact_keys(
         payload.get("executor_contract"),
         {
-            "execution_ready",
+            "implementation_ready",
+            "execution_authorized",
             "implementation_requires_separate_exact_ak_task",
             "expected_contract_sha256_source",
             "expected_contract_sha256_argument_required",
@@ -124,6 +125,8 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     if (
         executor.get("required_environment") != REQUIRED_ENVIRONMENT
         or executor.get("forbidden_environment") != ["DSPX_OPENAI_COMPAT_API_KEY"]
+        or executor.get("implementation_ready") is not True
+        or executor.get("execution_authorized") is not False
         or executor.get("implementation_requires_separate_exact_ak_task") is not True
         or executor.get("expected_contract_sha256_argument_required") is not True
         or executor.get("derive_expected_contract_sha256_from_contract_forbidden")
@@ -345,7 +348,10 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         or nonclaims.get("live_model_compatibility") is not False
     ):
         raise SoomfonEvaluationContractError("contract evidence nonclaims are invalid")
-    if executor.get("execution_ready") is not False:
+    if (
+        executor.get("implementation_ready") is not True
+        or executor.get("execution_authorized") is not False
+    ):
         raise SoomfonEvaluationContractError("contract executor posture is invalid")
     if executor.get("expected_contract_sha256_argument_required") is not True:
         raise SoomfonEvaluationContractError("contract trust anchor is invalid")

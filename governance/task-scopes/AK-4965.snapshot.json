@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-24T14:52:57.233160242+00:00",
+  "task_id": 4965,
+  "entity_version": 3,
+  "commit_sha": "d7876a9c15e7e7f92b6dd524e7e43c28e0f9089b",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-08-24-dspy-gepa-advancement-architecture.md",
+      "docs/project/dspy-3-3-soomfon-originals-evaluation-contract.md",
+      "docs/project/dspy-3-3-soomfon-originals-evaluation-executor.md",
+      "docs/project/product-posture.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/soomfon_evaluation.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_*.py",
+      "tests/test_soomfon_evaluation_*.py",
+      "tests/test_voice_turn_brains_dspy_33_soomfon_evaluation_contract.py"
+    ],
+    "required_paths": [
+      "docs/project/2026-08-24-dspy-gepa-advancement-architecture.md",
+      "docs/project/dspy-3-3-soomfon-originals-evaluation-contract.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_executor.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_schema.py",
+      "tests/test_soomfon_evaluation_executor.py",
+      "tests/test_soomfon_evaluation_executor_durability.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/ai-control-brains.json",
+      "generated/**",
+      "mlruns/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

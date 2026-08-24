@@ -288,6 +288,18 @@ def _evaluate_case(
     return state, details
 
 
+def _persist_attempt_before_effect(
+    *, ledger_fd: int, contract_sha256: str, mode: str
+) -> tuple[int, str]:
+    """Return only after the attempted marker and containing ledger are fsynced."""
+
+    return create_attempt_marker(
+        ledger_fd=ledger_fd,
+        contract_sha256=contract_sha256,
+        mode=mode,
+    )
+
+
 def execute_soomfon_evaluation_suite(
     *, expected_contract_sha256: str, environment: Mapping[str, str] | None = None
 ) -> dict[str, object]:
@@ -323,7 +335,7 @@ def execute_soomfon_evaluation_suite(
         for case in cases:
             mode = str(case["mode"])
             case_started = time.monotonic_ns()
-            marker_fd, marker_name = create_attempt_marker(
+            marker_fd, marker_name = _persist_attempt_before_effect(
                 ledger_fd=ledger_fd,
                 contract_sha256=contract_sha256,
                 mode=mode,

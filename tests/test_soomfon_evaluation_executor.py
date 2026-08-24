@@ -42,7 +42,7 @@ from test_program_execution_replay import _single_runtime
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "b720939ac2b299dab51ededabde9659166647a9e0e2e4d33c37cfd04a17bb625"
+CONTRACT_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
 
 
 def _patch_roots(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
@@ -400,6 +400,21 @@ def test_runtime_identity_rejects_wrong_distribution(
 def test_case_artifact_manifest_hash_drift_fails() -> None:
     payload = json.loads((REPO_ROOT / CONTRACT_RELATIVE_PATH).read_text())
     payload["cases"][0]["manifest_sha256"] = "0" * 64
+    with pytest.raises(SoomfonEvaluationContractError, match="artifact SHA-256"):
+        validate_case_artifact_bindings(repo_root=REPO_ROOT, contract=payload)
+
+
+def test_case_artifact_canary_index_hash_drift_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = json.loads((REPO_ROOT / CONTRACT_RELATIVE_PATH).read_text())
+    stable_read = contract_module._read_stable_regular_file
+
+    def drift_index(path: Path, *, max_bytes: int) -> bytes:
+        raw = stable_read(path, max_bytes=max_bytes)
+        return raw + b" " if path.name == "canary-index.json" else raw
+
+    monkeypatch.setattr(contract_module, "_read_stable_regular_file", drift_index)
     with pytest.raises(SoomfonEvaluationContractError, match="artifact SHA-256"):
         validate_case_artifact_bindings(repo_root=REPO_ROOT, contract=payload)
 

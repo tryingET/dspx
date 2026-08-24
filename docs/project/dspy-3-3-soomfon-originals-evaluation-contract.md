@@ -1,16 +1,16 @@
 ---
-summary: "Design-only, no-routing contract for observing all six fresh DSPy 3.3 voice originals before any Soomfon binding decision."
+summary: "Implementation-reviewed, execution-unauthorized contract for observing six fresh DSPy 3.3 voice originals before any Soomfon binding decision."
 read_when:
   - "Before running a loopback-client evaluation of the fresh DSPy 3.3 voice originals."
   - "Before changing the Soomfon/OpenDeck six-mode DSPx binding."
-type: "proposal"
+type: "reference"
 ---
 
 # DSPy 3.3 Soomfon originals evaluation contract
 
 ## Disposition
 
-AK-4808 freezes a **design-only, execution-blocked contract** for one predeclared observed turn through each fresh DSPy 3.3 voice original. It does not call a model, press a Soomfon key, use microphone/TTS, change `ai-control-brains.json`, or authorize routing. Execution remains blocked until a separately scoped task implements and negatively tests the externally anchored hash-bound executor, crash-durable attempt ledger, exact environment gate, and provider-effect custody defined below.
+AK-4808 froze the six-case design; AK-4809 implemented the externally hash-bound executor, crash-durable attempt ledger, exact environment gate, and provider-effect custody; provider-free readiness task #4965 independently reconciled that implementation against the complete negative matrix. The current posture is **implementation reviewed, execution unauthorized**. The contract does not call a model, press a Soomfon key, use microphone/TTS, change `ai-control-brains.json`, or authorize routing. A separate exact AK execution task must carry the independently reviewed current raw digest and explicit operator authority before any effect.
 
 The machine-readable contract is:
 
@@ -18,7 +18,7 @@ The machine-readable contract is:
 
 ## Why this gate exists
 
-Read-only workstation reconciliation under AK-4727 established that the installed OpenDeck Autonomy profile and action chain are healthy, but all six live bindings still select historical optimized candidates whose optimizer evidence records DSPy 3.1.3. The workspace now runs DSPy/DSPy-AI 3.3.0 and GEPA 0.1.4, while the six fresh original canaries remain deliberately unrouted and quality-not-evaluated.
+Read-only workstation reconciliation under AK-4727 established that the installed OpenDeck Autonomy profile and action chain are healthy, but all six live bindings still select historical optimized candidates whose optimizer evidence records DSPy 3.1.3. The workspace now runs DSPy/DSPy-AI 3.3.1, DSPx Core 0.2.1, and GEPA 0.1.4, while the six fresh original canaries remain deliberately unrouted and quality-not-evaluated.
 
 A physical press now would therefore test the historical optimized binding under the new runtime—not the fresh originals whose adoption is being considered. AK-4727 is deferred until DSPx produces a separate compatibility/routing disposition.
 
@@ -35,15 +35,15 @@ A physical press now would therefore test the historical optimized binding under
 
 The contract also binds every canary index and verifies that the selected candidates are fresh DSPy 3.3 originals, contain no whole-program pickle surface, differ from the active historical bindings, and retain `quality_approved=false` plus `semantic_equivalence=not_evaluated`.
 
-## Required executor before any run
+## Reviewed executor and remaining authorization gate
 
-The current LACP `DspxBrain` validates a family of loopback endpoints rather than this contract's exact endpoint, and it discards the DSPx runtime ID without returning the provider-effect disposition. No durable contract-hash/case-keyed attempt ledger exists. Therefore this design is not executable as written.
+The repository now contains the reviewed hash-bound executor and its provider-free negative matrix. It bypasses the historical LACP `DspxBrain` gap by enforcing the exact endpoint/runtime contract, retaining provider-effect disposition, and using a durable contract-hash/case-keyed attempt ledger. Implementation readiness is not execution authority.
 
-A separately scoped implementation must add a hash-bound executor that fails before provider construction unless all of these conditions hold:
+The reviewed executor fails before provider construction unless all of these conditions hold:
 
 - the raw contract bytes match an expected SHA-256 supplied out-of-band by the exact AK execution task and its independent-review evidence; deriving the expected digest from the contract itself is forbidden;
 - all six manifest/canary-index hashes match;
-- CPython is exactly 3.13.12 and installed DSPx Core 0.1.0, DSPy/DSPy-AI 3.3.0, and GEPA 0.1.4 identities match;
+- CPython is exactly 3.13.12 and installed DSPx Core 0.2.1, DSPy/DSPy-AI 3.3.1, and GEPA 0.1.4 identities match;
 - a sanitized child environment contains exactly the declared provider settings, including `DSPX_OPENAI_COMPAT_API_BASE=http://127.0.0.1:1234/v1`, model `baseline-text`, timeout `30`, and the network policy opt-in;
 - the endpoint is neither missing nor spelled as `localhost`/`::1`, and no alternate port/path/model/timeout or `DSPX_OPENAI_COMPAT_API_KEY` is present;
 - no microphone, TTS, physical key, GEPA optimization, routing, or candidate mutation is enabled;
@@ -51,11 +51,11 @@ A separately scoped implementation must add a hash-bound executor that fails bef
 
 The exact loopback URL proves only the client hop. It does not prove which process owns the listener, which model artifact executes, whether the listener proxies elsewhere, or backend no-egress. This contract therefore makes no local-model or backend-locality claim. A future owner may add separately hash-bound service/configuration/model/no-egress evidence; absent that evidence, backend locality remains `not_verified`.
 
-The execution path requires negative tests for every mismatch plus contract/hash drift, unknown/missing fields, crashes, timeouts, duplicate attempts, and missing effect disposition. Passing design-regression tests in AK-4808 does not satisfy those executor tests.
+The provider-free execution-readiness review covers every declared mismatch plus contract/hash drift, unknown/missing fields, wrong ledger ownership/mode, containing-directory fsync failure, crashes, timeouts, duplicate attempts, and missing effect disposition. These tests prove implementation behavior only; they do not authorize or simulate a live six-case run.
 
 ## Attempt and effect custody
 
-Before each candidate effect, the future executor must validate a current-user-owned mode-`0700` non-symlink ledger directory, acquire an exclusive no-follow lock, and create a mode-`0600` per-key marker with `O_CREAT|O_EXCL|O_NOFOLLOW`. The marker is keyed by the externally anchored contract SHA-256 and mode. The executor writes the complete bounded `attempted_outcome_unknown` record, fsyncs the file, then fsyncs the containing directory before provider construction. Any existing key or concurrent duplicate refuses execution.
+Before each candidate effect, the reviewed executor validates a current-user-owned mode-`0700` non-symlink ledger directory, acquires an exclusive no-follow lock, and creates a no-replace mode-`0600` per-key marker with `O_CREAT|O_EXCL|O_NOFOLLOW`. The marker is keyed by the externally anchored contract SHA-256 and mode. The executor writes the complete bounded `attempted_outcome_unknown` record, fsyncs the file, then fsyncs the containing directory before provider construction. Any existing key or concurrent duplicate refuses execution.
 
 Exactly one candidate invocation may occur per case in fixed order. There is no health probe, DSPx-managed retry, selective rerun, fallback, or resume. Six candidate invocations do not bound DSPy/provider transport-call cardinality. A terminal transition is one exclusive `O_APPEND` bounded record write followed by file and containing-directory fsync. A crash before durable pre-effect directory fsync refuses execution on reconciliation; a crash during or after possible effect, timeout, missing receipt/effect disposition, malformed transition, or other unresolved outcome terminalizes the case as `effect_indeterminate` and stops the suite. A new attempt requires a new contract and exact AK task, not reuse of the consumed key.
 
@@ -63,7 +63,7 @@ Exactly one candidate invocation may occur per case in fixed order. There is no 
 
 The exact non-sensitive text inputs and persona intents are committed in the JSON contract. They are predeclared text—not captured microphone transcripts. Captured microphone transcripts remain excluded.
 
-Raw observed responses must never enter Git, general logs, or stdout. The future executor must capture them under a private mode-`0700` temporary directory with mode-`0600` files, accessible only to the scorer and independent reviewer. It records the response digest before deletion and deletes raw responses only after scoring and independent review. Crash state is quarantined for owner reconciliation rather than automatically cleaned or rerun. After deletion, the human score is explicitly not reproducible from retained raw text and therefore remains a bounded observation rather than authoritative quality evidence.
+Raw observed responses must never enter Git, general logs, or stdout. The reviewed executor captures them under a private mode-`0700` temporary directory with mode-`0600` files, accessible only to the scorer and independent reviewer. It records the response digest before deletion and deletes raw responses only after scoring and independent review. Crash state is quarantined for owner reconciliation rather than automatically cleaned or rerun. After deletion, the human score is explicitly not reproducible from retained raw text and therefore remains a bounded observation rather than authoritative quality evidence.
 
 ## Bounded review semantics
 
@@ -85,4 +85,4 @@ Decision 115 remains the separate architecture gate for one fixed hash-bound dec
 
 ## Next lawful move
 
-First create a separate exact implementation task for the executor, negative matrix, no-replace attempt ledger, and provider-effect custody gap. Independent review must accept that implementation before a different exact task may consume this frozen six-case contract through the exact loopback client hop; backend locality remains unverified. Preserve results and failures without rerun. Only after independent review of the resulting evidence may an owner consider a distinct binding decision; the active `examples/voice_turn_brains/ai-control-brains.json` must remain unchanged until then.
+Create a separate exact execution task carrying raw contract SHA-256 `07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb`, the provider-free #4965 readiness review evidence, the exact runtime/environment membrane, and explicit operator authorization for one loopback-client six-case attempt. Backend locality and no-egress remain unverified. Preserve results and failures without rerun. Only after independent review of the resulting evidence may an owner consider a distinct binding decision; the active `examples/voice_turn_brains/ai-control-brains.json` must remain unchanged until then.

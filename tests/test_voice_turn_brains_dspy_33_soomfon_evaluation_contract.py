@@ -79,7 +79,7 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
     contract = _load(CONTRACT_PATH)
     _validate_top_level_shape(contract)
     assert contract["task_id"] == 4808
-    assert contract["status"] == "design_only_execution_blocked"
+    assert contract["status"] == "implementation_reviewed_execution_unauthorized"
 
     source = contract["source_state"]
     assert set(source) == {
@@ -261,7 +261,8 @@ def test_research_and_bloom_cases_match_candidate_capabilities() -> None:
 def test_executor_attempt_and_retention_requirements_are_explicit() -> None:
     contract = _load(CONTRACT_PATH)
     executor = contract["executor_contract"]
-    assert executor["execution_ready"] is False
+    assert executor["implementation_ready"] is True
+    assert executor["execution_authorized"] is False
     assert executor["implementation_requires_separate_exact_ak_task"] is True
     assert executor["expected_contract_sha256_source"] == (
         "out_of_band_exact_ak_execution_task_plus_independent_review_evidence"
@@ -277,9 +278,9 @@ def test_executor_attempt_and_retention_requirements_are_explicit() -> None:
     }
     assert executor["forbidden_environment"] == ["DSPX_OPENAI_COMPAT_API_KEY"]
     assert set(executor["known_blockers"]) == {
-        "no_hash_bound_executor_or_negative_test_matrix_exists_yet",
-        "the_current_lacp_dspx_brain_discards_runtime_id_and_does_not_return_provider_effect_disposition",
-        "no_durable_contract_hash_and_case_keyed_attempt_ledger_exists_yet",
+        "no_exact_ak_execution_task_with_current_out_of_band_hash_and_review_evidence_exists_yet",
+        "loopback_client_hop_does_not_prove_backend_locality_or_no_egress",
+        "no_live_provider_effect_disposition_or_six_case_result_has_been_observed",
     }
     required_negative = set(executor["required_negative_tests"])
     assert {
@@ -434,7 +435,9 @@ def test_documentation_and_nonclaims_match_the_machine_contract() -> None:
         assert case["candidate_id"] in document
         assert case["manifest_sha256"] in document
     for phrase in (
-        "design-only, execution-blocked contract",
+        "implementation reviewed, execution unauthorized",
+        "DSPx Core 0.2.1",
+        "DSPy/DSPy-AI 3.3.1",
         "CPython is exactly 3.13.12",
         "supplied out-of-band by the exact AK execution task",
         "proves only the client hop",
