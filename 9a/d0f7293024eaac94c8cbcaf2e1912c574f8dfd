@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "9ad0f7293024eaac94c8cbcaf2e1912c574f8dfd"
+created_at: "2026-08-24T07:07:09Z"
+intent: "Record DSPy 3.3.1 baseline, GEPA override retirement, and upstream ProgramOfThought deprecation posture"
+files:
+  - "docs/project/product-posture.md"
+validation:
+  fast_gate:
+    command: "just hooks-run"
+    status: "pass"
+  full_gate:
+    command: "just verify-full && just ci-package"
+    status: "pass"
+group:
+  index: 1
+  total: 2
+  rationale: "Changelog coverage audit outcome: MCP/resource-timeout/interpreter-error surfaces unused (N/A); PoT deprecation tracked for pre-3.5 review"
+links:
+  task_ids:
+    - 4940
