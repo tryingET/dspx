@@ -1,0 +1,32 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "54b8746bf2384ca855a9f1796db81b1b44f91563"
+created_at: "2026-08-24T07:07:09Z"
+intent: "Release 0.2.1: coordinated core+forge bump and Soomfon trust-anchor re-freeze onto dspx_core 0.2.1 (raw sha b720939a..., canonical 7a725aca...)"
+files:
+  - "packages/dspx-core/pyproject.toml"
+  - "apps/forge/pyproject.toml"
+  - "uv.lock"
+  - "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json"
+  - "packages/dspx-core/src/dspx/services/soomfon_evaluation_contract.py"
+  - "packages/dspx-core/src/dspx/services/soomfon_evaluation_schema.py"
+  - "tests/test_soomfon_evaluation_executor.py"
+  - "tests/test_soomfon_evaluation_executor_durability.py"
+  - "tests/test_voice_turn_brains_dspy_33_soomfon_evaluation_contract.py"
+  - "docs/project/dspy-3-3-soomfon-originals-evaluation-executor.md"
+validation:
+  fast_gate:
+    command: "just hooks-run files=<group-2 files>"
+    status: "pass"
+  full_gate:
+    command: "just verify-full && just ci-package"
+    status: "pass"
+group:
+  index: 2
+  total: 2
+  rationale: "All anchor pins rebound in lockstep with the version bump"
+links:
+  task_ids:
+    - 4940
