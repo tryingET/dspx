@@ -11,13 +11,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 
-import httpx
 import pytest
 from typer.testing import CliRunner
 
-import dspx.openai_compatible_provider as openai_provider
 from dspx.cli.dspx import app
 
+from dspx.services import soomfon_evaluation_child as child
 from dspx.services import soomfon_evaluation_custody as custody
 from dspx.services import soomfon_evaluation_executor as executor
 from dspx.services import soomfon_evaluation_filesystem as filesystem
@@ -25,14 +24,70 @@ from dspx.services import soomfon_evaluation_ledger as soomfon_ledger
 from dspx.services import soomfon_evaluation_runtime as soomfon_runtime
 from dspx.services.soomfon_evaluation_contract import (
     REQUIRED_ENVIRONMENT,
+    classify_provider_disposition,
     load_hash_bound_soomfon_contract,
     validate_case_artifact_bindings,
 )
-from test_soomfon_evaluation_executor import _write_mock_runtime_evidence
+from test_soomfon_evaluation_executor import (
+    _effect_behavior,
+    _write_mock_runtime_evidence,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
+CONTRACT_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+
+
+@pytest.fixture(autouse=True)
+def _provider_free_execution_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    from dspx.services import soomfon_evaluation_authorization as auth
+    from dspx.services import soomfon_evaluation_provider as provider
+    from dspx.services import soomfon_evaluation_dspx_identity as dspx_identity
+
+    monkeypatch.setattr(
+        auth,
+        "validate_execution_authorization",
+        lambda **_: SimpleNamespace(
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+            authorization_path=Path("fixture-authorization.json"),
+            dspx_artifact={"kind": "reviewed_source_commit_tree"},
+            maximum_provider_transports=12,
+        ),
+    )
+    monkeypatch.setattr(
+        dspx_identity, "preload_security_critical_dspx_modules", lambda: None
+    )
+    monkeypatch.setattr(
+        dspx_identity, "verify_executing_dspx_artifact", lambda **_: None
+    )
+    monkeypatch.setattr(
+        provider, "verify_soomfon_owner_source", lambda *_: {"commit": "7" * 40}
+    )
+    monkeypatch.setattr(
+        executor,
+        "validate_exact_runtime_identity",
+        lambda: {
+            "python": "3.13.12",
+            "dspx-core": "0.2.1",
+            "dspy": "3.3.1",
+            "dspy-ai": "3.3.1",
+            "gepa": "0.1.4",
+            "litellm": "1.82.1",
+            "httpx": "0.28.1",
+            "httpcore": "1.0.9",
+        },
+    )
+
+
+def _execute_suite(**kwargs: Any) -> dict[str, object]:
+    return executor.execute_soomfon_evaluation_suite(
+        execution_authorization_path=Path("fixture-authorization.json"),
+        expected_authorization_sha256="f" * 64,
+        owner_source_root=REPO_ROOT,
+        **kwargs,
+    )
 
 
 def _patch_roots(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
@@ -138,6 +193,9 @@ def test_attempt_marker_directory_fsync_failure_blocks_effect_boundary(
                 ledger_fd=ledger_fd,
                 contract_sha256=CONTRACT_SHA256,
                 mode="simple",
+                execution_task_id=6000,
+                authorization_sha256="f" * 64,
+                ak_reconciliation_sha256="e" * 64,
             )
     finally:
         os.close(ledger_fd)
@@ -165,6 +223,9 @@ def test_attempt_marker_is_no_replace_and_reconciles_lone_state(
             ledger_fd=ledger_fd,
             contract_sha256=CONTRACT_SHA256,
             mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
         )
         os.close(marker_fd)
         with pytest.raises(custody.SoomfonCustodyError, match="already consumed"):
@@ -172,6 +233,9 @@ def test_attempt_marker_is_no_replace_and_reconciles_lone_state(
                 ledger_fd=ledger_fd,
                 contract_sha256=CONTRACT_SHA256,
                 mode="simple",
+                execution_task_id=6000,
+                authorization_sha256="f" * 64,
+                ak_reconciliation_sha256="e" * 64,
             )
         records = [
             json.loads(line) for line in (ledger / name).read_text().splitlines()
@@ -191,6 +255,9 @@ def test_corrupt_reconciliation_sidecar_uses_valid_repair(tmp_path: Path) -> Non
         ledger_fd=ledger_fd,
         contract_sha256=CONTRACT_SHA256,
         mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
     os.close(marker_fd)
     canonical = ledger / f"{name}.reconciled-indeterminate.json"
@@ -202,6 +269,9 @@ def test_corrupt_reconciliation_sidecar_uses_valid_repair(tmp_path: Path) -> Non
                 ledger_fd=ledger_fd,
                 contract_sha256=CONTRACT_SHA256,
                 mode="simple",
+                execution_task_id=6000,
+                authorization_sha256="f" * 64,
+                ak_reconciliation_sha256="e" * 64,
             )
         repair = ledger / f"{canonical.name}.repair.json"
         assert json.loads(repair.read_text())["state"] == "effect_indeterminate"
@@ -215,6 +285,9 @@ def test_two_corrupt_reconciliation_sidecars_fail_closed(tmp_path: Path) -> None
         ledger_fd=ledger_fd,
         contract_sha256=CONTRACT_SHA256,
         mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
     os.close(marker_fd)
     canonical = ledger / f"{name}.reconciled-indeterminate.json"
@@ -242,6 +315,9 @@ def test_attempt_marker_terminal_append_is_durable(tmp_path: Path) -> None:
             ledger_fd=ledger_fd,
             contract_sha256=CONTRACT_SHA256,
             mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
         )
         try:
             custody.append_terminal(
@@ -258,6 +334,9 @@ def test_attempt_marker_terminal_append_is_durable(tmp_path: Path) -> None:
             json.loads(line) for line in (ledger / name).read_text().splitlines()
         ]
         assert [record["sequence"] for record in records] == [0, 1]
+        assert {record["execution_task_id"] for record in records} == {6000}
+        assert {record["authorization_sha256"] for record in records} == {"f" * 64}
+        assert {record["ak_reconciliation_sha256"] for record in records} == {"e" * 64}
         assert [record["state"] for record in records] == [
             "attempted_outcome_unknown",
             "effect_indeterminate",
@@ -274,6 +353,9 @@ def test_completed_marker_is_not_reconciled_indeterminate(tmp_path: Path) -> Non
             ledger_fd=ledger_fd,
             contract_sha256=CONTRACT_SHA256,
             mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
         )
         custody.append_terminal(
             marker_fd=marker_fd,
@@ -289,12 +371,9 @@ def test_completed_marker_is_not_reconciled_indeterminate(tmp_path: Path) -> Non
                 "runtime_tree_sha256": evidence["runtime_tree_sha256"],
                 "runtime_receipt_sha256": evidence["runtime_receipt_sha256"],
                 "behavior_results_sha256": evidence["behavior_results_sha256"],
-                "provider": {
-                    "terminal_effect": "completed_success",
-                    "attempt_total": 1,
-                    "dispositions": ["completed_success"],
-                    "dispatch_counts": [1],
-                },
+                "provider": classify_provider_disposition(
+                    _effect_behavior("completed_success", dispatch_count=1)
+                )[1],
             },
         )
         os.close(marker_fd)
@@ -303,6 +382,9 @@ def test_completed_marker_is_not_reconciled_indeterminate(tmp_path: Path) -> Non
                 ledger_fd=ledger_fd,
                 contract_sha256=CONTRACT_SHA256,
                 mode="simple",
+                execution_task_id=6000,
+                authorization_sha256="f" * 64,
+                ak_reconciliation_sha256="e" * 64,
             )
         assert not (ledger / f"{name}.reconciled-indeterminate.json").exists()
     finally:
@@ -317,6 +399,9 @@ def test_forged_success_without_exact_provider_evidence_is_reconciled(
         ledger_fd=ledger_fd,
         contract_sha256=CONTRACT_SHA256,
         mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
     with pytest.raises(custody.SoomfonCustodyError, match="terminal evidence"):
         custody.append_terminal(
@@ -346,6 +431,9 @@ def test_forged_success_without_exact_provider_evidence_is_reconciled(
                 ledger_fd=ledger_fd,
                 contract_sha256=CONTRACT_SHA256,
                 mode="simple",
+                execution_task_id=6000,
+                authorization_sha256="f" * 64,
+                ak_reconciliation_sha256="e" * 64,
             )
         assert (ledger / f"{name}.reconciled-indeterminate.json").is_file()
     finally:
@@ -406,6 +494,9 @@ def test_terminal_fsync_failure_forces_indeterminate_sidecar(
         ledger_fd=ledger_fd,
         contract_sha256=CONTRACT_SHA256,
         mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
     real_fsync = custody.os.fsync
     monkeypatch.setattr(
@@ -439,6 +530,9 @@ def test_identity_corrupt_two_record_marker_is_reconciled(tmp_path: Path) -> Non
         ledger_fd=ledger_fd,
         contract_sha256=CONTRACT_SHA256,
         mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
     forged = {
         "schema_version": "soomfon-dspy33-attempt-ledger-v1",
@@ -457,6 +551,9 @@ def test_identity_corrupt_two_record_marker_is_reconciled(tmp_path: Path) -> Non
             ledger_fd=ledger_fd,
             contract_sha256=CONTRACT_SHA256,
             mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
         )
     assert (ledger / f"{name}.reconciled-indeterminate.json").is_file()
     os.close(ledger_fd)
@@ -470,6 +567,9 @@ def test_partial_terminal_append_is_reconciled_and_never_retried(
         ledger_fd=ledger_fd,
         contract_sha256=CONTRACT_SHA256,
         mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
     real_write = custody.os.write
 
@@ -493,6 +593,9 @@ def test_partial_terminal_append_is_reconciled_and_never_retried(
             ledger_fd=ledger_fd,
             contract_sha256=CONTRACT_SHA256,
             mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
         )
     assert (ledger / f"{name}.reconciled-indeterminate.json").is_file()
     os.close(ledger_fd)
@@ -505,12 +608,18 @@ def test_child_dispatch_claim_is_exclusive(tmp_path: Path) -> None:
             ledger_fd=ledger_fd,
             contract_sha256=CONTRACT_SHA256,
             mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
         )
         with pytest.raises(custody.SoomfonCustodyError, match="claim is consumed"):
             custody._claim_child_dispatch(
                 ledger_fd=ledger_fd,
                 contract_sha256=CONTRACT_SHA256,
                 mode="simple",
+                execution_task_id=6000,
+                authorization_sha256="f" * 64,
+                ak_reconciliation_sha256="e" * 64,
             )
     finally:
         os.close(ledger_fd)
@@ -562,8 +671,16 @@ raise SystemExit(3)
 def test_staged_protected_candidate_requires_and_accepts_fixed_custody(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from dspx.services import soomfon_evaluation_contract as contract_service
+    from dspx.services import soomfon_evaluation_provider as provider_service
+
     state_root = tmp_path / "state"
     monkeypatch.setattr(custody, "default_state_root", lambda: state_root)
+    monkeypatch.setattr(provider_service, "verify_soomfon_owner_source", lambda *_: {})
+    monkeypatch.setattr(executor, "marker_sha256", lambda *_: "b" * 64)
+    monkeypatch.setattr(contract_service, "validate_exact_runtime_identity", lambda: {})
+    for key in contract_service.FORBIDDEN_ENVIRONMENT:
+        monkeypatch.delenv(key, raising=False)
     contract, _, _ = load_hash_bound_soomfon_contract(
         repo_root=REPO_ROOT, expected_sha256=CONTRACT_SHA256
     )
@@ -574,12 +691,18 @@ def test_staged_protected_candidate_requires_and_accepts_fixed_custody(
     _, stage_fd = custody.ensure_private_tree(suite / "stage")
     os.close(stage_fd)
     raw, raw_fd = custody.ensure_private_tree(suite / "raw/simple")
+    _, provider_fd = custody.ensure_private_tree(suite / "provider-outcomes/simple")
     lock_fd = custody.acquire_suite_lock(suite_fd)
     marker_fd, _ = custody.create_attempt_marker(
-        ledger_fd=ledger_fd, contract_sha256=CONTRACT_SHA256, mode="simple"
+        ledger_fd=ledger_fd,
+        contract_sha256=CONTRACT_SHA256,
+        mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
-    original_cwd_fd = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
-    child_cwd_fd: int | None = None
+    runtime_fd = -1
+    child_cwd_fd = -1
     try:
         staged_manifest = custody.stage_candidate(case, suite / "stage/simple")
         inputs = raw / "inputs.json"
@@ -592,118 +715,64 @@ def test_staged_protected_candidate_requires_and_accepts_fixed_custody(
                 }
             },
         )
-        runtime = raw / "runtime"
         _, child_cwd_fd = custody.ensure_private_tree(raw / "empty-cwd")
-        for key, value in REQUIRED_ENVIRONMENT.items():
-            monkeypatch.setenv(key, value)
-        monkeypatch.delenv("DSPX_OPENAI_COMPAT_API_KEY", raising=False)
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            return httpx.Response(
-                200,
-                json={
-                    "model": "baseline-text",
-                    "choices": [
-                        {
-                            "message": {
-                                "role": "assistant",
-                                "content": (
-                                    "[[ ## persona ## ]]\nA calm teacher.\n"
-                                    "[[ ## response ## ]]\nA batch turn ends after one answer.\n"
-                                    "[[ ## completed ## ]]"
-                                ),
-                            }
-                        }
-                    ],
-                },
-                request=request,
+        runtime_path, runtime_fd = child.create_child_runtime_directory(
+            raw_root_fd=raw_fd, inputs_path=inputs, outdir=raw / "runtime"
+        )
+        fixed = custody.SoomfonRuntimeCustody(
+            contract_sha256=CONTRACT_SHA256,
+            mode="simple",
+            expected_manifest_sha256=str(case["manifest_sha256"]),
+            expected_receipt_sha256=str(case["manifest_receipt_sha256"]),
+            staged_manifest_path=staged_manifest.resolve(),
+            inputs_path=inputs.resolve(),
+            expected_inputs_sha256=inputs_sha256,
+            outdir=(raw / "runtime").resolve(),
+            raw_root_fd=raw_fd,
+            runtime_fd=runtime_fd,
+            marker_fd=marker_fd,
+            ledger_fd=ledger_fd,
+            lock_fd=lock_fd,
+            provider_journal_fd=provider_fd,
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+            authorization_path=Path("fixture-authorization.json"),
+            repo_root=REPO_ROOT,
+            owner_source_root=REPO_ROOT,
+        )
+        snapshot = custody.validate_runtime_custody(
+            manifest_path=staged_manifest,
+            manifest_sha256=str(case["manifest_sha256"]),
+            inputs_path=inputs,
+            outdir=raw / "runtime",
+            custody=fixed,
+        )
+        assert snapshot is not None
+        with pytest.raises(custody.SoomfonCustodyError, match="child claim"):
+            custody.validate_runtime_custody(
+                manifest_path=staged_manifest,
+                manifest_sha256=str(case["manifest_sha256"]),
+                inputs_path=inputs,
+                outdir=raw / "runtime",
+                custody=fixed,
             )
-
-        monkeypatch.setattr(
-            openai_provider,
-            "_default_transport",
-            lambda: httpx.MockTransport(handler),
-        )
-        runtime_errors: list[Exception] = []
-        real_runtime = executor.run_program_runtime_episode
-
-        def traced_runtime(**kwargs: Any) -> dict[str, Any]:
-            try:
-                return real_runtime(**kwargs)
-            except Exception as exc:
-                runtime_errors.append(exc)
-                raise
-
-        monkeypatch.setattr(executor, "run_program_runtime_episode", traced_runtime)
-        real_prepare = executor.create_child_runtime_directory
-
-        def traced_prepare(**kwargs: Any) -> tuple[Path, int]:
-            try:
-                return real_prepare(**kwargs)
-            except Exception as exc:
-                runtime_errors.append(exc)
-                raise
-
-        monkeypatch.setattr(executor, "create_child_runtime_directory", traced_prepare)
-        child_args = [
-            "--child",
-            "--manifest",
-            str(staged_manifest),
-            "--expected-manifest-sha256",
-            str(case["manifest_sha256"]),
-            "--expected-receipt-sha256",
-            str(case["manifest_receipt_sha256"]),
-            "--mode",
-            "simple",
-            "--contract-sha256",
-            CONTRACT_SHA256,
-            "--marker-fd",
-            str(marker_fd),
-            "--ledger-fd",
-            str(ledger_fd),
-            "--lock-fd",
-            str(lock_fd),
-            "--raw-root-fd",
-            str(raw_fd),
-            "--cwd-fd",
-            str(child_cwd_fd),
-            "--parent-pid",
-            str(os.getppid()),
-            "--inputs",
-            str(inputs),
-            "--expected-inputs-sha256",
-            inputs_sha256,
-            "--outdir",
-            str(runtime),
-        ]
-        os.fchdir(child_cwd_fd)
-        assert executor._child_main(child_args) == 0, runtime_errors
-        repeated = executor._child_main(child_args)
-        assert repeated == 2
-        assert (runtime / "runtime_episode.json").is_file()
-        custody.fsync_private_tree(raw)
-        bundle = executor.load_validated_program_runtime_episode_bundle(
-            runtime_episode_path=runtime / "runtime_episode.json",
-            expected_manifest_path=staged_manifest,
-            expected_manifest=case["manifest_payload"],
-            expected_manifest_sha256=case["manifest_sha256"],
-        )
-        assert (
-            bundle.runtime_episode["artifact_hashes"]["source_manifest_sha256"]
-            == case["manifest_sha256"]
-        )
+        assert str(runtime_path).startswith("/proc/self/fd/")
     finally:
-        os.close(marker_fd)
-        os.fchdir(original_cwd_fd)
-        os.close(original_cwd_fd)
-        if child_cwd_fd is not None:
-            os.close(child_cwd_fd)
+        for fd in (
+            runtime_fd,
+            child_cwd_fd,
+            marker_fd,
+            provider_fd,
+            ledger_fd,
+            raw_fd,
+            state_fd,
+        ):
+            if fd >= 0:
+                os.close(fd)
         custody.fcntl.flock(lock_fd, custody.fcntl.LOCK_UN)
         os.close(lock_fd)
-        os.close(ledger_fd)
         os.close(suite_fd)
-        os.close(raw_fd)
-        os.close(state_fd)
 
 
 def test_executor_interruption_is_durably_indeterminate(
@@ -715,7 +784,7 @@ def test_executor_interruption_is_durably_indeterminate(
     state_root = tmp_path / "state"
     _patch_roots(monkeypatch, state_root)
     monkeypatch.setattr(executor, "_evaluate_case", crash)
-    payload = executor.execute_soomfon_evaluation_suite(
+    payload = _execute_suite(
         expected_contract_sha256=CONTRACT_SHA256,
         environment=REQUIRED_ENVIRONMENT,
     )
@@ -754,10 +823,14 @@ def test_run_child_kills_group_on_supervision_interruption(
 
     process = FakeProcess()
     kills: list[tuple[int, int]] = []
-    monkeypatch.setattr(executor.subprocess, "Popen", lambda *_, **__: process)
-    monkeypatch.setattr(
-        executor.os, "killpg", lambda pid, sig: kills.append((pid, sig))
-    )
+    popen_calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_popen(argv: tuple[str, ...], **kwargs: object) -> FakeProcess:
+        popen_calls.append((argv, kwargs))
+        return process
+
+    monkeypatch.setattr(child.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(child.os, "killpg", lambda pid, sig: kills.append((pid, sig)))
     raw, raw_fd = custody.ensure_private_tree(tmp_path / "raw")
     os.close(raw_fd)
     expected = (
@@ -779,9 +852,19 @@ def test_run_child_kills_group_on_supervision_interruption(
             marker_fd=10,
             ledger_fd=11,
             lock_fd=12,
+            provider_journal_fd=13,
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+            owner_source_root=REPO_ROOT,
+            authorization_path=Path("fixture-authorization.json"),
+            repo_root=REPO_ROOT,
         )
     assert kills == [(process.pid, signal.SIGKILL)]
     assert process.waits == 2
+    argv, kwargs = popen_calls[0]
+    assert argv[1:4] == ("-B", "-I", "-P")
+    assert cast(dict[str, str], kwargs["env"])["PYTHONDONTWRITEBYTECODE"] == "1"
 
 
 def test_run_child_kills_group_when_quiescence_probe_is_interrupted(
@@ -798,15 +881,13 @@ def test_run_child_kills_group_when_quiescence_probe_is_interrupted(
 
     process = FakeProcess()
     kills: list[tuple[int, int]] = []
-    monkeypatch.setattr(executor.subprocess, "Popen", lambda *_, **__: process)
+    monkeypatch.setattr(child.subprocess, "Popen", lambda *_, **__: process)
     monkeypatch.setattr(
-        executor,
+        child,
         "_assert_child_group_quiescent",
         lambda _: (_ for _ in ()).throw(KeyboardInterrupt),
     )
-    monkeypatch.setattr(
-        executor.os, "killpg", lambda pid, sig: kills.append((pid, sig))
-    )
+    monkeypatch.setattr(child.os, "killpg", lambda pid, sig: kills.append((pid, sig)))
     raw, raw_fd = custody.ensure_private_tree(tmp_path / "raw")
     os.close(raw_fd)
     with pytest.raises(KeyboardInterrupt):
@@ -825,6 +906,13 @@ def test_run_child_kills_group_when_quiescence_probe_is_interrupted(
             marker_fd=10,
             ledger_fd=11,
             lock_fd=12,
+            provider_journal_fd=13,
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+            owner_source_root=REPO_ROOT,
+            authorization_path=Path("fixture-authorization.json"),
+            repo_root=REPO_ROOT,
         )
     assert kills == [(process.pid, signal.SIGKILL)]
     assert process.waits == 2
@@ -859,6 +947,13 @@ def test_run_child_rejects_nonempty_working_directory(
             marker_fd=10,
             ledger_fd=11,
             lock_fd=12,
+            provider_journal_fd=13,
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+            owner_source_root=REPO_ROOT,
+            authorization_path=Path("fixture-authorization.json"),
+            repo_root=REPO_ROOT,
         )
 
 
@@ -884,7 +979,7 @@ def test_child_rejects_replaced_working_directory_binding(tmp_path: Path) -> Non
 
 def test_parent_death_custody_rejects_wrong_parent() -> None:
     with pytest.raises(RuntimeError, match="parent identity"):
-        executor._arm_parent_death(os.getppid() + 1)
+        child._arm_parent_death(os.getppid() + 1)
 
 
 def test_child_timeout_is_terminal_indeterminate(
@@ -908,6 +1003,13 @@ def test_child_timeout_is_terminal_indeterminate(
         marker_fd=-1,
         ledger_fd=-1,
         lock_fd=-1,
+        provider_journal_fd=-1,
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
+        owner_source_root=REPO_ROOT,
+        authorization_path=Path("fixture-authorization.json"),
+        repo_root=REPO_ROOT,
     )
     assert state == "effect_indeterminate"
     assert details["reason"] == "child_timeout"
@@ -924,7 +1026,7 @@ def test_post_marker_staging_failure_is_terminal_indeterminate(
         "stage_candidate",
         lambda *_: (_ for _ in ()).throw(OSError("simulated staging failure")),
     )
-    payload = executor.execute_soomfon_evaluation_suite(
+    payload = _execute_suite(
         expected_contract_sha256=CONTRACT_SHA256,
         environment=REQUIRED_ENVIRONMENT,
     )
@@ -954,6 +1056,13 @@ def test_raw_persistence_failure_retains_latency(
         marker_fd=-1,
         ledger_fd=-1,
         lock_fd=-1,
+        provider_journal_fd=-1,
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
+        owner_source_root=REPO_ROOT,
+        authorization_path=Path("fixture-authorization.json"),
+        repo_root=REPO_ROOT,
     )
     assert state == "effect_indeterminate"
     assert details == {
@@ -966,6 +1075,15 @@ def test_raw_persistence_failure_retains_latency(
 def test_degraded_runtime_cannot_be_classified_succeeded(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    from dspx.services import soomfon_evaluation_provider as provider_service
+
+    monkeypatch.setattr(provider_service, "verify_soomfon_owner_source", lambda *_: {})
+    monkeypatch.setattr(executor, "marker_sha256", lambda *_: "b" * 64)
+    monkeypatch.setattr(
+        provider_service,
+        "verify_retained_soomfon_journals",
+        lambda *_args, **_kwargs: None,
+    )
     raw, raw_fd = custody.ensure_private_tree(tmp_path / "raw")
     os.close(raw_fd)
     monkeypatch.setattr(executor, "_run_child", lambda **_: (0, 4))
@@ -974,31 +1092,8 @@ def test_degraded_runtime_cannot_be_classified_succeeded(
         executor, "private_runtime_tree_sha256_path", lambda _: "d" * 64
     )
     monkeypatch.setattr(executor, "fsync_private_tree", lambda *_: None)
-    completed = {
-        "provider": {
-            "metadata": {
-                "provider": "openai-compatible",
-                "model": "baseline-text",
-                "runtime": {
-                    "base_endpoint": "http://127.0.0.1:1234/v1",
-                    "effective_timeout": 30.0,
-                },
-            },
-            "effect_evidence": {
-                "schema_version": "dspx-provider-effect-evidence-v1",
-                "attempt_total": 1,
-                "attempts_truncated": False,
-                "terminal_effect": "completed_success",
-                "attempts": [
-                    {
-                        "dispatch_count": 1,
-                        "effect_disposition": "completed_success",
-                    }
-                ],
-            },
-        },
-        "examples": [{"observed_outputs": {"response": "bounded"}}],
-    }
+    completed = _effect_behavior("completed_success", dispatch_count=1)
+    completed["examples"] = [{"observed_outputs": {"response": "bounded"}}]
     monkeypatch.setattr(
         executor,
         "load_validated_program_runtime_episode_bundle",
@@ -1024,6 +1119,13 @@ def test_degraded_runtime_cannot_be_classified_succeeded(
         marker_fd=-1,
         ledger_fd=-1,
         lock_fd=-1,
+        provider_journal_fd=-1,
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
+        owner_source_root=REPO_ROOT,
+        authorization_path=Path("fixture-authorization.json"),
+        repo_root=REPO_ROOT,
     )
     assert state == "effect_indeterminate"
     assert cast(dict[str, object], details["provider"])["reason"] == (
@@ -1049,7 +1151,7 @@ def test_terminal_keyboard_interrupt_reconciles_indeterminate(
         "append_terminal",
         lambda **_: (_ for _ in ()).throw(KeyboardInterrupt),
     )
-    payload = executor.execute_soomfon_evaluation_suite(
+    payload = _execute_suite(
         expected_contract_sha256=CONTRACT_SHA256,
         environment=REQUIRED_ENVIRONMENT,
     )

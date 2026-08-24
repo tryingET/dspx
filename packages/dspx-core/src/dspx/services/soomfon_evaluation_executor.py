@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-import argparse
 import fcntl
 import hashlib
+import json
 import os
-import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 from dspx.services.program_runtime_episode import (
     load_validated_program_runtime_episode_bundle,
-    run_program_runtime_episode,
+)
+from dspx.services.soomfon_evaluation_child import (
+    _child_main,
+    _run_child,
 )
 from dspx.services.soomfon_evaluation_contract import (
     EXPECTED_MODES,
@@ -24,13 +26,13 @@ from dspx.services.soomfon_evaluation_contract import (
     validate_exact_runtime_identity,
 )
 from dspx.services.soomfon_evaluation_custody import (
-    SoomfonRuntimeCustody,
     acquire_suite_lock,
     append_terminal,
     create_attempt_marker,
     default_state_root,
     ensure_private_tree,
     fsync_private_tree,
+    marker_sha256,
     reconcile_marker_indeterminate,
     stage_candidate,
 )
@@ -41,13 +43,6 @@ from dspx.services.soomfon_evaluation_ledger import (
     private_runtime_tree_sha256_path,
     runtime_evidence_hashes,
 )
-from dspx.services.soomfon_evaluation_runtime import (
-    arm_parent_death as _arm_parent_death,
-    assert_child_group_quiescent as _assert_child_group_quiescent,
-    create_child_runtime_directory,
-    terminate_child_group as _terminate_child_group,
-    validate_child_working_directory,
-)
 
 
 _SUITE_SCHEMA = "soomfon-dspy33-evaluation-suite-v1"
@@ -55,116 +50,6 @@ _CHILD_TIMEOUT_SECONDS = 240
 
 
 SoomfonEvaluationExecutorError, _repo_root = RuntimeError, Path.cwd
-
-
-def _run_child(
-    *,
-    case: Mapping[str, Any],
-    staged_manifest: Path,
-    raw_root: Path,
-    child_environment: Mapping[str, str],
-    contract_sha256: str,
-    marker_fd: int,
-    ledger_fd: int,
-    lock_fd: int,
-) -> tuple[int, int]:
-    inputs_path = raw_root / "inputs.json"
-    inputs_sha256 = _write_private_json(
-        inputs_path,
-        {
-            "inputs": {
-                "transcription": case["transcription"],
-                "persona_intent": case["persona_intent"],
-            }
-        },
-    )
-    _child_cwd, child_cwd_fd = ensure_private_tree(raw_root / "empty-cwd")
-    if os.listdir(f"/proc/self/fd/{child_cwd_fd}"):
-        os.close(child_cwd_fd)
-        raise SoomfonEvaluationExecutorError("child working directory is not empty")
-    raw_root_fd = os.open(
-        raw_root,
-        os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
-    )
-    if set(os.listdir(f"/proc/self/fd/{raw_root_fd}")) != {
-        "inputs.json",
-        "empty-cwd",
-    }:
-        os.close(raw_root_fd)
-        os.close(child_cwd_fd)
-        raise SoomfonEvaluationExecutorError("raw custody root is not empty")
-    argv = (
-        sys.executable,
-        "-I",
-        "-P",
-        "-m",
-        "dspx.services.soomfon_evaluation_executor",
-        "--child",
-        "--manifest",
-        str(staged_manifest),
-        "--expected-manifest-sha256",
-        str(case["manifest_sha256"]),
-        "--expected-receipt-sha256",
-        str(case["manifest_receipt_sha256"]),
-        "--mode",
-        str(case["mode"]),
-        "--contract-sha256",
-        contract_sha256,
-        "--marker-fd",
-        str(marker_fd),
-        "--ledger-fd",
-        str(ledger_fd),
-        "--lock-fd",
-        str(lock_fd),
-        "--raw-root-fd",
-        str(raw_root_fd),
-        "--cwd-fd",
-        str(child_cwd_fd),
-        "--parent-pid",
-        str(os.getpid()),
-        "--inputs",
-        str(inputs_path),
-        "--expected-inputs-sha256",
-        inputs_sha256,
-        "--outdir",
-        str(raw_root / "runtime"),
-    )
-    started = time.monotonic_ns()
-    previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
-    process: subprocess.Popen[bytes] | None = None
-    mask_restored = False
-    try:
-        try:
-            process = subprocess.Popen(
-                argv,
-                cwd=f"/proc/self/fd/{child_cwd_fd}",
-                env=dict(child_environment),
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                pass_fds=(
-                    marker_fd,
-                    ledger_fd,
-                    lock_fd,
-                    raw_root_fd,
-                    child_cwd_fd,
-                ),
-                start_new_session=True,
-            )
-            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
-            mask_restored = True
-            returncode = process.wait(timeout=_CHILD_TIMEOUT_SECONDS)
-            _assert_child_group_quiescent(process)
-            return returncode, max(0, (time.monotonic_ns() - started) // 1_000_000)
-        except BaseException:
-            if process is not None:
-                _terminate_child_group(process)
-            raise
-    finally:
-        if not mask_restored:
-            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
-        os.close(raw_root_fd)
-        os.close(child_cwd_fd)
 
 
 def _evaluate_case(
@@ -177,6 +62,13 @@ def _evaluate_case(
     marker_fd: int,
     ledger_fd: int,
     lock_fd: int,
+    provider_journal_fd: int,
+    execution_task_id: int,
+    authorization_sha256: str,
+    ak_reconciliation_sha256: str,
+    authorization_path: Path,
+    repo_root: Path,
+    owner_source_root: Path,
 ) -> tuple[str, dict[str, object]]:
     started = time.monotonic_ns()
     try:
@@ -189,6 +81,13 @@ def _evaluate_case(
             marker_fd=marker_fd,
             ledger_fd=ledger_fd,
             lock_fd=lock_fd,
+            provider_journal_fd=provider_journal_fd,
+            execution_task_id=execution_task_id,
+            authorization_sha256=authorization_sha256,
+            ak_reconciliation_sha256=ak_reconciliation_sha256,
+            authorization_path=authorization_path,
+            repo_root=repo_root,
+            owner_source_root=owner_source_root,
         )
     except subprocess.TimeoutExpired:
         try:
@@ -255,6 +154,25 @@ def _evaluate_case(
             "latency_ms": latency_ms,
         }
     state, provider_details = classify_provider_disposition(bundle.behavior_results)
+    if state == "succeeded":
+        try:
+            from dspx.services.soomfon_evaluation_provider import (
+                verify_retained_soomfon_journals,
+                verify_soomfon_owner_source,
+            )
+
+            verify_soomfon_owner_source(owner_source_root)
+            verify_retained_soomfon_journals(
+                Path(f"/proc/self/fd/{provider_journal_fd}"),
+                provider_details,
+                mode=str(case["mode"]),
+                execution_task_id=execution_task_id,
+                contract_sha256=contract_sha256,
+                expected_marker_sha256=marker_sha256(marker_fd),
+            )
+        except Exception:
+            state = "effect_indeterminate"
+            provider_details = {"reason": "provider_receipt_journal_invalid"}
     if (
         state == "succeeded"
         and bundle.runtime_episode.get("execution_status") != "executed"
@@ -289,7 +207,13 @@ def _evaluate_case(
 
 
 def _persist_attempt_before_effect(
-    *, ledger_fd: int, contract_sha256: str, mode: str
+    *,
+    ledger_fd: int,
+    contract_sha256: str,
+    mode: str,
+    execution_task_id: int,
+    authorization_sha256: str,
+    ak_reconciliation_sha256: str,
 ) -> tuple[int, str]:
     """Return only after the attempted marker and containing ledger are fsynced."""
 
@@ -297,17 +221,51 @@ def _persist_attempt_before_effect(
         ledger_fd=ledger_fd,
         contract_sha256=contract_sha256,
         mode=mode,
+        execution_task_id=execution_task_id,
+        authorization_sha256=authorization_sha256,
+        ak_reconciliation_sha256=ak_reconciliation_sha256,
     )
 
 
 def execute_soomfon_evaluation_suite(
-    *, expected_contract_sha256: str, environment: Mapping[str, str] | None = None
+    *,
+    expected_contract_sha256: str,
+    execution_authorization_path: Path | None = None,
+    expected_authorization_sha256: str | None = None,
+    owner_source_root: Path | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
-    repo_root = _repo_root()
+    repo_root = _repo_root().resolve()
     contract, contract_sha256, contract_path = load_hash_bound_soomfon_contract(
         repo_root=repo_root,
         expected_sha256=expected_contract_sha256,
     )
+    from dspx.services.soomfon_evaluation_authorization import (
+        validate_execution_authorization,
+    )
+    from dspx.services.soomfon_evaluation_provider import (
+        verify_soomfon_owner_source,
+    )
+
+    authorization = validate_execution_authorization(
+        path=execution_authorization_path,
+        expected_sha256=expected_authorization_sha256,
+        repo_root=repo_root,
+        contract_sha256=contract_sha256,
+    )
+    from dspx.services.soomfon_evaluation_dspx_identity import (
+        preload_security_critical_dspx_modules,
+        verify_executing_dspx_artifact,
+    )
+
+    preload_security_critical_dspx_modules()
+    verify_executing_dspx_artifact(
+        repo_root=repo_root, artifact=authorization.dspx_artifact
+    )
+    if owner_source_root is None:
+        raise SoomfonEvaluationExecutorError("owner source root is required")
+    verified_owner_root = owner_source_root.expanduser().resolve(strict=True)
+    owner_source_identity = verify_soomfon_owner_source(verified_owner_root)
     runtime_identity = validate_exact_runtime_identity()
     cases = validate_case_artifact_bindings(repo_root=repo_root, contract=contract)
     source_environment = os.environ if environment is None else environment
@@ -322,7 +280,10 @@ def execute_soomfon_evaluation_suite(
     raw_parent, raw_parent_fd = ensure_private_tree(suite_root / "raw")
     stage_parent, stage_parent_fd = ensure_private_tree(suite_root / "stage")
     tmp_root, tmp_fd = ensure_private_tree(suite_root / "tmp")
-    for fd in (base_fd, raw_parent_fd, stage_parent_fd, tmp_fd):
+    provider_parent, provider_parent_fd = ensure_private_tree(
+        suite_root / "provider-outcomes"
+    )
+    for fd in (base_fd, raw_parent_fd, stage_parent_fd, tmp_fd, provider_parent_fd):
         os.close(fd)
     try:
         lock_fd = acquire_suite_lock(suite_fd)
@@ -335,16 +296,31 @@ def execute_soomfon_evaluation_suite(
         for case in cases:
             mode = str(case["mode"])
             case_started = time.monotonic_ns()
+            refreshed_authorization = validate_execution_authorization(
+                path=authorization.authorization_path,
+                expected_sha256=authorization.authorization_sha256,
+                repo_root=repo_root,
+                contract_sha256=contract_sha256,
+            )
+            if refreshed_authorization != authorization:
+                raise SoomfonEvaluationExecutorError(
+                    "canonical execution authorization changed before marker"
+                )
             marker_fd, marker_name = _persist_attempt_before_effect(
                 ledger_fd=ledger_fd,
                 contract_sha256=contract_sha256,
                 mode=mode,
+                execution_task_id=authorization.execution_task_id,
+                authorization_sha256=authorization.authorization_sha256,
+                ak_reconciliation_sha256=authorization.ak_reconciliation_sha256,
             )
+            provider_journal_fd = -1
             try:
                 try:
                     staged_manifest = stage_candidate(case, stage_parent / mode)
                     raw_root, raw_fd = ensure_private_tree(raw_parent / mode)
                     os.close(raw_fd)
+                    _, provider_journal_fd = ensure_private_tree(provider_parent / mode)
                 except Exception as exc:
                     state = "effect_indeterminate"
                     details: dict[str, object] = {
@@ -365,6 +341,13 @@ def execute_soomfon_evaluation_suite(
                             marker_fd=marker_fd,
                             ledger_fd=ledger_fd,
                             lock_fd=lock_fd,
+                            provider_journal_fd=provider_journal_fd,
+                            execution_task_id=authorization.execution_task_id,
+                            authorization_sha256=authorization.authorization_sha256,
+                            ak_reconciliation_sha256=authorization.ak_reconciliation_sha256,
+                            authorization_path=authorization.authorization_path,
+                            repo_root=repo_root,
+                            owner_source_root=verified_owner_root,
                         )
                     except BaseException as exc:
                         state = "effect_indeterminate"
@@ -410,6 +393,8 @@ def execute_soomfon_evaluation_suite(
                     }
                 )
             finally:
+                if provider_journal_fd >= 0:
+                    os.close(provider_journal_fd)
                 os.close(marker_fd)
             if results[-1]["state"] != "succeeded":
                 break
@@ -425,11 +410,27 @@ def execute_soomfon_evaluation_suite(
             "contract_sha256": contract_sha256,
             "state": suite_state,
             "runtime_identity": runtime_identity,
-            "backend_locality": "not_verified",
+            "authorization": {
+                "execution_task_id": authorization.execution_task_id,
+                "authorization_sha256": authorization.authorization_sha256,
+                "ak_reconciliation_sha256": authorization.ak_reconciliation_sha256,
+                "maximum_provider_transports": authorization.maximum_provider_transports,
+            },
+            "owner_source_identity_sha256": hashlib.sha256(
+                json.dumps(
+                    owner_source_identity,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest(),
+            "backend_locality": "external_provider_route_not_local_backend_claim",
             "case_results": results,
             "routing_mutated": False,
             "promotion": False,
             "activation": False,
+            "release": False,
+            "publication": False,
         }
         _write_private_json(suite_root / "suite-result.json", payload)
         return payload
@@ -438,72 +439,6 @@ def execute_soomfon_evaluation_suite(
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
         os.close(lock_fd)
         os.close(suite_fd)
-
-
-def _child_main(args: Sequence[str]) -> int:
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--child", action="store_true", required=True)
-    parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--expected-manifest-sha256", required=True)
-    parser.add_argument("--expected-receipt-sha256", required=True)
-    parser.add_argument("--mode", choices=EXPECTED_MODES, required=True)
-    parser.add_argument("--contract-sha256", required=True)
-    parser.add_argument("--marker-fd", type=int, required=True)
-    parser.add_argument("--ledger-fd", type=int, required=True)
-    parser.add_argument("--lock-fd", type=int, required=True)
-    parser.add_argument("--raw-root-fd", type=int, required=True)
-    parser.add_argument("--cwd-fd", type=int, required=True)
-    parser.add_argument("--parent-pid", type=int, required=True)
-    parser.add_argument("--inputs", type=Path, required=True)
-    parser.add_argument("--expected-inputs-sha256", required=True)
-    parser.add_argument("--outdir", type=Path, required=True)
-    parsed = parser.parse_args(args)
-    previous_umask = os.umask(0o077)
-    runtime_fd = -1
-    try:
-        try:
-            _arm_parent_death(parsed.parent_pid)
-            validate_child_working_directory(
-                cwd_fd=parsed.cwd_fd,
-                raw_root_fd=parsed.raw_root_fd,
-            )
-            runtime_path, runtime_fd = create_child_runtime_directory(
-                raw_root_fd=parsed.raw_root_fd,
-                inputs_path=parsed.inputs,
-                outdir=parsed.outdir,
-            )
-            custody = SoomfonRuntimeCustody(
-                contract_sha256=parsed.contract_sha256,
-                mode=parsed.mode,
-                expected_manifest_sha256=parsed.expected_manifest_sha256,
-                expected_receipt_sha256=parsed.expected_receipt_sha256,
-                staged_manifest_path=parsed.manifest.resolve(),
-                inputs_path=parsed.inputs.resolve(),
-                expected_inputs_sha256=parsed.expected_inputs_sha256,
-                outdir=parsed.outdir.resolve(),
-                raw_root_fd=parsed.raw_root_fd,
-                runtime_fd=runtime_fd,
-                marker_fd=parsed.marker_fd,
-                ledger_fd=parsed.ledger_fd,
-                lock_fd=parsed.lock_fd,
-            )
-            run_program_runtime_episode(
-                manifest_path=parsed.manifest,
-                inputs_path=parsed.inputs,
-                outdir=runtime_path,
-                contract_mode="none",
-                skip_oracle_index=True,
-                capture_replay_fixture=False,
-                run_oracle_semantic=False,
-                soomfon_custody=custody,
-            )
-        except Exception:
-            return 2
-        return 0
-    finally:
-        os.umask(previous_umask)
-        if runtime_fd >= 0:
-            os.close(runtime_fd)
 
 
 if __name__ == "__main__":

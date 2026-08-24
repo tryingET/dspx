@@ -5,6 +5,7 @@ import hashlib
 import importlib
 import json
 import os
+import re
 import sys
 import threading
 from contextlib import contextmanager
@@ -845,7 +846,28 @@ def _prediction_mapping(prediction: object) -> dict[str, object]:
     return {}
 
 
-def _configure_provider() -> tuple[dict[str, object], object | None, object | None]:
+def _configure_provider(
+    soomfon_custody: object | None = None,
+) -> tuple[dict[str, object], object | None, object | None]:
+    if soomfon_custody is not None:
+        try:
+            from dspx.services.soomfon_evaluation_auth_provider import (
+                configure_soomfon_provider,
+            )
+
+            return configure_soomfon_provider(soomfon_custody)
+        except Exception as exc:
+            return (
+                {
+                    "status": "unavailable",
+                    "error": {
+                        "type": type(exc).__name__,
+                        "message": _sanitize_runtime_diagnostic(exc),
+                    },
+                },
+                None,
+                getattr(__import__("dspy").settings, "lm", None),
+            )
     lm: object | None = None
     previous_lm: object | None = None
     try:
@@ -890,6 +912,12 @@ def _configure_provider() -> tuple[dict[str, object], object | None, object | No
 def _provider_effect_evidence(lm: object | None) -> dict[str, object]:
     if lm is None:
         raise ValueError("provider adapter is unavailable")
+    from dspx.services.soomfon_evaluation_auth_provider import (
+        SoomfonConfiguredProvider,
+    )
+
+    if type(lm) is SoomfonConfiguredProvider:
+        return lm.evidence()
     from dspx.dspy_typed_lm import DSPyTypedLMAdapter
     from dspx.provider_runtime import provider_effect_evidence_from_instance
 
@@ -901,6 +929,13 @@ def _provider_effect_evidence(lm: object | None) -> dict[str, object]:
 
 def _close_runtime_provider(lm: object | None, previous_lm: object | None) -> None:
     if lm is None:
+        return
+    from dspx.services.soomfon_evaluation_auth_provider import (
+        SoomfonConfiguredProvider,
+    )
+
+    if type(lm) is SoomfonConfiguredProvider:
+        lm.close()
         return
     import dspy
     from dspx.dspy_typed_lm import DSPyTypedLMAdapter
@@ -916,6 +951,15 @@ def _close_runtime_provider(lm: object | None, previous_lm: object | None) -> No
             lm.provider.close()
 
 
+def _finalize_runtime_provider_calls(lm: object | None) -> None:
+    from dspx.services.soomfon_evaluation_auth_provider import (
+        SoomfonConfiguredProvider,
+    )
+
+    if type(lm) is SoomfonConfiguredProvider:
+        lm.finalize()
+
+
 def _receipt_provider_details(provider: Mapping[str, object]) -> dict[str, object]:
     if provider.get("status") != "configured":
         return {
@@ -926,6 +970,17 @@ def _receipt_provider_details(provider: Mapping[str, object]) -> dict[str, objec
             "runtime": {"configuration_status": "unavailable"},
         }
     metadata = _safe_mapping(provider.get("metadata"))
+    if metadata.get("schema_version") == "soomfon-dspy-lm-auth-runtime-v1":
+        # run_receipts owns the generic provider-detail vocabulary and deliberately
+        # does not admit this task-local path. The exact special evidence remains
+        # bound in run_summary.provider and the runtime/behavior artifacts.
+        return {
+            "provider": "unavailable",
+            "provider_family": "unavailable",
+            "model": None,
+            "effect_contract": "dspx-provider-effect-v1",
+            "runtime": {"configuration_status": "unavailable"},
+        }
     runtime = _safe_mapping(metadata.get("runtime"))
     name = str(metadata.get("provider") or "")
     return {
@@ -1378,6 +1433,65 @@ def _validate_provider_evidence(value: object) -> dict[str, Any]:
         raise ValueError("provider evidence status is invalid")
 
     metadata = _safe_mapping(evidence.get("metadata"))
+    if metadata.get("schema_version") == "soomfon-dspy-lm-auth-runtime-v1":
+        expected = {
+            "schema_version": "soomfon-dspy-lm-auth-runtime-v1",
+            "provider": "soomfon-dspy-lm-auth",
+            "model": "codex/gpt-5.6-sol",
+            "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol:max",
+            "resolved_route": "openai:gpt-5.6-sol:responses",
+            "auth_provider": "codex",
+            "credential_mode": "no-refresh",
+            "reasoning_effort": "max",
+            "num_retries": 0,
+            "cache": False,
+            "timeout_seconds": 60.0,
+            "sync_only": True,
+            "fallback_allowed": False,
+            "health_probe_allowed": False,
+        }
+        if (
+            set(metadata)
+            != set(expected)
+            | {
+                "contract_sha256",
+                "mode",
+                "source_identity_sha256",
+                "dependency_identity_sha256",
+            }
+            or any(metadata.get(key) != item for key, item in expected.items())
+            or metadata.get("mode")
+            not in {
+                "simple",
+                "elaborate",
+                "researched",
+                "deep-research",
+                "socratic",
+                "bloom",
+            }
+        ):
+            raise ValueError("Soomfon provider runtime metadata is invalid")
+        from dspx.services.soomfon_evaluation_contract import (
+            REVIEWED_CONTRACT_SHA256,
+        )
+        from dspx.services.soomfon_evaluation_provider import (
+            validate_soomfon_provider_evidence,
+        )
+
+        if metadata.get("contract_sha256") != REVIEWED_CONTRACT_SHA256:
+            raise ValueError("Soomfon provider contract identity drifts")
+        for key in ("source_identity_sha256", "dependency_identity_sha256"):
+            value_hash = metadata.get(key)
+            if (
+                not isinstance(value_hash, str)
+                or re.fullmatch(r"[0-9a-f]{64}", value_hash) is None
+            ):
+                raise ValueError("Soomfon provider artifact identity is invalid")
+        validate_soomfon_provider_evidence(
+            _safe_mapping(evidence.get("effect_evidence")),
+            mode=str(metadata["mode"]),
+        )
+        return evidence
     if set(metadata) != {
         "provider",
         "model",
@@ -2096,7 +2210,9 @@ def run_program_runtime_episode(
         replay_fixture_hash = _sha256_file(replay_fixture_path)
 
     manifest_intent = _safe_mapping(manifest.get("intent"))
-    provider, provider_adapter, previous_lm = _configure_provider()
+    provider, provider_adapter, previous_lm = _configure_provider(
+        soomfon_custody if runtime_snapshot is not None else None
+    )
     observed: dict[str, object] = {}
     notes: list[str] = []
     error: dict[str, str] | None = None
@@ -2144,6 +2260,7 @@ def run_program_runtime_episode(
             prediction = program(
                 **{name: materialized_runtime_inputs[name] for name in input_fields}
             )
+            _finalize_runtime_provider_calls(provider_adapter)
             captured_trace = getattr(program, "_last_runtime_trace", None)
             if isinstance(captured_trace, Mapping):
                 runtime_trace = {

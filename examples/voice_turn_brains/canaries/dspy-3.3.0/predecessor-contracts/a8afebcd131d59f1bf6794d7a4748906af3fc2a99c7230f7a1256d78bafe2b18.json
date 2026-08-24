@@ -1,32 +1,8 @@
 {
-  "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v3",
-  "task_id": 4987,
-  "status": "implementation_final_hardened_execution_unauthorized_pending_rereview",
-  "purpose": "Bind the same six regenerated protected-snapshot DSPy 3.3.1 voice originals to a Soomfon-custody-only, receipt-gated, no-refresh dspy-lm-auth candidate while keeping execution unauthorized.",
-  "predecessor_contract": {
-    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json",
-    "raw_sha256": "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18",
-    "canonical_sha256": "256b5ea900822d081f1150ec61b43f9fedaf89d952457091e3dac2ee3ac997ea",
-    "task_id": 4971,
-    "status": "implementation_reviewed_execution_unauthorized",
-    "attempted_modes": [],
-    "unattempted_modes": [
-      "simple",
-      "elaborate",
-      "researched",
-      "deep-research",
-      "socratic",
-      "bloom"
-    ],
-    "retry_allowed": false,
-    "ledger_namespace_reuse_allowed": false,
-    "earlier_predecessor": {
-      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json",
-      "raw_sha256": "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb",
-      "terminal_disposition": "effect_indeterminate",
-      "retry_allowed": false
-    }
-  },
+  "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v2",
+  "task_id": 4971,
+  "status": "implementation_reviewed_execution_unauthorized",
+  "purpose": "Predeclare one no-routing observed-turn case for each regenerated protected-snapshot DSPy 3.3.1 voice original after preserving the consumed v1 contract.",
   "source_state": {
     "dspx_base_commit": "82d6607b5e47935969165059acb909fafd086a25",
     "workstation_reconciliation_commit": "65c594a36acc357788b138bea6574163c69fe7b5",
@@ -36,165 +12,84 @@
     "installed_binding_disposition": "historical_dspy_3_1_3_optimized_candidates_unchanged",
     "shadow_binding_only": true
   },
-  "provider_owner_candidate": {
-    "owner_task_id": 4991,
-    "owner": "tryinget-dspy-lm-auth",
-    "status": "done_provider_candidate",
-    "branch": "task/ak-4991-soomfon-auth-candidate",
-    "commit": "7c51dda703f6a5d0a95aba13734294a82ea4314f",
-    "tree": "c303dd657146da90404618adead417e82e2dc2c0",
-    "version": "0.1.6.dev0",
-    "wheel_sha256": "e1b8acaa354df4640422512a779b9486d5c4caceeb9c9ab05c4a07f1b1eb3512",
-    "installed_payload_sha256": "8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2",
-    "lock_sha256": "0b18a1759b2507967ed8f2f4918c436e2679e406aafb061620a11954b1550c7c",
-    "module_sha256": {
-      "package_init": "1a4406dcf9b65ce3eb937ee65541cff3cb10ef77fa5c0f24c1e94755aeafd2ab",
-      "auth": "e1cfd9add7779e134236c52c047138c4d62944ef928e42e1c9a2fdcb9c916b2c",
-      "lm": "678ee949f285847f92e246a1cc7042de4486c93617c5f24ad472defb65dec6c7",
-      "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
-      "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
-      "outcome_receipt": "cd46faf242a2696fe4322aaee961e2b383d944f663a08959dbcb7a143e282899",
-      "outcome_receipt_runtime": "f26c675845b3f234c24a868d4a7d6cd13713b26d1ba992a6d28ff2a3b7327293",
-      "outcome_receipt_state": "79d9262a3f40690a3fa4fe49721bc49d984f842fd1681039b92e6629a9adc1fa",
-      "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a"
-    },
-    "dependency_identity": {
-      "dspy": {
-        "version": "3.3.1",
-        "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
-        "payload_count": 157,
-        "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
-        "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489"
-      },
-      "litellm": {
-        "version": "1.82.1",
-        "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
-        "payload_count": 2532,
-        "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
-        "record_sha256": "ecd60ab285a5c0afe8353e1e2838f7560aa525715fb6747a5e0f485f9d56c71d"
-      },
-      "httpx": {
-        "version": "0.28.1",
-        "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
-        "payload_count": 24,
-        "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
-        "record_sha256": "ad5388cd6ffec977fd4a0c61f550a6a3cbf3ef22cd4098fe01be6101b19194f0"
-      },
-      "httpcore": {
-        "version": "1.0.9",
-        "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
-        "payload_count": 32,
-        "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
-        "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554"
-      }
-    },
-    "independent_review_dispatch_id": "dispatch-1787594193347",
-    "independent_test_dispatch_id": "dispatch-1787594193358",
-    "published": false,
-    "released": false,
-    "generic_dspx_provider_ready": false
-  },
   "runtime_target": {
     "python": "3.13.12",
     "dspx_core": "0.2.1",
     "dspy": "3.3.1",
     "dspy_ai": "3.3.1",
     "gepa": "0.1.4",
-    "provider_scope": "validated_soomfon_runtime_custody_only",
-    "provider": "dspy-lm-auth",
-    "provider_version": "0.1.6.dev0",
-    "dspy_lm_type": "external_owner_LM",
-    "dspx_lm_subclass_added": false,
-    "adapter": "soomfon_specific_json_adapter_no_chat_fallback",
-    "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol:max",
-    "resolved_route": "openai:gpt-5.6-sol:responses",
-    "requested_model": "codex/gpt-5.6-sol",
-    "resolved_model": "openai/gpt-5.6-sol",
-    "auth_provider": "codex",
-    "credential_mode": "no-refresh",
-    "reasoning_effort": "max",
-    "num_retries": 0,
-    "cache": false,
-    "timeout_seconds": 60,
-    "sync_only": true,
-    "fallback_allowed": false,
-    "health_probe_allowed": false,
-    "endpoint_origin": "https://chatgpt.com",
-    "endpoint_origin_sha256": "7d4b206e8a080358f16d8048e0705d8e17c9df9b8968ab150ff73ed1643294c8",
+    "provider": "openai-compatible",
+    "typed_contract": "typed_lm",
+    "model": "baseline-text",
+    "base_url": "http://127.0.0.1:1234/v1",
+    "timeout_seconds": "30",
+    "network_scope": "exact_ip_literal_loopback_client_hop_only",
+    "backend_locality": "unverified_not_established_by_loopback_client_hop",
+    "credentials_allowed": false,
     "microphone_allowed": false,
     "tts_allowed": false,
-    "physical_key_allowed": false,
-    "dont_write_bytecode_required": true,
-    "child_python_flag_B_required": true,
-    "bytecode_cache_allowed": false
+    "physical_key_allowed": false
   },
   "executor_contract": {
     "implementation_ready": true,
     "execution_authorized": false,
-    "task_4987_can_authorize_execution": false,
-    "implementation_requires_later_exact_ak_task": true,
-    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_and_evidence",
+    "implementation_requires_separate_exact_ak_task": true,
+    "expected_contract_sha256_source": "out_of_band_exact_ak_execution_task_plus_independent_review_evidence",
     "expected_contract_sha256_argument_required": true,
     "derive_expected_contract_sha256_from_contract_forbidden": true,
-    "execution_authorization_schema": "soomfon-execution-authorization-v3",
-    "execution_authorization_artifact_required": true,
-    "execution_authorization_sha256_argument_required": true,
-    "owner_source_root_argument_required": true,
-    "authorization_required_fields": [
-      "later_exact_claimed_task_id_with_at_least_1800_seconds_lease",
-      "exact_repo_and_done_task_4987_dependency",
-      "exact_live_completion_kind_and_guardrails",
-      "current_raw_contract_sha256",
-      "reviewed_dspx_source_commit_tree_or_installed_payload_and_loaded_origins",
-      "no_security_critical_dspx_or_owner_bytecode_cache",
-      "exact_owner_source_wheel_payload",
-      "attached_passing_review_and_test_evidence_with_distinct_dispatch_references_and_verdicts",
-      "attached_passing_explicit_operator_one_suite_request_reference",
-      "one_suite_effect_budget",
-      "false_routing_promotion_activation_release_publication"
-    ],
-    "authorization_validation_order": "parent_canonical_ak_reconciliation_before_state_and_every_marker_child_reconciliation_before_provider_import_and_90_second_minimum_reconciliation_before_each_logical_call",
-    "child_runtime_queries_ak": true,
-    "authorization_producer": "dspx_local_projection_v3_reconciled_against_canonical_ak_not_an_ak_export_or_cryptographic_principal_attestation",
     "required_executor_properties": [
-      "generic_provider_registry_remains_unselectable",
-      "validate_exact_contract_local_projection_and_canonical_ak_before_state",
-      "execute_only_exact_digest_pinned_agent_kernel_binary_through_verified_open_fd",
-      "bind_loaded_dspx_origins_and_source_or_record_bytes_in_parent_and_child",
-      "reject_security_critical_dspx_or_owner_pycache_pyc_or_existing_module_cached_artifact",
-      "require_parent_dont_write_bytecode_and_child_B_plus_PYTHONDONTWRITEBYTECODE",
-      "verify_owner_worktree_before_marker",
-      "reconcile_canonical_ak_in_child_before_provider_import_or_credential_access",
-      "reconcile_unchanged_canonical_authority_with_90_second_lease_before_each_logical_call",
-      "verify_loaded_owner_receipt_and_lm_types_before_call",
-      "construct_exact_no_refresh_owner_LM_only_after_custody",
-      "one_unique_no_replace_receipt_journal_per_logical_call_bound_to_current_marker_sha256",
-      "verify_and_reduce_each_chain_before_progression",
-      "reject_third_duplicate_out_of_order_or_async_call_before_transport",
-      "stop_on_first_non_success",
-      "retain_no_prompt_response_token_header_credential_raw_ak_details_or_raw_diagnostic_in_provider_evidence"
+      "hash_raw_contract_bytes_against_the_out_of_band_expected_sha256_before_parsing_or_any_effect",
+      "verify_all_six_manifest_and_canary_index_hashes_before_any_effect",
+      "verify_exact_python_and_installed_distribution_versions_before_any_effect",
+      "construct_a_sanitized_environment_instead_of_inheriting_ambient_provider_state",
+      "enforce_exact_provider_model_endpoint_timeout_and_policy_values_before_any_effect",
+      "reject_missing_or_alternate_endpoint_model_timeout_and_credential_values",
+      "persist_and_fsync_the_attempt_ledger_file_and_containing_directory_before_each_candidate_effect",
+      "verify_receipt_bound_provider_effect_disposition_before_advancing",
+      "capture_raw_output_privately_without_stdout_or_general_log_emission",
+      "refuse_any_case_whose_contract_hash_and_mode_already_have_an_attempt_marker"
+    ],
+    "required_environment": {
+      "DSPX_PROVIDER": "openai-compatible",
+      "DSPX_OPENAI_COMPAT_MODEL": "baseline-text",
+      "DSPX_OPENAI_COMPAT_API_BASE": "http://127.0.0.1:1234/v1",
+      "DSPX_OPENAI_COMPAT_TIMEOUT": "30",
+      "DSPX_POLICY_ALLOW_NETWORK_MUTATE": "1"
+    },
+    "forbidden_environment": [
+      "DSPX_OPENAI_COMPAT_API_KEY"
+    ],
+    "required_negative_tests": [
+      "missing_endpoint",
+      "localhost_endpoint",
+      "ipv6_loopback_endpoint",
+      "alternate_port",
+      "alternate_path",
+      "alternate_model",
+      "alternate_timeout",
+      "credential_variable_present",
+      "missing_out_of_band_contract_hash",
+      "incorrect_out_of_band_contract_hash",
+      "contract_hash_drift",
+      "manifest_or_canary_hash_drift",
+      "existing_attempt_marker",
+      "ledger_wrong_owner_or_mode",
+      "ledger_symlink_or_non_directory",
+      "concurrent_duplicate_attempt",
+      "crash_before_containing_directory_fsync",
+      "crash_after_attempt_marker",
+      "timeout_after_possible_provider_effect",
+      "missing_provider_effect_disposition",
+      "crash_during_terminal_append",
+      "unknown_contract_field",
+      "missing_contract_field"
     ],
     "known_blockers": [
-      "task_4987_contract_is_execution_unauthorized",
-      "no_later_exact_claimed_ak_execution_task_with_complete_canonical_evidence_exists",
-      "final_hardened_implementation_requires_independent_rereview",
-      "execution_requires_clean_no_bytecode_reviewed_source_or_installed_payload_environment",
-      "no_live_six_case_result_has_been_observed"
-    ],
-    "canonical_ak_runtime": {
-      "path": "/home/tryinget/.local/libexec/agent-kernel/c6297eccf67a3762ef01269f67e87eaa8828f127/ak-bin",
-      "sha256": "61f6290115262e0319c3b178f053d74a486a3eba881aaa13739c1db45f0f6b91",
-      "mode": "0555",
-      "open_policy": "exact_path_O_NOFOLLOW_hash_fd_execute_proc_fd_pass_fds_refstat"
-    },
-    "canonical_evidence_semantics": "canonical_ak_storage_and_attachment_with_distinct_review_dispatch_references_not_cryptographic_distinct_principal_authentication",
-    "authority_threat_boundary": "trusted_effective_os_user_and_canonical_ak_db_same_uid_or_ak_db_compromise_outside_local_contract",
-    "lease_requirements": {
-      "suite_preflight_minimum_seconds": 1800,
-      "before_each_case_marker_minimum_seconds": 1800,
-      "before_each_logical_call_minimum_seconds": 90,
-      "call_minimum_basis": "provider_timeout_60_plus_30_seconds"
-    }
+      "no_exact_ak_execution_task_with_current_out_of_band_hash_and_review_evidence_exists_yet",
+      "loopback_client_hop_does_not_prove_backend_locality_or_no_egress",
+      "future_execution_task_must_bind_the_exact_reviewed_source_commit_or_installed_payload",
+      "no_successor_live_provider_effect_disposition_or_six_case_result_has_been_observed"
+    ]
   },
   "effect_budget": {
     "fixed_case_order": [
@@ -206,13 +101,10 @@
       "bloom"
     ],
     "candidate_invocations_per_case": 1,
-    "ordered_logical_lm_calls_per_successful_case": 2,
-    "maximum_suite_logical_lm_calls": 12,
-    "maximum_suite_provider_transports": 12,
     "dspx_managed_retries": 0,
-    "provider_configured_retries": 0,
     "health_probes": 0,
     "selective_reruns": 0,
+    "provider_transport_call_cardinality": "unproved_not_bounded_by_candidate_invocation_count",
     "stop_on_first_non_success": true,
     "effect_indeterminate_is_terminal": true,
     "resume_allowed": false,
@@ -237,38 +129,14 @@
       "failed_no_effect_proved",
       "effect_indeterminate"
     ],
+    "pre_effect_persistence": "single_bounded_record_write_then_file_fsync_then_containing_directory_fsync_before_provider_construction",
+    "terminal_transition": "exclusive_O_APPEND_single_bounded_record_write_then_file_fsync_then_containing_directory_fsync",
     "fsync_file_before_effect": true,
     "fsync_containing_directory_before_effect": true,
     "terminal_transition_fsync_required": true,
     "existing_key_refuses_execution": true,
     "crash_or_timeout_refuses_rerun": true,
-    "new_attempt_requires_new_contract_and_exact_ak_task": true,
-    "predecessor_namespaces_immutable": true
-  },
-  "provider_receipt_custody": {
-    "consumer_primitives": [
-      "ReceiptReservation",
-      "ReceiptJournal",
-      "verify_receipt_chain",
-      "reduce_verified_chain"
-    ],
-    "existing_accepted_v11_owner_identity_unchanged": true,
-    "expected_owner_source": "AK-4991_exact_candidate",
-    "verify_owner_source_before_marker": true,
-    "verify_loaded_receipt_types_before_call": true,
-    "revalidate_before_each_call_and_progression": true,
-    "journal_storage": "private_no_replace_per_contract_mode_call_ordinal_bound_to_current_preterminal_marker_sha256",
-    "journal_directory_mode": "0700",
-    "journal_file_mode": "0600",
-    "logical_request_mode": "sync",
-    "accepted_progression_terminal": "provider_response_completed",
-    "missing_open_poisoned_indeterminate_chain_terminal": true,
-    "provider_evidence_retains_only": [
-      "hashes",
-      "identities",
-      "closed_receipt_projections"
-    ],
-    "canonical_authority_revalidation": "immediately_before_each_logical_call_before_receipt_credential_or_transport_with_90_second_minimum_lease"
+    "new_attempt_requires_new_contract_and_exact_ak_task": true
   },
   "retention": {
     "predeclared_text_input_committed": true,
@@ -447,6 +315,32 @@
     "activation": false,
     "release": false,
     "publication": false,
-    "backend_locality": "external_provider_route_not_local_backend_claim"
+    "backend_locality": "not_verified"
+  },
+  "predecessor_contract": {
+    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json",
+    "raw_sha256": "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb",
+    "canonical_sha256": "a8ec67b7ddf711142312ffd6caf0a7d57eeb48617e92025a0d45ae48dedd26c0",
+    "task_id": 4808,
+    "attempted_modes": [
+      "simple"
+    ],
+    "unattempted_modes": [
+      "elaborate",
+      "researched",
+      "deep-research",
+      "socratic",
+      "bloom"
+    ],
+    "terminal_disposition": "effect_indeterminate",
+    "terminal_reason": "provider_effect_attempt_invalid",
+    "ledger_sha256": "9c2af26515591b974f9229b470819a180e58675b6c3cf3f5051eec4b02163ac0",
+    "child_claim_sha256": "d38c945263e3121269f21d70f3d7543f8dde6308ef96431f834a249e20520eac",
+    "suite_result_sha256": "ed973db2f5a304ead58e3b4b6812ca9df3f596acaeed5cfc95892a77fd6274fd",
+    "independent_evidence_ids": [
+      7589,
+      7590
+    ],
+    "retry_allowed": false
   }
 }

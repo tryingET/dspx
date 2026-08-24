@@ -1,15 +1,15 @@
-"""Closed recursive schema for the frozen Soomfon evaluation contract."""
+"""Closed exact schema for the AK-4987 Soomfon evaluation contract."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from dspx.services.soomfon_evaluation_contract import (
     CONTRACT_SCHEMA,
     EXPECTED_MODES,
-    REQUIRED_ENVIRONMENT,
     SoomfonEvaluationContractError,
     _require_exact_keys,
     _SHA256_RE,
@@ -24,11 +24,14 @@ PROTECTED_DENIED_ATTRIBUTES = set(
     "getoutput getstatusoutput gi_frame glob iterdir load load_state modules parse_file "
     "parse_raw read_bytes read_text rglob save setpriority settings setxattr sys tb_frame".split()
 )
-
-
 _EXPECTED_CANONICAL_SHA256 = (
-    "256b5ea900822d081f1150ec61b43f9fedaf89d952457091e3dac2ee3ac997ea"
+    "f9924fcf0bd7a402d91c0dca55bced09a827aad08b8f49a21408ae1175fa0c64"
 )
+
+
+def _require_hash(value: object, reason: str) -> None:
+    if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
+        raise SoomfonEvaluationContractError(reason)
 
 
 def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
@@ -40,10 +43,12 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         raise SoomfonEvaluationContractError("contract exact content is invalid")
     if (
         payload.get("schema_version") != CONTRACT_SCHEMA
-        or payload.get("task_id") != 4971
-        or payload.get("status") != "implementation_reviewed_execution_unauthorized"
+        or payload.get("task_id") != 4987
+        or payload.get("status")
+        != "implementation_final_hardened_execution_unauthorized_pending_rereview"
     ):
         raise SoomfonEvaluationContractError("contract identity is invalid")
+
     predecessor = _require_exact_keys(
         payload.get("predecessor_contract"),
         {
@@ -51,439 +56,230 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
             "raw_sha256",
             "canonical_sha256",
             "task_id",
+            "status",
             "attempted_modes",
             "unattempted_modes",
-            "terminal_disposition",
-            "terminal_reason",
-            "ledger_sha256",
-            "child_claim_sha256",
-            "suite_result_sha256",
-            "independent_evidence_ids",
             "retry_allowed",
+            "ledger_namespace_reuse_allowed",
+            "earlier_predecessor",
         },
         label="contract predecessor",
     )
-    if predecessor != {
-        "archive_path": (
-            "examples/voice_turn_brains/canaries/dspy-3.3.0/"
-            "predecessor-contracts/"
-            "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json"
-        ),
-        "raw_sha256": (
-            "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
-        ),
-        "canonical_sha256": (
-            "a8ec67b7ddf711142312ffd6caf0a7d57eeb48617e92025a0d45ae48dedd26c0"
-        ),
-        "task_id": 4808,
-        "attempted_modes": ["simple"],
-        "unattempted_modes": [
-            "elaborate",
-            "researched",
-            "deep-research",
-            "socratic",
-            "bloom",
-        ],
-        "terminal_disposition": "effect_indeterminate",
-        "terminal_reason": "provider_effect_attempt_invalid",
-        "ledger_sha256": (
-            "9c2af26515591b974f9229b470819a180e58675b6c3cf3f5051eec4b02163ac0"
-        ),
-        "child_claim_sha256": (
-            "d38c945263e3121269f21d70f3d7543f8dde6308ef96431f834a249e20520eac"
-        ),
-        "suite_result_sha256": (
-            "ed973db2f5a304ead58e3b4b6812ca9df3f596acaeed5cfc95892a77fd6274fd"
-        ),
-        "independent_evidence_ids": [7589, 7590],
-        "retry_allowed": False,
-    }:
+    earlier = _require_exact_keys(
+        predecessor.get("earlier_predecessor"),
+        {"archive_path", "raw_sha256", "terminal_disposition", "retry_allowed"},
+        label="earlier predecessor",
+    )
+    if (
+        predecessor.get("raw_sha256")
+        != "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
+        or predecessor.get("task_id") != 4971
+        or predecessor.get("attempted_modes") != []
+        or predecessor.get("unattempted_modes") != list(EXPECTED_MODES)
+        or predecessor.get("retry_allowed") is not False
+        or predecessor.get("ledger_namespace_reuse_allowed") is not False
+        or earlier.get("raw_sha256")
+        != "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
+        or earlier.get("terminal_disposition") != "effect_indeterminate"
+        or earlier.get("retry_allowed") is not False
+    ):
         raise SoomfonEvaluationContractError("contract predecessor is invalid")
-    source = _require_exact_keys(
-        payload.get("source_state"),
+
+    owner = _require_exact_keys(
+        payload.get("provider_owner_candidate"),
         {
-            "dspx_base_commit",
-            "workstation_reconciliation_commit",
-            "local_ai_control_plane_commit",
-            "installed_binding_config",
-            "installed_binding_config_sha256",
-            "installed_binding_disposition",
-            "shadow_binding_only",
+            "owner_task_id",
+            "owner",
+            "status",
+            "branch",
+            "commit",
+            "tree",
+            "version",
+            "wheel_sha256",
+            "installed_payload_sha256",
+            "lock_sha256",
+            "module_sha256",
+            "dependency_identity",
+            "independent_review_dispatch_id",
+            "independent_test_dispatch_id",
+            "published",
+            "released",
+            "generic_dspx_provider_ready",
         },
-        label="contract source state",
+        label="provider owner candidate",
     )
-    if source.get("shadow_binding_only") is not True:
-        raise SoomfonEvaluationContractError("contract source posture is invalid")
-    runtime = _require_exact_keys(
-        payload.get("runtime_target"),
-        {
-            "python",
-            "dspx_core",
-            "dspy",
-            "dspy_ai",
-            "gepa",
-            "provider",
-            "typed_contract",
-            "model",
-            "base_url",
-            "timeout_seconds",
-            "network_scope",
-            "backend_locality",
-            "credentials_allowed",
-            "microphone_allowed",
-            "tts_allowed",
-            "physical_key_allowed",
-        },
-        label="contract runtime target",
-    )
-    if runtime != {
+    if (
+        owner.get("owner_task_id") != 4991
+        or owner.get("owner") != "tryinget-dspy-lm-auth"
+        or owner.get("commit") != "7c51dda703f6a5d0a95aba13734294a82ea4314f"
+        or owner.get("tree") != "c303dd657146da90404618adead417e82e2dc2c0"
+        or owner.get("version") != "0.1.6.dev0"
+        or owner.get("wheel_sha256")
+        != "e1b8acaa354df4640422512a779b9486d5c4caceeb9c9ab05c4a07f1b1eb3512"
+        or owner.get("installed_payload_sha256")
+        != "8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2"
+        or owner.get("lock_sha256")
+        != "0b18a1759b2507967ed8f2f4918c436e2679e406aafb061620a11954b1550c7c"
+        or owner.get("published") is not False
+        or owner.get("released") is not False
+        or owner.get("generic_dspx_provider_ready") is not False
+    ):
+        raise SoomfonEvaluationContractError("provider owner identity is invalid")
+    modules = owner.get("module_sha256")
+    dependencies = owner.get("dependency_identity")
+    if not isinstance(modules, Mapping) or set(modules) != {
+        "package_init",
+        "auth",
+        "lm",
+        "codex_stream",
+        "codex_stream_support",
+        "outcome_receipt",
+        "outcome_receipt_runtime",
+        "outcome_receipt_state",
+        "outcome_receipt_transport",
+    }:
+        raise SoomfonEvaluationContractError("provider module identity is invalid")
+    for value in modules.values():
+        _require_hash(value, "provider module hash is invalid")
+    if not isinstance(dependencies, Mapping) or set(dependencies) != {
+        "dspy",
+        "litellm",
+        "httpx",
+        "httpcore",
+    }:
+        raise SoomfonEvaluationContractError("provider dependency identity is invalid")
+    dependency_keys = {
+        "version",
+        "locked_wheel_sha256",
+        "payload_count",
+        "payload_sha256",
+        "record_sha256",
+    }
+    for dependency in dependencies.values():
+        item = _require_exact_keys(
+            dependency, dependency_keys, label="provider dependency"
+        )
+        for key in ("locked_wheel_sha256", "payload_sha256", "record_sha256"):
+            _require_hash(item.get(key), "provider dependency hash is invalid")
+        if (
+            isinstance(item.get("payload_count"), bool)
+            or not isinstance(item.get("payload_count"), int)
+            or item["payload_count"] < 1
+        ):
+            raise SoomfonEvaluationContractError("provider payload count is invalid")
+
+    runtime = payload.get("runtime_target")
+    if not isinstance(runtime, Mapping):
+        raise SoomfonEvaluationContractError("runtime target is invalid")
+    required_runtime = {
         "python": "3.13.12",
         "dspx_core": "0.2.1",
         "dspy": "3.3.1",
         "dspy_ai": "3.3.1",
         "gepa": "0.1.4",
-        "provider": "openai-compatible",
-        "typed_contract": "typed_lm",
-        "model": "baseline-text",
-        "base_url": "http://127.0.0.1:1234/v1",
-        "timeout_seconds": "30",
-        "network_scope": "exact_ip_literal_loopback_client_hop_only",
-        "backend_locality": "unverified_not_established_by_loopback_client_hop",
-        "credentials_allowed": False,
-        "microphone_allowed": False,
-        "tts_allowed": False,
-        "physical_key_allowed": False,
-    }:
-        raise SoomfonEvaluationContractError("contract runtime target is invalid")
-    executor = _require_exact_keys(
-        payload.get("executor_contract"),
-        {
-            "implementation_ready",
-            "execution_authorized",
-            "implementation_requires_separate_exact_ak_task",
-            "expected_contract_sha256_source",
-            "expected_contract_sha256_argument_required",
-            "derive_expected_contract_sha256_from_contract_forbidden",
-            "required_executor_properties",
-            "required_environment",
-            "forbidden_environment",
-            "required_negative_tests",
-            "known_blockers",
-        },
-        label="contract executor",
-    )
-    _require_exact_keys(
-        executor.get("required_environment"),
-        set(REQUIRED_ENVIRONMENT),
-        label="contract executor environment",
-    )
-    if (
-        executor.get("required_environment") != REQUIRED_ENVIRONMENT
-        or executor.get("forbidden_environment") != ["DSPX_OPENAI_COMPAT_API_KEY"]
-        or executor.get("implementation_ready") is not True
-        or executor.get("execution_authorized") is not False
-        or executor.get("implementation_requires_separate_exact_ak_task") is not True
-        or executor.get("expected_contract_sha256_argument_required") is not True
-        or executor.get("derive_expected_contract_sha256_from_contract_forbidden")
-        is not True
-    ):
-        raise SoomfonEvaluationContractError("contract executor semantics are invalid")
-    ledger = _require_exact_keys(
-        payload.get("attempt_ledger"),
-        {
-            "implementation_required",
-            "storage",
-            "directory_mode",
-            "file_mode",
-            "directory_owner",
-            "symlink_policy",
-            "concurrency",
-            "marker_create_flags",
-            "key_fields",
-            "pre_effect_state",
-            "terminal_states",
-            "pre_effect_persistence",
-            "terminal_transition",
-            "fsync_file_before_effect",
-            "fsync_containing_directory_before_effect",
-            "terminal_transition_fsync_required",
-            "existing_key_refuses_execution",
-            "crash_or_timeout_refuses_rerun",
-            "new_attempt_requires_new_contract_and_exact_ak_task",
-        },
-        label="contract attempt ledger",
-    )
-    if (
-        ledger.get("implementation_required") is not True
-        or ledger.get("directory_mode") != "0700"
-        or ledger.get("file_mode") != "0600"
-        or ledger.get("existing_key_refuses_execution") is not True
-        or ledger.get("crash_or_timeout_refuses_rerun") is not True
-    ):
-        raise SoomfonEvaluationContractError("contract attempt ledger is invalid")
-    for key in (
-        "fsync_file_before_effect",
-        "fsync_containing_directory_before_effect",
-        "terminal_transition_fsync_required",
-        "new_attempt_requires_new_contract_and_exact_ak_task",
-    ):
-        if ledger.get(key) is not True:
-            raise SoomfonEvaluationContractError(
-                "contract ledger durability is invalid"
-            )
-    if (
-        ledger.get("pre_effect_state") != "attempted_outcome_unknown"
-        or ledger.get("terminal_states")
-        != ["succeeded", "failed_no_effect_proved", "effect_indeterminate"]
-        or ledger.get("key_fields") != ["contract_sha256", "mode"]
-    ):
-        raise SoomfonEvaluationContractError("contract ledger state model is invalid")
-    retention = _require_exact_keys(
-        payload.get("retention"),
-        {
-            "predeclared_text_input_committed",
-            "captured_microphone_transcript_committed",
-            "predeclared_persona_intent_committed",
-            "observed_response_committed",
-            "response_sha256_required",
-            "manifest_sha256_required",
-            "runtime_episode_required",
-            "receipt_integrity_required",
-            "provider_effect_disposition_required",
-            "latency_ms_required",
-            "raw_response_handling",
-        },
-        label="contract retention",
-    )
-    raw_handling = _require_exact_keys(
-        retention.get("raw_response_handling"),
-        {
-            "storage",
-            "directory_mode",
-            "file_mode",
-            "stdout_allowed",
-            "general_logging_allowed",
-            "access",
-            "digest_before_deletion",
-            "delete_after_scoring_and_independent_review",
-            "crash_handling",
-            "post_deletion_score_reproduction",
-        },
-        label="contract raw response handling",
-    )
-    for key, expected in {
-        "predeclared_text_input_committed": True,
-        "captured_microphone_transcript_committed": False,
-        "predeclared_persona_intent_committed": True,
-        "observed_response_committed": False,
-        "response_sha256_required": True,
-        "manifest_sha256_required": True,
-        "runtime_episode_required": True,
-        "receipt_integrity_required": True,
-        "provider_effect_disposition_required": True,
-        "latency_ms_required": True,
-    }.items():
-        if retention.get(key) != expected:
-            raise SoomfonEvaluationContractError(
-                "contract retention semantics are invalid"
-            )
-    if (
-        raw_handling.get("directory_mode") != "0700"
-        or raw_handling.get("file_mode") != "0600"
-        or raw_handling.get("stdout_allowed") is not False
-        or raw_handling.get("general_logging_allowed") is not False
-        or raw_handling.get("digest_before_deletion") is not True
-    ):
-        raise SoomfonEvaluationContractError("contract raw retention is invalid")
-    rubric = _require_exact_keys(
-        payload.get("rubric"),
-        {
-            "classification",
-            "scorer_count",
-            "independent_review_required",
-            "rationale_required_per_dimension",
-            "missing_or_unknown_score_fails",
-            "scored_dimensions",
-            "dimensions",
-            "mandatory_failure",
-            "bounded_observation_threshold",
-            "threshold_authorizes_routing",
-            "threshold_establishes_general_quality",
-            "threshold_selects_winner",
-        },
-        label="contract rubric",
-    )
-    _require_exact_keys(
-        rubric.get("scored_dimensions"),
-        {"non_research_modes", "research_modes"},
-        label="contract scored dimensions",
-    )
-    dimensions = _require_exact_keys(
-        rubric.get("dimensions"),
-        {
-            "relevance",
-            "mode_adherence",
-            "clarity",
-            "capability_truthfulness",
-            "evidence_grounding",
-        },
-        label="contract rubric dimensions",
-    )
-    for anchors in dimensions.values():
-        _require_exact_keys(anchors, {"0", "1", "2"}, label="contract rubric anchors")
-    _require_exact_keys(
-        rubric.get("bounded_observation_threshold"),
-        {
-            "non_research_total_min",
-            "non_research_total_max",
-            "research_total_min",
-            "research_total_max",
-            "every_scored_dimension_min",
-        },
-        label="contract rubric threshold",
-    )
-    if (
-        rubric.get("independent_review_required") is not True
-        or rubric.get("rationale_required_per_dimension") is not True
-        or rubric.get("missing_or_unknown_score_fails") is not True
-        or rubric.get("threshold_authorizes_routing") is not False
-        or rubric.get("threshold_establishes_general_quality") is not False
-        or rubric.get("threshold_selects_winner") is not False
-    ):
-        raise SoomfonEvaluationContractError("contract rubric semantics are invalid")
-    deep = _require_exact_keys(
-        payload.get("deep_research_disposition"),
-        {
-            "iterative_reactv2_retrieval",
-            "external_retrieval",
-            "bounded_inline_corpus",
-            "decision_115_required_for_fixed_reactv2_tool",
-            "button_label_is_not_capability_proof",
-        },
-        label="contract deep research disposition",
-    )
-    if (
-        deep.get("iterative_reactv2_retrieval") is not False
-        or deep.get("external_retrieval") is not False
-        or deep.get("bounded_inline_corpus") is not True
-        or deep.get("decision_115_required_for_fixed_reactv2_tool") is not True
-        or deep.get("button_label_is_not_capability_proof") is not True
-    ):
-        raise SoomfonEvaluationContractError(
-            "contract deep research posture is invalid"
-        )
-    nonclaims = _require_exact_keys(
-        payload.get("nonclaims"),
-        {
-            "soomfon_physical_execution",
-            "live_model_compatibility",
-            "semantic_equivalence",
-            "general_answer_quality",
-            "gepa_improvement",
-            "routing",
-            "promotion",
-            "activation",
-            "release",
-            "publication",
-            "backend_locality",
-        },
-        label="contract nonclaims",
-    )
-    if any(
-        nonclaims.get(key) is not False
-        for key in ("routing", "promotion", "activation", "release", "publication")
-    ):
-        raise SoomfonEvaluationContractError("contract authority nonclaims are invalid")
-    if (
-        nonclaims.get("semantic_equivalence") != "not_evaluated"
-        or nonclaims.get("general_answer_quality") != "not_evaluated"
-        or nonclaims.get("gepa_improvement") != "not_evaluated"
-        or nonclaims.get("backend_locality") != "not_verified"
-        or nonclaims.get("soomfon_physical_execution") is not False
-        or nonclaims.get("live_model_compatibility") is not False
-    ):
-        raise SoomfonEvaluationContractError("contract evidence nonclaims are invalid")
-    if (
+        "provider_scope": "validated_soomfon_runtime_custody_only",
+        "provider": "dspy-lm-auth",
+        "provider_version": "0.1.6.dev0",
+        "dspy_lm_type": "external_owner_LM",
+        "dspx_lm_subclass_added": False,
+        "adapter": "soomfon_specific_json_adapter_no_chat_fallback",
+        "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol:max",
+        "resolved_route": "openai:gpt-5.6-sol:responses",
+        "requested_model": "codex/gpt-5.6-sol",
+        "resolved_model": "openai/gpt-5.6-sol",
+        "auth_provider": "codex",
+        "credential_mode": "no-refresh",
+        "reasoning_effort": "max",
+        "num_retries": 0,
+        "cache": False,
+        "timeout_seconds": 60,
+        "sync_only": True,
+        "fallback_allowed": False,
+        "health_probe_allowed": False,
+        "dont_write_bytecode_required": True,
+        "child_python_flag_B_required": True,
+        "bytecode_cache_allowed": False,
+    }
+    if any(runtime.get(key) != value for key, value in required_runtime.items()):
+        raise SoomfonEvaluationContractError("runtime target is invalid")
+
+    executor = payload.get("executor_contract")
+    if not isinstance(executor, Mapping) or (
         executor.get("implementation_ready") is not True
         or executor.get("execution_authorized") is not False
+        or executor.get("task_4987_can_authorize_execution") is not False
+        or executor.get("implementation_requires_later_exact_ak_task") is not True
+        or executor.get("execution_authorization_artifact_required") is not True
+        or executor.get("execution_authorization_sha256_argument_required") is not True
+        or executor.get("child_runtime_queries_ak") is not True
+        or executor.get("execution_authorization_schema")
+        != "soomfon-execution-authorization-v3"
+        or executor.get("canonical_ak_runtime")
+        != {
+            "path": "/home/tryinget/.local/libexec/agent-kernel/c6297eccf67a3762ef01269f67e87eaa8828f127/ak-bin",
+            "sha256": "61f6290115262e0319c3b178f053d74a486a3eba881aaa13739c1db45f0f6b91",
+            "mode": "0555",
+            "open_policy": "exact_path_O_NOFOLLOW_hash_fd_execute_proc_fd_pass_fds_refstat",
+        }
+        or executor.get("lease_requirements")
+        != {
+            "suite_preflight_minimum_seconds": 1800,
+            "before_each_case_marker_minimum_seconds": 1800,
+            "before_each_logical_call_minimum_seconds": 90,
+            "call_minimum_basis": "provider_timeout_60_plus_30_seconds",
+        }
     ):
-        raise SoomfonEvaluationContractError("contract executor posture is invalid")
-    if executor.get("expected_contract_sha256_argument_required") is not True:
-        raise SoomfonEvaluationContractError("contract trust anchor is invalid")
-    if (
-        executor.get("derive_expected_contract_sha256_from_contract_forbidden")
-        is not True
-    ):
-        raise SoomfonEvaluationContractError("contract self-hash posture is invalid")
-    budget = _require_exact_keys(
-        payload.get("effect_budget"),
-        {
-            "fixed_case_order",
-            "candidate_invocations_per_case",
-            "dspx_managed_retries",
-            "health_probes",
-            "selective_reruns",
-            "provider_transport_call_cardinality",
-            "stop_on_first_non_success",
-            "effect_indeterminate_is_terminal",
-            "resume_allowed",
-            "fallback_allowed",
-        },
-        label="contract effect budget",
-    )
-    if budget.get("fixed_case_order") != list(EXPECTED_MODES):
-        raise SoomfonEvaluationContractError("contract case order is invalid")
-    for key, expected in {
+        raise SoomfonEvaluationContractError("executor authorization is invalid")
+
+    budget = payload.get("effect_budget")
+    expected_budget = {
+        "fixed_case_order": list(EXPECTED_MODES),
         "candidate_invocations_per_case": 1,
+        "ordered_logical_lm_calls_per_successful_case": 2,
+        "maximum_suite_logical_lm_calls": 12,
+        "maximum_suite_provider_transports": 12,
         "dspx_managed_retries": 0,
+        "provider_configured_retries": 0,
         "health_probes": 0,
         "selective_reruns": 0,
+        "stop_on_first_non_success": True,
         "effect_indeterminate_is_terminal": True,
         "resume_allowed": False,
         "fallback_allowed": False,
-        "stop_on_first_non_success": True,
-        "provider_transport_call_cardinality": (
-            "unproved_not_bounded_by_candidate_invocation_count"
-        ),
-    }.items():
-        if budget.get(key) != expected:
-            raise SoomfonEvaluationContractError("contract effect budget is invalid")
+    }
+    if budget != expected_budget:
+        raise SoomfonEvaluationContractError("effect budget is invalid")
+
+    receipt = payload.get("provider_receipt_custody")
+    if not isinstance(receipt, Mapping) or (
+        receipt.get("existing_accepted_v11_owner_identity_unchanged") is not True
+        or receipt.get("verify_owner_source_before_marker") is not True
+        or receipt.get("verify_loaded_receipt_types_before_call") is not True
+        or receipt.get("revalidate_before_each_call_and_progression") is not True
+        or receipt.get("canonical_authority_revalidation")
+        != "immediately_before_each_logical_call_before_receipt_credential_or_transport_with_90_second_minimum_lease"
+        or receipt.get("logical_request_mode") != "sync"
+        or receipt.get("missing_open_poisoned_indeterminate_chain_terminal") is not True
+    ):
+        raise SoomfonEvaluationContractError("provider receipt custody is invalid")
+
     cases = payload.get("cases")
     if not isinstance(cases, list) or [
-        row.get("mode") for row in cases if isinstance(row, dict)
+        item.get("mode") for item in cases if isinstance(item, Mapping)
     ] != list(EXPECTED_MODES):
         raise SoomfonEvaluationContractError("contract cases are invalid")
-    for row in cases:
-        if not isinstance(row, dict):
+    for item in cases:
+        if not isinstance(item, Mapping):
             raise SoomfonEvaluationContractError("contract case is invalid")
-        required = {
-            "mode",
-            "candidate_id",
-            "manifest",
-            "manifest_sha256",
-            "canary_index",
-            "canary_index_sha256",
-            "transcription",
-            "persona_intent",
-            "expected_posture",
-        }
-        if row.get("mode") in {"researched", "deep-research"}:
-            required.add("corpus_sha256")
-        if set(row) != required:
-            raise SoomfonEvaluationContractError("contract case schema is not exact")
         for key in ("manifest_sha256", "canary_index_sha256"):
-            if _SHA256_RE.fullmatch(str(row.get(key, ""))) is None:
-                raise SoomfonEvaluationContractError("contract case hash is invalid")
-        for key in (
-            "candidate_id",
-            "manifest",
-            "canary_index",
-            "transcription",
-            "persona_intent",
-            "expected_posture",
-        ):
-            if not isinstance(row.get(key), str) or not row[key].strip():
-                raise SoomfonEvaluationContractError("contract case value is invalid")
+            _require_hash(item.get(key), "contract case hash is invalid")
+
+    nonclaims = payload.get("nonclaims")
+    if not isinstance(nonclaims, Mapping) or any(
+        nonclaims.get(key) is not False
+        for key in ("routing", "promotion", "activation", "release", "publication")
+    ):
+        raise SoomfonEvaluationContractError("authority nonclaims are invalid")
 
 
-__all__ = ["validate_soomfon_contract"]
+__all__ = ["PROTECTED_DENIED_ATTRIBUTES", "validate_soomfon_contract"]

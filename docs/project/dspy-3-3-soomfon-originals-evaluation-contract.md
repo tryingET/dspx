@@ -1,8 +1,8 @@
 ---
-summary: "Implementation-reviewed, execution-unauthorized contract for observing six fresh DSPy 3.3 voice originals before any Soomfon binding decision."
+summary: "AK-4987 final-hardened Soomfon custody contract; pending rereview and execution unauthorized."
 read_when:
-  - "Before running a loopback-client evaluation of the fresh DSPy 3.3 voice originals."
-  - "Before changing the Soomfon/OpenDeck six-mode DSPx binding."
+  - "Before considering any model-backed evaluation of the six fresh DSPy 3.3 voice originals."
+  - "Before changing Soomfon evaluation custody, authorization, provider receipts, or routing."
 type: "reference"
 ---
 
@@ -10,19 +10,37 @@ type: "reference"
 
 ## Disposition
 
-AK-4808 froze the original six-case design; AK-4809 implemented the externally hash-bound executor, crash-durable attempt ledger, exact environment gate, and provider-effect custody; provider-free readiness task #4965 independently reconciled that implementation against the complete negative matrix. Task #4969 consumed only the predecessor `simple` key and retained terminal `effect_indeterminate`; task #4970 proved the generated source failed the protected snapshot policy before provider dispatch. Task #4971 preserved that predecessor, repaired generation without weakening policy, and regenerated all six originals under DSPy 3.3.1. The successor posture is **implementation reviewed, execution unauthorized**. The contract does not call a model, press a Soomfon key, use microphone/TTS, change `ai-control-brains.json`, or authorize routing. A separate exact AK execution task must carry the independently reviewed current raw digest, exact reviewed source commit or installed payload, and explicit operator authority before any effect.
+Task AK-4987 implements a narrow Soomfon-custody-only path for the six regenerated DSPy
+3.3.1 originals. After final corrective hardening, its posture is **pending independent rereview, execution unauthorized**. No task
+4987 artifact authorizes a provider/model call, OAuth flow, credential inspection, physical key,
+microphone, TTS, routing, promotion, activation, release, or publication.
 
-The machine-readable contract is:
+The active machine contract is:
 
 `examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json`
 
-## Why this gate exists
+Its current raw SHA-256 is
+`9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b`.
+The digest must be supplied out-of-band; deriving the trust anchor from contract bytes is
+forbidden.
 
-Read-only workstation reconciliation under AK-4727 established that the installed OpenDeck Autonomy profile and action chain are healthy, but all six live bindings still select historical optimized candidates whose optimizer evidence records DSPy 3.1.3. The workspace now runs DSPy/DSPy-AI 3.3.1, DSPx Core 0.2.1, and GEPA 0.1.4, while the six fresh original canaries remain deliberately unrouted and quality-not-evaluated.
+## Immutable predecessor history
 
-A physical press now would therefore test the historical optimized binding under the new runtime—not the fresh originals whose adoption is being considered. AK-4727 is deferred until DSPx produces a separate compatibility/routing disposition.
+Before v3 replaced the active file, the prior raw contract was copied byte-for-byte to:
 
-## Frozen candidate matrix
+`examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json`
+
+Its raw SHA-256 remains
+`a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18`.
+The earlier `07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb`
+predecessor remains untouched and terminal `effect_indeterminate`. Neither predecessor ledger
+namespace may be reused, retried, relabeled, or treated as authority for v3.
+
+## Frozen six-case matrix
+
+The candidate order, case text, persona intent, posture, candidate IDs, manifest hashes, canary
+index hashes, and research corpus hashes are byte-semantically unchanged from the a8af
+predecessor.
 
 | Mode | Fresh candidate | Manifest SHA-256 |
 |---|---|---|
@@ -33,58 +51,142 @@ A physical press now would therefore test the historical optimized binding under
 | `socratic` | `prog-cand-a167f3eb3996` | `ce43ee0674fd1adc1141f929d12cc897f8537bbd8be15475110e62d5d2810f95` |
 | `bloom` | `prog-cand-3ddefc610463` | `77dc9cf7bf265f719160e4eea6547801255ad745b92b886a46b8cc0c672f39a0` |
 
-The contract also binds every canary index and verifies that the selected candidates are fresh DSPy 3.3 originals, contain no whole-program pickle surface, differ from the active historical bindings, and retain `quality_approved=false` plus `semantic_equivalence=not_evaluated`.
+The active `examples/voice_turn_brains/ai-control-brains.json` and all six AK-4971 candidate
+artifacts must remain unchanged.
 
-The predecessor raw contract is preserved byte-for-byte at `examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json`. Its `simple` disposition remains `effect_indeterminate`; it is not retried or relabeled. The five unattempted predecessor modes do not transfer authority to this successor.
+## Exact provider-owner candidate
 
-## Reviewed executor and remaining authorization gate
+The contract binds provider-owner task #4991 result:
 
-The repository now contains the reviewed hash-bound executor and its provider-free negative matrix. It bypasses the historical LACP `DspxBrain` gap by enforcing the exact endpoint/runtime contract, retaining provider-effect disposition, and using a durable contract-hash/case-keyed attempt ledger. Implementation readiness is not execution authority.
+- commit `7c51dda703f6a5d0a95aba13734294a82ea4314f`;
+- tree `c303dd657146da90404618adead417e82e2dc2c0`;
+- version `tryinget-dspy-lm-auth==0.1.6.dev0`;
+- wheel SHA-256 `e1b8acaa354df4640422512a779b9486d5c4caceeb9c9ab05c4a07f1b1eb3512`;
+- installed payload SHA-256 `8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2`;
+- lock SHA-256 `0b18a1759b2507967ed8f2f4918c436e2679e406aafb061620a11954b1550c7c`;
+- exact owner module hashes and exact DSPy/LiteLLM/httpx/httpcore wheel, payload, count,
+  version, and RECORD identities listed in the JSON contract.
 
-The reviewed executor fails before provider construction unless all of these conditions hold:
+The accepted v11 owner-source shape remains unchanged. The corrected exact identity uses the
+independently observed LiteLLM 1.82.1 and httpx 0.28.1 installed `RECORD` hashes, additionally
+verifies the #4991 `auth.py` hash, and does not weaken or relabel the owner boundary.
 
-- the raw contract bytes match an expected SHA-256 supplied out-of-band by the exact AK execution task and its independent-review evidence; deriving the expected digest from the contract itself is forbidden;
-- all six manifest/canary-index hashes match;
-- CPython is exactly 3.13.12 and installed DSPx Core 0.2.1, DSPy/DSPy-AI 3.3.1, and GEPA 0.1.4 identities match;
-- a sanitized child environment contains exactly the declared provider settings, including `DSPX_OPENAI_COMPAT_API_BASE=http://127.0.0.1:1234/v1`, model `baseline-text`, timeout `30`, and the network policy opt-in;
-- the endpoint is neither missing nor spelled as `localhost`/`::1`, and no alternate port/path/model/timeout or `DSPX_OPENAI_COMPAT_API_KEY` is present;
-- no microphone, TTS, physical key, GEPA optimization, routing, or candidate mutation is enabled;
-- the executor can verify a receipt-bound provider-effect disposition instead of losing it at the LACP abstraction.
+## Exact runtime and route
 
-The exact loopback URL proves only the client hop. It does not prove which process owns the listener, which model artifact executes, whether the listener proxies elsewhere, or backend no-egress. This contract therefore makes no local-model or backend-locality claim. A future owner may add separately hash-bound service/configuration/model/no-egress evidence; absent that evidence, backend locality remains `not_verified`.
+A later authorized runtime must match CPython 3.13.12, DSPx Core 0.2.1, DSPy/DSPy-AI 3.3.1,
+GEPA 0.1.4, LiteLLM 1.82.1, httpx 0.28.1, and httpcore 1.0.9 with the contract-bound payloads.
+The task-local provider configuration is exactly:
 
-The provider-free execution-readiness review covers every declared mismatch plus contract/hash drift, unknown/missing fields, wrong ledger ownership/mode, containing-directory fsync failure, crashes, timeouts, duplicate attempts, and missing effect disposition. These tests prove implementation behavior only; they do not authorize or simulate a live six-case run.
+- requested route `dspy-lm-auth:codex:gpt-5.6-sol:max`;
+- resolved route `openai:gpt-5.6-sol:responses`;
+- external owner `dspy_lm_auth.LM`, requested model `codex/gpt-5.6-sol`;
+- `auth_provider="codex"` and `credential_mode="no-refresh"`;
+- `reasoning_effort="max"`, `num_retries=0`, `cache=False`, timeout 60 seconds;
+- DSPy 3.3.1 defaults `temperature=None` and `max_tokens=None`, with no other LM kwargs;
+- synchronous execution only, with no fallback, health probe, resume, or selective rerun;
+- parent `sys.dont_write_bytecode is True`, child `-B` plus
+  `PYTHONDONTWRITEBYTECODE=1`, and no `__pycache__`, `.pyc`, or existing loaded-module
+  `__cached__` artifact anywhere under the security-critical DSPx or owner package roots.
 
-## Attempt and effect custody
+This does not restore `dspy-lm-auth` in the generic provider registry. Generic environment
+selection still fails. The path becomes selectable only after an exact
+`SoomfonRuntimeCustody` for the current contract has validated; DSPx adds no second DSPy LM
+subclass.
 
-Before each candidate effect, the reviewed executor validates a current-user-owned mode-`0700` non-symlink ledger directory, acquires an exclusive no-follow lock, and creates a no-replace mode-`0600` per-key marker with `O_CREAT|O_EXCL|O_NOFOLLOW`. The marker is keyed by the externally anchored contract SHA-256 and mode. The executor writes the complete bounded `attempted_outcome_unknown` record, fsyncs the file, then fsyncs the containing directory before provider construction. Any existing key or concurrent duplicate refuses execution.
+## Exactly two calls and maximum twelve effects
 
-Exactly one candidate invocation may occur per case in fixed order. There is no health probe, DSPx-managed retry, selective rerun, fallback, or resume. Six candidate invocations do not bound DSPy/provider transport-call cardinality. A terminal transition is one exclusive `O_APPEND` bounded record write followed by file and containing-directory fsync. A crash before durable pre-effect directory fsync refuses execution on reconciliation; a crash during or after possible effect, timeout, missing receipt/effect disposition, malformed transition, or other unresolved outcome terminalizes the case as `effect_indeterminate` and stops the suite. A new attempt requires a new contract and exact AK task, not reuse of the consumed key.
+Every successful case performs **exactly two** ordered logical LM calls. The mode-specific JSON
+adapter accepts `DefinePersona` first and the mode's answer/synthesis signature second. Local
+research retrieval is not an LM call. Duplicate, out-of-order, third, asynchronous, fallback,
+or widened-configuration calls reject before transport.
 
-## Input and response retention
+The six-case suite therefore has a **maximum twelve** logical LM calls and a maximum twelve
+provider transports. Every call has zero configured retries. The suite stops on the first
+non-success, and no resume or selective rerun is available.
 
-The exact non-sensitive text inputs and persona intents are committed in the JSON contract. They are predeclared text—not captured microphone transcripts. Captured microphone transcripts remain excluded.
+## Provider receipt and ledger custody
 
-Raw observed responses must never enter Git, general logs, or stdout. The reviewed executor captures them under a private mode-`0700` temporary directory with mode-`0600` files, accessible only to the scorer and independent reviewer. It records the response digest before deletion and deletes raw responses only after scoring and independent review. Crash state is quarantined for owner reconciliation rather than automatically cleaned or rerun. After deletion, the human score is explicitly not reproducible from retained raw text and therefore remains a bounded observation rather than authoritative quality evidence.
+The outer attempt marker remains contract-hash/mode keyed, no-replace, mode `0600`, under a
+current-user mode-`0700` tree. File and containing-directory fsync complete before the candidate
+effect boundary. A new contract uses a new namespace; predecessor namespaces stay immutable.
 
-## Bounded review semantics
+Each logical LM call receives one unique owner `ProviderOutcomeReceipt` through DSPx's existing
+`ReceiptReservation`, `ReceiptJournal`, `verify_receipt_chain`, and `reduce_verified_chain`
+primitives. Journals are private, no-replace, ordered by contract, mode, and call ordinal, and every
+reservation rebinds the exact current pre-terminal marker SHA-256. The marker itself binds the
+later task ID, local-projection hash, and canonical-AK reconciliation hash. The exact owner source, loaded receipt types, LM type, and dependency payloads are checked before
+a call and revalidated before progression. Immediately before each of the two logical calls,
+canonical AK authority must still be unchanged, claimed, and leased for at least 90 seconds—the
+60-second provider timeout plus a 30-second margin. Failure occurs before receipt creation,
+credential access, or transport, so an expiry/revocation between calls cannot permit call two.
 
-The JSON contract defines exact 0/1/2 anchors for relevance, mode adherence, clarity, capability truthfulness, and—for research modes—evidence grounding. Every scored dimension requires a rationale; missing or unknown scores fail. Any unsupported capability claim or fabricated/missing required research citation is a mandatory failure. Meeting the frozen arithmetic threshold means only `bounded_observed_turn_acceptable` for that exact input and environment.
+Only exact attributable `provider_response_completed` receipt chains permit progression.
+Missing, open, malformed, poisoned, inflight, rejected, or indeterminate chains are terminal.
+Closed provider evidence contains only hashes, identities, and receipt projections—never prompt,
+response, token, header, credential path/content, exception text, traceback, or raw diagnostic.
 
-It does not establish:
+## Execution authorization preflight
 
-- general answer quality;
-- semantic equivalence to the historical candidates;
-- GEPA improvement or DSPy-version causality;
-- cross-device or future-model behavior;
-- routing, promotion, activation, release, or publication authority.
+A later execution task must supply all three out-of-band inputs:
 
-## Deep-research label truth
+1. the current contract digest;
+2. a private, separately hashed DSPx-local `soomfon-execution-authorization-v3` projection;
+3. the exact clean, no-bytecode provider-owner source root.
 
-The fresh `deep-research` original is a bounded retrieve-then-answer program over an inline local corpus. It is not iterative ReActV2 research and does not use external retrieval. The proposed observed turn must retain that label explicitly.
+The JSON is an integrity/binding projection only. It is neither produced nor authenticated by
+AK and cannot authorize itself. Before state-root creation the parent requires at least 1800
+seconds on the claim lease; immediately before every marker it repeats that minimum and the
+exact read-only canonical AK queries for the later task, live completion contract and guardrails,
+attached evidence, each named evidence record, and done dependency #4987. The child reconciles
+again before task-local provider import or any possible credential access. Each logical call
+reconciles once more with a 90-second minimum and requires the task, contract, evidence,
+projection, and authorization state to remain unchanged.
 
-Decision 115 remains the separate architecture gate for one fixed hash-bound declared-corpus ReActV2 tool. Neither this contract nor a passing observed turn resolves that decision.
+The two review records must carry distinct format-valid review dispatch references and exact
+`ACCEPT` / `PASS` verdicts for the separately recorded security-review and provider-free-test
+runs. The operator record must bind a distinct format-valid explicit one-suite request. All
+three canonical records must be attached pass results for the exact task/repo and must bind the
+current contract, executing DSPx source or payload, #4991 owner, `codex/gpt-5.6-sol`, reasoning
+max, and exact effect budget.
 
-## Next lawful move
+AK is canonical storage and attachment authority under workspace policy. Current AK evidence
+uses fields such as `checked_by=cli`; this contract does **not** reinterpret them as
+cryptographic distinct-principal authentication. Review dispatch references record separate
+runs and verdicts, while the operator request records explicit one-suite authority. The trusted
+effective OS user and canonical AK DB are the local threat boundary; compromise by that same UID
+or mutation of canonical AK storage is outside this contract, consistently with private-state
+owner custody.
 
-Create a separate exact execution task carrying raw successor contract SHA-256 `a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18`, the provider-free readiness and #4971 review evidence, the exact reviewed source commit or installed payload, the exact runtime/environment membrane, and explicit operator authorization for one loopback-client six-case attempt. Backend locality and no-egress remain unverified. Preserve results and failures without rerun. Only after independent review of the resulting evidence may an owner consider a distinct binding decision; the active `examples/voice_turn_brains/ai-control-brains.json` must remain unchanged until then.
+The only accepted AK executable is
+`/home/tryinget/.local/libexec/agent-kernel/c6297eccf67a3762ef01269f67e87eaa8828f127/ak-bin`,
+SHA-256 `61f6290115262e0319c3b178f053d74a486a3eba881aaa13739c1db45f0f6b91`,
+regular current-user-owned mode `0555`. It is opened with `O_NOFOLLOW`, hashed through that fd,
+executed as `/proc/self/fd/<n>` with `pass_fds` and no shell, and re-fstatted afterward. Output
+and time remain bounded. PATH, symlink, and parent lookup do not select AK.
+
+The live completion kind remains exactly `soomfon_one_suite_execution_authorization`; required
+check types are `review:independent-security`, `test:independent-provider-free`, and
+`authorization:operator-one-suite`. Reviewed-source mode compares loaded origins and current
+bytes to exact Git blobs at the authorized clean commit/tree. Installed mode compares origins
+and complete payload to the exact distribution/RECORD. Any package shadow, `__pycache__`,
+`.pyc`, or existing security-module `__cached__` artifact rejects. No AK mutation occurs.
+Task #4987 cannot satisfy this execution authorization gate.
+
+## Private response behavior
+
+Raw responses are confined to the protected private runtime tree used by the scorer/reviewer.
+They are never printed to stdout or general logs and never enter provider evidence. Suite and
+CLI output may expose only response SHA-256, length, closed receipt disposition, runtime hashes,
+and non-authority fields.
+
+## Nonclaims and next lawful move
+
+This implementation proves no live model compatibility, answer quality, semantic equivalence,
+GEPA improvement, backend locality, physical Soomfon execution, routing, promotion, activation,
+release, or publication.
+
+The next lawful move is independent rereview of this corrected diff, followed only then by a
+separate exact claimed AK execution task with canonical attached review/operator evidence and a
+local integrity projection for one suite.
+Only independently reviewed resulting evidence could inform a later, distinct owner binding
+decision. The active routing file must remain unchanged until that separate decision exists.

@@ -5,13 +5,13 @@ import json
 import os
 from pathlib import Path
 from typing import Any, cast
+from types import SimpleNamespace
 
-import httpx
 import pytest
 from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
-import dspx.openai_compatible_provider as openai_provider
+from dspx.services import soomfon_evaluation_child as child_runtime
 from dspx.services import soomfon_evaluation_executor as executor
 from dspx.services import soomfon_evaluation_custody as custody
 from dspx.services import soomfon_evaluation_ledger as soomfon_ledger
@@ -20,7 +20,6 @@ from dspx.services import program_runtime_episode as runtime_episode_module
 from dspx.run_receipts import build_run_receipt, write_run_receipt
 from dspx.services.run_replay_service import check_run_receipt
 from dspx.services.program_runtime_episode import (
-    load_validated_program_runtime_episode_bundle,
     run_program_runtime_episode,
 )
 from dspx.services.soomfon_evaluation_contract import (
@@ -38,11 +37,64 @@ from dspx.services.soomfon_evaluation_contract import (
     validate_soomfon_contract,
 )
 from dspx.services.soomfon_evaluation_custody import SoomfonCustodyError
-from test_program_execution_replay import _single_runtime
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
+CONTRACT_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+
+
+@pytest.fixture(autouse=True)
+def _provider_free_execution_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    from dspx.services import soomfon_evaluation_authorization as auth
+    from dspx.services import soomfon_evaluation_provider as provider
+    from dspx.services import soomfon_evaluation_dspx_identity as dspx_identity
+
+    monkeypatch.setattr(
+        auth,
+        "validate_execution_authorization",
+        lambda **_: SimpleNamespace(
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+            authorization_path=Path("fixture-authorization.json"),
+            dspx_artifact={"kind": "reviewed_source_commit_tree"},
+            maximum_provider_transports=12,
+        ),
+    )
+    monkeypatch.setattr(
+        dspx_identity, "preload_security_critical_dspx_modules", lambda: None
+    )
+    monkeypatch.setattr(
+        dspx_identity, "verify_executing_dspx_artifact", lambda **_: None
+    )
+    monkeypatch.setattr(
+        provider,
+        "verify_soomfon_owner_source",
+        lambda *_: {"commit": "7" * 40},
+    )
+    monkeypatch.setattr(
+        executor,
+        "validate_exact_runtime_identity",
+        lambda: {
+            "python": "3.13.12",
+            "dspx-core": "0.2.1",
+            "dspy": "3.3.1",
+            "dspy-ai": "3.3.1",
+            "gepa": "0.1.4",
+            "litellm": "1.82.1",
+            "httpx": "0.28.1",
+            "httpcore": "1.0.9",
+        },
+    )
+
+
+def _execute_suite(**kwargs: Any) -> dict[str, object]:
+    return executor.execute_soomfon_evaluation_suite(
+        execution_authorization_path=Path("fixture-authorization.json"),
+        expected_authorization_sha256="f" * 64,
+        owner_source_root=REPO_ROOT,
+        **kwargs,
+    )
 
 
 def _patch_roots(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
@@ -56,34 +108,79 @@ def _effect_behavior(
     dispatch_count: int,
     terminal_effect: str | None = None,
     truncated: bool = False,
+    mode: str = "simple",
 ) -> dict[str, Any]:
+    del terminal_effect, truncated
+    accepted = disposition == "completed_success" and dispatch_count == 1
+    second_signatures = {
+        "simple": "AnswerSimple",
+        "elaborate": "AnswerElaborate",
+        "researched": "AnswerResearched",
+        "deep-research": "SynthesizeDeepResearch",
+        "socratic": "GuideSocratically",
+        "bloom": "TeachWithBloom",
+    }
+    record = {
+        "call_ordinal": 1,
+        "signature_name": "DefinePersona",
+        "reservation_id": "1" * 64 if accepted else None,
+        "journal_sha256": "2" * 64 if accepted else None,
+        "provider_outcome_receipt": "accepted" if accepted else "rejected",
+        "request_acknowledged": True if accepted else None,
+        "external_effect_possible": dispatch_count == 1,
+        "producer_terminal": "provider_response_completed" if accepted else None,
+        "empirical_disposition": "not_evaluated"
+        if accepted
+        else ("effect_indeterminate" if dispatch_count else "error"),
+        "reason": "attributable_completion_not_evaluated"
+        if accepted
+        else "fixture_non_success",
+    }
+    records = [record]
+    if accepted:
+        records.append(
+            {
+                **record,
+                "call_ordinal": 2,
+                "signature_name": second_signatures[mode],
+                "reservation_id": "3" * 64,
+                "journal_sha256": "4" * 64,
+            }
+        )
     return {
         "provider": {
+            "status": "configured",
             "metadata": {
-                "provider": "openai-compatible",
-                "model": "baseline-text",
-                "runtime": {
-                    "provider_kind": "openai-compatible",
-                    "base_endpoint": "http://127.0.0.1:1234/v1",
-                    "effective_timeout": 30.0,
-                },
+                "schema_version": "soomfon-dspy-lm-auth-runtime-v1",
+                "provider": "soomfon-dspy-lm-auth",
+                "model": "codex/gpt-5.6-sol",
+                "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol:max",
+                "resolved_route": "openai:gpt-5.6-sol:responses",
+                "auth_provider": "codex",
+                "credential_mode": "no-refresh",
+                "reasoning_effort": "max",
+                "num_retries": 0,
+                "cache": False,
+                "timeout_seconds": 60.0,
+                "sync_only": True,
+                "fallback_allowed": False,
+                "health_probe_allowed": False,
+                "contract_sha256": CONTRACT_SHA256,
+                "mode": mode,
+                "source_identity_sha256": "5" * 64,
+                "dependency_identity_sha256": "6" * 64,
             },
             "effect_evidence": {
-                "schema_version": "dspx-provider-effect-evidence-v1",
-                "attempt_total": 1,
-                "attempts_truncated": truncated,
-                "terminal_effect": disposition
-                if terminal_effect is None
-                else terminal_effect,
-                "attempts": [
-                    {
-                        "provider_kind": "openai-compatible",
-                        "requested_model": "baseline-text",
-                        "observed_model": "baseline-text",
-                        "dispatch_count": dispatch_count,
-                        "effect_disposition": disposition,
-                    }
-                ],
+                "schema_version": "soomfon-provider-outcome-evidence-v1",
+                "artifact_verification": "accepted_exact",
+                "logical_call_total": len(records),
+                "maximum_logical_calls": 2,
+                "maximum_provider_transports": 2,
+                "sync_only": True,
+                "fallback_allowed": False,
+                "health_probe_allowed": False,
+                "retry_count": 0,
+                "call_records": records,
             },
         }
     }
@@ -97,7 +194,9 @@ def _write_mock_runtime_evidence(
 ) -> tuple[str, str, str, str]:
     runtime = raw_root / "runtime"
     runtime.mkdir(mode=0o700)
-    behavior = _effect_behavior(disposition, dispatch_count=dispatch_count)
+    behavior = _effect_behavior(
+        disposition, dispatch_count=dispatch_count, mode=raw_root.name
+    )
     output_files: list[str] = []
     if disposition == "completed_success":
         behavior["examples"] = [
@@ -144,17 +243,9 @@ def _write_mock_runtime_evidence(
         cache_key="mock-cache-key",
         cache_file=str(runtime / "mock-cache.json"),
         cache_enabled=False,
-        provider_details_override={
-            "provider": "openai-compatible",
-            "provider_family": "openai-compatible",
-            "model": "baseline-text",
-            "effect_contract": "dspx-provider-effect-v1",
-            "runtime": {
-                "provider_kind": "openai-compatible",
-                "base_endpoint": "http://127.0.0.1:1234/v1",
-                "effective_timeout": 30.0,
-            },
-        },
+        provider_details_override=runtime_episode_module._receipt_provider_details(
+            cast(dict[str, object], behavior["provider"])
+        ),
         replay_inputs={
             "candidate_manifest_path": "manifest.json",
             "candidate_manifest_sha256": "a" * 64,
@@ -292,6 +383,20 @@ def test_direct_child_refuses_without_fixed_custody_fds(tmp_path: Path) -> None:
             "-1",
             "--lock-fd",
             "-1",
+            "--provider-journal-fd",
+            "-1",
+            "--execution-task-id",
+            "6000",
+            "--authorization-sha256",
+            "f" * 64,
+            "--ak-reconciliation-sha256",
+            "e" * 64,
+            "--authorization-path",
+            str(tmp_path / "authorization.json"),
+            "--repo-root",
+            str(REPO_ROOT),
+            "--owner-source-root",
+            str(REPO_ROOT),
             "--raw-root-fd",
             "-1",
             "--cwd-fd",
@@ -367,7 +472,7 @@ def test_contract_nested_missing_field_fails(section: str) -> None:
     ("path", "replacement"),
     [
         (
-            ("executor_contract", "required_environment", "DSPX_OPENAI_COMPAT_MODEL"),
+            ("runtime_target", "requested_model"),
             "other",
         ),
         (("retention", "raw_response_handling", "stdout_allowed"), True),
@@ -388,14 +493,22 @@ def test_contract_safety_value_drift_fails(
         validate_soomfon_contract(payload)
 
 
-def test_exact_runtime_identity_matches_frozen_environment() -> None:
-    assert validate_exact_runtime_identity() == {
+def test_exact_runtime_identity_matches_frozen_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected = {
         "python": "3.13.12",
         "dspx-core": "0.2.1",
         "dspy": "3.3.1",
         "dspy-ai": "3.3.1",
         "gepa": "0.1.4",
+        "litellm": "1.82.1",
+        "httpx": "0.28.1",
+        "httpcore": "1.0.9",
     }
+    monkeypatch.setattr(contract_module.platform, "python_version", lambda: "3.13.12")
+    monkeypatch.setattr(contract_module, "version", lambda name: expected[name])
+    assert validate_exact_runtime_identity() == expected
 
 
 def test_runtime_identity_rejects_wrong_python(
@@ -459,147 +572,53 @@ def test_case_artifact_receipt_hash_drift_fails(
 @pytest.mark.parametrize(
     ("key", "value"),
     [
-        ("DSPX_OPENAI_COMPAT_API_BASE", None),
-        ("DSPX_OPENAI_COMPAT_API_BASE", "http://localhost:1234/v1"),
-        ("DSPX_OPENAI_COMPAT_API_BASE", "http://[::1]:1234/v1"),
-        ("DSPX_OPENAI_COMPAT_API_BASE", "http://127.0.0.1:9999/v1"),
-        ("DSPX_OPENAI_COMPAT_API_BASE", "http://127.0.0.1:1234/"),
+        ("DSPX_PROVIDER", "dspy-lm-auth"),
+        ("DSPX_OPENAI_COMPAT_API_BASE", "http://127.0.0.1:1234/v1"),
         ("DSPX_OPENAI_COMPAT_MODEL", "other-model"),
-        ("DSPX_OPENAI_COMPAT_TIMEOUT", "30.0"),
-        ("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "0"),
+        ("DSPX_OPENAI_COMPAT_TIMEOUT", "30"),
+        ("OPENAI_API_KEY", "forbidden"),
     ],
 )
-def test_provider_environment_drift_fails(key: str, value: str | None) -> None:
-    environment = dict(REQUIRED_ENVIRONMENT)
-    if value is None:
-        environment.pop(key)
-    else:
-        environment[key] = value
-    with pytest.raises(SoomfonEvaluationContractError, match="does not match"):
-        validate_exact_provider_environment(environment)
+def test_provider_environment_drift_fails(key: str, value: str) -> None:
+    with pytest.raises(SoomfonEvaluationContractError, match="forbidden"):
+        validate_exact_provider_environment({key: value})
 
 
 def test_credential_environment_fails() -> None:
-    environment = {
-        **REQUIRED_ENVIRONMENT,
-        "DSPX_OPENAI_COMPAT_API_KEY": "forbidden",
-    }
-    with pytest.raises(SoomfonEvaluationContractError, match="credential"):
-        validate_exact_provider_environment(environment)
+    with pytest.raises(SoomfonEvaluationContractError, match="forbidden"):
+        validate_exact_provider_environment({"DSPX_OPENAI_COMPAT_API_KEY": "forbidden"})
 
 
 def test_child_environment_is_allowlisted(tmp_path: Path) -> None:
-    environment = {
-        **REQUIRED_ENVIRONMENT,
-        "OPENAI_API_KEY": "must-not-propagate",
-        "UNRELATED": "must-not-propagate",
-    }
-    child = build_sanitized_child_environment(environment, private_tmp=tmp_path)
+    child = build_sanitized_child_environment(
+        {"UNRELATED": "must-not-propagate"}, private_tmp=tmp_path
+    )
     assert child == {
-        **REQUIRED_ENVIRONMENT,
         "TMPDIR": str(tmp_path),
-        "NO_PROXY": "127.0.0.1",
-        "no_proxy": "127.0.0.1",
         "PYTHONUNBUFFERED": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
         "DSPX_MLFLOW_ENABLE": "0",
     }
 
 
 def test_provider_disposition_is_conservative() -> None:
     assert classify_provider_disposition({})[0] == "effect_indeterminate"
-    assert (
-        classify_provider_disposition(
-            _effect_behavior("completed_success", dispatch_count=1)
-        )[0]
-        == "succeeded"
-    )
+    behavior = _effect_behavior("completed_success", dispatch_count=1)
+    state, details = classify_provider_disposition(behavior)
+    assert state == "succeeded"
+    assert details["logical_call_total"] == 2
     assert (
         classify_provider_disposition(
             _effect_behavior("preflight_rejected", dispatch_count=0)
         )[0]
-        == "failed_no_effect_proved"
-    )
-    assert (
-        classify_provider_disposition(
-            _effect_behavior("completed_failure", dispatch_count=1)
-        )[0]
         == "effect_indeterminate"
     )
-    assert (
-        classify_provider_disposition(
-            _effect_behavior(
-                "effect_indeterminate",
-                dispatch_count=1,
-                terminal_effect="effect_indeterminate",
-            )
-        )[0]
-        == "effect_indeterminate"
-    )
-    assert (
-        classify_provider_disposition(
-            _effect_behavior("completed_success", dispatch_count=1, truncated=True)
-        )[0]
-        == "effect_indeterminate"
-    )
-    boolean_dispatch = _effect_behavior("completed_success", dispatch_count=True)
-    assert classify_provider_disposition(boolean_dispatch)[0] == "effect_indeterminate"
-    mismatched_total = _effect_behavior("completed_success", dispatch_count=1)
-    mismatched_total["provider"]["effect_evidence"]["attempt_total"] = 2
-    assert classify_provider_disposition(mismatched_total)[0] == "effect_indeterminate"
-
-
-def test_real_validated_receipt_maps_completed_success(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setenv("DSPX_PROVIDER", "stub")
-    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", '{"urgency":"high"}')
-    candidate, _, _ = _single_runtime(tmp_path, capture_replay_fixture=False)
-    for key, value in REQUIRED_ENVIRONMENT.items():
-        monkeypatch.setenv(key, value)
-    monkeypatch.delenv("DSPX_OPENAI_COMPAT_API_KEY", raising=False)
-    requests: list[httpx.Request] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        requests.append(request)
-        return httpx.Response(
-            200,
-            json={
-                "model": "baseline-text",
-                "choices": [
-                    {
-                        "message": {
-                            "role": "assistant",
-                            "content": "[[ ## urgency ## ]]\nhigh\n[[ ## completed ## ]]",
-                        }
-                    }
-                ],
-            },
-            request=request,
-        )
-
-    monkeypatch.setattr(
-        openai_provider, "_default_transport", lambda: httpx.MockTransport(handler)
-    )
-    runtime = tmp_path / "runtime-exact"
-    run_program_runtime_episode(
-        manifest_path=candidate / "manifest.json",
-        inputs_path=tmp_path / "inputs.json",
-        outdir=runtime,
-        skip_oracle_index=True,
-    )
-    manifest = json.loads((candidate / "manifest.json").read_text())
-    bundle = load_validated_program_runtime_episode_bundle(
-        runtime_episode_path=runtime / "runtime_episode.json",
-        expected_manifest_path=candidate / "manifest.json",
-        expected_manifest=manifest,
-        expected_manifest_sha256=hashlib.sha256(
-            (candidate / "manifest.json").read_bytes()
-        ).hexdigest(),
-    )
-    assert requests
-    state, details = classify_provider_disposition(bundle.behavior_results)
-    assert state == "succeeded"
-    assert details["terminal_effect"] == "completed_success"
+    forged = json.loads(json.dumps(behavior))
+    forged["provider"]["effect_evidence"]["maximum_provider_transports"] = 3
+    assert classify_provider_disposition(forged)[0] == "effect_indeterminate"
+    forged = json.loads(json.dumps(behavior))
+    forged["provider"]["metadata"]["cache"] = True
+    assert classify_provider_disposition(forged)[0] == "effect_indeterminate"
 
 
 def test_suite_consumes_all_cases_once_without_exposing_responses(
@@ -621,24 +640,25 @@ def test_suite_consumes_all_cases_once_without_exposing_responses(
             "behavior_results_sha256": behavior_sha256,
             "response_sha256": hashlib.sha256(b"bounded mock response").hexdigest(),
             "response_length": len("bounded mock response"),
-            "provider": {
-                "terminal_effect": "completed_success",
-                "attempt_total": 1,
-                "dispositions": ["completed_success"],
-                "dispatch_counts": [1],
-            },
+            "provider": classify_provider_disposition(
+                _effect_behavior(
+                    "completed_success", dispatch_count=1, mode=str(case["mode"])
+                )
+            )[1],
         }
 
     monkeypatch.setattr(executor, "_evaluate_case", fake_evaluate_case)
     state_root = tmp_path / "state"
     monkeypatch.setattr(executor, "_repo_root", lambda: REPO_ROOT)
     monkeypatch.setattr(executor, "default_state_root", lambda: state_root)
-    payload = executor.execute_soomfon_evaluation_suite(
+    payload = _execute_suite(
         expected_contract_sha256=CONTRACT_SHA256,
         environment=REQUIRED_ENVIRONMENT,
     )
     assert payload["state"] == "succeeded"
-    assert payload["backend_locality"] == "not_verified"
+    assert (
+        payload["backend_locality"] == "external_provider_route_not_local_backend_claim"
+    )
     assert calls == [
         "simple",
         "elaborate",
@@ -668,7 +688,7 @@ def test_suite_consumes_all_cases_once_without_exposing_responses(
     assert oct((suite_root / "suite-result.json").stat().st_mode & 0o777) == "0o600"
 
     with pytest.raises(RuntimeError, match="already consumed"):
-        executor.execute_soomfon_evaluation_suite(
+        _execute_suite(
             expected_contract_sha256=CONTRACT_SHA256,
             environment=REQUIRED_ENVIRONMENT,
         )
@@ -694,19 +714,14 @@ def test_suite_stops_after_first_non_success(
             "runtime_tree_sha256": tree_sha256,
             "runtime_receipt_sha256": receipt_sha256,
             "behavior_results_sha256": behavior_sha256,
-            "provider": {
-                "terminal_effect": "preflight_rejected",
-                "attempt_total": 1,
-                "dispositions": ["preflight_rejected"],
-                "dispatch_counts": [0],
-            },
+            "provider": {"reason": "fixture_preflight_rejected"},
         }
 
     monkeypatch.setattr(executor, "_evaluate_case", fake_evaluate_case)
     state_root = tmp_path / "state"
     monkeypatch.setattr(executor, "_repo_root", lambda: REPO_ROOT)
     monkeypatch.setattr(executor, "default_state_root", lambda: state_root)
-    payload = executor.execute_soomfon_evaluation_suite(
+    payload = _execute_suite(
         expected_contract_sha256=CONTRACT_SHA256,
         environment=REQUIRED_ENVIRONMENT,
     )
@@ -716,13 +731,19 @@ def test_suite_stops_after_first_non_success(
     assert isinstance(case_results, list)
     assert isinstance(case_results[0], dict)
     case_result = cast(dict[str, object], case_results[0])
-    assert case_result["state"] == "failed_no_effect_proved"
+    assert case_result["state"] == "effect_indeterminate"
 
 
 def test_cli_exposes_no_bypass_options() -> None:
     result = CliRunner().invoke(app, ["soomfon", "evaluate-originals", "--help"])
     assert result.exit_code == 0
-    assert "--expected-contract-sha256" in result.stdout
+    for required in (
+        "--expected-contract-sha256",
+        "--execution-authorization",
+        "--expected-authorization-sha",
+        "--owner-source-root",
+    ):
+        assert required in result.stdout
     for forbidden in (
         "--contract ",
         "--mode",
@@ -754,12 +775,13 @@ def test_suite_result_failure_does_not_enable_rerun(
             "runtime_tree_sha256": tree_sha256,
             "runtime_receipt_sha256": receipt_sha256,
             "behavior_results_sha256": behavior_sha256,
-            "provider": {
-                "terminal_effect": "completed_success",
-                "attempt_total": 1,
-                "dispositions": ["completed_success"],
-                "dispatch_counts": [1],
-            },
+            "provider": classify_provider_disposition(
+                _effect_behavior(
+                    "completed_success",
+                    dispatch_count=1,
+                    mode=str(kwargs["case"]["mode"]),
+                )
+            )[1],
         }
 
     monkeypatch.setattr(executor, "_evaluate_case", fake_success)
@@ -772,12 +794,12 @@ def test_suite_result_failure_does_not_enable_rerun(
 
     monkeypatch.setattr(executor, "_write_private_json", fail_suite_result)
     with pytest.raises(OSError, match="suite result"):
-        executor.execute_soomfon_evaluation_suite(
+        _execute_suite(
             expected_contract_sha256=CONTRACT_SHA256,
             environment=REQUIRED_ENVIRONMENT,
         )
     with pytest.raises(custody.SoomfonCustodyError, match="already consumed"):
-        executor.execute_soomfon_evaluation_suite(
+        _execute_suite(
             expected_contract_sha256=CONTRACT_SHA256,
             environment=REQUIRED_ENVIRONMENT,
         )
@@ -798,7 +820,7 @@ def test_terminal_persistence_failure_retains_unknown_marker(
         "append_terminal",
         lambda **_: (_ for _ in ()).throw(OSError("simulated fsync failure")),
     )
-    payload = executor.execute_soomfon_evaluation_suite(
+    payload = _execute_suite(
         expected_contract_sha256=CONTRACT_SHA256,
         environment=REQUIRED_ENVIRONMENT,
     )
@@ -846,7 +868,7 @@ def test_child_runtime_directory_rejects_preexisting_symlink(tmp_path: Path) -> 
     (raw / "runtime").symlink_to(target, target_is_directory=True)
     try:
         with pytest.raises(ValueError, match="entries"):
-            executor.create_child_runtime_directory(
+            child_runtime.create_child_runtime_directory(
                 raw_root_fd=raw_fd,
                 inputs_path=raw / "inputs.json",
                 outdir=raw / "runtime",
@@ -879,6 +901,9 @@ def test_marker_open_flags_include_append_exclusive_and_nofollow(
             ledger_fd=ledger_fd,
             contract_sha256=CONTRACT_SHA256,
             mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
         )
         os.close(marker_fd)
     finally:
@@ -930,6 +955,9 @@ def test_reconciled_predecessor_cannot_authorize_next_mode(tmp_path: Path) -> No
         ledger_fd=ledger_fd,
         contract_sha256=CONTRACT_SHA256,
         mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
     )
     try:
         custody.append_terminal(
@@ -946,12 +974,9 @@ def test_reconciled_predecessor_cannot_authorize_next_mode(tmp_path: Path) -> No
                 "behavior_results_sha256": behavior_sha256,
                 "response_sha256": hashlib.sha256(b"bounded mock response").hexdigest(),
                 "response_length": len("bounded mock response"),
-                "provider": {
-                    "terminal_effect": "completed_success",
-                    "attempt_total": 1,
-                    "dispositions": ["completed_success"],
-                    "dispatch_counts": [1],
-                },
+                "provider": classify_provider_disposition(
+                    _effect_behavior("completed_success", dispatch_count=1)
+                )[1],
             },
         )
     finally:
@@ -967,3 +992,42 @@ def test_reconciled_predecessor_cannot_authorize_next_mode(tmp_path: Path) -> No
         assert not soomfon_ledger.prior_modes_succeeded(ledger_fd, "elaborate")
     finally:
         os.close(ledger_fd)
+
+
+def test_parent_reconciles_canonical_ak_again_immediately_before_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dspx.services import soomfon_evaluation_authorization as auth
+
+    validated = SimpleNamespace(
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
+        authorization_path=Path("fixture-authorization.json"),
+        dspx_artifact={"kind": "reviewed_source_commit_tree"},
+        maximum_provider_transports=12,
+    )
+    calls = 0
+
+    def reconcile(**_: object) -> object:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return validated
+        raise auth.SoomfonExecutionAuthorizationError("canonical AK state")
+
+    markers: list[str] = []
+    monkeypatch.setattr(auth, "validate_execution_authorization", reconcile)
+    monkeypatch.setattr(executor, "default_state_root", lambda: tmp_path / "state")
+    monkeypatch.setattr(
+        executor,
+        "_persist_attempt_before_effect",
+        lambda **_: markers.append("marker"),
+    )
+    with pytest.raises(auth.SoomfonExecutionAuthorizationError, match="canonical AK"):
+        _execute_suite(
+            expected_contract_sha256=CONTRACT_SHA256,
+            environment=REQUIRED_ENVIRONMENT,
+        )
+    assert calls == 2
+    assert markers == []

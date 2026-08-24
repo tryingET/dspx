@@ -1303,3 +1303,15 @@ def test_program_run_cli(tmp_path: Path, monkeypatch) -> None:
     assert payload["steps"]["runtime_receipt"]["execution_replay_supported"] is False
     assert (outdir / "runtime_episode.json.meta.json").is_file()
     assert (outdir / "oracle" / "coordinates.db").exists()
+
+
+def test_generic_runtime_does_not_restore_dspy_lm_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DSPX_PROVIDER", "dspy-lm-auth")
+    provider, adapter, _ = runtime_episode_service._configure_provider()
+    assert provider["status"] == "unavailable"
+    assert adapter is None
+    error = provider["error"]
+    assert isinstance(error, dict)
+    assert "unsupported" in json.dumps(error)

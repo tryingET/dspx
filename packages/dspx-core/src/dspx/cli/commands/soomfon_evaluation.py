@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import typer
 
@@ -19,6 +20,21 @@ def evaluate_originals(
         "--expected-contract-sha256",
         help="Out-of-band independently reviewed SHA-256 of the frozen contract",
     ),
+    execution_authorization: Path = typer.Option(
+        ...,
+        "--execution-authorization",
+        help="Private DSPx-local AK reconciliation projection",
+    ),
+    expected_authorization_sha256: str = typer.Option(
+        ...,
+        "--expected-authorization-sha256",
+        help="Out-of-band SHA-256 of the local authorization projection",
+    ),
+    owner_source_root: Path = typer.Option(
+        ...,
+        "--owner-source-root",
+        help="Exact clean provider-owner source worktree",
+    ),
 ) -> None:
     """Consume the frozen six-case contract once under crash-durable custody."""
     from dspx.services.soomfon_evaluation_executor import (
@@ -27,7 +43,10 @@ def evaluate_originals(
 
     try:
         payload = execute_soomfon_evaluation_suite(
-            expected_contract_sha256=expected_contract_sha256
+            expected_contract_sha256=expected_contract_sha256,
+            execution_authorization_path=execution_authorization,
+            expected_authorization_sha256=expected_authorization_sha256,
+            owner_source_root=owner_source_root,
         )
     except Exception as exc:
         typer.echo(

@@ -266,11 +266,19 @@ def is_complete_terminal_marker(
         first.get("schema_version") == LEDGER_SCHEMA
         and first.get("contract_sha256") == REVIEWED_CONTRACT_SHA256
         and first.get("mode") == mode
+        and type(first.get("execution_task_id")) is int
+        and first["execution_task_id"] > 4987
+        and isinstance(first.get("authorization_sha256"), str)
+        and _SHA256_RE.fullmatch(first["authorization_sha256"]) is not None
+        and isinstance(first.get("ak_reconciliation_sha256"), str)
+        and _SHA256_RE.fullmatch(first["ak_reconciliation_sha256"]) is not None
         and first.get("state") == "attempted_outcome_unknown"
         and first.get("sequence") == 0
         and terminal.get("schema_version") == LEDGER_SCHEMA
         and terminal.get("contract_sha256") == REVIEWED_CONTRACT_SHA256
         and terminal.get("mode") == mode
+        and terminal.get("execution_task_id") == first.get("execution_task_id")
+        and terminal.get("authorization_sha256") == first.get("authorization_sha256")
         and terminal.get("sequence") == 1
         and isinstance(latency, int)
         and not isinstance(latency, bool)
@@ -280,10 +288,9 @@ def is_complete_terminal_marker(
         return False
     state = terminal.get("state")
     provider = details.get("provider")
-    dispositions = provider.get("dispositions") if isinstance(provider, dict) else None
-    dispatches = provider.get("dispatch_counts") if isinstance(provider, dict) else None
-    attempt_total = (
-        provider.get("attempt_total") if isinstance(provider, dict) else None
+    call_records = provider.get("call_records") if isinstance(provider, dict) else None
+    logical_call_total = (
+        provider.get("logical_call_total") if isinstance(provider, dict) else None
     )
     runtime_hashes_valid = evidence_hashes is not None and all(
         isinstance(details.get(key), str)
@@ -302,16 +309,25 @@ def is_complete_terminal_marker(
         and _SHA256_RE.fullmatch(response_hash) is not None
     )
     provider_shape = (
-        type(attempt_total) is int
-        and attempt_total == 1
-        and isinstance(dispositions, list)
-        and isinstance(dispatches, list)
-        and len(dispositions) == len(dispatches) == attempt_total
-        and all(isinstance(item, str) for item in dispositions)
-        and all(type(item) is int for item in dispatches)
+        isinstance(provider, dict)
+        and provider.get("mode") == mode
+        and provider.get("artifact_verification") == "accepted_exact"
+        and type(logical_call_total) is int
+        and logical_call_total == 2
+        and provider.get("maximum_provider_transports") == 2
+        and isinstance(call_records, list)
+        and len(call_records) == logical_call_total
+        and all(
+            isinstance(item, dict)
+            and item.get("call_ordinal") == index
+            and item.get("provider_outcome_receipt") == "accepted"
+            and item.get("request_acknowledged") is True
+            and item.get("external_effect_possible") is True
+            and item.get("producer_terminal") == "provider_response_completed"
+            and item.get("empirical_disposition") == "not_evaluated"
+            for index, item in enumerate(call_records, start=1)
+        )
     )
-    safe_dispositions = dispositions if isinstance(dispositions, list) else []
-    safe_dispatches = dispatches if isinstance(dispatches, list) else []
     provider_evidence_valid = (
         evidence_hashes is not None and evidence_hashes.get("provider") == provider
     )
@@ -339,30 +355,9 @@ def is_complete_terminal_marker(
             and type(details.get("response_length")) is int
             and details["response_length"] > 0
             and provider_shape
-            and provider.get("terminal_effect") == "completed_success"
-            and all(item == "completed_success" for item in safe_dispositions)
-            and all(item == 1 for item in safe_dispatches)
         )
     if state == "failed_no_effect_proved":
-        return (
-            set(details)
-            == {
-                "latency_ms",
-                "runtime_episode_sha256",
-                "runtime_tree_sha256",
-                "runtime_receipt_sha256",
-                "behavior_results_sha256",
-                "provider",
-            }
-            and provider_shape
-            and provider.get("terminal_effect") == "preflight_rejected"
-            and runtime_hashes_valid
-            and all(item == "preflight_rejected" for item in safe_dispositions)
-            and evidence_hashes is not None
-            and evidence_hashes.get("provider_state") == "failed_no_effect_proved"
-            and provider_evidence_valid
-            and all(item == 0 for item in safe_dispatches)
-        )
+        return False
     return state == "effect_indeterminate" and (
         isinstance(details.get("reason"), str) or isinstance(provider, dict)
     )
