@@ -1,0 +1,51 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "6ea779d0f1af7e8adb2f0a7a4bc499c450b1f890"
+created_at: "2026-08-24T14:51:12Z"
+intent: "Resolve all 11 rejected v11 custody blockers on the modern typed-provider architecture for renewed provider-free exact Gate-3 acceptance"
+files:
+  - "governance/task-scopes/AK-4713.snapshot.json"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_adapter_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_artifacts_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_authority_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_contract_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_evidence_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate4_contract_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate4_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate4_validation_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate5_authority_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate5_journal_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate5_persistence_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate5_result_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate5_runtime_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate5_semantics_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_gate5_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_identity_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_journal_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_owner_bridge_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_result_artifact_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_result_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_review_grammar_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_runner_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_state_v11.py"
+  - "packages/dspx-core/src/dspx/services/program_oracle_semantic_verification_v11.py"
+  - "scripts/ci/run_oracle_semantic_analysis_evaluation_v11.py"
+  - "tests/test_dspy_lm_auth_lm.py"
+  - "tests/test_program_oracle_semantic_evaluation_v11.py"
+validation:
+  fast_gate:
+    command: "focused provider-free suite: 107 passed, 1 skipped; ruff/typecheck/task-scope pass"
+    status: "pass"
+  full_gate:
+    command: "just verify-full: 3182 passed, 5 skipped; residual live lane skipped"
+    status: "pass"
+group:
+  index: 1
+  total: 2
+  rationale: "Exact accepted candidate commit; no Gate4/Gate5/provider/live effects"
+links:
+  task_ids:
+    - 4713
