@@ -1,0 +1,12 @@
+schema: ai-society-provenance-v1
+task: AK-5028
+commit: 8044fbf4ace59724a19d05ec6bfef3edd00f7ca1
+tree: 6138c6f2548817180d5313d88130b4f8ba1bb173
+successor_contract_sha256: 0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207
+consumed_contract_sha256: 9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b
+validation: focused 200 passed; verify-full 3260 passed, 5 skipped; residual 2 skipped
+review: dispatch-1787606353476 ACCEPT
+test: dispatch-1787606353477 PASS
+ak_evidence: 7694,7695,7696
+effects: provider=0 model=0 oauth=0 credential=0 network=0 raw_response_read=0 routing=0 promotion=0 activation=0 release=0 publication=0
+posture: execution_unauthorized_successor
