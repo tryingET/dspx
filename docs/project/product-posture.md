@@ -35,11 +35,12 @@ Current AK direction prioritizes making Core DSPx installable, operationally saf
 
 The current typed-runtime baseline establishes:
 
-- DSPy/DSPy-AI 3.3.0 hard cutover through one typed LM adapter, with a credential-free stub path and one loopback-only OpenAI-compatible provider; other legacy provider bridges remain removed.
+- DSPy/DSPy-AI 3.3.0 typed-runtime hard cutover, transitioned to DSPy/DSPy-AI 3.3.1 on one typed LM adapter, with a credential-free stub path and one loopback-only OpenAI-compatible provider; other legacy provider bridges remain removed.
 - Six fresh original voice-turn candidates (`simple`, `elaborate`, `researched`, `deep-research`, `socratic`, and `bloom`) with DSPy 3.3 identities, receipts, runtime episodes, and replay evidence. Historical DSPy 3.1.3 artifacts and routing remain unchanged. The canaries use `stub/echo`; semantic equivalence and quality remain `not_evaluated`.
-- A repository-lock compatibility override from DSPy's declared `gepa[dspy]==0.1.1` dependency to GEPA 0.1.4. Published Core wheels do not inherit that workspace override automatically; deployed environments must prove their resolved version independently.
+- GEPA 0.1.4 is natively pinned by DSPy 3.3.1 (`gepa[dspy]==0.1.4`); the former repository-lock override from DSPy 3.3.0's declared `gepa[dspy]==0.1.1` is retired. Published Core wheel metadata declares the dependency directly.
 - Bounded GEPA 0.1.4 proposal sampling, selection, acceptance, budget semantics, lifecycle counts, and receipt commitments through DSPx-owned typed boundaries; arbitrary executable callbacks, unmeasured reflection-cost limits, custom reflection strategies, and checkpoint resume remain unavailable.
 - One real credential-free GEPA 0.1.4 output journey through fresh candidate materialization, behavior refresh, receipt checking, executable replay, and non-authoritative comparison. Exact optimizer-manifest hash opt-in is required before pickle loading, but hash binding does not make pickle safe or production-admissible.
+- DSPy 3.3.1 deprecates `dspy.CodeAct` and `dspy.ProgramOfThought` (upstream removal targeted at DSPy 3.5). Program-of-thought remains a supported bounded primitive in DSPx under the reviewed interpreter-factory lifecycle; migration to the replacement path requires its own governed review before upstream removal.
 
 The next product proof is an observation-only Soomfon six-button execution matrix: deployed commit/wheel, DSPx/DSPy/GEPA versions, exact candidate and manifest, provider route, one predeclared observed turn, latency, receipt, and terminal effect disposition for each button. No repository evidence currently proves that the device routes to the fresh canaries. Deep research also remains unable to claim iterative retrieval while Decision 115's fixed hash-bound local-corpus ReActV2 tool is still review-pending.
 
