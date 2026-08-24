@@ -1,0 +1,24 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "0885d08fa32cc4daeb098c2d29982f078b233aa9"
+created_at: "2026-08-24T09:30:27Z"
+intent: "Project the AK-native DSPy/GEPA direction expansion as six owner-bound architectural gates after many-of-the-greats adjudication and transcendent iteration"
+files:
+  - "docs/project/2026-08-24-dspy-gepa-advancement-architecture.md"
+  - "docs/project/product-posture.md"
+validation:
+  fast_gate:
+    command: "ak direction check && docs-list --docs docs --strict && just check"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+  rationale: "Boundary-shaped architecture replaces feature-shaped backlog; current claim drift corrected; AK remains canonical"
+links:
+  task_ids:
+    - 4944
