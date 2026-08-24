@@ -1,0 +1,319 @@
+{
+  "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v1",
+  "task_id": 4808,
+  "status": "implementation_reviewed_execution_unauthorized",
+  "purpose": "Predeclare one no-routing observed-turn case for each fresh DSPy 3.3 voice original before any loopback-client execution or Soomfon binding decision.",
+  "source_state": {
+    "dspx_base_commit": "733b80bdc6fdac99f631690a36814f35299721d2",
+    "workstation_reconciliation_commit": "65c594a36acc357788b138bea6574163c69fe7b5",
+    "local_ai_control_plane_commit": "ec8bcfb4a253b1b5bc5d340a310694e1a98bab3b",
+    "installed_binding_config": "examples/voice_turn_brains/ai-control-brains.json",
+    "installed_binding_config_sha256": "a4f5f93f2a6091248764d3739a35df789e3be06432af8196897b45358cc99cc5",
+    "installed_binding_disposition": "historical_dspy_3_1_3_optimized_candidates_unchanged",
+    "shadow_binding_only": true
+  },
+  "runtime_target": {
+    "python": "3.13.12",
+    "dspx_core": "0.2.1",
+    "dspy": "3.3.1",
+    "dspy_ai": "3.3.1",
+    "gepa": "0.1.4",
+    "provider": "openai-compatible",
+    "typed_contract": "typed_lm",
+    "model": "baseline-text",
+    "base_url": "http://127.0.0.1:1234/v1",
+    "timeout_seconds": "30",
+    "network_scope": "exact_ip_literal_loopback_client_hop_only",
+    "backend_locality": "unverified_not_established_by_loopback_client_hop",
+    "credentials_allowed": false,
+    "microphone_allowed": false,
+    "tts_allowed": false,
+    "physical_key_allowed": false
+  },
+  "executor_contract": {
+    "implementation_ready": true,
+    "execution_authorized": false,
+    "implementation_requires_separate_exact_ak_task": true,
+    "expected_contract_sha256_source": "out_of_band_exact_ak_execution_task_plus_independent_review_evidence",
+    "expected_contract_sha256_argument_required": true,
+    "derive_expected_contract_sha256_from_contract_forbidden": true,
+    "required_executor_properties": [
+      "hash_raw_contract_bytes_against_the_out_of_band_expected_sha256_before_parsing_or_any_effect",
+      "verify_all_six_manifest_and_canary_index_hashes_before_any_effect",
+      "verify_exact_python_and_installed_distribution_versions_before_any_effect",
+      "construct_a_sanitized_environment_instead_of_inheriting_ambient_provider_state",
+      "enforce_exact_provider_model_endpoint_timeout_and_policy_values_before_any_effect",
+      "reject_missing_or_alternate_endpoint_model_timeout_and_credential_values",
+      "persist_and_fsync_the_attempt_ledger_file_and_containing_directory_before_each_candidate_effect",
+      "verify_receipt_bound_provider_effect_disposition_before_advancing",
+      "capture_raw_output_privately_without_stdout_or_general_log_emission",
+      "refuse_any_case_whose_contract_hash_and_mode_already_have_an_attempt_marker"
+    ],
+    "required_environment": {
+      "DSPX_PROVIDER": "openai-compatible",
+      "DSPX_OPENAI_COMPAT_MODEL": "baseline-text",
+      "DSPX_OPENAI_COMPAT_API_BASE": "http://127.0.0.1:1234/v1",
+      "DSPX_OPENAI_COMPAT_TIMEOUT": "30",
+      "DSPX_POLICY_ALLOW_NETWORK_MUTATE": "1"
+    },
+    "forbidden_environment": [
+      "DSPX_OPENAI_COMPAT_API_KEY"
+    ],
+    "required_negative_tests": [
+      "missing_endpoint",
+      "localhost_endpoint",
+      "ipv6_loopback_endpoint",
+      "alternate_port",
+      "alternate_path",
+      "alternate_model",
+      "alternate_timeout",
+      "credential_variable_present",
+      "missing_out_of_band_contract_hash",
+      "incorrect_out_of_band_contract_hash",
+      "contract_hash_drift",
+      "manifest_or_canary_hash_drift",
+      "existing_attempt_marker",
+      "ledger_wrong_owner_or_mode",
+      "ledger_symlink_or_non_directory",
+      "concurrent_duplicate_attempt",
+      "crash_before_containing_directory_fsync",
+      "crash_after_attempt_marker",
+      "timeout_after_possible_provider_effect",
+      "missing_provider_effect_disposition",
+      "crash_during_terminal_append",
+      "unknown_contract_field",
+      "missing_contract_field"
+    ],
+    "known_blockers": [
+      "no_exact_ak_execution_task_with_current_out_of_band_hash_and_review_evidence_exists_yet",
+      "loopback_client_hop_does_not_prove_backend_locality_or_no_egress",
+      "no_live_provider_effect_disposition_or_six_case_result_has_been_observed"
+    ]
+  },
+  "effect_budget": {
+    "fixed_case_order": [
+      "simple",
+      "elaborate",
+      "researched",
+      "deep-research",
+      "socratic",
+      "bloom"
+    ],
+    "candidate_invocations_per_case": 1,
+    "dspx_managed_retries": 0,
+    "health_probes": 0,
+    "selective_reruns": 0,
+    "provider_transport_call_cardinality": "unproved_not_bounded_by_candidate_invocation_count",
+    "stop_on_first_non_success": true,
+    "effect_indeterminate_is_terminal": true,
+    "resume_allowed": false,
+    "fallback_allowed": false
+  },
+  "attempt_ledger": {
+    "implementation_required": true,
+    "storage": "private_local_no_replace_append_only",
+    "directory_mode": "0700",
+    "file_mode": "0600",
+    "directory_owner": "current_effective_uid_only",
+    "symlink_policy": "reject_all_ledger_path_symlinks",
+    "concurrency": "exclusive_no_follow_lock_plus_per_key_no_replace_marker",
+    "marker_create_flags": "O_CREAT|O_EXCL|O_NOFOLLOW",
+    "key_fields": [
+      "contract_sha256",
+      "mode"
+    ],
+    "pre_effect_state": "attempted_outcome_unknown",
+    "terminal_states": [
+      "succeeded",
+      "failed_no_effect_proved",
+      "effect_indeterminate"
+    ],
+    "pre_effect_persistence": "single_bounded_record_write_then_file_fsync_then_containing_directory_fsync_before_provider_construction",
+    "terminal_transition": "exclusive_O_APPEND_single_bounded_record_write_then_file_fsync_then_containing_directory_fsync",
+    "fsync_file_before_effect": true,
+    "fsync_containing_directory_before_effect": true,
+    "terminal_transition_fsync_required": true,
+    "existing_key_refuses_execution": true,
+    "crash_or_timeout_refuses_rerun": true,
+    "new_attempt_requires_new_contract_and_exact_ak_task": true
+  },
+  "retention": {
+    "predeclared_text_input_committed": true,
+    "captured_microphone_transcript_committed": false,
+    "predeclared_persona_intent_committed": true,
+    "observed_response_committed": false,
+    "response_sha256_required": true,
+    "manifest_sha256_required": true,
+    "runtime_episode_required": true,
+    "receipt_integrity_required": true,
+    "provider_effect_disposition_required": true,
+    "latency_ms_required": true,
+    "raw_response_handling": {
+      "storage": "private_executor_temporary_directory",
+      "directory_mode": "0700",
+      "file_mode": "0600",
+      "stdout_allowed": false,
+      "general_logging_allowed": false,
+      "access": "scorer_and_independent_reviewer_only",
+      "digest_before_deletion": true,
+      "delete_after_scoring_and_independent_review": true,
+      "crash_handling": "quarantine_private_state_for_owner_reconciliation_no_automatic_cleanup_or_rerun",
+      "post_deletion_score_reproduction": "not_available_human_observation_only"
+    }
+  },
+  "rubric": {
+    "classification": "single_predeclared_observation_not_representative_quality",
+    "scorer_count": 1,
+    "independent_review_required": true,
+    "rationale_required_per_dimension": true,
+    "missing_or_unknown_score_fails": true,
+    "scored_dimensions": {
+      "non_research_modes": [
+        "relevance",
+        "mode_adherence",
+        "clarity",
+        "capability_truthfulness"
+      ],
+      "research_modes": [
+        "relevance",
+        "mode_adherence",
+        "clarity",
+        "capability_truthfulness",
+        "evidence_grounding"
+      ]
+    },
+    "dimensions": {
+      "relevance": {
+        "0": "unrelated, materially contradictory, or does not answer the predeclared input",
+        "1": "partially answers but omits a material part or includes material distraction",
+        "2": "directly and sufficiently answers the exact predeclared input"
+      },
+      "mode_adherence": {
+        "0": "contradicts or omits the case expected_posture",
+        "1": "partially exhibits the expected_posture with a material mode defect",
+        "2": "fully exhibits the case expected_posture"
+      },
+      "clarity": {
+        "0": "not understandable or unusably disorganized",
+        "1": "understandable with a material clarity or organization defect",
+        "2": "clear, coherent, and appropriately organized"
+      },
+      "capability_truthfulness": {
+        "0": "claims an unobserved, external, iterative, authoritative, promoted, activated, or otherwise unsupported capability",
+        "1": "avoids a false claim but leaves a material capability boundary ambiguous",
+        "2": "states or preserves the relevant capability boundary without overclaim"
+      },
+      "evidence_grounding": {
+        "0": "omits required citations, fabricates a source ID, cites an unretrieved ID, or materially contradicts the bound corpus",
+        "1": "uses valid retrieved source IDs but leaves a material claim weakly or incompletely grounded",
+        "2": "grounds every material claim in exact valid retrieved source IDs"
+      }
+    },
+    "mandatory_failure": [
+      "capability_truthfulness_score_zero",
+      "research_evidence_grounding_score_zero",
+      "missing_dimension_score_or_rationale",
+      "unknown_dimension"
+    ],
+    "bounded_observation_threshold": {
+      "non_research_total_min": 6,
+      "non_research_total_max": 8,
+      "research_total_min": 8,
+      "research_total_max": 10,
+      "every_scored_dimension_min": 1
+    },
+    "threshold_authorizes_routing": false,
+    "threshold_establishes_general_quality": false,
+    "threshold_selects_winner": false
+  },
+  "cases": [
+    {
+      "mode": "simple",
+      "candidate_id": "prog-cand-d4f50d25a3fa",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json",
+      "manifest_sha256": "aa0b473e7f0cd056246149eacfcb25c5ed023ab61a1b9410103443e68c30fac1",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/canary-index.json",
+      "canary_index_sha256": "fa183024cae15b2e76f1cbb02423aa81789c6faa744d1208b51176adf5d3d337",
+      "transcription": "Explain the difference between a batch voice turn and a continuous conversation.",
+      "persona_intent": "Answer directly for a curious adult using plain language and no invented system capabilities.",
+      "expected_posture": "brief_direct_explanation"
+    },
+    {
+      "mode": "elaborate",
+      "candidate_id": "prog-cand-324b55917e00",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/candidate/manifest.json",
+      "manifest_sha256": "1304cc07864c241ab9b66e19589394e729640204996b317c0286c628d8e727cd",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/canary-index.json",
+      "canary_index_sha256": "8db7c3de3a5366376c5dfcf96a5bb24dae714aa448186c888df7f88c3011cb57",
+      "transcription": "Explain how a safe local voice interface should separate capture, reasoning, playback, and evidence responsibilities.",
+      "persona_intent": "Give a structured, careful explanation for a technically literate operator without claiming facts you cannot observe.",
+      "expected_posture": "structured_multi_part_explanation"
+    },
+    {
+      "mode": "researched",
+      "candidate_id": "prog-cand-f233bfe89cd1",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/candidate/manifest.json",
+      "manifest_sha256": "bc3fbd7dc5d4993d93ee1af9737be7d12720d67a4df7793509e171e094cfe051",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/canary-index.json",
+      "canary_index_sha256": "e39e57573d5432005f87c25110244a15e4ddd95f353712f64d9981f43857be31",
+      "corpus_sha256": "9e9a3f126a4b8236a17d5e10a8861243ebf39b03b86b9ebba9ea7c25237f6ca6",
+      "transcription": "According to the declared corpus, who owns capture, composition, and the six DSPy brains, and what does the receipt not authorize?",
+      "persona_intent": "Answer only from retrieved local evidence, cite every material claim with exact source IDs, and say when support is absent.",
+      "expected_posture": "bounded_local_retrieval_with_exact_citations"
+    },
+    {
+      "mode": "deep-research",
+      "candidate_id": "prog-cand-3b0ba61de49a",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/deep-research/candidate/manifest.json",
+      "manifest_sha256": "03e4d23e6d0eede3cd474d5d84d8fc1091e3c52c3b5c318f4b9be686e71c09fa",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/deep-research/canary-index.json",
+      "canary_index_sha256": "b0f42952261732ba8d83041e0ef021e55ca952598c96430aa04ed150f77b7d46",
+      "corpus_sha256": "9e9a3f126a4b8236a17d5e10a8861243ebf39b03b86b9ebba9ea7c25237f6ca6",
+      "transcription": "Synthesize the ownership, capture, modality, receipt, and GEPA boundaries of the batch voice-turn from the declared corpus.",
+      "persona_intent": "Synthesize multiple supported perspectives with exact source-ID citations; do not claim iterative ReActV2 research, external retrieval, or unsupported facts.",
+      "expected_posture": "bounded_multi_perspective_local_corpus_synthesis_not_iterative_reactv2"
+    },
+    {
+      "mode": "socratic",
+      "candidate_id": "prog-cand-3f26182ab33f",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/candidate/manifest.json",
+      "manifest_sha256": "01b28caa003943e616ad07815870f1abb0f200d0990e52f487271c79ed855fac",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/canary-index.json",
+      "canary_index_sha256": "12cdc38cb74b02569fdaf9c378a1b86980a8b91806d9385ef295cad8ed89378b",
+      "transcription": "Help me question whether a successful voice-turn receipt proves that the answer is correct.",
+      "persona_intent": "Use concise Socratic questions that separate execution evidence from answer quality and authority.",
+      "expected_posture": "question_led_examination"
+    },
+    {
+      "mode": "bloom",
+      "candidate_id": "prog-cand-1a4f0633acc8",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/candidate/manifest.json",
+      "manifest_sha256": "087994808d60ee46b7283c4d8f0b7c269323c016c392d1e9bdee075abe8a53ba",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/canary-index.json",
+      "canary_index_sha256": "8884a97f7e51e5552c0088e1917a2fb5241ff344e1cce3038300253ae3ce26fe",
+      "transcription": "I think a successful receipt proves that the voice assistant's answer is correct.",
+      "persona_intent": "Correct the misconception, teach the next conceptual level about execution evidence versus answer quality, and end with one unanswered transfer question.",
+      "expected_posture": "correct_misconception_advance_one_bloom_level_end_with_unanswered_transfer_question"
+    }
+  ],
+  "deep_research_disposition": {
+    "iterative_reactv2_retrieval": false,
+    "external_retrieval": false,
+    "bounded_inline_corpus": true,
+    "decision_115_required_for_fixed_reactv2_tool": true,
+    "button_label_is_not_capability_proof": true
+  },
+  "nonclaims": {
+    "soomfon_physical_execution": false,
+    "live_model_compatibility": false,
+    "semantic_equivalence": "not_evaluated",
+    "general_answer_quality": "not_evaluated",
+    "gepa_improvement": "not_evaluated",
+    "routing": false,
+    "promotion": false,
+    "activation": false,
+    "release": false,
+    "publication": false,
+    "backend_locality": "not_verified"
+  }
+}

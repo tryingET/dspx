@@ -1,0 +1,507 @@
+{
+  "builtin_capabilities": [
+    {
+      "allowed_topology_kinds": [
+        "single_module",
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise"
+      ],
+      "capability_id": "dspy.primitive.Predict",
+      "conditional_materializable": false,
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "experimental": false,
+      "kind": "dspy_primitive",
+      "materializable": true,
+      "materialization_policy": {
+        "bounded_inline_retriever_adapter_allowed": false,
+        "custom_import_allowed": false,
+        "fail_closed_without_explicit_adapter": true,
+        "generated_code_only": true,
+        "live_external_retriever_binding_allowed": false,
+        "local_corpus_snapshot_adapter_allowed": false,
+        "program_of_thought_allowed": false,
+        "provider_call_allowed_by_contract": false,
+        "react_loop_allowed": false,
+        "react_v2_declared_only": false,
+        "react_v2_materialization_requires_explicit_opt_in": false,
+        "react_v2_requires_public_dspy_react_v2": false,
+        "react_v2_tool_binding_allowed": false,
+        "retriever_binding_allowed": false,
+        "tool_binding_allowed": false
+      },
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false
+      },
+      "primitive": "Predict",
+      "routing_policy": {
+        "arbitrary_expression": false,
+        "when_field_equals": true
+      },
+      "schema_version": "program-capability-contract-v1",
+      "status": "materializable"
+    },
+    {
+      "allowed_topology_kinds": [
+        "single_module",
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise"
+      ],
+      "capability_id": "dspy.primitive.ChainOfThought",
+      "conditional_materializable": false,
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "experimental": false,
+      "kind": "dspy_primitive",
+      "materializable": true,
+      "materialization_policy": {
+        "bounded_inline_retriever_adapter_allowed": false,
+        "custom_import_allowed": false,
+        "fail_closed_without_explicit_adapter": true,
+        "generated_code_only": true,
+        "live_external_retriever_binding_allowed": false,
+        "local_corpus_snapshot_adapter_allowed": false,
+        "program_of_thought_allowed": false,
+        "provider_call_allowed_by_contract": false,
+        "react_loop_allowed": false,
+        "react_v2_declared_only": false,
+        "react_v2_materialization_requires_explicit_opt_in": false,
+        "react_v2_requires_public_dspy_react_v2": false,
+        "react_v2_tool_binding_allowed": false,
+        "retriever_binding_allowed": false,
+        "tool_binding_allowed": false
+      },
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false
+      },
+      "primitive": "ChainOfThought",
+      "routing_policy": {
+        "arbitrary_expression": false,
+        "when_field_equals": true
+      },
+      "schema_version": "program-capability-contract-v1",
+      "status": "materializable"
+    },
+    {
+      "allowed_topology_kinds": [
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise"
+      ],
+      "capability_id": "dspy.primitive.Retriever",
+      "conditional_materializable": true,
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "experimental": false,
+      "kind": "dspy_primitive",
+      "materializable": false,
+      "materialization_policy": {
+        "bounded_inline_retriever_adapter_allowed": true,
+        "custom_import_allowed": false,
+        "fail_closed_without_explicit_adapter": true,
+        "generated_code_only": true,
+        "live_external_retriever_binding_allowed": false,
+        "local_corpus_snapshot_adapter_allowed": true,
+        "program_of_thought_allowed": false,
+        "provider_call_allowed_by_contract": false,
+        "react_loop_allowed": false,
+        "react_v2_declared_only": false,
+        "react_v2_materialization_requires_explicit_opt_in": false,
+        "react_v2_requires_public_dspy_react_v2": false,
+        "react_v2_tool_binding_allowed": false,
+        "retriever_binding_allowed": false,
+        "tool_binding_allowed": false
+      },
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false
+      },
+      "primitive": "Retriever",
+      "routing_policy": {
+        "arbitrary_expression": false,
+        "when_field_equals": true
+      },
+      "schema_version": "program-capability-contract-v1",
+      "status": "conditionally_materializable_with_adapter"
+    },
+    {
+      "allowed_topology_kinds": [
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise"
+      ],
+      "capability_id": "dspy.primitive.ReAct",
+      "conditional_materializable": true,
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "experimental": false,
+      "kind": "dspy_primitive",
+      "materializable": false,
+      "materialization_policy": {
+        "bounded_inline_retriever_adapter_allowed": false,
+        "custom_import_allowed": false,
+        "fail_closed_without_explicit_adapter": true,
+        "generated_code_only": true,
+        "live_external_retriever_binding_allowed": false,
+        "local_corpus_snapshot_adapter_allowed": false,
+        "program_of_thought_allowed": false,
+        "provider_call_allowed_by_contract": false,
+        "react_loop_allowed": true,
+        "react_v2_declared_only": false,
+        "react_v2_materialization_requires_explicit_opt_in": false,
+        "react_v2_requires_public_dspy_react_v2": false,
+        "react_v2_tool_binding_allowed": false,
+        "retriever_binding_allowed": false,
+        "tool_binding_allowed": false
+      },
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false
+      },
+      "primitive": "ReAct",
+      "routing_policy": {
+        "arbitrary_expression": false,
+        "when_field_equals": true
+      },
+      "schema_version": "program-capability-contract-v1",
+      "status": "conditionally_materializable_with_adapter"
+    },
+    {
+      "allowed_topology_kinds": [
+        "pipeline",
+        "router",
+        "retrieve_then_answer",
+        "extract_transform_validate",
+        "generate_critique_revise"
+      ],
+      "capability_id": "dspy.primitive.ProgramOfThought",
+      "conditional_materializable": true,
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "experimental": false,
+      "kind": "dspy_primitive",
+      "materializable": false,
+      "materialization_policy": {
+        "bounded_inline_retriever_adapter_allowed": false,
+        "custom_import_allowed": false,
+        "fail_closed_without_explicit_adapter": true,
+        "generated_code_only": true,
+        "live_external_retriever_binding_allowed": false,
+        "local_corpus_snapshot_adapter_allowed": false,
+        "program_of_thought_allowed": true,
+        "provider_call_allowed_by_contract": false,
+        "react_loop_allowed": false,
+        "react_v2_declared_only": false,
+        "react_v2_materialization_requires_explicit_opt_in": false,
+        "react_v2_requires_public_dspy_react_v2": false,
+        "react_v2_tool_binding_allowed": false,
+        "retriever_binding_allowed": false,
+        "tool_binding_allowed": false
+      },
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false
+      },
+      "primitive": "ProgramOfThought",
+      "routing_policy": {
+        "arbitrary_expression": false,
+        "when_field_equals": true
+      },
+      "schema_version": "program-capability-contract-v1",
+      "status": "conditionally_materializable_with_adapter"
+    },
+    {
+      "allowed_topology_kinds": [],
+      "capability_id": "dspy.primitive.ReActV2",
+      "conditional_materializable": false,
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "experimental": true,
+      "kind": "dspy_primitive",
+      "materializable": false,
+      "materialization_policy": {
+        "bounded_inline_retriever_adapter_allowed": false,
+        "custom_import_allowed": false,
+        "fail_closed_without_explicit_adapter": true,
+        "generated_code_only": false,
+        "live_external_retriever_binding_allowed": false,
+        "local_corpus_snapshot_adapter_allowed": false,
+        "program_of_thought_allowed": false,
+        "provider_call_allowed_by_contract": false,
+        "react_loop_allowed": false,
+        "react_v2_declared_only": true,
+        "react_v2_materialization_requires_explicit_opt_in": false,
+        "react_v2_requires_public_dspy_react_v2": false,
+        "react_v2_tool_binding_allowed": false,
+        "retriever_binding_allowed": false,
+        "tool_binding_allowed": false
+      },
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false
+      },
+      "primitive": "ReActV2",
+      "routing_policy": {
+        "arbitrary_expression": false,
+        "when_field_equals": false
+      },
+      "schema_version": "program-capability-contract-v1",
+      "status": "experimental_declared_only_not_materializable"
+    },
+    {
+      "allowed_topology_kinds": [],
+      "capability_id": "dspy.primitive.Custom",
+      "conditional_materializable": false,
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "experimental": false,
+      "kind": "dspy_primitive",
+      "materializable": false,
+      "materialization_policy": {
+        "bounded_inline_retriever_adapter_allowed": false,
+        "custom_import_allowed": false,
+        "fail_closed_without_explicit_adapter": true,
+        "generated_code_only": false,
+        "live_external_retriever_binding_allowed": false,
+        "local_corpus_snapshot_adapter_allowed": false,
+        "program_of_thought_allowed": false,
+        "provider_call_allowed_by_contract": false,
+        "react_loop_allowed": false,
+        "react_v2_declared_only": false,
+        "react_v2_materialization_requires_explicit_opt_in": false,
+        "react_v2_requires_public_dspy_react_v2": false,
+        "react_v2_tool_binding_allowed": false,
+        "retriever_binding_allowed": false,
+        "tool_binding_allowed": false
+      },
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false
+      },
+      "primitive": "Custom",
+      "routing_policy": {
+        "arbitrary_expression": false,
+        "when_field_equals": false
+      },
+      "schema_version": "program-capability-contract-v1",
+      "status": "declared_only_not_materializable"
+    }
+  ],
+  "custom_module_readiness": {
+    "custom_declaration_count": 0,
+    "custom_declaration_ids": [],
+    "custom_module_execution_allowed": false,
+    "effect": {
+      "custom_import_loaded": false,
+      "external_authority": false,
+      "filesystem_read": false,
+      "network": false,
+      "subprocess": false
+    },
+    "imports_enabled": false,
+    "required_before_enablement": [],
+    "schema_version": "program-custom-module-readiness-v1",
+    "status": "not_requested"
+  },
+  "declared_capabilities": [],
+  "effects": {
+    "custom_import_loaded": false,
+    "external_authority": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "network": false,
+    "provider_called": false,
+    "subprocess": false,
+    "tool_called": false
+  },
+  "external_retriever_readiness": {
+    "effect": {
+      "external_authority": false,
+      "filesystem_read": false,
+      "network": false,
+      "retriever_called": false,
+      "subprocess": false
+    },
+    "external_retriever_execution_allowed": false,
+    "live_retrievers_enabled": false,
+    "required_before_enablement": [],
+    "retriever_declaration_count": 0,
+    "retriever_declaration_ids": [],
+    "safe_materializable_modes": [
+      "inline_corpus",
+      "local_corpus_snapshot"
+    ],
+    "schema_version": "program-external-retriever-readiness-v1",
+    "status": "not_requested"
+  },
+  "materialization_policy": {
+    "conditional_materializable_primitives": {
+      "ProgramOfThought": "explicit bounded materializable topology module with empty PythonInterpreter sandbox only",
+      "ReAct": "explicit bounded materializable topology module with tools=[] and bounded max_iters only",
+      "Retriever": "explicit bounded materializable topology module with retriever.mode=inline_corpus or local_corpus_snapshot only; local snapshots are normalized into generated inline adapters during materialization"
+    },
+    "custom_imports_are_declarations_only": true,
+    "default": "fail_closed",
+    "experimental_primitives": {
+      "ReActV2": "descriptor-only and unavailable for materialization during the typed Core cutover"
+    },
+    "external_tools_retrievers_are_not_bound_or_executed": true,
+    "materializable_primitives": [
+      "ChainOfThought",
+      "Predict"
+    ],
+    "program_of_thought_uses_empty_sandbox": true,
+    "react_materialization_requires_empty_tools": true,
+    "unsupported_primitives_are_declared_only": true
+  },
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false
+  },
+  "notes": [
+    "This registry is descriptor-only evidence for generated program capability boundaries.",
+    "It does not import custom modules, bind live external tools/retrievers, call providers during materialization, rank candidates, promote programs, or mutate external authority.",
+    "Current materialization supports generated Predict/ChainOfThought/ReAct/ProgramOfThought primitives, explicit bounded inline Retriever adapters, and materialization-time local_corpus_snapshot Retriever adapters in bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies only; ReActV2 remains descriptor-only during the typed Core cutover.",
+    "ReAct is generated only with an empty tools list; ReActV2 is not materialized; ProgramOfThought is generated only with an empty PythonInterpreter sandbox."
+  ],
+  "registry_kind": "generated_program_capability_contracts",
+  "schema_version": "program-capability-registry-v1",
+  "status": "descriptor_only_no_runtime_binding",
+  "used_capability_refs": [
+    {
+      "capability_id": "dspy.primitive.Predict",
+      "materializable": true,
+      "module_id": "define_persona",
+      "primitive": "Predict",
+      "runtime_binding": "generated_dspy_primitive",
+      "schema_version": "program-capability-contract-v1",
+      "status": "materializable"
+    },
+    {
+      "capability_id": "dspy.primitive.Retriever",
+      "materializable": true,
+      "module_id": "retrieve_corpus",
+      "primitive": "Retriever",
+      "runtime_binding": "generated_bounded_inline_retriever_adapter",
+      "schema_version": "program-capability-contract-v1",
+      "status": "materializable_with_bounded_inline_adapter"
+    },
+    {
+      "capability_id": "dspy.primitive.ChainOfThought",
+      "materializable": true,
+      "module_id": "synthesize_deep_research",
+      "primitive": "ChainOfThought",
+      "runtime_binding": "generated_dspy_primitive",
+      "schema_version": "program-capability-contract-v1",
+      "status": "materializable"
+    }
+  ]
+}

@@ -1467,10 +1467,32 @@ def render_pipeline_program_code(intent: Any) -> str:
                     "",
                 ]
             ),
-            "def _prediction_mapping(prediction: object) -> dict[str, object]:",
-            "    return dict(prediction)",
-            "",
-            "",
+            *(
+                [
+                    "def _prediction_mapping(prediction: object) -> dict[str, object]:",
+                    "    return dict(prediction)",
+                    "",
+                    "",
+                ]
+                if protected_snapshot_profile
+                else [
+                    "def _prediction_mapping(prediction: object) -> dict[str, object]:",
+                    "    if isinstance(prediction, dict):",
+                    "        return dict(prediction)",
+                    "    for method_name in ('toDict', 'to_dict', 'model_dump'):",
+                    "        method = getattr(prediction, method_name, None)",
+                    "        if callable(method):",
+                    "            try:",
+                    "                payload = method()",
+                    "            except Exception:",
+                    "                continue",
+                    "            if isinstance(payload, dict):",
+                    "                return dict(payload)",
+                    "    return {}",
+                    "",
+                    "",
+                ]
+            ),
             "def _edge_condition_matches(edge: dict[str, object], state: dict[str, object]) -> bool:",
             "    when = edge.get('when')",
             "    if not isinstance(when, dict):",
@@ -1540,6 +1562,24 @@ def render_pipeline_program_code(intent: Any) -> str:
             "                    raise RuntimeError(f'unknown pipeline module: {module_id}')",
         ]
     )
+    output_mapping = [
+        "                for output_name in signature['outputs']:",
+        "                    if output_name in mapped:",
+        "                        state[output_name] = mapped[output_name]",
+    ]
+    if not protected_snapshot_profile:
+        output_mapping.extend(
+            [
+                "                    elif hasattr(prediction, output_name):",
+                "                        state[output_name] = getattr(prediction, output_name)",
+            ]
+        )
+    output_mapping.extend(
+        [
+            "                    if output_name in state:",
+            "                        call_outputs[output_name] = state[output_name]",
+        ]
+    )
     lines.extend(
         [
             "",
@@ -1564,11 +1604,7 @@ def render_pipeline_program_code(intent: Any) -> str:
             "                progressed = True",
             "                mapped = _prediction_mapping(prediction)",
             "                call_outputs: dict[str, object] = {}",
-            "                for output_name in signature['outputs']:",
-            "                    if output_name in mapped:",
-            "                        state[output_name] = mapped[output_name]",
-            "                    if output_name in state:",
-            "                        call_outputs[output_name] = state[output_name]",
+            *output_mapping,
             "                self._last_runtime_trace['module_calls'].append({",
             "                    'module_id': module_id,",
             "                    'primitive': MODULE_PRIMITIVES.get(module_id, 'Predict'),",

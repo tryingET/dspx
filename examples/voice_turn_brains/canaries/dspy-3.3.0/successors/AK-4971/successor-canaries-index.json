@@ -1,0 +1,69 @@
+{
+  "effects": {
+    "activation": false,
+    "credentials": false,
+    "live_provider": false,
+    "network": false,
+    "promotion": false,
+    "publication": false,
+    "release": false,
+    "routing": false
+  },
+  "execution_authorized": false,
+  "mode_count": 6,
+  "modes": [
+    {
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/simple/canary-index.json",
+      "canary_index_sha256": "6fb181bd6c84b108c38b1989e4d0826fc422ad2043d3cb83baa228437f328dea",
+      "candidate_id": "prog-cand-1a93a1982bba",
+      "manifest_sha256": "ed0fd9db0268aef35fa5cd7314800b26a66864afd384271785fb0a09b5b24cd4",
+      "mode": "simple"
+    },
+    {
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/elaborate/canary-index.json",
+      "canary_index_sha256": "d7961c2461a9e53261069163b55bdc6d3dce61e014f31cd2c9a65deefd861b3e",
+      "candidate_id": "prog-cand-090c047d5096",
+      "manifest_sha256": "7025d592f61b3afe70440ca3f3420736998cd286ed47761596f3e9458538f699",
+      "mode": "elaborate"
+    },
+    {
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/canary-index.json",
+      "canary_index_sha256": "4bc7f76b3c3db6f1475568e7fdd9aa68d0b2acf2682fbc678f8f76fa00524295",
+      "candidate_id": "prog-cand-cde70b970af6",
+      "manifest_sha256": "69696b0d12cb0694b0a63ea3270bb7503df2a70f9112e51a5a152307f104aa5c",
+      "mode": "researched"
+    },
+    {
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/deep-research/canary-index.json",
+      "canary_index_sha256": "4475d8e230d7f1ae9d15eddbeddbd33dc3a32c4c64a1d44e113fbfd3c08defbc",
+      "candidate_id": "prog-cand-770d06ac4737",
+      "manifest_sha256": "8aebeda59ab883211c5318208f53086febc802e195170442cf6c0bc4c62fab5c",
+      "mode": "deep-research"
+    },
+    {
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/socratic/canary-index.json",
+      "canary_index_sha256": "7e2fe3dc57805f5d05f7ece60e7a80e883b1325ca956ea4a9a95326b0aa3b402",
+      "candidate_id": "prog-cand-a167f3eb3996",
+      "manifest_sha256": "ce43ee0674fd1adc1141f929d12cc897f8537bbd8be15475110e62d5d2810f95",
+      "mode": "socratic"
+    },
+    {
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/bloom/canary-index.json",
+      "canary_index_sha256": "a209ffca3d44b669ba5015e7f47bc2948510813773cd043d8841153c92106341",
+      "candidate_id": "prog-cand-3ddefc610463",
+      "manifest_sha256": "77dc9cf7bf265f719160e4eea6547801255ad745b92b886a46b8cc0c672f39a0",
+      "mode": "bloom"
+    }
+  ],
+  "predecessor_contract": {
+    "consumed_mode": "simple",
+    "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json",
+    "raw_sha256": "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb",
+    "retry_allowed": false,
+    "terminal_disposition": "effect_indeterminate"
+  },
+  "schema_version": "soomfon-generated-safety-successor-canaries-index-v1",
+  "source_commit": "82d6607b5e47935969165059acb909fafd086a25",
+  "status": "provider_free_generation_and_snapshot_policy_passed",
+  "task_id": 4971
+}

@@ -31,6 +31,7 @@ TOP_LEVEL_KEYS = {
     "task_id",
     "status",
     "purpose",
+    "predecessor_contract",
     "source_state",
     "runtime_target",
     "executor_contract",
@@ -70,7 +71,7 @@ def _validate_top_level_shape(contract: dict[str, Any]) -> None:
     if set(contract) != TOP_LEVEL_KEYS:
         raise ValueError("contract top-level schema is not exact")
     if contract.get("schema_version") != (
-        "soomfon-dspy-3.3-originals-evaluation-contract-v1"
+        "soomfon-dspy-3.3-originals-evaluation-contract-v2"
     ):
         raise ValueError("contract schema version is invalid")
 
@@ -78,7 +79,7 @@ def _validate_top_level_shape(contract: dict[str, Any]) -> None:
 def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
     contract = _load(CONTRACT_PATH)
     _validate_top_level_shape(contract)
-    assert contract["task_id"] == 4808
+    assert contract["task_id"] == 4971
     assert contract["status"] == "implementation_reviewed_execution_unauthorized"
 
     source = contract["source_state"]
@@ -97,7 +98,7 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
         "local_ai_control_plane_commit",
     ):
         assert re.fullmatch(r"[0-9a-f]{40}", source[key])
-    assert source["dspx_base_commit"] == "733b80bdc6fdac99f631690a36814f35299721d2"
+    assert source["dspx_base_commit"] == "82d6607b5e47935969165059acb909fafd086a25"
     assert source["workstation_reconciliation_commit"] == (
         "65c594a36acc357788b138bea6574163c69fe7b5"
     )
@@ -112,6 +113,18 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
         "historical_dspy_3_1_3_optimized_candidates_unchanged"
     )
     assert _sha256(ACTIVE_BINDING_PATH) == source["installed_binding_config_sha256"]
+
+    predecessor = contract["predecessor_contract"]
+    predecessor_path = REPO_ROOT / predecessor["archive_path"]
+    assert (
+        _sha256(predecessor_path)
+        == predecessor["raw_sha256"]
+        == ("07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb")
+    )
+    assert predecessor["attempted_modes"] == ["simple"]
+    assert predecessor["unattempted_modes"] == list(EXPECTED_MODES[1:])
+    assert predecessor["terminal_disposition"] == "effect_indeterminate"
+    assert predecessor["retry_allowed"] is False
 
     assert contract["runtime_target"] == {
         "python": "3.13.12",
@@ -179,7 +192,12 @@ def test_contract_binds_all_six_fresh_originals_exactly() -> None:
         assert (
             canary["fresh_candidate"]["manifest"]["sha256"] == case["manifest_sha256"]
         )
-        assert canary["fresh_candidate"]["generation_dspy"]["version"] == "3.3.0"
+        assert canary["fresh_candidate"]["generation_dspy"]["version"] == "3.3.1"
+        assert canary["safety"]["policy"] == (
+            "unchanged_soomfon_protected_snapshot_policy"
+        )
+        assert canary["safety"]["dynamic_call_targets"] is False
+        assert canary["safety"]["function_local_tracing_imports"] is False
         assert canary["fresh_candidate"]["provider"] == {
             "credentials_used": False,
             "live_model_used": False,
@@ -280,7 +298,8 @@ def test_executor_attempt_and_retention_requirements_are_explicit() -> None:
     assert set(executor["known_blockers"]) == {
         "no_exact_ak_execution_task_with_current_out_of_band_hash_and_review_evidence_exists_yet",
         "loopback_client_hop_does_not_prove_backend_locality_or_no_egress",
-        "no_live_provider_effect_disposition_or_six_case_result_has_been_observed",
+        "future_execution_task_must_bind_the_exact_reviewed_source_commit_or_installed_payload",
+        "no_successor_live_provider_effect_disposition_or_six_case_result_has_been_observed",
     }
     required_negative = set(executor["required_negative_tests"])
     assert {

@@ -1,0 +1,712 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "define_persona",
+      "teach_with_bloom"
+    ],
+    "expected_module_ids": [
+      "define_persona",
+      "teach_with_bloom"
+    ],
+    "final_output_trace_count": 2,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 4,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 2,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "{response}"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "511e8e2fd72c06fd8b134cdd03004ef7501a2eb868235f95eafe2bebbb7c78b1",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "9e0dbf160ee1220ff26881bc68cc33bff811b911f4e69aa6c4dddb3d017fbd1f"
+    },
+    {
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "{response}"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "511e8e2fd72c06fd8b134cdd03004ef7501a2eb868235f95eafe2bebbb7c78b1",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "47e175db6bfddfed3b805695d11dafb02c0d7160a24acc0c25e4f1bb0051afd4"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnBloomBrain",
+    "objective": "Define the requested persona, correct the learner, teach the next concept with Bloom-style scaffolding, and finish with a re-quiz."
+  },
+  "module_call_count": 4,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "An encouraging physics teacher."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "{persona}"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "511e8e2fd72c06fd8b134cdd03004ef7501a2eb868235f95eafe2bebbb7c78b1",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "bf5f7725ca4f11821f08e574b282a6b0ef3718ee3bc8884a9a6d1caa74c3e5af",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "teach_with_bloom"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "{persona}",
+        "transcription": "I think heavier objects always fall faster than lighter ones."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "teach_with_bloom",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "{response}"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "511e8e2fd72c06fd8b134cdd03004ef7501a2eb868235f95eafe2bebbb7c78b1",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "bloom_correct_teach_end_with_unanswered_requiz_question"
+      },
+      "status": "executed",
+      "trace_hash": "c0cfaa8bb0589c4cc77273233a68ef91efab83fe9a215e0e75e6ca9c0afdae15",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A supportive mathematics coach."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "{persona}"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "511e8e2fd72c06fd8b134cdd03004ef7501a2eb868235f95eafe2bebbb7c78b1",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "b8d32cb27b0da831aaf6d687844a662bd7fab60397d6452a6a09c08ae541c640",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "teach_with_bloom"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "{persona}",
+        "transcription": "Multiplying two negative numbers should stay negative."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "teach_with_bloom",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "{response}"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "511e8e2fd72c06fd8b134cdd03004ef7501a2eb868235f95eafe2bebbb7c78b1",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "bloom_correct_teach_end_with_unanswered_requiz_question"
+      },
+      "status": "executed",
+      "trace_hash": "70f9a7d0dda2ef5387d66b5466f898aa64820ee40af60a8f96248102fe52119a",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "define_persona",
+        "teach_with_bloom"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 2,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 4,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 2,
+      "records_with_complete_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_complete_module_calls": [
+        0,
+        1
+      ],
+      "records_with_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_module_calls": [
+        0,
+        1
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "511e8e2fd72c06fd8b134cdd03004ef7501a2eb868235f95eafe2bebbb7c78b1",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 2,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "9e0dbf160ee1220ff26881bc68cc33bff811b911f4e69aa6c4dddb3d017fbd1f",
+      "47e175db6bfddfed3b805695d11dafb02c0d7160a24acc0c25e4f1bb0051afd4"
+    ],
+    "module_calls": [
+      "bf5f7725ca4f11821f08e574b282a6b0ef3718ee3bc8884a9a6d1caa74c3e5af",
+      "c0cfaa8bb0589c4cc77273233a68ef91efab83fe9a215e0e75e6ca9c0afdae15",
+      "b8d32cb27b0da831aaf6d687844a662bd7fab60397d6452a6a09c08ae541c640",
+      "70f9a7d0dda2ef5387d66b5466f898aa64820ee40af60a8f96248102fe52119a"
+    ]
+  }
+}

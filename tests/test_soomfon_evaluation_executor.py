@@ -42,7 +42,7 @@ from test_program_execution_replay import _single_runtime
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
+CONTRACT_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
 
 
 def _patch_roots(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
@@ -232,11 +232,33 @@ def test_frozen_contract_and_case_artifacts_validate() -> None:
         assert case["manifest_receipt_sha256"] == EXPECTED_RECEIPT_SHA256[case["mode"]]
 
 
-def test_generic_program_runtime_refuses_protected_manifest(tmp_path: Path) -> None:
-    manifest = (
-        REPO_ROOT
-        / "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json"
+def test_all_successor_candidate_sources_pass_unchanged_snapshot_policy() -> None:
+    contract, _, _ = load_hash_bound_soomfon_contract(
+        repo_root=REPO_ROOT,
+        expected_sha256=CONTRACT_SHA256,
     )
+    cases = validate_case_artifact_bindings(repo_root=REPO_ROOT, contract=contract)
+    for case in cases:
+        candidate_root = case["manifest_path"].parent
+        runtime_episode_module.validate_generated_program_snapshot_sources(
+            {
+                name: (candidate_root / f"{name}.py").read_text(encoding="utf-8")
+                for name in ("program", "module", "signature")
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    "manifest_relative",
+    [
+        "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json",
+        "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/simple/candidate/manifest.json",
+    ],
+)
+def test_generic_program_runtime_refuses_protected_manifest(
+    tmp_path: Path, manifest_relative: str
+) -> None:
+    manifest = REPO_ROOT / manifest_relative
     with pytest.raises(SoomfonCustodyError, match="requires executor custody"):
         run_program_runtime_episode(
             manifest_path=manifest,

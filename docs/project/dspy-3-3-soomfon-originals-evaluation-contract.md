@@ -10,7 +10,7 @@ type: "reference"
 
 ## Disposition
 
-AK-4808 froze the six-case design; AK-4809 implemented the externally hash-bound executor, crash-durable attempt ledger, exact environment gate, and provider-effect custody; provider-free readiness task #4965 independently reconciled that implementation against the complete negative matrix. The current posture is **implementation reviewed, execution unauthorized**. The contract does not call a model, press a Soomfon key, use microphone/TTS, change `ai-control-brains.json`, or authorize routing. A separate exact AK execution task must carry the independently reviewed current raw digest and explicit operator authority before any effect.
+AK-4808 froze the original six-case design; AK-4809 implemented the externally hash-bound executor, crash-durable attempt ledger, exact environment gate, and provider-effect custody; provider-free readiness task #4965 independently reconciled that implementation against the complete negative matrix. Task #4969 consumed only the predecessor `simple` key and retained terminal `effect_indeterminate`; task #4970 proved the generated source failed the protected snapshot policy before provider dispatch. Task #4971 preserved that predecessor, repaired generation without weakening policy, and regenerated all six originals under DSPy 3.3.1. The successor posture is **implementation reviewed, execution unauthorized**. The contract does not call a model, press a Soomfon key, use microphone/TTS, change `ai-control-brains.json`, or authorize routing. A separate exact AK execution task must carry the independently reviewed current raw digest, exact reviewed source commit or installed payload, and explicit operator authority before any effect.
 
 The machine-readable contract is:
 
@@ -26,14 +26,16 @@ A physical press now would therefore test the historical optimized binding under
 
 | Mode | Fresh candidate | Manifest SHA-256 |
 |---|---|---|
-| `simple` | `prog-cand-d4f50d25a3fa` | `aa0b473e7f0cd056246149eacfcb25c5ed023ab61a1b9410103443e68c30fac1` |
-| `elaborate` | `prog-cand-324b55917e00` | `1304cc07864c241ab9b66e19589394e729640204996b317c0286c628d8e727cd` |
-| `researched` | `prog-cand-f233bfe89cd1` | `bc3fbd7dc5d4993d93ee1af9737be7d12720d67a4df7793509e171e094cfe051` |
-| `deep-research` | `prog-cand-3b0ba61de49a` | `03e4d23e6d0eede3cd474d5d84d8fc1091e3c52c3b5c318f4b9be686e71c09fa` |
-| `socratic` | `prog-cand-3f26182ab33f` | `01b28caa003943e616ad07815870f1abb0f200d0990e52f487271c79ed855fac` |
-| `bloom` | `prog-cand-1a4f0633acc8` | `087994808d60ee46b7283c4d8f0b7c269323c016c392d1e9bdee075abe8a53ba` |
+| `simple` | `prog-cand-1a93a1982bba` | `ed0fd9db0268aef35fa5cd7314800b26a66864afd384271785fb0a09b5b24cd4` |
+| `elaborate` | `prog-cand-090c047d5096` | `7025d592f61b3afe70440ca3f3420736998cd286ed47761596f3e9458538f699` |
+| `researched` | `prog-cand-cde70b970af6` | `69696b0d12cb0694b0a63ea3270bb7503df2a70f9112e51a5a152307f104aa5c` |
+| `deep-research` | `prog-cand-770d06ac4737` | `8aebeda59ab883211c5318208f53086febc802e195170442cf6c0bc4c62fab5c` |
+| `socratic` | `prog-cand-a167f3eb3996` | `ce43ee0674fd1adc1141f929d12cc897f8537bbd8be15475110e62d5d2810f95` |
+| `bloom` | `prog-cand-3ddefc610463` | `77dc9cf7bf265f719160e4eea6547801255ad745b92b886a46b8cc0c672f39a0` |
 
 The contract also binds every canary index and verifies that the selected candidates are fresh DSPy 3.3 originals, contain no whole-program pickle surface, differ from the active historical bindings, and retain `quality_approved=false` plus `semantic_equivalence=not_evaluated`.
+
+The predecessor raw contract is preserved byte-for-byte at `examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json`. Its `simple` disposition remains `effect_indeterminate`; it is not retried or relabeled. The five unattempted predecessor modes do not transfer authority to this successor.
 
 ## Reviewed executor and remaining authorization gate
 
@@ -85,4 +87,4 @@ Decision 115 remains the separate architecture gate for one fixed hash-bound dec
 
 ## Next lawful move
 
-Create a separate exact execution task carrying raw contract SHA-256 `07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb`, the provider-free #4965 readiness review evidence, the exact runtime/environment membrane, and explicit operator authorization for one loopback-client six-case attempt. Backend locality and no-egress remain unverified. Preserve results and failures without rerun. Only after independent review of the resulting evidence may an owner consider a distinct binding decision; the active `examples/voice_turn_brains/ai-control-brains.json` must remain unchanged until then.
+Create a separate exact execution task carrying raw successor contract SHA-256 `a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18`, the provider-free readiness and #4971 review evidence, the exact reviewed source commit or installed payload, the exact runtime/environment membrane, and explicit operator authorization for one loopback-client six-case attempt. Backend locality and no-egress remain unverified. Preserve results and failures without rerun. Only after independent review of the resulting evidence may an owner consider a distinct binding decision; the active `examples/voice_turn_brains/ai-control-brains.json` must remain unchanged until then.

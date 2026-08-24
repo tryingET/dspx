@@ -1,0 +1,20 @@
+[
+  {
+    "inputs": {
+      "persona_intent": "A patient science explainer.",
+      "transcription": "Why do seasons change?"
+    },
+    "outputs": {
+      "response": "Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year."
+    }
+  },
+  {
+    "inputs": {
+      "persona_intent": "A thoughtful study coach.",
+      "transcription": "Why is sleep important for learning?"
+    },
+    "outputs": {
+      "response": "Sleep supports learning by stabilizing new memories, restoring attention, and helping the brain connect new material with prior knowledge; regular sleep therefore improves both recall and flexible understanding."
+    }
+  }
+]

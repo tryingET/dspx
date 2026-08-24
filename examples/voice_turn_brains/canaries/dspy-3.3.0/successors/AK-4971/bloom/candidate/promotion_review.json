@@ -1,0 +1,119 @@
+{
+  "adjudicator": {
+    "authority": "required_for_promotion",
+    "id": "local_operator",
+    "kind": "human_operator",
+    "status": "pending"
+  },
+  "available_local_evidence": {
+    "behavior_result_artifacts": [
+      "behavior_results.json"
+    ],
+    "behavior_results": "behavior_results.json",
+    "examples_binding": true,
+    "jury": "jury.json",
+    "jury_harness": "eval_jury.py",
+    "jury_rubric_status": "available",
+    "jury_selection_status": "selected",
+    "plan": "plan.json",
+    "smoke_harness": "eval_smoke.py"
+  },
+  "blocking_conditions": [
+    "no_model_jury_execution_episode",
+    "no_promotion_adjudicator_decision"
+  ],
+  "candidate_status": "exploratory",
+  "decision": {
+    "decided_at": null,
+    "decided_by": null,
+    "evidence_refs": [],
+    "outcome": null,
+    "status": "pending"
+  },
+  "decision_authority": "required_for_promotion",
+  "evidence_requirements": [
+    {
+      "artifact_refs": [
+        "program.py",
+        "manifest.json"
+      ],
+      "name": "candidate_materialized",
+      "status": "satisfied_by_current_materialization"
+    },
+    {
+      "artifact_refs": [
+        "eval_smoke.py"
+      ],
+      "name": "smoke_validation",
+      "status": "satisfied_by_current_materialization"
+    },
+    {
+      "artifact_refs": [
+        "jury.json",
+        "jury_selection.json",
+        "jury_rubric.json"
+      ],
+      "name": "jury_artifact_binding",
+      "status": "satisfied_by_current_materialization"
+    },
+    {
+      "artifact_refs": [
+        "examples.json",
+        "eval_examples.py"
+      ],
+      "name": "examples_binding",
+      "status": "satisfied_by_current_materialization"
+    },
+    {
+      "artifact_refs": [
+        "behavior_results.json"
+      ],
+      "name": "behavioral_evaluation_episode",
+      "status": "satisfied_by_current_behavior_episode"
+    },
+    {
+      "artifact_refs": [],
+      "name": "model_jury_execution_episode",
+      "status": "pending"
+    },
+    {
+      "adjudicator_ref": "local_operator",
+      "artifact_refs": [],
+      "name": "promotion_adjudicator_decision",
+      "status": "pending"
+    }
+  ],
+  "external_authority": {
+    "notes": [
+      "External authority references are preserved as opaque metadata.",
+      "DSPx core does not validate, call, or mutate external authority systems."
+    ],
+    "refs": [],
+    "status": "not_exported"
+  },
+  "intent_name": "VoiceTurnBloomBrain",
+  "non_authority": {
+    "automatic_promotion": false,
+    "external_authority_export": false,
+    "jury_artifacts": "planned_contracts_only",
+    "oracle_role": "behavioral_interpreter_only",
+    "program_gen_materialization": "evidence_only",
+    "ranking_pruning_promotion": false
+  },
+  "notes": [
+    "This shell records what would be needed before local promotion review.",
+    "It does not promote the generated program or activate any policy.",
+    "The promotion adjudicator may be human, one AI agent, an AI council, a hybrid, or a policy gate.",
+    "Jury artifacts are planning/binding evidence until a later model jury episode runs."
+  ],
+  "objective": "Define the requested persona, correct the learner, teach the next concept with Bloom-style scaffolding, and finish with a re-quiz.",
+  "promotion_policy": {
+    "automatic_promotion": false,
+    "requires_adjudicator_decision": true,
+    "requires_behavioral_evaluation": true,
+    "requires_jury_execution": true
+  },
+  "promotion_state": "not_promoted",
+  "review_required": true,
+  "schema_version": "program-promotion-review-v1"
+}

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-24T15:30:30.344482532+00:00",
+  "task_id": 4971,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-08-24-dspy-gepa-advancement-architecture.md",
+      "docs/project/dspy-3-3-soomfon-originals-evaluation-contract.md",
+      "docs/project/dspy-3-3-soomfon-originals-evaluation-executor.md",
+      "docs/project/product-posture.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/**",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate.py",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "packages/dspx-core/src/dspx/services/program_topology.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_*.py",
+      "tests/test_program_runtime_episode.py",
+      "tests/test_program_topology_intent_pipeline.py",
+      "tests/test_soomfon_evaluation_*.py",
+      "tests/test_voice_turn_brains_dspy_33_*.py"
+    ],
+    "required_paths": [
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "packages/dspx-core/src/dspx/services/program_topology.py",
+      "tests/test_program_topology_intent_pipeline.py",
+      "tests/test_soomfon_evaluation_executor.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/ai-control-brains.json",
+      "generated/**",
+      "mlruns/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -57,6 +57,41 @@ def test_protected_snapshot_profile_renders_policy_compatible_static_program() -
     assert "    return False" in program_code
 
 
+def test_default_profile_preserves_prediction_mapping_compatibility(
+    tmp_path: Path,
+) -> None:
+    intent = _explicit_topology_intent()
+    program_code = render_program_code(intent)
+    module_code, _ = render_pipeline_module_surface(intent)
+    signature_code, _ = render_pipeline_signature_surface(intent)
+    (tmp_path / "program.py").write_text(program_code, encoding="utf-8")
+    (tmp_path / "module.py").write_text(module_code, encoding="utf-8")
+    (tmp_path / "signature.py").write_text(signature_code, encoding="utf-8")
+
+    class LegacyPrediction:
+        def to_dict(self) -> dict[str, str]:
+            return {"response": "legacy-compatible"}
+
+    sys.path.insert(0, str(tmp_path))
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "generated_default_profile_program", tmp_path / "program.py"
+        )
+        assert spec is not None and spec.loader is not None
+        generated = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(generated)
+        assert generated._prediction_mapping(LegacyPrediction()) == {
+            "response": "legacy-compatible"
+        }
+    finally:
+        sys.path.remove(str(tmp_path))
+        for name in ("module", "signature", "generated_default_profile_program"):
+            sys.modules.pop(name, None)
+
+    assert "elif hasattr(prediction, output_name):" in program_code
+    assert "getattr(prediction, output_name)" in program_code
+
+
 @pytest.mark.slow
 def test_explicit_pipeline_topology_is_normalized_and_persisted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

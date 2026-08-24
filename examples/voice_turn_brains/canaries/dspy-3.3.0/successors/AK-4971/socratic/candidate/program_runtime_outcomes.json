@@ -1,0 +1,135 @@
+{
+  "dspy_runtime": {
+    "distribution": "dspy",
+    "prerelease": false,
+    "version": "3.3.1"
+  },
+  "intent": {
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away."
+  },
+  "module_outcome_count": 2,
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true
+  },
+  "notes": [
+    "This sidecar normalizes the expected runtime outcome/trajectory shape for generated modules.",
+    "It is inspired by DSPy ReActV2-style structured history/tool-call/final-submit outcomes, but it does not enable tools or live external retrievers by itself.",
+    "Actual behavior evidence remains in behavior_results.json, dataset split behavior results, behavior_episode.json, and later explicit runtime traces when such traces exist."
+  ],
+  "outcomes": [
+    {
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "final_outputs": [
+        "persona"
+      ],
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true
+      },
+      "primitive": "Predict",
+      "signature": {
+        "inputs": [
+          "persona_intent"
+        ],
+        "name": "DefinePersona",
+        "outputs": [
+          "persona"
+        ]
+      },
+      "source_kind": "generated_topology_module",
+      "status": "outcome_contract_declared_not_runtime_trace",
+      "trace_contract": {
+        "kind": "prediction",
+        "records_history": false,
+        "records_tool_call_intents": false,
+        "records_tool_call_results": false,
+        "termination_reason": "prediction_returned_or_error"
+      }
+    },
+    {
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "final_outputs": [
+        "response"
+      ],
+      "module_id": "guide_socratically",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true
+      },
+      "primitive": "ChainOfThought",
+      "signature": {
+        "inputs": [
+          "transcription",
+          "persona"
+        ],
+        "name": "GuideSocratically",
+        "outputs": [
+          "response"
+        ]
+      },
+      "source_kind": "generated_topology_module",
+      "status": "outcome_contract_declared_not_runtime_trace",
+      "trace_contract": {
+        "kind": "prediction",
+        "records_history": false,
+        "records_tool_call_intents": false,
+        "records_tool_call_results": false,
+        "termination_reason": "prediction_returned_or_error"
+      }
+    }
+  ],
+  "primitives": [
+    "ChainOfThought",
+    "Predict"
+  ],
+  "runtime_policy": {
+    "filesystem_access_allowed": false,
+    "live_external_retriever_allowed": false,
+    "materialization_executed_modules": false,
+    "network_allowed": false,
+    "react_v2_tools_require_program_tool_contracts": true,
+    "records_actual_runtime_trace": false,
+    "tool_binding_allowed": false
+  },
+  "schema_version": "program-runtime-outcomes-v1",
+  "status": "outcome_contracts_declared"
+}

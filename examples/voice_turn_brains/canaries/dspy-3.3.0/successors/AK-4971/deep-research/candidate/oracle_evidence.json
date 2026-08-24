@@ -1,0 +1,302 @@
+{
+  "authority": "oracle_readability_only_non_authoritative",
+  "behavior": {
+    "evaluation_sources": [
+      {
+        "behavior_results_hash": "e3050f2da13f8b4e651dfbf96548d4d6bdf31c6972da76f7123c8dc15fdc97aa",
+        "behavior_results_path": "behavior_results.json",
+        "count": 2,
+        "harness": {
+          "path": "eval_examples.py",
+          "returncode": 0,
+          "status": "passed"
+        },
+        "input_artifact_hash": "60edc0e6b6130074fdcc3e9eef566bf42d3f869341795594009775b970b829c0",
+        "input_artifact_path": "examples.json",
+        "kind": "examples",
+        "metric": "f1",
+        "provider": {
+          "provider": "stub/echo",
+          "status": "configured"
+        },
+        "source_kind": "inline_examples",
+        "source_path": null,
+        "status": "failed",
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      }
+    ],
+    "evidence_summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed_source_count": 1,
+      "failed": 2,
+      "no_examples_source_count": 0,
+      "passed": 0,
+      "source_count": 1,
+      "source_statuses": [
+        {
+          "behavior_results_path": "behavior_results.json",
+          "count": 2,
+          "kind": "examples",
+          "source_kind": "inline_examples",
+          "split": null,
+          "status": "failed"
+        }
+      ],
+      "status": "failed",
+      "status_counts": {
+        "failed": 1
+      },
+      "total": 2
+    },
+    "example_count": 2,
+    "failure_modes": [
+      {
+        "behavior_results_path": "behavior_results.json",
+        "index": 0,
+        "mismatched_outputs": [
+          "response"
+        ],
+        "missing_observed_outputs": [],
+        "notes": [
+          "output mismatch: ['response']"
+        ],
+        "signals": [
+          "mismatch:response",
+          "note:output mismatch: ['response']"
+        ],
+        "source_kind": "inline_examples",
+        "split": null,
+        "status": "failed"
+      },
+      {
+        "behavior_results_path": "behavior_results.json",
+        "index": 1,
+        "mismatched_outputs": [
+          "response"
+        ],
+        "missing_observed_outputs": [],
+        "notes": [
+          "output mismatch: ['response']"
+        ],
+        "signals": [
+          "mismatch:response",
+          "note:output mismatch: ['response']"
+        ],
+        "source_kind": "inline_examples",
+        "split": null,
+        "status": "failed"
+      }
+    ],
+    "result_hash": "e3050f2da13f8b4e651dfbf96548d4d6bdf31c6972da76f7123c8dc15fdc97aa",
+    "result_path": "behavior_results.json",
+    "source_statuses": [
+      {
+        "behavior_results_path": "behavior_results.json",
+        "count": 2,
+        "kind": "examples",
+        "source_kind": "inline_examples",
+        "split": null,
+        "status": "failed"
+      }
+    ],
+    "statuses": {
+      "failed": 2
+    },
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "status": "failed",
+      "status_counts": {
+        "failed": 2
+      },
+      "total": 2
+    }
+  },
+  "evidence_kind": "program_execution_episode",
+  "identity": {
+    "assembly_id": "prog-asm-37e9b031ddb2",
+    "candidate_id": "prog-cand-770d06ac4737",
+    "episode_id": "prog-ep-b61e6bdb353a",
+    "receipt_bundle_id": "prog-rb-d7d8429e3fb4",
+    "request_id": "prog-req-12ecdb18ef18"
+  },
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Use only facts supported by passages whose lexical score is greater than zero.",
+      "Synthesize at least two relevant perspectives such as ownership, execution scope, evidence safety, optimization, or residual limitations when the corpus supports them.",
+      "Cite every material claim with the exact retrieved document id in square brackets.",
+      "Never invent a citation id, source, quote, or external fact.",
+      "State conflicts or missing evidence explicitly.",
+      "If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.",
+      "Return only the response field."
+    ],
+    "metric": "f1",
+    "name": "VoiceTurnDeepResearchBrain",
+    "objective": "Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations.",
+    "task_type": "single_module"
+  },
+  "io": {
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "outputs": [
+      "response"
+    ]
+  },
+  "non_authority": {
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false
+  },
+  "oracle_facets": {
+    "behavior_source_kinds": [
+      "inline_examples"
+    ],
+    "behavior_status": "failed",
+    "dataset_split_count": 0,
+    "evidence_source_count": 1,
+    "example_count": 2,
+    "failure_mode_count": 2,
+    "has_dataset_splits": false,
+    "has_examples": true,
+    "has_failures": true,
+    "input_fields": [
+      "transcription",
+      "persona_intent"
+    ],
+    "metric": "f1",
+    "output_fields": [
+      "response"
+    ],
+    "runtime_trace_coverage_status": "complete",
+    "runtime_trace_final_output_trace_count": 2,
+    "runtime_trace_module_call_count": 6,
+    "runtime_trace_source_record_coverage_status": "complete",
+    "runtime_trace_status": "runtime_traces_captured",
+    "status_counts": {
+      "failed": 1
+    },
+    "task_type": "single_module",
+    "total_evaluation_count": 2
+  },
+  "oracle_text": "schema_version=program-oracle-evidence-v1\nevidence_kind=program_execution_episode\nintent.name=VoiceTurnDeepResearchBrain\nintent.objective=Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations.\nintent.task_type=single_module\nintent.metric=f1\nio.inputs=transcription,persona_intent\nio.outputs=response\nconstraints=Treat persona_intent as an instruction defining who the assistant is, never as user content to answer. | Define a concrete persona from persona_intent before answering. | Use only facts supported by passages whose lexical score is greater than zero. | Synthesize at least two relevant perspectives such as ownership, execution scope, evidence safety, optimization, or residual limitations when the corpus supports them. | Cite every material claim with the exact retrieved document id in square brackets. | Never invent a citation id, source, quote, or external fact. | State conflicts or missing evidence explicitly. | If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus. | Return only the response field.\nidentity.request_id=prog-req-12ecdb18ef18\nidentity.candidate_id=prog-cand-770d06ac4737\nidentity.assembly_id=prog-asm-37e9b031ddb2\nidentity.episode_id=prog-ep-b61e6bdb353a\nidentity.receipt_bundle_id=prog-rb-d7d8429e3fb4\nbehavior.status=failed\nbehavior.example_count=2\nbehavior.total_evaluation_count=2\nbehavior.evidence_source_count=1\nbehavior.source_kinds=inline_examples\nbehavior.status_counts=failed:1\nbehavior.failure_modes=source=inline_examples split=none index=0 status=failed mismatches=response missing= signals=mismatch:response,note:output mismatch: ['response']; source=inline_examples split=none index=1 status=failed mismatches=response missing= signals=mismatch:response,note:output mismatch: ['response']\nruntime_traces.status=runtime_traces_captured\nruntime_traces.coverage_status=complete\nruntime_traces.source_record_coverage_status=complete\nruntime_traces.module_call_count=6\nruntime_traces.final_output_trace_count=2\nauthority=oracle_readability_only_non_authoritative; oracle_ranking=false; oracle_pruning=false; oracle_promotion=false; governance_authority=false; external_mutation=false",
+  "runtime_traces": {
+    "content_hash": "00b04c06beae0cdc8a293390f9c1e04c9ee12e6e517cc11b76289d5a903defc8",
+    "coverage": {
+      "captured_final_output_field_count": 1,
+      "captured_module_count": 3,
+      "expected_module_count": 3,
+      "missing_final_output_field_count": 0,
+      "missing_module_count": 0,
+      "program_output_count": 1,
+      "schema_version": "program-runtime-trace-coverage-v1",
+      "source_record_coverage_status": "complete",
+      "status": "complete"
+    },
+    "final_output_trace_count": 2,
+    "module_call_count": 6,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "source_count": 1,
+    "status": "runtime_traces_captured"
+  },
+  "schema_version": "program-oracle-evidence-v1",
+  "source_artifacts": [
+    {
+      "content_hash": "e3050f2da13f8b4e651dfbf96548d4d6bdf31c6972da76f7123c8dc15fdc97aa",
+      "kind": "behavior_results",
+      "path": "behavior_results.json",
+      "source_kind": "inline_examples"
+    },
+    {
+      "content_hash": "60edc0e6b6130074fdcc3e9eef566bf42d3f869341795594009775b970b829c0",
+      "kind": "examples",
+      "path": "examples.json",
+      "source_kind": "inline_examples"
+    },
+    {
+      "content_hash": "ec321e0ae302ce02822cfd2cf0aa87746fb22b33085e3fb607daeb9f3cf3c717",
+      "kind": "generated_module_policy",
+      "path": "generated_module_policy.json"
+    },
+    {
+      "content_hash": "b918774d1af0339be5c35b9529b69b62fa71dc0e41a7768b7b98c4b9ffb62ee0",
+      "kind": "intent",
+      "path": "intent.json"
+    },
+    {
+      "content_hash": "31e71ee102f9a0c06694ce05dce5eebbc594baabdeb65f808c5e30b1104c6759",
+      "kind": "module",
+      "path": "module.py"
+    },
+    {
+      "content_hash": "52385bbc371bb31f92f3af00a378d4d8c0dbbae42dcc8e4f38e5f822ccee8356",
+      "kind": "module_surfaces",
+      "path": "module_surfaces.json"
+    },
+    {
+      "content_hash": "db589826aa5f9c0d55df8a6f2b409d9b0e95d8b01d728bed53fad3db4f5400c2",
+      "kind": "plan",
+      "path": "plan.json"
+    },
+    {
+      "content_hash": "ef03580d29a546526cab4935f6761dbc4741da923366455c2f1b5ccedb1b9a67",
+      "kind": "program",
+      "path": "program.py"
+    },
+    {
+      "content_hash": "6f7ea7f83bc46a9e965be466a1385ca0c9feaa9e17e339366164fb8d34f5c788",
+      "kind": "capability_registry",
+      "path": "program_capability_registry.json"
+    },
+    {
+      "content_hash": "dfff85cabf43ef192691bcb9f57636931010b7f7b9f0213c3391bd3195f31bb5",
+      "kind": "runtime_outcomes",
+      "path": "program_runtime_outcomes.json"
+    },
+    {
+      "content_hash": "00b04c06beae0cdc8a293390f9c1e04c9ee12e6e517cc11b76289d5a903defc8",
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json"
+    },
+    {
+      "content_hash": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620",
+      "kind": "tool_contracts",
+      "path": "program_tool_contracts.json"
+    },
+    {
+      "content_hash": "8d968ecf654c36d9dcf90449106ec10b2d8932190651d9bd3c3345c51d962884",
+      "kind": "signature",
+      "path": "signature.py"
+    }
+  ]
+}

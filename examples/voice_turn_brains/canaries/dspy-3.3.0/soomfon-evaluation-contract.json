@@ -1,10 +1,10 @@
 {
-  "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v1",
-  "task_id": 4808,
+  "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v2",
+  "task_id": 4971,
   "status": "implementation_reviewed_execution_unauthorized",
-  "purpose": "Predeclare one no-routing observed-turn case for each fresh DSPy 3.3 voice original before any loopback-client execution or Soomfon binding decision.",
+  "purpose": "Predeclare one no-routing observed-turn case for each regenerated protected-snapshot DSPy 3.3.1 voice original after preserving the consumed v1 contract.",
   "source_state": {
-    "dspx_base_commit": "733b80bdc6fdac99f631690a36814f35299721d2",
+    "dspx_base_commit": "82d6607b5e47935969165059acb909fafd086a25",
     "workstation_reconciliation_commit": "65c594a36acc357788b138bea6574163c69fe7b5",
     "local_ai_control_plane_commit": "ec8bcfb4a253b1b5bc5d340a310694e1a98bab3b",
     "installed_binding_config": "examples/voice_turn_brains/ai-control-brains.json",
@@ -87,7 +87,8 @@
     "known_blockers": [
       "no_exact_ak_execution_task_with_current_out_of_band_hash_and_review_evidence_exists_yet",
       "loopback_client_hop_does_not_prove_backend_locality_or_no_egress",
-      "no_live_provider_effect_disposition_or_six_case_result_has_been_observed"
+      "future_execution_task_must_bind_the_exact_reviewed_source_commit_or_installed_payload",
+      "no_successor_live_provider_effect_disposition_or_six_case_result_has_been_observed"
     ]
   },
   "effect_budget": {
@@ -229,33 +230,33 @@
   "cases": [
     {
       "mode": "simple",
-      "candidate_id": "prog-cand-d4f50d25a3fa",
-      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json",
-      "manifest_sha256": "aa0b473e7f0cd056246149eacfcb25c5ed023ab61a1b9410103443e68c30fac1",
-      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/canary-index.json",
-      "canary_index_sha256": "fa183024cae15b2e76f1cbb02423aa81789c6faa744d1208b51176adf5d3d337",
+      "candidate_id": "prog-cand-1a93a1982bba",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/simple/candidate/manifest.json",
+      "manifest_sha256": "ed0fd9db0268aef35fa5cd7314800b26a66864afd384271785fb0a09b5b24cd4",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/simple/canary-index.json",
+      "canary_index_sha256": "6fb181bd6c84b108c38b1989e4d0826fc422ad2043d3cb83baa228437f328dea",
       "transcription": "Explain the difference between a batch voice turn and a continuous conversation.",
       "persona_intent": "Answer directly for a curious adult using plain language and no invented system capabilities.",
       "expected_posture": "brief_direct_explanation"
     },
     {
       "mode": "elaborate",
-      "candidate_id": "prog-cand-324b55917e00",
-      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/candidate/manifest.json",
-      "manifest_sha256": "1304cc07864c241ab9b66e19589394e729640204996b317c0286c628d8e727cd",
-      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/elaborate/canary-index.json",
-      "canary_index_sha256": "8db7c3de3a5366376c5dfcf96a5bb24dae714aa448186c888df7f88c3011cb57",
+      "candidate_id": "prog-cand-090c047d5096",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/elaborate/candidate/manifest.json",
+      "manifest_sha256": "7025d592f61b3afe70440ca3f3420736998cd286ed47761596f3e9458538f699",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/elaborate/canary-index.json",
+      "canary_index_sha256": "d7961c2461a9e53261069163b55bdc6d3dce61e014f31cd2c9a65deefd861b3e",
       "transcription": "Explain how a safe local voice interface should separate capture, reasoning, playback, and evidence responsibilities.",
       "persona_intent": "Give a structured, careful explanation for a technically literate operator without claiming facts you cannot observe.",
       "expected_posture": "structured_multi_part_explanation"
     },
     {
       "mode": "researched",
-      "candidate_id": "prog-cand-f233bfe89cd1",
-      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/candidate/manifest.json",
-      "manifest_sha256": "bc3fbd7dc5d4993d93ee1af9737be7d12720d67a4df7793509e171e094cfe051",
-      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/canary-index.json",
-      "canary_index_sha256": "e39e57573d5432005f87c25110244a15e4ddd95f353712f64d9981f43857be31",
+      "candidate_id": "prog-cand-cde70b970af6",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/candidate/manifest.json",
+      "manifest_sha256": "69696b0d12cb0694b0a63ea3270bb7503df2a70f9112e51a5a152307f104aa5c",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/canary-index.json",
+      "canary_index_sha256": "4bc7f76b3c3db6f1475568e7fdd9aa68d0b2acf2682fbc678f8f76fa00524295",
       "corpus_sha256": "9e9a3f126a4b8236a17d5e10a8861243ebf39b03b86b9ebba9ea7c25237f6ca6",
       "transcription": "According to the declared corpus, who owns capture, composition, and the six DSPy brains, and what does the receipt not authorize?",
       "persona_intent": "Answer only from retrieved local evidence, cite every material claim with exact source IDs, and say when support is absent.",
@@ -263,11 +264,11 @@
     },
     {
       "mode": "deep-research",
-      "candidate_id": "prog-cand-3b0ba61de49a",
-      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/deep-research/candidate/manifest.json",
-      "manifest_sha256": "03e4d23e6d0eede3cd474d5d84d8fc1091e3c52c3b5c318f4b9be686e71c09fa",
-      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/deep-research/canary-index.json",
-      "canary_index_sha256": "b0f42952261732ba8d83041e0ef021e55ca952598c96430aa04ed150f77b7d46",
+      "candidate_id": "prog-cand-770d06ac4737",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/deep-research/candidate/manifest.json",
+      "manifest_sha256": "8aebeda59ab883211c5318208f53086febc802e195170442cf6c0bc4c62fab5c",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/deep-research/canary-index.json",
+      "canary_index_sha256": "4475d8e230d7f1ae9d15eddbeddbd33dc3a32c4c64a1d44e113fbfd3c08defbc",
       "corpus_sha256": "9e9a3f126a4b8236a17d5e10a8861243ebf39b03b86b9ebba9ea7c25237f6ca6",
       "transcription": "Synthesize the ownership, capture, modality, receipt, and GEPA boundaries of the batch voice-turn from the declared corpus.",
       "persona_intent": "Synthesize multiple supported perspectives with exact source-ID citations; do not claim iterative ReActV2 research, external retrieval, or unsupported facts.",
@@ -275,22 +276,22 @@
     },
     {
       "mode": "socratic",
-      "candidate_id": "prog-cand-3f26182ab33f",
-      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/candidate/manifest.json",
-      "manifest_sha256": "01b28caa003943e616ad07815870f1abb0f200d0990e52f487271c79ed855fac",
-      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/canary-index.json",
-      "canary_index_sha256": "12cdc38cb74b02569fdaf9c378a1b86980a8b91806d9385ef295cad8ed89378b",
+      "candidate_id": "prog-cand-a167f3eb3996",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/socratic/candidate/manifest.json",
+      "manifest_sha256": "ce43ee0674fd1adc1141f929d12cc897f8537bbd8be15475110e62d5d2810f95",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/socratic/canary-index.json",
+      "canary_index_sha256": "7e2fe3dc57805f5d05f7ece60e7a80e883b1325ca956ea4a9a95326b0aa3b402",
       "transcription": "Help me question whether a successful voice-turn receipt proves that the answer is correct.",
       "persona_intent": "Use concise Socratic questions that separate execution evidence from answer quality and authority.",
       "expected_posture": "question_led_examination"
     },
     {
       "mode": "bloom",
-      "candidate_id": "prog-cand-1a4f0633acc8",
-      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/candidate/manifest.json",
-      "manifest_sha256": "087994808d60ee46b7283c4d8f0b7c269323c016c392d1e9bdee075abe8a53ba",
-      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/canary-index.json",
-      "canary_index_sha256": "8884a97f7e51e5552c0088e1917a2fb5241ff344e1cce3038300253ae3ce26fe",
+      "candidate_id": "prog-cand-3ddefc610463",
+      "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/bloom/candidate/manifest.json",
+      "manifest_sha256": "77dc9cf7bf265f719160e4eea6547801255ad745b92b886a46b8cc0c672f39a0",
+      "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/bloom/canary-index.json",
+      "canary_index_sha256": "a209ffca3d44b669ba5015e7f47bc2948510813773cd043d8841153c92106341",
       "transcription": "I think a successful receipt proves that the voice assistant's answer is correct.",
       "persona_intent": "Correct the misconception, teach the next conceptual level about execution evidence versus answer quality, and end with one unanswered transfer question.",
       "expected_posture": "correct_misconception_advance_one_bloom_level_end_with_unanswered_transfer_question"
@@ -315,5 +316,31 @@
     "release": false,
     "publication": false,
     "backend_locality": "not_verified"
+  },
+  "predecessor_contract": {
+    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json",
+    "raw_sha256": "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb",
+    "canonical_sha256": "a8ec67b7ddf711142312ffd6caf0a7d57eeb48617e92025a0d45ae48dedd26c0",
+    "task_id": 4808,
+    "attempted_modes": [
+      "simple"
+    ],
+    "unattempted_modes": [
+      "elaborate",
+      "researched",
+      "deep-research",
+      "socratic",
+      "bloom"
+    ],
+    "terminal_disposition": "effect_indeterminate",
+    "terminal_reason": "provider_effect_attempt_invalid",
+    "ledger_sha256": "9c2af26515591b974f9229b470819a180e58675b6c3cf3f5051eec4b02163ac0",
+    "child_claim_sha256": "d38c945263e3121269f21d70f3d7543f8dde6308ef96431f834a249e20520eac",
+    "suite_result_sha256": "ed973db2f5a304ead58e3b4b6812ca9df3f596acaeed5cfc95892a77fd6274fd",
+    "independent_evidence_ids": [
+      7589,
+      7590
+    ],
+    "retry_allowed": false
   }
 }

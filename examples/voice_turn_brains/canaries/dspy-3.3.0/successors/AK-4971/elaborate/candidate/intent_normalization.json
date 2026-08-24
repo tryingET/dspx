@@ -1,0 +1,342 @@
+{
+  "assumptions": [],
+  "effect": {
+    "ak_called": false,
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "normalized_intent_written": false,
+    "oracle_index_mutated": false,
+    "program_materialized": false,
+    "promotion_applied": false,
+    "provider_called": false,
+    "winner_selected": false
+  },
+  "generation_assumptions_preview": {
+    "capability_boundaries": {
+      "custom_modules": {
+        "boundary": "Custom module/import requests remain declarations and policy metadata only.",
+        "imports_enabled": false,
+        "requested": false,
+        "status": "blocked_policy_only"
+      },
+      "program_of_thought": {
+        "boundary": "No filesystem, network, env vars, tools, or sync files are exposed.",
+        "requested": false,
+        "sandbox": "empty",
+        "status": "empty_sandbox_boundary"
+      },
+      "react": {
+        "boundary": "ReAct materialization is explicit, bounded, and tools=[] only.",
+        "requested": false,
+        "status": "no_tool_boundary",
+        "tools_enabled": false
+      },
+      "react_v2": {
+        "boundary": "ReActV2 materialization is unavailable during the typed Core cutover.",
+        "requested": false,
+        "safe_next_action": "Retain the request as descriptor-only evidence; do not materialize or execute ReActV2.",
+        "status": "unavailable_typed_core_cutover",
+        "tool_binding_status": "disabled",
+        "tool_need_detected": false,
+        "tools_enabled": false,
+        "why_tools_not_enabled": [
+          "DSPy 3.3 ReActV2 availability does not authorize DSPx runtime or tool execution.",
+          "ReActV2 and its tool references remain descriptor-only in this cutover."
+        ]
+      },
+      "retrievers": {
+        "boundary": "Retriever materialization requires an explicit bounded Retriever topology module; external/live retrievers remain disabled.",
+        "live_retrievers_enabled": false,
+        "need_detected": false,
+        "safe_modes_available": [
+          "inline_corpus",
+          "local_corpus_snapshot"
+        ],
+        "status": "not_requested"
+      },
+      "tools": {
+        "boundary": "Tool declarations may be recorded, but dspy.Tool/live tool execution is not bound by program-gen.",
+        "enabled": false,
+        "need_detected": false,
+        "status": "disabled_descriptor_only"
+      }
+    },
+    "effect": {
+      "authority_mutated": false,
+      "custom_import_loaded": false,
+      "program_materialized": false,
+      "retriever_called": false,
+      "tool_called": false
+    },
+    "missing_questions": [],
+    "safe_next_actions": [
+      "Review this preview before materialization.",
+      "Add explicit topology when the inferred candidate is wrong or too vague.",
+      "Use only bounded inline/local retriever declarations; do not expect live retriever/tool execution.",
+      "Keep custom module/import requests declared-only until a reviewed safe import policy exists."
+    ],
+    "schema_version": "program-generation-assumptions-preview-v1",
+    "status": "preview_only_not_materialization_authority",
+    "topology_candidates": [
+      {
+        "confidence": "operator_declared",
+        "kind": "pipeline",
+        "materializable_now": true,
+        "reason": "The intent includes an explicit topology.kind; program-gen preserves it before deciding what subset can materialize.",
+        "renderer": "pipeline_topology_renderer",
+        "safety_boundary": "Declared topology is evidence/assumption metadata unless the bounded renderer validates it; custom remains policy-only.",
+        "source": "declared_topology"
+      }
+    ],
+    "unsupported_or_preserved_declared_only_features": []
+  },
+  "generation_risks": [],
+  "materialization_gate": {
+    "blocks_materialization": false,
+    "notes": [
+      "Direct program-gen now emits this assumption/risk sidecar before writing candidate surfaces.",
+      "This sidecar does not approve generation, promotion, activation, or external authority mutation."
+    ],
+    "review_required_before_trusting_outputs": true,
+    "status": "emitted_before_candidate_materialization"
+  },
+  "missing_evidence": [
+    {
+      "kind": "dataset",
+      "message": "No dataset or explicit splits were supplied; tournament evaluation cannot compare broader data behavior.",
+      "severity": "medium"
+    }
+  ],
+  "next_actions": [
+    "Inspect assumptions, missing evidence, topology hints, and generation risks before materialization.",
+    "Run `dspx program-architect plan --intent <normalized-intent>` to inspect candidate architectures.",
+    "Add examples or datasets before using tournament evidence for serious comparison."
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "normalization_only": true,
+    "oracle_authority": false,
+    "program_generation": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "winner_selection": false
+  },
+  "normalized_intent": {
+    "capabilities": {},
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Develop the answer with context, reasoning, implications, and useful caveats.",
+      "Prefer coherent spoken prose over terse bullets.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "dataset": {},
+    "datasets": {},
+    "examples": [
+      {
+        "inputs": {
+          "persona_intent": "A patient science explainer.",
+          "transcription": "Why do seasons change?"
+        },
+        "outputs": {
+          "response": "Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year."
+        }
+      },
+      {
+        "inputs": {
+          "persona_intent": "A thoughtful study coach.",
+          "transcription": "Why is sleep important for learning?"
+        },
+        "outputs": {
+          "response": "Sleep supports learning by stabilizing new memories, restoring attention, and helping the brain connect new material with prior knowledge; regular sleep therefore improves both recall and flexible understanding."
+        }
+      }
+    ],
+    "input_fields": [],
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "jury": {},
+    "metric": "f1",
+    "name": "VoiceTurnElaborateBrain",
+    "objective": "Define the requested persona, then develop a complete, nuanced spoken answer to the transcription.",
+    "options": {
+      "module_inference": false
+    },
+    "output_fields": [],
+    "outputs": [
+      "response"
+    ],
+    "promotion": {},
+    "quality_criteria": [],
+    "runtime": {
+      "generated_source_profile": "protected_snapshot"
+    },
+    "schema_version": "program-intent-v2",
+    "task_type": "single_module",
+    "topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "answer_elaborate"
+        },
+        {
+          "from": "answer_elaborate",
+          "to": "output"
+        }
+      ],
+      "execution_status": "declared_not_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "answer_elaborate",
+          "primitive": "ChainOfThought",
+          "role": "developed_answer",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "AnswerElaborate",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "normalized_intent_hash": "5587819a71d7afbad25d7d9774f6587b2b5bec42cec39c9e051be6081d814d3d",
+  "primitive_hints": [
+    {
+      "primitive": "ChainOfThought",
+      "reason": "Reasoned generation/review/validation can use the current generated ChainOfThought primitive.",
+      "status": "supported"
+    }
+  ],
+  "schema_version": "program-intent-normalization-v1",
+  "source": {
+    "content_hash": "da8d49708e98aab8f91907604202355badbcc9208b9e329d340eae761eaf9db1",
+    "kind": "intent_file",
+    "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/elaborate/intent.json"
+  },
+  "status": "normalized_for_direct_materialization",
+  "support_level_preview": {
+    "classifications": {
+      "features": [],
+      "primitives": [
+        {
+          "blockers": [],
+          "capability_kind": "primitive",
+          "materialization_effects_allowed": true,
+          "name": "ChainOfThought",
+          "safe_next_actions": [
+            "Materialize ChainOfThought only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence."
+          ],
+          "source_status": "supported",
+          "support_level": "executable_local"
+        }
+      ],
+      "production_activation": {
+        "blockers": [
+          "Generated-program artifacts remain non-authoritative.",
+          "Activation requires a separate owner-authorized governance path."
+        ],
+        "capability_kind": "authority_boundary",
+        "in_scope": false,
+        "materialization_effects_allowed": false,
+        "name": "production_activation",
+        "safe_next_actions": [
+          "Route production activation through the owner-authorized governance boundary; this blocker does not grant activation authority."
+        ],
+        "support_level": "production_activation"
+      },
+      "topology_candidates": [
+        {
+          "blockers": [
+            "Declared topology is evidence/assumption metadata unless the bounded renderer validates it; custom remains policy-only."
+          ],
+          "capability_kind": "topology_candidate",
+          "materialization_effects_allowed": true,
+          "name": "pipeline",
+          "renderer": "pipeline_topology_renderer",
+          "safe_next_actions": [
+            "Materialize pipeline only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence."
+          ],
+          "source": "declared_topology",
+          "support_level": "executable_local"
+        }
+      ]
+    },
+    "effect": {
+      "authority_mutated": false,
+      "custom_import_loaded": false,
+      "program_materialized": false,
+      "retriever_called": false,
+      "tool_called": false
+    },
+    "safe_next_actions": [
+      "Review support levels, blockers, missing evidence, and topology candidates before materialization.",
+      "Treat descriptor-only capabilities as preserved contracts, not executable behavior.",
+      "Keep production activation outside program-gen blocker #1 unless the owning governance surface explicitly authorizes it."
+    ],
+    "schema_version": "program-support-level-preview-v1",
+    "status": "preview_only_not_materialization_authority",
+    "taxonomy": [
+      {
+        "allowed_in_blocker": true,
+        "effect_allowed": false,
+        "label": "Descriptor-only",
+        "level": "descriptor_only",
+        "meaning": "Capability is represented in the normalized intent/preview evidence but is not executed."
+      },
+      {
+        "allowed_in_blocker": true,
+        "effect_allowed": false,
+        "label": "Local dry-run/evaluation",
+        "level": "local_dry_run_evaluation",
+        "meaning": "Capability may be checked locally through schema/hash/preview validation without live tool, retriever, import, or authority effects."
+      },
+      {
+        "allowed_in_blocker": true,
+        "effect_allowed": true,
+        "label": "Executable local",
+        "level": "executable_local",
+        "meaning": "Capability may execute only inside the generated candidate's declared local runtime/evaluation boundary."
+      },
+      {
+        "allowed_in_blocker": false,
+        "effect_allowed": false,
+        "label": "Production activation",
+        "level": "production_activation",
+        "meaning": "Capability affects live routing, canonical state, source-owner systems, or external authority."
+      }
+    ]
+  },
+  "topology_hints": []
+}

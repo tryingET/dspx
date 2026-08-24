@@ -46,6 +46,12 @@ PROTECTED_MANIFESTS = {
     "03e4d23e6d0eede3cd474d5d84d8fc1091e3c52c3b5c318f4b9be686e71c09fa": "deep-research",
     "01b28caa003943e616ad07815870f1abb0f200d0990e52f487271c79ed855fac": "socratic",
     "087994808d60ee46b7283c4d8f0b7c269323c016c392d1e9bdee075abe8a53ba": "bloom",
+    "ed0fd9db0268aef35fa5cd7314800b26a66864afd384271785fb0a09b5b24cd4": "simple",
+    "7025d592f61b3afe70440ca3f3420736998cd286ed47761596f3e9458538f699": "elaborate",
+    "69696b0d12cb0694b0a63ea3270bb7503df2a70f9112e51a5a152307f104aa5c": "researched",
+    "8aebeda59ab883211c5318208f53086febc802e195170442cf6c0bc4c62fab5c": "deep-research",
+    "ce43ee0674fd1adc1141f929d12cc897f8537bbd8be15475110e62d5d2810f95": "socratic",
+    "77dc9cf7bf265f719160e4eea6547801255ad745b92b886a46b8cc0c672f39a0": "bloom",
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 

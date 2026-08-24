@@ -27,7 +27,7 @@ PROTECTED_DENIED_ATTRIBUTES = set(
 
 
 _EXPECTED_CANONICAL_SHA256 = (
-    "a8ec67b7ddf711142312ffd6caf0a7d57eeb48617e92025a0d45ae48dedd26c0"
+    "256b5ea900822d081f1150ec61b43f9fedaf89d952457091e3dac2ee3ac997ea"
 )
 
 
@@ -40,10 +40,65 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         raise SoomfonEvaluationContractError("contract exact content is invalid")
     if (
         payload.get("schema_version") != CONTRACT_SCHEMA
-        or payload.get("task_id") != 4808
+        or payload.get("task_id") != 4971
         or payload.get("status") != "implementation_reviewed_execution_unauthorized"
     ):
         raise SoomfonEvaluationContractError("contract identity is invalid")
+    predecessor = _require_exact_keys(
+        payload.get("predecessor_contract"),
+        {
+            "archive_path",
+            "raw_sha256",
+            "canonical_sha256",
+            "task_id",
+            "attempted_modes",
+            "unattempted_modes",
+            "terminal_disposition",
+            "terminal_reason",
+            "ledger_sha256",
+            "child_claim_sha256",
+            "suite_result_sha256",
+            "independent_evidence_ids",
+            "retry_allowed",
+        },
+        label="contract predecessor",
+    )
+    if predecessor != {
+        "archive_path": (
+            "examples/voice_turn_brains/canaries/dspy-3.3.0/"
+            "predecessor-contracts/"
+            "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json"
+        ),
+        "raw_sha256": (
+            "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
+        ),
+        "canonical_sha256": (
+            "a8ec67b7ddf711142312ffd6caf0a7d57eeb48617e92025a0d45ae48dedd26c0"
+        ),
+        "task_id": 4808,
+        "attempted_modes": ["simple"],
+        "unattempted_modes": [
+            "elaborate",
+            "researched",
+            "deep-research",
+            "socratic",
+            "bloom",
+        ],
+        "terminal_disposition": "effect_indeterminate",
+        "terminal_reason": "provider_effect_attempt_invalid",
+        "ledger_sha256": (
+            "9c2af26515591b974f9229b470819a180e58675b6c3cf3f5051eec4b02163ac0"
+        ),
+        "child_claim_sha256": (
+            "d38c945263e3121269f21d70f3d7543f8dde6308ef96431f834a249e20520eac"
+        ),
+        "suite_result_sha256": (
+            "ed973db2f5a304ead58e3b4b6812ca9df3f596acaeed5cfc95892a77fd6274fd"
+        ),
+        "independent_evidence_ids": [7589, 7590],
+        "retry_allowed": False,
+    }:
+        raise SoomfonEvaluationContractError("contract predecessor is invalid")
     source = _require_exact_keys(
         payload.get("source_state"),
         {

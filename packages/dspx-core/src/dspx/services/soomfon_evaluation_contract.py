@@ -88,9 +88,9 @@ def protected_declared_call_names(tree: ast.AST) -> set[str]:
 CONTRACT_RELATIVE_PATH = Path(
     "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json"
 )
-CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v1"
+CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v2"
 REVIEWED_CONTRACT_SHA256 = (
-    "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
+    "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
 )
 EXPECTED_MODES = (
     "simple",
@@ -109,12 +109,12 @@ EXPECTED_INPUT_SHA256 = {
     "bloom": "53e937b087ce752f8ead60dec3151aabda3fee3c76e99cc31a28081c4683c829",
 }
 EXPECTED_RECEIPT_SHA256 = {
-    "simple": "4cb846918dbb5033d1810b77f24fedfcf1e7849ee22a1bff52a7296590ee7eb1",
-    "elaborate": "7356d11d793f59a567ebd98fa5940d3e5e333ca1a9a23c9e016142713dda4f9c",
-    "researched": "dcc4db729515ab269032bb540ed71fa2e2c4f9c8ed0e8fcac402f4a5d549184e",
-    "deep-research": "25be7a94f44341086677fb2ec8f064cd2aafd03a4de64fa2797f4b070711c70d",
-    "socratic": "48760064bc40949fd346cc63576826d51d7a7b1a838196baf4dba61095119b6a",
-    "bloom": "af56fa8361db5df681175f8e0d1fbc8ee9ebbe07b83d58d92a429786e9eea335",
+    "simple": "0e193d10d1a9c7f1e6e7642a560c877e95297de60c7a27bd056317a8ee8efb7b",
+    "elaborate": "662cc899182f6723425eb0a02e675482a09e13c810a0c877a706a54fc90e603b",
+    "researched": "9abd66aceb67113a8d4453d403a720c1b0de28e296aeb586bdea472ea5161cc1",
+    "deep-research": "f55bfaf9666c07dafe46a626f212eb5712f456835f2f3494806ad104c575a462",
+    "socratic": "e7ea97c23a799bccba09aded84064253b628323d68f8fb9c7df2760d18e4d917",
+    "bloom": "56afe306bd14d64bcf722d502acda3719f6fd46c90e8cce673443250bf97c8cf",
 }
 REQUIRED_ENVIRONMENT = {
     "DSPX_PROVIDER": "openai-compatible",
@@ -135,6 +135,7 @@ _TOP_LEVEL_KEYS = {
     "task_id",
     "status",
     "purpose",
+    "predecessor_contract",
     "source_state",
     "runtime_target",
     "executor_contract",
@@ -306,7 +307,7 @@ def validate_case_artifact_bindings(
         if (
             manifest_id != case["candidate_id"]
             or index_id != case["candidate_id"]
-            or index_version != "3.3.0"
+            or index_version != "3.3.1"
             or index_manifest_hash != case["manifest_sha256"]
         ):
             raise SoomfonEvaluationContractError("case artifact identity drifts")

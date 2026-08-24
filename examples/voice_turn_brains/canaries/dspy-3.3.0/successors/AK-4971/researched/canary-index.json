@@ -1,0 +1,108 @@
+{
+  "claims": {
+    "generation_compatibility": "observed",
+    "live_model_compatibility": false,
+    "quality": "not_evaluated",
+    "semantic_equivalence": "not_evaluated",
+    "snapshot_policy_compatibility": "observed"
+  },
+  "effects": {
+    "activation": false,
+    "credentials": false,
+    "live_provider": false,
+    "network": false,
+    "promotion": false,
+    "publication": false,
+    "release": false,
+    "routing": false
+  },
+  "fresh_candidate": {
+    "generated_behavior": {
+      "behavior_quality": "not_evaluated",
+      "quality_approved": false,
+      "semantic_equivalence": "not_evaluated"
+    },
+    "generation_dspy": {
+      "distribution": "dspy",
+      "prerelease": false,
+      "version": "3.3.1"
+    },
+    "identity": {
+      "assembly_id": "prog-asm-7a50e2fc523a",
+      "candidate_id": "prog-cand-cde70b970af6",
+      "episode_id": "prog-ep-69c171681e9f",
+      "receipt_bundle_id": "prog-rb-91c7a48ba922",
+      "request_id": "prog-req-0576fa2c1f86"
+    },
+    "manifest": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/candidate/manifest.json",
+      "sha256": "69696b0d12cb0694b0a63ea3270bb7503df2a70f9112e51a5a152307f104aa5c"
+    },
+    "manifest_receipt": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/candidate/manifest.json.meta.json",
+      "sha256": "9abd66aceb67113a8d4453d403a720c1b0de28e296aeb586bdea472ea5161cc1"
+    },
+    "provider": {
+      "credentials_used": false,
+      "live_model_used": false,
+      "model": "stub/echo",
+      "name": "stub",
+      "network_used": false,
+      "typed_contract": "typed_lm"
+    }
+  },
+  "mode": "researched",
+  "predecessor": {
+    "attempt_disposition": "not_attempted",
+    "canary_index": "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/canary-index.json",
+    "canary_index_sha256": "e39e57573d5432005f87c25110244a15e4ddd95f353712f64d9981f43857be31",
+    "candidate_id": "prog-cand-f233bfe89cd1",
+    "contract_sha256": "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb",
+    "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/candidate/manifest.json",
+    "manifest_sha256": "bc3fbd7dc5d4993d93ee1af9737be7d12720d67a4df7793509e171e094cfe051",
+    "retry_allowed": false
+  },
+  "safety": {
+    "dynamic_call_targets": false,
+    "dynamic_module_dispatch": false,
+    "filesystem_reads_from_generated_program": false,
+    "function_local_tracing_imports": false,
+    "observability": "disabled_inside_protected_generated_surface",
+    "policy": "unchanged_soomfon_protected_snapshot_policy",
+    "validation": "passed_before_materialization_and_rechecked_after_materialization"
+  },
+  "schema_version": "soomfon-generated-safety-successor-canary-v1",
+  "source_commit": "82d6607b5e47935969165059acb909fafd086a25",
+  "source_intent": {
+    "generated_source_profile": "protected_snapshot",
+    "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/intent.json",
+    "predecessor_candidate_intent": "examples/voice_turn_brains/canaries/dspy-3.3.0/researched/candidate/intent.json",
+    "sha256": "7f15b67cd837f96c0826ee529e6f72799305858f63357b7f5a7347da49ee97bd"
+  },
+  "status": "provider_free_generation_and_snapshot_policy_passed",
+  "successor": {
+    "assembly_id": "prog-asm-7a50e2fc523a",
+    "candidate_id": "prog-cand-cde70b970af6",
+    "episode_id": "prog-ep-69c171681e9f",
+    "generation_dspy": {
+      "distribution": "dspy",
+      "prerelease": false,
+      "version": "3.3.1"
+    },
+    "manifest": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/candidate/manifest.json",
+    "manifest_receipt": "examples/voice_turn_brains/canaries/dspy-3.3.0/successors/AK-4971/researched/candidate/manifest.json.meta.json",
+    "manifest_receipt_sha256": "9abd66aceb67113a8d4453d403a720c1b0de28e296aeb586bdea472ea5161cc1",
+    "manifest_sha256": "69696b0d12cb0694b0a63ea3270bb7503df2a70f9112e51a5a152307f104aa5c",
+    "provider": {
+      "credentials_used": false,
+      "live_model_used": false,
+      "model": "stub/echo",
+      "name": "stub",
+      "network_used": false,
+      "typed_contract": "typed_lm"
+    },
+    "receipt_bundle_id": "prog-rb-91c7a48ba922",
+    "request_id": "prog-req-0576fa2c1f86"
+  },
+  "task_id": 4971
+}

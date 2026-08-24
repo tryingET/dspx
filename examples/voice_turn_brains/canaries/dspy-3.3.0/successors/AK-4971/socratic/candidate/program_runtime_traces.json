@@ -1,0 +1,712 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "define_persona",
+      "guide_socratically"
+    ],
+    "expected_module_ids": [
+      "define_persona",
+      "guide_socratically"
+    ],
+    "final_output_trace_count": 2,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 4,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 2,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "{response}"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "7eba4806ee718245d80c33f6dfb5f18e3eb72b904fb8f93a893c9b400767ce41",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "bb950818757b3ae76296dfe004a69d2f6359d8c0f7105e4125c63e8ab7e453ac"
+    },
+    {
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "{response}"
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "7eba4806ee718245d80c33f6dfb5f18e3eb72b904fb8f93a893c9b400767ce41",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "3a58cbf62f5f7462cd4c4004d527968871772f795daff7b3aac21dda8d3485d8"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away."
+  },
+  "module_call_count": 4,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A warm mathematics tutor."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "{persona}"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "7eba4806ee718245d80c33f6dfb5f18e3eb72b904fb8f93a893c9b400767ce41",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "c1f4cd412a6ac57787ead8cba0d00d977efc6a536b22e69ac4f60dd3ce789ca4",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "guide_socratically"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "{persona}",
+        "transcription": "Is every square a rectangle?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "guide_socratically",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "{response}"
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "7eba4806ee718245d80c33f6dfb5f18e3eb72b904fb8f93a893c9b400767ce41",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "socratic_guide"
+      },
+      "status": "executed",
+      "trace_hash": "20a69c4d035e80602d13d550993b5eca24a6aa73154011b3cee48cf2fe28c3d8",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A curious biology mentor."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "{persona}"
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "7eba4806ee718245d80c33f6dfb5f18e3eb72b904fb8f93a893c9b400767ce41",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "9cb71b78f40cac941b24dd83f4808b9cd0d7c224e62ccbf7c94564d034180c04",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "guide_socratically"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "persona": "{persona}",
+        "transcription": "Why did my plant wilt after I watered it every day?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "guide_socratically",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "{response}"
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "7eba4806ee718245d80c33f6dfb5f18e3eb72b904fb8f93a893c9b400767ce41",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "socratic_guide"
+      },
+      "status": "executed",
+      "trace_hash": "ec2f45dd6db2a2218d5014d87ce8e7fb9c29544cab575a61e96a24f0e1efee24",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 2,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 4,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 2,
+      "records_with_complete_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_complete_module_calls": [
+        0,
+        1
+      ],
+      "records_with_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_module_calls": [
+        0,
+        1
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "7eba4806ee718245d80c33f6dfb5f18e3eb72b904fb8f93a893c9b400767ce41",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 2,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "bb950818757b3ae76296dfe004a69d2f6359d8c0f7105e4125c63e8ab7e453ac",
+      "3a58cbf62f5f7462cd4c4004d527968871772f795daff7b3aac21dda8d3485d8"
+    ],
+    "module_calls": [
+      "c1f4cd412a6ac57787ead8cba0d00d977efc6a536b22e69ac4f60dd3ce789ca4",
+      "20a69c4d035e80602d13d550993b5eca24a6aa73154011b3cee48cf2fe28c3d8",
+      "9cb71b78f40cac941b24dd83f4808b9cd0d7c224e62ccbf7c94564d034180c04",
+      "ec2f45dd6db2a2218d5014d87ce8e7fb9c29544cab575a61e96a24f0e1efee24"
+    ]
+  }
+}

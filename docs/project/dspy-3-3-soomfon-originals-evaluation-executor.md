@@ -10,7 +10,7 @@ type: "reference"
 
 ## Status
 
-AK-4809 implements the execution membrane required by the frozen AK-4808 design. Provider-free readiness task #4965 confirms the implementation and complete negative matrix; the contract posture is `implementation_reviewed_execution_unauthorized`. No six-case execution has occurred. A separate exact AK task must carry the independently reviewed current contract digest and authorize one loopback-client attempt.
+AK-4809 implements the execution membrane required by the frozen AK-4808 design. Provider-free readiness task #4965 confirms the implementation and complete negative matrix. Under predecessor contract `07ba8c35…e69eb`, task #4969 consumed only `simple` and retained terminal `effect_indeterminate`; no six-case execution completed and that key cannot be retried. Task #4971 preserved the predecessor, repaired generation without weakening the snapshot policy, and issued a successor whose posture is `implementation_reviewed_execution_unauthorized`. A separate exact AK task must carry the independently reviewed current contract digest, bind the exact reviewed source commit or installed payload, and authorize one loopback-client attempt.
 
 Frozen contract:
 
@@ -18,7 +18,7 @@ Frozen contract:
 
 Reviewed out-of-band SHA-256:
 
-`07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb`
+`a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18`
 
 The executor does not derive or default this digest. The operator must supply it explicitly:
 
@@ -29,7 +29,7 @@ DSPX_OPENAI_COMPAT_API_BASE=http://127.0.0.1:1234/v1 \
 DSPX_OPENAI_COMPAT_TIMEOUT=30 \
 DSPX_POLICY_ALLOW_NETWORK_MUTATE=1 \
 just dspx soomfon evaluate-originals \
-  --expected-contract-sha256 07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb
+  --expected-contract-sha256 a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18
 ```
 
 Do not run that command without the separate exact execution task. The URL proves only the client hop; backend process, model artifact, no-egress, and locality remain unverified.
@@ -47,7 +47,7 @@ Before creating an attempt marker or provider:
 7. build an allowlisted child environment rather than forwarding ambient provider state;
 8. recursively reject unknown nested contract fields and stable-read/hash-bind every fresh manifest, receipt, and canary index.
 
-The exact candidate surfaces are copied from their hash-bound inventory into a private staged tree before provider construction. In the child, manifest, receipt, input, and declared surface bytes are stable-read and hash-checked again before the one-shot child claim. Generated Python modules then load only from that captured in-memory source snapshot, so runtime execution does not reopen mutable candidate/input paths. The child uses isolated Python `-I -P` from a private empty working directory. `program-run` centrally refuses all six protected manifest hashes without an inherited executor custody context, and custody cannot authorize an unprotected hash.
+The exact candidate surfaces are copied from their hash-bound inventory into a private staged tree before provider construction. In the child, manifest, receipt, input, and declared surface bytes are stable-read and hash-checked again before the one-shot child claim. Generated Python modules then load only from that captured in-memory source snapshot, so runtime execution does not reopen mutable candidate/input paths. The child uses isolated Python `-I -P` from a private empty working directory. `program-run` centrally refuses both predecessor and successor protected manifest hashes without an inherited executor custody context, and custody cannot authorize an unprotected hash.
 
 The CLI exposes no contract path, mode selector, endpoint/model/timeout override, state root, retry, resume, fallback, or raw-response option.
 
@@ -96,7 +96,7 @@ The command output and suite result contain only bounded identities, disposition
 
 Executor implementation does not prove:
 
-- that any case ran;
+- that any successor case ran;
 - live-provider or model compatibility;
 - backend locality or no-egress;
 - answer quality or semantic equivalence;

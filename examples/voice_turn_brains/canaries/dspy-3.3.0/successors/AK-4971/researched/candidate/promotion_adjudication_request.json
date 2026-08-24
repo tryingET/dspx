@@ -1,0 +1,81 @@
+{
+  "adjudicator": {
+    "authority": "required_for_promotion",
+    "id": "local_operator",
+    "kind": "human_operator",
+    "status": "pending"
+  },
+  "allowed_outcomes": [
+    "promote",
+    "withhold",
+    "reject",
+    "request_more_evidence"
+  ],
+  "authority": "adjudication_request_only_non_authoritative",
+  "candidate_refs": {
+    "intent": "intent.json",
+    "manifest": "manifest.json",
+    "plan": "plan.json",
+    "program": "program.py"
+  },
+  "decision_question": "Should this exact program candidate be promoted, withheld, rejected, or returned for more evidence?",
+  "decision_record_template": {
+    "adjudicator_kind": "human_operator",
+    "adjudicator_ref": "local_operator",
+    "decided_by": null,
+    "evidence_refs": [],
+    "outcome": null,
+    "rationale": null,
+    "schema_version": "program-promotion-decision-v1",
+    "status": "pending"
+  },
+  "evidence_packet": [
+    {
+      "kind": "plan",
+      "path": "plan.json"
+    },
+    {
+      "kind": "jury_pool",
+      "path": "jury.json"
+    },
+    {
+      "kind": "jury_selection",
+      "path": "jury_selection.json"
+    },
+    {
+      "kind": "jury_rubric",
+      "path": "jury_rubric.json"
+    },
+    {
+      "kind": "promotion_review",
+      "path": "promotion_review.json"
+    },
+    {
+      "kind": "smoke_harness",
+      "path": "eval_smoke.py"
+    },
+    {
+      "kind": "jury_binding_harness",
+      "path": "eval_jury.py"
+    }
+  ],
+  "external_authority": {
+    "notes": [
+      "External authority references are preserved as opaque metadata.",
+      "DSPx core does not validate, call, or mutate external authority systems."
+    ],
+    "refs": [],
+    "status": "not_exported"
+  },
+  "missing_required_evidence": [
+    "no_model_jury_execution_episode",
+    "no_promotion_adjudicator_decision"
+  ],
+  "notes": [
+    "This packet prepares an explicit adjudicator decision; it is not a decision.",
+    "Promotion remains blocked until required evidence and an adjudicator decision exist.",
+    "No human, AI agent, council, policy gate, or Oracle is invoked during materialization."
+  ],
+  "schema_version": "program-promotion-adjudication-request-v1",
+  "status": "not_ready_blocked"
+}
