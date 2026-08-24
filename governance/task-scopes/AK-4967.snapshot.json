@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-24T15:12:08.569077512+00:00",
+  "task_id": 4967,
+  "entity_version": 2,
+  "commit_sha": "d1e4b1d17044b6fce1610f00670933b22aa1d059",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/product-posture.md",
+      "governance/task-scopes/AK-*.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/product-posture.md"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/ai-control-brains.json",
+      "generated/**",
+      "mlruns/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
