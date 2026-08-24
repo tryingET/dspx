@@ -1,0 +1,26 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "82d6607b5e47935969165059acb909fafd086a25"
+created_at: "2026-08-24T16:16:12Z"
+intent: "Add a generator profile that fails before materialization unless topology surfaces satisfy the unchanged protected snapshot policy."
+files:
+  - "packages/dspx-core/src/dspx/services/program_runtime_episode.py"
+  - "packages/dspx-core/src/dspx/services/program_surfaces.py"
+  - "packages/dspx-core/src/dspx/services/program_topology.py"
+  - "tests/test_program_topology_intent_pipeline.py"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "just verify-full"
+    status: "pending"
+group:
+  index: 1
+  total: 2
+  rationale: "Commit generator repair before producing commit-bound replacement canaries."
+links:
+  task_ids:
+    - 4971
