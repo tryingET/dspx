@@ -1,4 +1,4 @@
-# summary: "CLI entrypoint for generating DSPy signatures with an optional Codex Exec script wrapper."
+# summary: "CLI entrypoint for generating DSPy signatures with an optional typed-stub script wrapper."
 # read_when:
 #   - "Changing vibegen arguments, provider selection, generated output, or script wrapping."
 
@@ -10,18 +10,13 @@ from dspx.services.signatures_service import run_generate as service_generate
 
 
 def wrap_script(signature_code: str) -> str:
-    """Wrap a generated signature into a runnable DSPy script using CodexExecLM."""
+    """Wrap a generated signature into a credential-free typed-stub script."""
     lines = []
-    lines.append("# Auto-generated DSPy script (Codex Exec enabled)")
-    lines.append("import os")
+    lines.append("# Auto-generated DSPy script (typed stub)")
     lines.append("import dspy")
-    lines.append("from dspx.codex_exec_lm import CodexExecLM")
+    lines.append("from dspx.provider_registry import create")
     lines.append("")
-    lines.append("# Configure Codex Exec as the LM")
-    lines.append("MODEL = os.getenv('CODEX_MODEL', 'gpt-5')")
-    lines.append(
-        "lm = CodexExecLM(model_flag=MODEL, auto_mode=True, dangerously_bypass=False, reasoning_effort='minimal')"
-    )
+    lines.append("lm = create('stub')")
     lines.append("dspy.configure(lm=lm)")
     lines.append("")
     lines.append(signature_code)
@@ -53,9 +48,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument(
         "--wrap-script",
         action="store_true",
-        help="Wrap the signature in a runnable script that configures Codex Exec",
+        help="Wrap the signature in a credential-free typed-stub script",
     )
-    ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
+    ap.add_argument("--provider", choices=["stub"], help="Supported provider")
     args = ap.parse_args(argv)
 
     ensure_env_and_tracing()

@@ -1,0 +1,1143 @@
+{
+  "assembly_id": "prog-asm-ad6e3697ae4a",
+  "authority": "execution_episode_evidence_only_non_authoritative",
+  "behavior_evidence_summary": {
+    "degraded": 0,
+    "error": 0,
+    "executed_source_count": 1,
+    "failed": 2,
+    "no_examples_source_count": 0,
+    "passed": 0,
+    "source_count": 1,
+    "source_statuses": [
+      {
+        "behavior_results_path": "behavior_results.json",
+        "count": 2,
+        "kind": "examples",
+        "source_kind": "inline_examples",
+        "split": null,
+        "status": "failed"
+      }
+    ],
+    "status": "failed",
+    "status_counts": {
+      "failed": 1
+    },
+    "total": 2
+  },
+  "behavior_orchestration": {
+    "harness": "eval_behavior.py",
+    "result_artifact": "behavior_episode.json",
+    "result_hash": "976afff517e1dfdb60a7b7bd992b9fe7bb307f09473721f03bc099615330f8c8",
+    "returncode": 0,
+    "status": "passed",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "source_count": 1,
+      "status": "failed",
+      "status_counts": {
+        "failed": 1
+      },
+      "total": 2
+    }
+  },
+  "behavior_results": {
+    "content_hash": "b4c38dd4c33991afe100d1ca9f2f50968f5fef4522d7ec67ef19a3b94b1d0014",
+    "path": "behavior_results.json",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "status": "failed",
+      "status_counts": {
+        "failed": 2
+      },
+      "total": 2
+    }
+  },
+  "behavior_status": "failed",
+  "behavioral_evaluation": {
+    "examples_count": 2,
+    "result_artifact": "behavior_results.json",
+    "result_hash": "b4c38dd4c33991afe100d1ca9f2f50968f5fef4522d7ec67ef19a3b94b1d0014",
+    "status": "failed",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "status": "failed",
+      "status_counts": {
+        "failed": 2
+      },
+      "total": 2
+    }
+  },
+  "candidate_id": "prog-cand-e1ba5de2283e",
+  "checks": {
+    "compile": {
+      "files": [
+        "direct_run.py",
+        "eval_behavior.py",
+        "eval_examples.py",
+        "eval_jury.py",
+        "eval_promotion.py",
+        "eval_smoke.py",
+        "module.py",
+        "program.py",
+        "signature.py"
+      ],
+      "status": "passed"
+    },
+    "dataset_binding": {
+      "dataset_manifest": null,
+      "split_artifacts": {},
+      "status": "not_applicable"
+    },
+    "examples_binding": {
+      "artifact_refs": [
+        "examples.json",
+        "eval_examples.py"
+      ],
+      "examples_count": 2,
+      "status": "passed"
+    },
+    "jury_binding": {
+      "artifact_refs": [
+        "jury.json",
+        "jury_selection.json",
+        "jury_rubric.json",
+        "eval_jury.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    },
+    "promotion_binding": {
+      "artifact_refs": [
+        "promotion_review.json",
+        "promotion_adjudication_request.json",
+        "promotion_decision_template.json",
+        "eval_promotion.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    },
+    "smoke": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_smoke.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    }
+  },
+  "dataset_evaluation": {
+    "dataset_manifest": null,
+    "split_results": {
+      "test": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      },
+      "train": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      },
+      "validation": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      }
+    },
+    "status": "not_applicable"
+  },
+  "episode_id": "prog-ep-f7d53cdcf02c",
+  "evaluation_sources": [
+    {
+      "behavior_results_hash": "b4c38dd4c33991afe100d1ca9f2f50968f5fef4522d7ec67ef19a3b94b1d0014",
+      "behavior_results_path": "behavior_results.json",
+      "count": 2,
+      "harness": {
+        "path": "eval_examples.py",
+        "returncode": 0,
+        "status": "passed"
+      },
+      "input_artifact_hash": "af355951473d4ed4a2cb12ba40b7435ce593efe261192d923a63d0d3e6d58bd7",
+      "input_artifact_path": "examples.json",
+      "kind": "examples",
+      "metric": "f1",
+      "provider": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      },
+      "source_kind": "inline_examples",
+      "source_path": null,
+      "status": "failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "evaluator": "deterministic_program_bundle_smoke",
+  "materialization": {
+    "generated_file_count": 30,
+    "generated_files": [
+      "behavior_episode.json",
+      "behavior_results.json",
+      "direct_run.py",
+      "eval_behavior.py",
+      "eval_examples.py",
+      "eval_jury.py",
+      "eval_promotion.py",
+      "eval_smoke.py",
+      "examples.json",
+      "execution_episode.json",
+      "generated_module_policy.json",
+      "intent.json",
+      "intent_normalization.json",
+      "jury.json",
+      "jury_rubric.json",
+      "jury_selection.json",
+      "manifest.json",
+      "module.py",
+      "module_surfaces.json",
+      "oracle_evidence.json",
+      "plan.json",
+      "program.py",
+      "program_capability_registry.json",
+      "program_runtime_outcomes.json",
+      "program_runtime_traces.json",
+      "program_tool_contracts.json",
+      "promotion_adjudication_request.json",
+      "promotion_decision_template.json",
+      "promotion_review.json",
+      "signature.py"
+    ],
+    "status": "passed"
+  },
+  "metadata": {
+    "behavior_episode": {
+      "authority": "behavior_evidence_only_non_authoritative",
+      "non_authority": {
+        "external_authority_mutated": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "optimization_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false,
+        "winner_selection": false
+      },
+      "quality_evaluation": {
+        "criteria_declared": false,
+        "evaluations_failed": 0,
+        "evaluations_passed": 0,
+        "evaluations_total": 0,
+        "quality_approved": false,
+        "status": "not_declared"
+      },
+      "schema_version": "program-behavior-episode-v1",
+      "sources": [
+        {
+          "behavior_results_hash": "b4c38dd4c33991afe100d1ca9f2f50968f5fef4522d7ec67ef19a3b94b1d0014",
+          "behavior_results_path": "behavior_results.json",
+          "behavior_status": "failed",
+          "command": [
+            "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+            "eval_examples.py"
+          ],
+          "count": 2,
+          "harness_path": "eval_examples.py",
+          "kind": "examples",
+          "provider": {
+            "provider": "openai-compatible/baseline-text",
+            "status": "configured"
+          },
+          "quality_evaluation": {
+            "criteria_declared": false,
+            "evaluations_failed": 0,
+            "evaluations_passed": 0,
+            "evaluations_total": 0,
+            "quality_approved": false,
+            "status": "not_declared"
+          },
+          "returncode": 0,
+          "source_kind": "inline_examples",
+          "split": null,
+          "status": "passed",
+          "stderr": "",
+          "stdout": "program examples ok: 2 example(s); behavior status: failed",
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 2,
+            "passed": 0,
+            "status": "failed",
+            "status_counts": {
+              "failed": 2
+            },
+            "total": 2
+          }
+        }
+      ],
+      "status": "failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "source_count": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1
+        },
+        "total": 2
+      }
+    },
+    "behavior_results": {
+      "authority": "behavior_evidence_only_non_authoritative",
+      "examples": [
+        {
+          "expected_outputs": {
+            "response": "Workstation owns capture, local-ai-control-plane owns turn composition and its receipt, and DSPx owns the six separate brains and GEPA evidence [voice-turn-owner-split]."
+          },
+          "index": 0,
+          "inputs": {
+            "persona_intent": "A precise systems researcher.",
+            "transcription": "Who owns capture, turn composition, and the six brains?"
+          },
+          "notes": [
+            "output mismatch: ['response']"
+          ],
+          "observed_outputs": {
+            "response": "Capture is owned by softwareco/infra/workstation [voice-turn-owner-split]. Turn composition is owned by softwareco/owned/local-ai-control-plane [voice-turn-owner-split]. The six brains are owned by softwareco/owned/dspx [voice-turn-owner-split]."
+          },
+          "quality_evaluation": {
+            "criteria": [],
+            "criteria_failed": 0,
+            "criteria_passed": 0,
+            "criteria_total": 0,
+            "quality_approved": false,
+            "schema_version": "program-quality-evaluation-v1",
+            "status": "not_declared"
+          },
+          "runtime_trace": {
+            "final_outputs": {
+              "response": "Capture is owned by softwareco/infra/workstation [voice-turn-owner-split]. Turn composition is owned by softwareco/owned/local-ai-control-plane [voice-turn-owner-split]. The six brains are owned by softwareco/owned/dspx [voice-turn-owner-split]."
+            },
+            "module_calls": [
+              {
+                "inputs": {
+                  "persona_intent": "A precise systems researcher."
+                },
+                "module_id": "define_persona",
+                "outputs": {
+                  "persona": "No supporting sources were found in the declared corpus."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "transcription": "Who owns capture, turn composition, and the six brains?"
+                },
+                "module_id": "retrieve_corpus",
+                "outputs": {
+                  "passages": "[{\"id\": \"voice-turn-owner-split\", \"score\": 7, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-batch-scope\", \"score\": 4, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}]"
+                },
+                "primitive": "Retriever",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "passages": "[{\"id\": \"voice-turn-owner-split\", \"score\": 7, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-batch-scope\", \"score\": 4, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}]",
+                  "persona": "No supporting sources were found in the declared corpus.",
+                  "transcription": "Who owns capture, turn composition, and the six brains?"
+                },
+                "module_id": "answer_researched",
+                "outputs": {
+                  "response": "Capture is owned by softwareco/infra/workstation [voice-turn-owner-split]. Turn composition is owned by softwareco/owned/local-ai-control-plane [voice-turn-owner-split]. The six brains are owned by softwareco/owned/dspx [voice-turn-owner-split]."
+                },
+                "primitive": "ChainOfThought",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              }
+            ],
+            "scheduler_events": [
+              {
+                "missing_outputs": [],
+                "pending": [],
+                "status": "completed"
+              }
+            ],
+            "schema_version": "program-runtime-trace-fragment-v1"
+          },
+          "status": "failed"
+        },
+        {
+          "expected_outputs": {
+            "response": "V1 is a batch, one-time turn; streaming, a continuing loop, and Pipecat are deferred to a later real-time phase [voice-turn-batch-scope]."
+          },
+          "index": 1,
+          "inputs": {
+            "persona_intent": "A concise technical analyst.",
+            "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+          },
+          "notes": [
+            "output mismatch: ['response']"
+          ],
+          "observed_outputs": {
+            "response": "No. The system is batch processing, not streaming, and Pipecat is not part of v1. [voice-turn-batch-scope]"
+          },
+          "quality_evaluation": {
+            "criteria": [],
+            "criteria_failed": 0,
+            "criteria_passed": 0,
+            "criteria_total": 0,
+            "quality_approved": false,
+            "schema_version": "program-quality-evaluation-v1",
+            "status": "not_declared"
+          },
+          "runtime_trace": {
+            "final_outputs": {
+              "response": "No. The system is batch processing, not streaming, and Pipecat is not part of v1. [voice-turn-batch-scope]"
+            },
+            "module_calls": [
+              {
+                "inputs": {
+                  "persona_intent": "A concise technical analyst."
+                },
+                "module_id": "define_persona",
+                "outputs": {
+                  "persona": "A concise technical analyst is a specialized professional role focused on analyzing technical systems, software architectures, or operational processes with a primary emphasis on brevity, precision, and actionable efficiency. This persona prioritizes data-driven problem-solving, delivers clear technical insights without unnecessary verbosity, and operates effectively in high-stakes environments such as software engineering, systems analysis, cybersecurity, or IT infrastructure. The analyst is characterized by rapid technical assessment, structured documentation of findings, and communication that balances technical depth with accessibility."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+                },
+                "module_id": "retrieve_corpus",
+                "outputs": {
+                  "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 9, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 4, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}]"
+                },
+                "primitive": "Retriever",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 9, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 4, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}]",
+                  "persona": "A concise technical analyst is a specialized professional role focused on analyzing technical systems, software architectures, or operational processes with a primary emphasis on brevity, precision, and actionable efficiency. This persona prioritizes data-driven problem-solving, delivers clear technical insights without unnecessary verbosity, and operates effectively in high-stakes environments such as software engineering, systems analysis, cybersecurity, or IT infrastructure. The analyst is characterized by rapid technical assessment, structured documentation of findings, and communication that balances technical depth with accessibility.",
+                  "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+                },
+                "module_id": "answer_researched",
+                "outputs": {
+                  "response": "No. The system is batch processing, not streaming, and Pipecat is not part of v1. [voice-turn-batch-scope]"
+                },
+                "primitive": "ChainOfThought",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              }
+            ],
+            "scheduler_events": [
+              {
+                "missing_outputs": [],
+                "pending": [],
+                "status": "completed"
+              }
+            ],
+            "schema_version": "program-runtime-trace-fragment-v1"
+          },
+          "status": "failed"
+        }
+      ],
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "intent": {
+        "constraints": [
+          "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+          "Define a concrete persona from persona_intent before answering.",
+          "Use only facts supported by passages whose lexical score is greater than zero.",
+          "Cite every material claim with the exact retrieved document id in square brackets.",
+          "Never invent a citation id, source, quote, or external fact.",
+          "If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.",
+          "Return only the response field.",
+          "load local GEPA optimizer output as the candidate program implementation"
+        ],
+        "declared_topology": {
+          "edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            },
+            {
+              "from": "input",
+              "to": "retrieve_corpus"
+            },
+            {
+              "from": "define_persona",
+              "to": "answer_researched"
+            },
+            {
+              "from": "retrieve_corpus",
+              "to": "answer_researched"
+            },
+            {
+              "from": "answer_researched",
+              "to": "output"
+            }
+          ],
+          "execution_status": "declared_not_materialized",
+          "kind": "retrieve_then_answer",
+          "modules": [
+            {
+              "id": "define_persona",
+              "primitive": "Predict",
+              "role": "define_persona",
+              "signature": {
+                "inputs": [
+                  "persona_intent"
+                ],
+                "name": "DefinePersona",
+                "outputs": [
+                  "persona"
+                ]
+              }
+            },
+            {
+              "id": "retrieve_corpus",
+              "primitive": "Retriever",
+              "retriever": {
+                "documents": [
+                  {
+                    "id": "voice-turn-owner-split",
+                    "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+                  },
+                  {
+                    "id": "voice-turn-capture-contract",
+                    "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+                  },
+                  {
+                    "id": "voice-turn-batch-scope",
+                    "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+                  },
+                  {
+                    "id": "voice-turn-research-boundary",
+                    "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+                  },
+                  {
+                    "id": "voice-turn-receipt-boundary",
+                    "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+                  },
+                  {
+                    "id": "voice-turn-modality-boundary",
+                    "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+                  },
+                  {
+                    "id": "voice-turn-gepa-boundary",
+                    "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+                  }
+                ],
+                "k": 3,
+                "mode": "inline_corpus"
+              },
+              "role": "retrieve_grounding",
+              "signature": {
+                "inputs": [
+                  "transcription"
+                ],
+                "name": "RetrieveVoiceTurnCorpus",
+                "outputs": [
+                  "passages"
+                ]
+              }
+            },
+            {
+              "id": "answer_researched",
+              "primitive": "ChainOfThought",
+              "role": "cited_corpus_answer",
+              "signature": {
+                "inputs": [
+                  "transcription",
+                  "persona",
+                  "passages"
+                ],
+                "name": "AnswerResearched",
+                "outputs": [
+                  "response"
+                ]
+              }
+            }
+          ]
+        },
+        "inferred_topology": {},
+        "io": {
+          "inputs": [
+            "transcription",
+            "persona_intent"
+          ],
+          "outputs": [
+            "response"
+          ]
+        },
+        "materialization_scope": {
+          "current_renderer": "retrieve_then_answer_topology_renderer",
+          "topology_declared": true,
+          "topology_inferred": false,
+          "topology_materialized": true
+        },
+        "materialized_topology": {
+          "edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            },
+            {
+              "from": "input",
+              "to": "retrieve_corpus"
+            },
+            {
+              "from": "define_persona",
+              "to": "answer_researched"
+            },
+            {
+              "from": "retrieve_corpus",
+              "to": "answer_researched"
+            },
+            {
+              "from": "answer_researched",
+              "to": "output"
+            }
+          ],
+          "execution_status": "retrieve_then_answer_materialized",
+          "kind": "retrieve_then_answer",
+          "materialized_from_kind": "retrieve_then_answer",
+          "modules": [
+            {
+              "id": "define_persona",
+              "primitive": "Predict",
+              "role": "define_persona",
+              "signature": {
+                "inputs": [
+                  "persona_intent"
+                ],
+                "name": "DefinePersona",
+                "outputs": [
+                  "persona"
+                ]
+              }
+            },
+            {
+              "id": "retrieve_corpus",
+              "primitive": "Retriever",
+              "retriever": {
+                "documents": [
+                  {
+                    "id": "voice-turn-owner-split",
+                    "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+                  },
+                  {
+                    "id": "voice-turn-capture-contract",
+                    "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+                  },
+                  {
+                    "id": "voice-turn-batch-scope",
+                    "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+                  },
+                  {
+                    "id": "voice-turn-research-boundary",
+                    "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+                  },
+                  {
+                    "id": "voice-turn-receipt-boundary",
+                    "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+                  },
+                  {
+                    "id": "voice-turn-modality-boundary",
+                    "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+                  },
+                  {
+                    "id": "voice-turn-gepa-boundary",
+                    "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+                  }
+                ],
+                "k": 3,
+                "mode": "inline_corpus"
+              },
+              "role": "retrieve_grounding",
+              "signature": {
+                "inputs": [
+                  "transcription"
+                ],
+                "name": "RetrieveVoiceTurnCorpus",
+                "outputs": [
+                  "passages"
+                ]
+              }
+            },
+            {
+              "id": "answer_researched",
+              "primitive": "ChainOfThought",
+              "role": "cited_corpus_answer",
+              "signature": {
+                "inputs": [
+                  "transcription",
+                  "persona",
+                  "passages"
+                ],
+                "name": "AnswerResearched",
+                "outputs": [
+                  "response"
+                ]
+              }
+            }
+          ],
+          "renderer": "retrieve_then_answer_topology_renderer",
+          "scheduler_plan": {
+            "declaration_order": [
+              "define_persona",
+              "retrieve_corpus",
+              "answer_researched"
+            ],
+            "effect": {
+              "authority_mutated": false,
+              "custom_import_loaded": false,
+              "provider_called": false,
+              "retriever_called": false,
+              "tool_called": false
+            },
+            "module_order": [
+              "define_persona",
+              "retrieve_corpus",
+              "answer_researched"
+            ],
+            "module_readiness": {
+              "answer_researched": {
+                "inbound_edges": [
+                  {
+                    "from": "define_persona",
+                    "to": "answer_researched"
+                  },
+                  {
+                    "from": "retrieve_corpus",
+                    "to": "answer_researched"
+                  }
+                ],
+                "primitive": "ChainOfThought",
+                "produced_outputs": [
+                  "response"
+                ],
+                "required_inputs": [
+                  "transcription",
+                  "persona",
+                  "passages"
+                ]
+              },
+              "define_persona": {
+                "inbound_edges": [
+                  {
+                    "from": "input",
+                    "to": "define_persona"
+                  }
+                ],
+                "primitive": "Predict",
+                "produced_outputs": [
+                  "persona"
+                ],
+                "required_inputs": [
+                  "persona_intent"
+                ]
+              },
+              "retrieve_corpus": {
+                "inbound_edges": [
+                  {
+                    "from": "input",
+                    "to": "retrieve_corpus"
+                  }
+                ],
+                "primitive": "Retriever",
+                "produced_outputs": [
+                  "passages"
+                ],
+                "required_inputs": [
+                  "transcription"
+                ]
+              }
+            },
+            "output_producers": [
+              "answer_researched"
+            ],
+            "scheduler": "bounded_ready_queue",
+            "schema_version": "program-topology-scheduler-plan-v1",
+            "status": "deterministic_local_dag_schedule"
+          }
+        },
+        "metric": "f1",
+        "module_order": [
+          "define_persona",
+          "retrieve_corpus",
+          "answer_researched"
+        ],
+        "name": "VoiceTurnResearchedBrain",
+        "objective": "Define the requested persona, retrieve bounded local evidence, and answer with corpus-grounded citations.",
+        "program_class": "VoiceTurnResearchedBrainPipelineProgram",
+        "quality_criteria": [],
+        "scheduler_plan": {
+          "declaration_order": [
+            "define_persona",
+            "retrieve_corpus",
+            "answer_researched"
+          ],
+          "effect": {
+            "authority_mutated": false,
+            "custom_import_loaded": false,
+            "provider_called": false,
+            "retriever_called": false,
+            "tool_called": false
+          },
+          "module_order": [
+            "define_persona",
+            "retrieve_corpus",
+            "answer_researched"
+          ],
+          "module_readiness": {
+            "answer_researched": {
+              "inbound_edges": [
+                {
+                  "from": "define_persona",
+                  "to": "answer_researched"
+                },
+                {
+                  "from": "retrieve_corpus",
+                  "to": "answer_researched"
+                }
+              ],
+              "primitive": "ChainOfThought",
+              "produced_outputs": [
+                "response"
+              ],
+              "required_inputs": [
+                "transcription",
+                "persona",
+                "passages"
+              ]
+            },
+            "define_persona": {
+              "inbound_edges": [
+                {
+                  "from": "input",
+                  "to": "define_persona"
+                }
+              ],
+              "primitive": "Predict",
+              "produced_outputs": [
+                "persona"
+              ],
+              "required_inputs": [
+                "persona_intent"
+              ]
+            },
+            "retrieve_corpus": {
+              "inbound_edges": [
+                {
+                  "from": "input",
+                  "to": "retrieve_corpus"
+                }
+              ],
+              "primitive": "Retriever",
+              "produced_outputs": [
+                "passages"
+              ],
+              "required_inputs": [
+                "transcription"
+              ]
+            }
+          },
+          "output_producers": [
+            "answer_researched"
+          ],
+          "scheduler": "bounded_ready_queue",
+          "schema_version": "program-topology-scheduler-plan-v1",
+          "status": "deterministic_local_dag_schedule"
+        },
+        "topology_execution_status": "retrieve_then_answer_materialized"
+      },
+      "intent_name": "VoiceTurnResearchedBrain",
+      "non_authority": {
+        "external_authority_mutated": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "optimization_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false,
+        "winner_selection": false
+      },
+      "output_fields": [
+        "response"
+      ],
+      "provider": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      },
+      "quality_evaluation": {
+        "criteria_declared": false,
+        "evaluations_failed": 0,
+        "evaluations_passed": 0,
+        "evaluations_total": 0,
+        "quality_approved": false,
+        "status": "not_declared"
+      },
+      "schema_version": "program-behavior-results-v1",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    },
+    "examples": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_examples.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program examples ok: 2 example(s); behavior status: failed"
+    },
+    "jury": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_jury.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program jury artifacts ok: 3 selected juror(s)"
+    },
+    "promotion": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_promotion.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program promotion artifacts ok: not_ready_blocked"
+    },
+    "smoke": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_smoke.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program smoke ok: VoiceTurnResearchedBrain"
+    }
+  },
+  "non_authority": {
+    "ak_mutation": false,
+    "automatic_promotion": false,
+    "evidence_only": true,
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "governance_mutation": false,
+    "oracle_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "oracle_role": "not_invoked",
+    "promotion_authority": false,
+    "ranking_pruning_promotion": false,
+    "winner_selection": false
+  },
+  "notes": [
+    "Materialization, binding checks, behavioral evaluation, and Oracle readability are separate episode sections.",
+    "eval_examples.py is the example-backed behavior harness when examples exist.",
+    "Oracle readability is captured without invoking Oracle or mutating an index.",
+    "This artifact is evidence only and cannot rank, prune, promote, export, or mutate governance authority."
+  ],
+  "oracle_evidence": {
+    "content_hash": "eaaff75e90bf28dfb2ab154fdf9e48dc0065c721b4ea4cf3c012f8e7f2f85fb6",
+    "facets": {
+      "behavior_source_kinds": [
+        "inline_examples"
+      ],
+      "behavior_status": "failed",
+      "dataset_split_count": 0,
+      "evidence_source_count": 1,
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_dataset_splits": false,
+      "has_examples": true,
+      "has_failures": true,
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "metric": "f1",
+      "output_fields": [
+        "response"
+      ],
+      "runtime_trace_coverage_status": "complete",
+      "runtime_trace_final_output_trace_count": 2,
+      "runtime_trace_module_call_count": 6,
+      "runtime_trace_source_record_coverage_status": "complete",
+      "runtime_trace_status": "runtime_traces_captured",
+      "status_counts": {
+        "failed": 1
+      },
+      "task_type": "single_module",
+      "total_evaluation_count": 2
+    },
+    "path": "oracle_evidence.json",
+    "summary": {
+      "authority": "oracle_readability_only_non_authoritative",
+      "behavior_status": "failed",
+      "content_hash": "eaaff75e90bf28dfb2ab154fdf9e48dc0065c721b4ea4cf3c012f8e7f2f85fb6",
+      "evidence_kind": "program_execution_episode",
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_failures": true,
+      "oracle_text_hash": "a395e80317c6db04242d0b1042d9b10cd40b526785432f06f2794604342c3f98",
+      "path": "oracle_evidence.json",
+      "schema_version": "program-oracle-evidence-v1",
+      "status_counts": {
+        "failed": 1
+      }
+    }
+  },
+  "oracle_readability": {
+    "facets": {
+      "behavior_source_kinds": [
+        "inline_examples"
+      ],
+      "behavior_status": "failed",
+      "dataset_split_count": 0,
+      "evidence_source_count": 1,
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_dataset_splits": false,
+      "has_examples": true,
+      "has_failures": true,
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "metric": "f1",
+      "output_fields": [
+        "response"
+      ],
+      "runtime_trace_coverage_status": "complete",
+      "runtime_trace_final_output_trace_count": 2,
+      "runtime_trace_module_call_count": 6,
+      "runtime_trace_source_record_coverage_status": "complete",
+      "runtime_trace_status": "runtime_traces_captured",
+      "status_counts": {
+        "failed": 1
+      },
+      "task_type": "single_module",
+      "total_evaluation_count": 2
+    },
+    "oracle_invoked": false,
+    "result_artifact": "oracle_evidence.json",
+    "result_hash": "eaaff75e90bf28dfb2ab154fdf9e48dc0065c721b4ea4cf3c012f8e7f2f85fb6",
+    "status": "captured",
+    "summary": {
+      "authority": "oracle_readability_only_non_authoritative",
+      "behavior_status": "failed",
+      "content_hash": "eaaff75e90bf28dfb2ab154fdf9e48dc0065c721b4ea4cf3c012f8e7f2f85fb6",
+      "evidence_kind": "program_execution_episode",
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_failures": true,
+      "oracle_text_hash": "a395e80317c6db04242d0b1042d9b10cd40b526785432f06f2794604342c3f98",
+      "path": "oracle_evidence.json",
+      "schema_version": "program-oracle-evidence-v1",
+      "status_counts": {
+        "failed": 1
+      }
+    }
+  },
+  "phase": "materialize",
+  "request_id": "prog-req-1dd2efafc351",
+  "runtime_conditions": {
+    "metric": "f1",
+    "providers": {
+      "examples": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      }
+    },
+    "runtime": {}
+  },
+  "schema_version": "program-execution-episode-v1",
+  "status": "passed",
+  "status_scope": "materialization_and_binding_checks",
+  "topology_execution": {
+    "current_renderer": "retrieve_then_answer_topology_renderer",
+    "declared_topology_kind": "retrieve_then_answer",
+    "declared_topology_present": true,
+    "materialized": true,
+    "materialized_topology_kind": "retrieve_then_answer",
+    "notes": [
+      "Explicit retrieve_then_answer topology was rendered into signature.py, module.py, and program.py.",
+      "Retrieval is limited to generated bounded inline-corpus adapters or materialization-time local_corpus_snapshot adapters; no live external retriever is bound or executed.",
+      "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated."
+    ],
+    "status": "retrieve_then_answer_materialized"
+  }
+}

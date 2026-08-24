@@ -1,0 +1,223 @@
+{
+  "authority": "behavior_evidence_only_non_authoritative",
+  "examples": [
+    {
+      "expected_outputs": {
+        "response": "What properties define a rectangle, and does a square satisfy each of them?"
+      },
+      "index": 0,
+      "inputs": {
+        "persona_intent": "A warm mathematics tutor.",
+        "transcription": "Is every square a rectangle?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "What do the definitions of a rectangle and a square have in common? \n\nIf a shape must have four right angles and opposite sides that are equal, does a square meet those requirements?"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "What do the definitions of a rectangle and a square have in common? \n\nIf a shape must have four right angles and opposite sides that are equal, does a square meet those requirements?"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A warm mathematics tutor."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "A warm, patient mathematics tutor who creates a safe learning environment where you can explore ideas without fear of mistakes. I'll guide you through your thinking process with gentle questions that help you uncover your own understanding, building on what you already know rather than simply telling you the answer.\n\nWhat are you exploring in your math work, and what's the first thing you've noticed that's leading you to wonder what comes next?"
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "A warm, patient mathematics tutor who creates a safe learning environment where you can explore ideas without fear of mistakes. I'll guide you through your thinking process with gentle questions that help you uncover your own understanding, building on what you already know rather than simply telling you the answer.\n\nWhat are you exploring in your math work, and what's the first thing you've noticed that's leading you to wonder what comes next?",
+              "transcription": "Is every square a rectangle?"
+            },
+            "module_id": "guide_socratically",
+            "outputs": {
+              "response": "What do the definitions of a rectangle and a square have in common? \n\nIf a shape must have four right angles and opposite sides that are equal, does a square meet those requirements?"
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    },
+    {
+      "expected_outputs": {
+        "response": "What happens to roots when soil stays saturated, and how might that affect the plant's ability to take up oxygen and water?"
+      },
+      "index": 1,
+      "inputs": {
+        "persona_intent": "A curious biology mentor.",
+        "transcription": "Why did my plant wilt after I watered it every day?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "When you insert your finger or a probe a few inches into the soil after watering, do you feel moisture deep in the root zone, or is that water remaining only at the surface where it evaporates?"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "When you insert your finger or a probe a few inches into the soil after watering, do you feel moisture deep in the root zone, or is that water remaining only at the surface where it evaporates?"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A curious biology mentor."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "A patient biology mentor who guides discovery through strategic questioning. They help students uncover biological mechanisms by asking targeted questions that reveal assumptions and connections, rather than providing direct answers.\n\nQuestions:\n1. \"What specific evidence would convince you that this protein binds to that receptor?\"\n2. \"If you could only observe one intermediate step in this pathway, which would be most revealing of the mechanism?\""
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "A patient biology mentor who guides discovery through strategic questioning. They help students uncover biological mechanisms by asking targeted questions that reveal assumptions and connections, rather than providing direct answers.\n\nQuestions:\n1. \"What specific evidence would convince you that this protein binds to that receptor?\"\n2. \"If you could only observe one intermediate step in this pathway, which would be most revealing of the mechanism?\"",
+              "transcription": "Why did my plant wilt after I watered it every day?"
+            },
+            "module_id": "guide_socratically",
+            "outputs": {
+              "response": "When you insert your finger or a probe a few inches into the soil after watering, do you feel moisture deep in the root zone, or is that water remaining only at the surface where it evaporates?"
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    }
+  ],
+  "input_fields": [
+    "transcription",
+    "persona_intent"
+  ],
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before responding.",
+      "Ask one or two focused questions that expose the next useful reasoning step.",
+      "Offer only the minimum scaffold needed to make the question answerable.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field.",
+      "load local GEPA optimizer output as the candidate program implementation"
+    ],
+    "io": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "outputs": [
+        "response"
+      ]
+    },
+    "materialization_scope": {
+      "current_renderer": "gepa_optimizer_output_loader",
+      "topology_materialized": true
+    },
+    "metric": "f1",
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away."
+  },
+  "intent_name": "VoiceTurnSocraticBrain",
+  "non_authority": {
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "optimization_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "output_fields": [
+    "response"
+  ],
+  "provider": {
+    "provider": "openai-compatible/baseline-text",
+    "status": "configured"
+  },
+  "quality_evaluation": {
+    "criteria_declared": false,
+    "evaluations_failed": 0,
+    "evaluations_passed": 0,
+    "evaluations_total": 0,
+    "quality_approved": false,
+    "status": "not_declared"
+  },
+  "schema_version": "program-behavior-results-v1",
+  "summary": {
+    "degraded": 0,
+    "error": 0,
+    "failed": 2,
+    "passed": 0,
+    "status": "failed",
+    "status_counts": {
+      "failed": 2
+    },
+    "total": 2
+  }
+}

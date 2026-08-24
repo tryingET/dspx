@@ -25,11 +25,13 @@ def _resolve_optimize_providers(
 ) -> tuple[Optional[str], Optional[str]]:
     student = (
         student_provider
-        or os.getenv("DSPX_OPTIMIZE_STUDENT_PROVIDER")
-        or os.getenv("DSPX_PROVIDER")
+        if student_provider is not None
+        else os.getenv("DSPX_OPTIMIZE_STUDENT_PROVIDER") or os.getenv("DSPX_PROVIDER")
     )
     reflection = (
-        reflection_provider or os.getenv("DSPX_OPTIMIZE_REFLECTION_PROVIDER") or student
+        reflection_provider
+        if reflection_provider is not None
+        else os.getenv("DSPX_OPTIMIZE_REFLECTION_PROVIDER") or student
     )
     return student, reflection
 
@@ -88,12 +90,12 @@ def optimize_gepa(
     student_provider: Optional[str] = typer.Option(
         None,
         "--student-provider",
-        help="Provider for student calls (defaults to DSPX_PROVIDER, default: pi-rpc).",
+        help="Provider for student calls (stub or configured openai-compatible; defaults to explicit DSPX_PROVIDER).",
     ),
     reflection_provider: Optional[str] = typer.Option(
         None,
         "--reflection-provider",
-        help="Provider for GEPA reflections (defaults to student-provider).",
+        help="Provider for GEPA reflections (stub or configured openai-compatible; defaults to student-provider).",
     ),
     auto: Optional[str] = typer.Option(
         None,
@@ -101,11 +103,52 @@ def optimize_gepa(
     ),
     max_metric_calls: Optional[int] = typer.Option(
         None,
-        help="Limit total metric calls (controls GEPA cost/time). If set, --auto is ignored.",
+        help="GEPA metric-call stop threshold checked between iterations; not a hard effect ceiling.",
     ),
     max_full_evals: Optional[int] = typer.Option(
         None,
         help="Limit full evaluations (alternative GEPA budget selector).",
+    ),
+    proposal_sampling: Literal[
+        "single", "same-parent", "independent", "pxn"
+    ] = typer.Option(
+        "single",
+        "--proposal-sampling",
+        help="GEPA 0.1.4 proposal sampling strategy.",
+    ),
+    proposal_n: int = typer.Option(
+        1,
+        "--proposal-n",
+        help="Mutations per iteration, or mutations per parent for pxn (bounded to 8).",
+    ),
+    proposal_p: int = typer.Option(
+        1,
+        "--proposal-p",
+        help="Parent count for pxn sampling (bounded to 4; p*n must be <=8).",
+    ),
+    proposal_selection: Literal[
+        "all-improvements", "best-improvement", "top-k-improvements"
+    ] = typer.Option(
+        "all-improvements",
+        "--proposal-selection",
+        help="Which improving proposals enter full validation.",
+    ),
+    proposal_top_k: int = typer.Option(
+        1,
+        "--proposal-top-k",
+        help="Selection count for top-k-improvements; otherwise must remain 1.",
+    ),
+    proposal_acceptance: Literal[
+        "strict-improvement", "improvement-or-equal"
+    ] = typer.Option(
+        "strict-improvement",
+        "--proposal-acceptance",
+        help="Minibatch acceptance criterion for generated proposals.",
+    ),
+    num_threads: int = typer.Option(
+        1,
+        "--num-threads",
+        help="DSPy evaluation threads (1..32). Provider effects remain serialized by the typed adapter.",
     ),
     seed: int = typer.Option(0, help="Deterministic seed for GEPA search"),
     nrows: Optional[int] = typer.Option(
@@ -116,20 +159,42 @@ def optimize_gepa(
 
     The program file must export a build_student() function that returns a dspy.Module.
     """
+    from dspx.services.gepa_proposal_policy import (
+        GEPAProposalConfig,
+        validate_gepa_budget,
+        validate_num_threads,
+    )
     from dspx.services.optimize_service import run_gepa_optimize
+
+    try:
+        proposal_config = GEPAProposalConfig(
+            sampling=proposal_sampling,
+            proposal_n=proposal_n,
+            proposal_p=proposal_p,
+            selection=proposal_selection,
+            top_k=proposal_top_k,
+            acceptance=proposal_acceptance,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--proposal-sampling") from exc
+    try:
+        validate_gepa_budget(
+            proposal_config,
+            auto=auto,
+            max_metric_calls=max_metric_calls,
+            max_full_evals=max_full_evals,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--max-metric-calls") from exc
+    try:
+        validate_num_threads(num_threads)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--num-threads") from exc
 
     ensure_env(student_provider)
     student_provider, reflection_provider = _resolve_optimize_providers(
         student_provider, reflection_provider
     )
-
-    budget_set = sum(
-        1 for x in (auto, max_metric_calls, max_full_evals) if x is not None
-    )
-    if budget_set != 1:
-        raise typer.BadParameter(
-            "Exactly one of --auto, --max-metric-calls, --max-full-evals must be set."
-        )
 
     weights = None
     if output_weight:
@@ -172,5 +237,7 @@ def optimize_gepa(
         output_weights=weights,
         seed=int(seed),
         nrows=nrows,
+        num_threads=num_threads,
+        proposal_config=proposal_config,
     )
     typer.echo(str(res.out_dir))

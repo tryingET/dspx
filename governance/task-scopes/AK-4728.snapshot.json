@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-09T22:32:29.205378768+00:00",
+  "task_id": 4728,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/adr/20260809-dspy-3-3-typed-lm-hard-cutover.md",
+      "docs/project/2026-08-09-dspy-3-3-typed-lm-hard-cutover-implementation-plan.md",
+      "docs/project/2026-08-09-dspy-3-3-typed-lm-hard-cutover-rfc.md",
+      "docs/project/2026-08-09-review-dspy-3-3-typed-lm-hard-cutover-many-greats.md",
+      "docs/project/2026-08-09-review-dspy-3-3-typed-lm-hard-cutover-memo.md",
+      "docs/project/dspy-3-3-trusted-local-core-production-frame.md",
+      "governance/task-scopes/AK-*.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/adr/20260809-dspy-3-3-typed-lm-hard-cutover.md",
+      "docs/project/2026-08-09-dspy-3-3-typed-lm-hard-cutover-implementation-plan.md",
+      "docs/project/2026-08-09-dspy-3-3-typed-lm-hard-cutover-rfc.md",
+      "docs/project/2026-08-09-review-dspy-3-3-typed-lm-hard-cutover-many-greats.md",
+      "docs/project/2026-08-09-review-dspy-3-3-typed-lm-hard-cutover-memo.md",
+      "docs/project/dspy-3-3-trusted-local-core-production-frame.md"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

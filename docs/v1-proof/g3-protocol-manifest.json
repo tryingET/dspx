@@ -1,0 +1,282 @@
+{
+  "schema": "engineering-core.v1.g3/1",
+  "stage": "g3-protocol-manifest",
+  "protocol_stage": "accepted",
+  "template_digest": "1ccb65fc071f645b6840398189ad01f218540ec2b2a50a6e7727f5055d82b952",
+  "empirical_owner": {
+    "required": true,
+    "identity": "softwareco/owned/dspx",
+    "task_id": 4936,
+    "decision_id": 132
+  },
+  "sections": {
+    "calibration": {
+      "estimator": "empirical ECE with 10 equal-frequency bins; Brier score",
+      "forecast_emitted_by_advice_surface_before_execution": true,
+      "forecaster_claim_only_if_separate_forecaster": true,
+      "forecasts_hidden_from_outcome_reviewers": true,
+      "interval_procedure": "percentile bootstrap on confirm set, seed recorded",
+      "metrics": [
+        "brier",
+        "ece_10bin_equal_frequency"
+      ],
+      "missing_forecast_treatment": "missing forecast excluded from calibration metric; pair remains ITT for superiority (Y=0 if arm-attributable no-output)",
+      "reference_forecast": "disjoint_development_prevalence",
+      "reference_forecast_justification": "reference is the observed development-set prevalence, computed once on the disjoint development pairs and frozen before confirmatory scoring. A constant 0.55 prior is the declared expected prevalence used only to size the study; the calibration reference itself is the disjoint-dev prevalence, not that prior.",
+      "threshold": "ECE <= 0.08 on confirm set AND Brier skill vs disjoint-dev prevalence reference > 0.00"
+    },
+    "harm_safety": {
+      "aggregate_effect_cannot_waive_harm_stop": true,
+      "cell_harm_boundaries": "stop if evidence-arm success is more than 0.05 below static-arm success in any owner×family cell under pessimistic missingness",
+      "insufficient_evidence_emits_abstain_or_unknown": true,
+      "marginal_harm_boundaries": "stop if any owner-group marginal (pooled across families) degrades by more than 0.05; aggregate cannot waive a cell stop",
+      "safety_set": [
+        {
+          "owner_group": "holdingco",
+          "base_model_family": "fam-grok",
+          "case_id": "safety-holdingco-fam-grok",
+          "kind": "insufficient_evidence",
+          "excluded_from_estimates": true
+        },
+        {
+          "owner_group": "holdingco",
+          "base_model_family": "fam-gpt",
+          "case_id": "safety-holdingco-fam-gpt",
+          "kind": "insufficient_evidence",
+          "excluded_from_estimates": true
+        },
+        {
+          "owner_group": "teachingco",
+          "base_model_family": "fam-grok",
+          "case_id": "safety-teachingco-fam-grok",
+          "kind": "insufficient_evidence",
+          "excluded_from_estimates": true
+        },
+        {
+          "owner_group": "teachingco",
+          "base_model_family": "fam-gpt",
+          "case_id": "safety-teachingco-fam-gpt",
+          "kind": "insufficient_evidence",
+          "excluded_from_estimates": true
+        },
+        {
+          "owner_group": "softwareco",
+          "base_model_family": "fam-grok",
+          "case_id": "safety-softwareco-fam-grok",
+          "kind": "insufficient_evidence",
+          "excluded_from_estimates": true
+        },
+        {
+          "owner_group": "softwareco",
+          "base_model_family": "fam-gpt",
+          "case_id": "safety-softwareco-fam-gpt",
+          "kind": "insufficient_evidence",
+          "excluded_from_estimates": true
+        }
+      ],
+      "safety_set_excluded_from_estimates": true,
+      "safety_set_rule": "at_least_one_case_per_owner_group_x_base_model_cell",
+      "sensitivity_analysis": "required_with_boundaries"
+    },
+    "model_identity": {
+      "families": [
+        {
+          "family_id": "fam-grok",
+          "identity": "xai/grok-4.6",
+          "source": "pi enabledModels",
+          "is_variant_of_another_family": false
+        },
+        {
+          "family_id": "fam-gpt",
+          "identity": "openai-codex/gpt-5.6-terra",
+          "source": "pi enabledModels",
+          "is_variant_of_another_family": false
+        }
+      ],
+      "min_base_model_families": 2,
+      "same_frozen_set_in_every_positive_owner_group": true,
+      "variant_of_one_base_is_not_diversity": [
+        "adapter_variant",
+        "endpoint_variant",
+        "prompt_variant",
+        "quantization_variant",
+        "seed_variant",
+        "temperature_variant"
+      ]
+    },
+    "outcome_definition": {
+      "administrative_missingness": "pessimistically_bounded",
+      "arm_attributable_failure_is_y_zero": true,
+      "evidence_use_citation_preference_never_sets_y": true,
+      "intention_to_treat": true,
+      "no_pseudoreplication": true,
+      "y_equals_one_only_on_owner_constraints_validation_objective_verification": true
+    },
+    "population_design": {
+      "allocations": "within each cell, pairs randomized or isolated against contamination; order recorded",
+      "arm_neutral_rubric": "same frozen owner constraints, participant validation, and objective claim/patch verification for both arms",
+      "development_confirmatory_split": "disjoint_required",
+      "exclusions": "healthco negative control excluded from estimand; safety-set cases excluded from improvement and calibration estimates",
+      "executors": "owner-authorized disposable replicas only",
+      "independent_clusters": "paired task instance is the independent cluster; 6 owner×family cells; confirmatory analysis uses confirm pairs only",
+      "masking_contamination_controls": "outcome reviewers masked to arm and forecast; breaches reported; forecasts hidden from reviewers",
+      "model_set": [
+        "xai/grok-4.6",
+        "openai-codex/gpt-5.6-terra"
+      ],
+      "multiplicity_error_control": "single primary estimand (equal-owner-weight mean paired lift); cell harm stops are safety, not additional superiority claims",
+      "objective_oracle": "Y=1 iff arm satisfies frozen owner constraints AND participant validation AND objective claim/patch verification; else 0",
+      "prompts_context": "frozen at campaign start; identical across arms except the predeclared owner-evidence/advice payload",
+      "scoring_code_environment": "frozen scoring code digest recorded before any confirmatory output",
+      "sole_treatment_contrast": "evidence-advice arm vs static-baseline arm on the same task, same model identity, same tools/budget except the declared evidence-advice slot",
+      "stopping_rule": "no_optional_stopping",
+      "target_population": "engineering-core v1 qualification population rev2 (decision 131); 4 positive baselines across holdingco/teachingco/softwareco plus healthco negative control (excluded from estimand)"
+    },
+    "power": {
+      "attrition_inflation": "10 percent; N inflated from analytic n_confirm before attrition",
+      "design_alternative_justification": "paired within-task contrast chosen over unpaired two-sample because it holds task, model, tools, and budget fixed and isolates the declared treatment slot",
+      "interval_error_criterion": "one-sided 5% interval; PASS requires point estimate >= SEPP and lower bound > 0 under pessimistic missingness",
+      "power_analysis": {
+        "method": "prospective_paired_simulation_plus_analytic_n",
+        "seed": 20260824,
+        "declared_assumptions_not_measurements": true,
+        "p0_static_success": 0.55,
+        "sepp_absolute_lift": 0.15,
+        "pair_variance_declared": 0.4575,
+        "alpha_one_sided": 0.05,
+        "target_power": 0.8,
+        "analytic_n_confirm_before_attrition": 126,
+        "attrition_inflation": 0.1,
+        "n_confirm_after_attrition": 144,
+        "n_dev": 24,
+        "n_total_pairs": 168,
+        "n_cells": 6,
+        "n_confirm_per_cell": 24,
+        "n_dev_per_cell": 4,
+        "monte_carlo_sims": 20000,
+        "achieved_power_under_h1": 0.8396,
+        "sensitivity_var_inflation": 1.2,
+        "sensitivity_n_confirm": 168
+      },
+      "sensitivity_analyses": {
+        "pair_variance_plus_20pct": {
+          "n_confirm": 168,
+          "note": "covers modest task correlation / discordance inflation"
+        },
+        "sepp_012": "if SEPP were 0.12 the design would be underpowered at this N; SEPP stays 0.15"
+      },
+      "smallest_effect_of_practical_interest": "0.15 absolute success-rate lift. Justification: a 15pp improvement is the smallest change that justifies the owner review/adoption friction of evidence advice on a cell (declared owner-decision-cost prior, not a measurement).",
+      "total_per_cell_sample": {
+        "dev_pairs": 4,
+        "confirm_pairs": 24,
+        "total_pairs": 28,
+        "cells": 6,
+        "grand_total_pairs": 168
+      }
+    },
+    "privacy_manifest": {
+      "raw_cross_owner_snapshot_transmitted": false,
+      "required_transfer_fields": [
+        "classification",
+        "owner_approved_bytes_digest",
+        "owner_approved_length",
+        "recipients",
+        "endpoint_region",
+        "purpose",
+        "access_encryption",
+        "logs_cache_session",
+        "retention_deletion",
+        "route",
+        "adapter_model_identity",
+        "training_use_prohibited",
+        "custody",
+        "readers",
+        "quarantine_state",
+        "owner_attestation"
+      ],
+      "transfers": []
+    },
+    "result_bindings": {
+      "bounded_results": "unpublished until protocol accepted and campaign executed; no result field is release authority",
+      "counterevidence": "first-class; failed studies remain in lineage",
+      "exclusions": "healthco negative control; safety-set cases",
+      "limitations": "declared p0/SEPP/variance are priors; achieved power is a simulation under those priors, not a measurement",
+      "masking_breaches": "none yet; campaign not executed",
+      "missingness": "administrative missingness pessimistically bounded; unresolved harm-relevant missingness fails G3",
+      "power_sensitivity_evidence": "embedded power_analysis object; seed 20260824",
+      "protocol_decision_ref": "ak://decision/132",
+      "replay_configuration_receipt": "required after campaign; binds seed, model identities, pair allocations, scoring digest"
+    },
+    "separation_of_record_classes": {
+      "empirical_outcomes": "distinct_class",
+      "empirical_output_grants_no_authority": true,
+      "evidence_receipts": "distinct_class",
+      "governance_decisions": "distinct_class",
+      "owner_dispositions": "distinct_class"
+    },
+    "weighting": {
+      "owner_weights": [
+        {
+          "owner_group": "holdingco",
+          "top_level_weight": 1.0,
+          "baseline_model_weights": [
+            {
+              "baseline": "fcos-control-board",
+              "family": "fam-grok",
+              "weight": 0.5
+            },
+            {
+              "baseline": "fcos-control-board",
+              "family": "fam-gpt",
+              "weight": 0.5
+            }
+          ]
+        },
+        {
+          "owner_group": "teachingco",
+          "top_level_weight": 1.0,
+          "baseline_model_weights": [
+            {
+              "baseline": "mathe",
+              "family": "fam-grok",
+              "weight": 0.25
+            },
+            {
+              "baseline": "mathe",
+              "family": "fam-gpt",
+              "weight": 0.25
+            },
+            {
+              "baseline": "wib",
+              "family": "fam-grok",
+              "weight": 0.25
+            },
+            {
+              "baseline": "wib",
+              "family": "fam-gpt",
+              "weight": 0.25
+            }
+          ]
+        },
+        {
+          "owner_group": "softwareco",
+          "top_level_weight": 1.0,
+          "baseline_model_weights": [
+            {
+              "baseline": "pi-extensions",
+              "family": "fam-grok",
+              "weight": 0.5
+            },
+            {
+              "baseline": "pi-extensions",
+              "family": "fam-gpt",
+              "weight": 0.5
+            }
+          ]
+        }
+      ],
+      "top_level": "equal_weight_per_owner_group",
+      "within_owner_rule": "baseline_x_model_weights_sum_to_one"
+    }
+  }
+}

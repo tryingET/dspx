@@ -194,7 +194,7 @@ def _emit_program(
             "import dspy",
             "from dspx.config_loader import load_config_env",
             "from dspx.tracing import enable_mlflow_from_env",
-            "from dspx.provider_registry import create_from_env, ensure_default_providers",
+            "from dspx.provider_registry import create_from_env",
             "from signatures import *",
             "",
             f"PROGRAM_NAME = {name!r}",
@@ -202,7 +202,6 @@ def _emit_program(
             "def _configure_lm() -> None:",
             "    load_config_env()",
             "    enable_mlflow_from_env()",
-            "    ensure_default_providers()",
             "    lm = create_from_env()",
             "    dspy.configure(lm=lm)",
             "",
@@ -303,7 +302,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument(
         "--outdir", "-o", help="Output dir (defaults to generated/workflows/<name>)"
     )
-    ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
+    ap.add_argument("--provider", help="Supported provider name (currently: stub)")
     ap.add_argument(
         "--use-cli",
         action="store_true",

@@ -235,13 +235,11 @@ def is_pipeline_module_materializable(module: Mapping[str, Any]) -> bool:
     primitive = _canonical_primitive(module.get("primitive") or "Predict")
     if primitive in {"Predict", "ChainOfThought"}:
         return True
-    if primitive in {"ReAct", "ReActV2"}:
+    if primitive == "ReActV2":
+        return False
+    if primitive == "ReAct":
         react = module.get("react")
         if not isinstance(react, Mapping):
-            return False
-        if primitive == "ReActV2" and not bool(
-            react.get("react_v2_materialization_explicit_opt_in")
-        ):
             return False
         return react.get("tools") == [] and isinstance(react.get("max_iters"), int)
     if primitive == "ProgramOfThought":
@@ -265,9 +263,7 @@ def _primitive_contract(primitive: str) -> dict[str, Any]:
     primitive = _canonical_primitive(primitive)
     materializable = primitive in _MATERIALIZABLE_PIPELINE_PRIMITIVES
     experimental_declared_only = primitive == "ReActV2"
-    conditional = (
-        primitive in _CONDITIONAL_PIPELINE_PRIMITIVES or experimental_declared_only
-    )
+    conditional = primitive in _CONDITIONAL_PIPELINE_PRIMITIVES
     return {
         "schema_version": PROGRAM_CAPABILITY_CONTRACT_SCHEMA,
         "capability_id": _capability_id_for_primitive(primitive),
@@ -275,7 +271,7 @@ def _primitive_contract(primitive: str) -> dict[str, Any]:
         "primitive": primitive,
         "status": "materializable"
         if materializable
-        else "experimental_conditionally_materializable_with_empty_tools_explicit_opt_in"
+        else "experimental_declared_only_not_materializable"
         if experimental_declared_only
         else "conditionally_materializable_with_adapter"
         if conditional
@@ -298,8 +294,8 @@ def _primitive_contract(primitive: str) -> dict[str, Any]:
             "live_external_retriever_binding_allowed": False,
             "react_loop_allowed": primitive == "ReAct",
             "react_v2_declared_only": primitive == "ReActV2",
-            "react_v2_materialization_requires_explicit_opt_in": primitive == "ReActV2",
-            "react_v2_requires_public_dspy_react_v2": primitive == "ReActV2",
+            "react_v2_materialization_requires_explicit_opt_in": False,
+            "react_v2_requires_public_dspy_react_v2": False,
             "react_v2_tool_binding_allowed": False,
             "program_of_thought_allowed": primitive == "ProgramOfThought",
             "provider_call_allowed_by_contract": False,
@@ -351,14 +347,9 @@ def module_capability_ref(module: Mapping[str, Any]) -> dict[str, Any]:
         status = "materializable_with_empty_sandbox"
         runtime_binding = "generated_sandboxed_program_of_thought"
     if primitive == "ReActV2":
-        if is_pipeline_module_materializable(module):
-            materializable = True
-            status = "experimental_materializable_with_empty_tools_explicit_opt_in"
-            runtime_binding = "generated_experimental_react_v2_no_tools"
-        else:
-            materializable = False
-            status = "experimental_declared_only_not_materializable"
-            runtime_binding = "none"
+        materializable = False
+        status = "experimental_declared_only_not_materializable"
+        runtime_binding = "none"
     return {
         "schema_version": PROGRAM_CAPABILITY_CONTRACT_SCHEMA,
         "capability_id": _capability_id_for_primitive(primitive),
@@ -608,7 +599,7 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
                 "ProgramOfThought": "explicit bounded materializable topology module with empty PythonInterpreter sandbox only",
             },
             "experimental_primitives": {
-                "ReActV2": "descriptor-only by default; conditionally materializable only with explicit opt-in, tools=[], public dspy.ReActV2, generated policy, and tool contracts"
+                "ReActV2": "descriptor-only and unavailable for materialization during the typed Core cutover"
             },
             "unsupported_primitives_are_declared_only": True,
             "custom_imports_are_declarations_only": True,
@@ -626,7 +617,7 @@ def build_program_capability_registry(intent: Any) -> dict[str, Any]:
         "notes": [
             "This registry is descriptor-only evidence for generated program capability boundaries.",
             "It does not import custom modules, bind live external tools/retrievers, call providers during materialization, rank candidates, promote programs, or mutate external authority.",
-            "Current materialization supports generated Predict/ChainOfThought/ReAct/ProgramOfThought primitives plus explicit opt-in no-tool ReActV2 when public dspy.ReActV2 is installed, explicit bounded inline Retriever adapters, and materialization-time local_corpus_snapshot Retriever adapters in bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies only.",
-            "ReAct is generated only with an empty tools list; ReActV2 requires explicit opt-in and an empty tools list; ProgramOfThought is generated only with an empty PythonInterpreter sandbox.",
+            "Current materialization supports generated Predict/ChainOfThought/ReAct/ProgramOfThought primitives, explicit bounded inline Retriever adapters, and materialization-time local_corpus_snapshot Retriever adapters in bounded pipeline/router/retrieve_then_answer/extract_transform_validate/generate_critique_revise topologies only; ReActV2 remains descriptor-only during the typed Core cutover.",
+            "ReAct is generated only with an empty tools list; ReActV2 is not materialized; ProgramOfThought is generated only with an empty PythonInterpreter sandbox.",
         ],
     }

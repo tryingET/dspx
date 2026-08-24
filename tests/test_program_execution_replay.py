@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterator
 
+import httpx
 import pytest
 
 from dspx.cache import make_key
@@ -19,7 +20,11 @@ from dspx.run_receipts import (
 )
 import dspx.services.program_execution_replay_executor as replay_executor
 from dspx.services.program_intent import ProgramIntent
-from dspx.services.program_runtime_episode import run_program_runtime_episode
+import dspx.openai_compatible_provider as openai_provider
+from dspx.services.program_runtime_episode import (
+    load_validated_program_runtime_episode_bundle,
+    run_program_runtime_episode,
+)
 from dspx.services.program_service import (
     materialize_program_from_intent,
     run_generate_from_intent_path,
@@ -55,7 +60,7 @@ def _tree_hash(root: Path) -> dict[str, str]:
 def replay_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     keys = {
         "DSPX_PROVIDER": "stub",
-        "DSPX_STUB_RESPONSE_JSON": json.dumps(
+        "DSPX_REPLAY_FIXTURE_JSON": json.dumps(
             {
                 "reasoning": "The supplied ticket describes an outage.",
                 "urgency": "high",
@@ -189,7 +194,7 @@ def _review_runtime(
             {"canonical_mutation_performed": False}, sort_keys=True
         ),
     }
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps(stub_response))
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", json.dumps(stub_response))
     quality_criteria = (
         [
             {
@@ -412,7 +417,7 @@ def test_program_runtime_replay_preserves_failed_behavior_as_nonapproval(
     tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps({"reasoning": "No declared output was supplied."}),
     )
     _candidate, runtime, receipt = _single_runtime(tmp_path)
@@ -430,7 +435,7 @@ def test_program_runtime_replay_preserves_declared_quality_failure(
     tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps(
             {
                 "reasoning": "overclaim",
@@ -690,7 +695,7 @@ def test_program_runtime_replay_policy_rejects_incomplete_expected_episode(
 def test_program_runtime_replay_policy_is_unsupported_without_safe_stub_fixture(
     tmp_path: Path, replay_env: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", "api_key=secret")
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", "api_key=secret")
     _candidate, runtime, receipt_path = _single_runtime(
         tmp_path, capture_replay_fixture=False
     )
@@ -705,3 +710,175 @@ def test_program_runtime_replay_policy_is_unsupported_without_safe_stub_fixture(
     assert report["status"] == "invalid"
     assert report["execution"]["attempted"] is False
     assert not (runtime / "replay-evidence.json").exists()
+
+
+def _openai_runtime(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    outcome: str,
+) -> tuple[Path, Path, list[httpx.Request]]:
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    candidate, _, _ = _single_runtime(tmp_path, capture_replay_fixture=False)
+    monkeypatch.setenv("DSPX_PROVIDER", "openai-compatible")
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_MODEL", "local-model")
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_API_BASE", "http://127.0.0.1:8000/v1")
+    monkeypatch.setenv("DSPX_OPENAI_COMPAT_TIMEOUT", "10")
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if outcome == "indeterminate":
+            raise httpx.ConnectError("secret transport detail", request=request)
+        if outcome == "completed_failure":
+            return httpx.Response(500, json={"error": "secret body"}, request=request)
+        response_model = (
+            "api_key=secret-value" if outcome == "model_mismatch" else "local-model"
+        )
+        return httpx.Response(
+            200,
+            json={
+                "model": response_model,
+                "choices": [
+                    {
+                        "message": {
+                            "role": "assistant",
+                            "content": "[[ ## urgency ## ]]\nhigh\n[[ ## completed ## ]]",
+                        }
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 2,
+                    "completion_tokens": 1,
+                    "total_tokens": 3,
+                },
+            },
+            request=request,
+        )
+
+    monkeypatch.setattr(
+        openai_provider,
+        "_default_transport",
+        lambda: httpx.MockTransport(handler),
+    )
+    runtime = tmp_path / f"runtime-http-{outcome}"
+    inputs = tmp_path / "inputs.json"
+    run_program_runtime_episode(
+        manifest_path=candidate / "manifest.json",
+        inputs_path=inputs,
+        outdir=runtime,
+        skip_oracle_index=True,
+    )
+    return candidate, runtime, requests
+
+
+@pytest.mark.parametrize(
+    "outcome,disposition,error_code",
+    [
+        ("success", "completed_success", None),
+        ("completed_failure", "completed_failure", "completed_failure"),
+        ("indeterminate", "effect_indeterminate", "effect_indeterminate"),
+    ],
+)
+def test_program_runtime_binds_openai_attempt_evidence_without_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replay_env: None,
+    outcome: str,
+    disposition: str,
+    error_code: str | None,
+) -> None:
+    candidate, runtime, requests = _openai_runtime(
+        tmp_path, monkeypatch, outcome=outcome
+    )
+
+    behavior = json.loads((runtime / "behavior_results.json").read_text())
+    episode = json.loads((runtime / "runtime_episode.json").read_text())
+    receipt = load_run_receipt(runtime / "runtime_episode.json.meta.json")
+    assert receipt is not None
+    provider = behavior["provider"]
+    metadata = provider["metadata"]
+    assert set(metadata) == {
+        "provider",
+        "model",
+        "model_type",
+        "typed_contract",
+        "capabilities",
+        "runtime",
+    }
+    assert metadata["runtime"] == {
+        "provider_kind": "openai-compatible",
+        "base_endpoint": "http://127.0.0.1:8000/v1",
+        "effective_timeout": 10.0,
+    }
+    evidence = provider["effect_evidence"]
+    assert evidence["schema_version"] == "dspx-provider-effect-evidence-v1"
+    assert evidence["attempt_total"] == 1
+    assert evidence["attempts_truncated"] is False
+    assert evidence["terminal_effect"] == disposition
+    assert evidence["attempts"] == [
+        {
+            "provider_kind": "openai-compatible",
+            "requested_model": "local-model",
+            "observed_model": "local-model" if outcome == "success" else None,
+            "dispatch_count": 1,
+            "effect_disposition": disposition,
+        }
+    ]
+    assert episode["provider"] == provider
+    assert receipt["provider_details"] == {
+        "provider": "openai-compatible",
+        "provider_family": "openai-compatible",
+        "model": "local-model",
+        "effect_contract": "dspx-provider-effect-v1",
+        "runtime": metadata["runtime"],
+    }
+    assert receipt["run_summary"]["provider"] == provider
+    assert len(requests) == len(evidence["attempts"])
+    if outcome != "success":
+        assert len(requests) == 1
+    record_error = behavior["examples"][0].get("error")
+    if error_code is None:
+        assert record_error is None
+    else:
+        assert record_error["code"] == error_code
+        assert "secret" not in json.dumps(record_error).lower()
+
+    manifest_path = candidate / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    load_validated_program_runtime_episode_bundle(
+        runtime_episode_path=runtime / "runtime_episode.json",
+        expected_manifest_path=manifest_path,
+        expected_manifest=manifest,
+        expected_manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+    )
+
+
+def test_runtime_validator_rejects_receipt_provider_evidence_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replay_env: None,
+) -> None:
+    candidate, runtime, _ = _openai_runtime(tmp_path, monkeypatch, outcome="success")
+    receipt_path = runtime / "runtime_episode.json.meta.json"
+    receipt = json.loads(receipt_path.read_text())
+    receipt["run_summary"]["provider"]["effect_evidence"]["attempts"][0][
+        "effect_disposition"
+    ] = "completed_failure"
+    receipt["run_summary"]["provider"]["effect_evidence"]["terminal_effect"] = (
+        "completed_failure"
+    )
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n")
+    manifest_path = candidate / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+
+    with pytest.raises(ValueError, match="receipt provider evidence drifts"):
+        load_validated_program_runtime_episode_bundle(
+            runtime_episode_path=runtime / "runtime_episode.json",
+            expected_manifest_path=manifest_path,
+            expected_manifest=manifest,
+            expected_manifest_sha256=hashlib.sha256(
+                manifest_path.read_bytes()
+            ).hexdigest(),
+        )

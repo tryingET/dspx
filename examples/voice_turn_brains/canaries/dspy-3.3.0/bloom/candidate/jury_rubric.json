@@ -1,0 +1,63 @@
+{
+  "authority": "rubric_contract_only_non_authoritative",
+  "constraints_under_review": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before responding.",
+    "The define_persona step must output one concise sentence describing role, tone, and teaching method.",
+    "First identify and correct any misconception without shaming the learner.",
+    "Then explain the concept, model one application, and raise the learner one Bloom level.",
+    "Finish with a short question that checks transfer rather than rote repetition.",
+    "The final sentence must be a new unanswered re-quiz question ending with a question mark.",
+    "Do not answer or solve the final re-quiz question.",
+    "Do not echo the persona intent.",
+    "Return only the response field."
+  ],
+  "intent_name": "VoiceTurnBloomBrain",
+  "juror_rubrics": [
+    {
+      "adversarial_questions": [
+        "Where could the produced answer be simply wrong?",
+        "Does the output satisfy every declared output field?"
+      ],
+      "criteria": [
+        "answer_correctness",
+        "objective_satisfaction"
+      ],
+      "juror_id": "inferred_correctness",
+      "perspective": "correctness"
+    },
+    {
+      "adversarial_questions": [
+        "Which edge case would break this program first?",
+        "Are failure modes explicit enough to debug?"
+      ],
+      "criteria": [
+        "edge_case_resilience",
+        "failure_mode_visibility"
+      ],
+      "juror_id": "inferred_robustness",
+      "perspective": "robustness"
+    },
+    {
+      "adversarial_questions": [
+        "Does the output drift from the stated objective?",
+        "Does the output honor the requested field contract?"
+      ],
+      "criteria": [
+        "objective_adherence",
+        "format_and_field_adherence"
+      ],
+      "juror_id": "inferred_instruction_following",
+      "perspective": "instruction_following"
+    }
+  ],
+  "notes": [
+    "Rubrics are deterministic prompts for future jury execution binding.",
+    "No juror model is called during deterministic materialization.",
+    "Rubric results cannot rank, prune, promote, or grant Oracle authority."
+  ],
+  "objective": "Define the requested persona, correct the learner, teach the next concept with Bloom-style scaffolding, and finish with a re-quiz.",
+  "schema_version": "program-jury-rubric-v1",
+  "selected_juror_count": 3,
+  "selection_status": "selected"
+}

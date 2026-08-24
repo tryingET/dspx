@@ -1,0 +1,423 @@
+{
+  "authority": "behavior_evidence_only_non_authoritative",
+  "examples": [
+    {
+      "execution_status": "executed",
+      "index": 0,
+      "inputs": {
+        "persona_intent": "A calm, precise teacher.",
+        "transcription": "What is two plus two?"
+      },
+      "notes": [],
+      "observed_outputs": {
+        "response": "Four."
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "Four."
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A calm, precise teacher."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "A calm, precise teacher."
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "A calm, precise teacher.",
+              "transcription": "What is two plus two?"
+            },
+            "module_id": "answer_simple",
+            "outputs": {
+              "response": "Four."
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "source_kind": "runtime_inputs",
+      "status": "executed"
+    }
+  ],
+  "execution_status": "executed",
+  "input_fields": [
+    "transcription",
+    "persona_intent"
+  ],
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Give a direct, concise, factual answer.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "declared_topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "answer_simple"
+        },
+        {
+          "from": "answer_simple",
+          "to": "output"
+        }
+      ],
+      "execution_status": "declared_not_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "answer_simple",
+          "primitive": "Predict",
+          "role": "direct_answer",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "AnswerSimple",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ]
+    },
+    "inferred_topology": {},
+    "io": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "outputs": [
+        "response"
+      ]
+    },
+    "materialization_scope": {
+      "current_renderer": "pipeline_topology_renderer",
+      "topology_declared": true,
+      "topology_inferred": false,
+      "topology_materialized": true
+    },
+    "materialized_topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "answer_simple"
+        },
+        {
+          "from": "answer_simple",
+          "to": "output"
+        }
+      ],
+      "execution_status": "pipeline_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "answer_simple",
+          "primitive": "Predict",
+          "role": "direct_answer",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "AnswerSimple",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ],
+      "scheduler_plan": {
+        "declaration_order": [
+          "define_persona",
+          "answer_simple"
+        ],
+        "effect": {
+          "authority_mutated": false,
+          "custom_import_loaded": false,
+          "provider_called": false,
+          "retriever_called": false,
+          "tool_called": false
+        },
+        "module_order": [
+          "define_persona",
+          "answer_simple"
+        ],
+        "module_readiness": {
+          "answer_simple": {
+            "inbound_edges": [
+              {
+                "from": "define_persona",
+                "to": "answer_simple"
+              }
+            ],
+            "primitive": "Predict",
+            "produced_outputs": [
+              "response"
+            ],
+            "required_inputs": [
+              "transcription",
+              "persona"
+            ]
+          },
+          "define_persona": {
+            "inbound_edges": [
+              {
+                "from": "input",
+                "to": "define_persona"
+              }
+            ],
+            "primitive": "Predict",
+            "produced_outputs": [
+              "persona"
+            ],
+            "required_inputs": [
+              "persona_intent"
+            ]
+          }
+        },
+        "output_producers": [
+          "answer_simple"
+        ],
+        "scheduler": "bounded_ready_queue",
+        "schema_version": "program-topology-scheduler-plan-v1",
+        "status": "deterministic_local_dag_schedule"
+      }
+    },
+    "metric": "f1",
+    "module_order": [
+      "define_persona",
+      "answer_simple"
+    ],
+    "name": "VoiceTurnSimpleBrain",
+    "objective": "Define the requested persona, then answer the spoken transcription directly and concisely.",
+    "program_class": "VoiceTurnSimpleBrainPipelineProgram",
+    "quality_criteria": [],
+    "scheduler_plan": {
+      "declaration_order": [
+        "define_persona",
+        "answer_simple"
+      ],
+      "effect": {
+        "authority_mutated": false,
+        "custom_import_loaded": false,
+        "provider_called": false,
+        "retriever_called": false,
+        "tool_called": false
+      },
+      "module_order": [
+        "define_persona",
+        "answer_simple"
+      ],
+      "module_readiness": {
+        "answer_simple": {
+          "inbound_edges": [
+            {
+              "from": "define_persona",
+              "to": "answer_simple"
+            }
+          ],
+          "primitive": "Predict",
+          "produced_outputs": [
+            "response"
+          ],
+          "required_inputs": [
+            "transcription",
+            "persona"
+          ]
+        },
+        "define_persona": {
+          "inbound_edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            }
+          ],
+          "primitive": "Predict",
+          "produced_outputs": [
+            "persona"
+          ],
+          "required_inputs": [
+            "persona_intent"
+          ]
+        }
+      },
+      "output_producers": [
+        "answer_simple"
+      ],
+      "scheduler": "bounded_ready_queue",
+      "schema_version": "program-topology-scheduler-plan-v1",
+      "status": "deterministic_local_dag_schedule"
+    },
+    "topology_execution_status": "pipeline_materialized"
+  },
+  "intent_name": "VoiceTurnSimpleBrain",
+  "non_authority": {
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "optimization_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "output_fields": [
+    "response"
+  ],
+  "provider": {
+    "effect_evidence": {
+      "attempt_total": 4,
+      "attempts": [
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        },
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        },
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        },
+        {
+          "dispatch_count": 1,
+          "effect_disposition": "completed_success",
+          "observed_model": "stub/echo",
+          "provider_kind": "stub",
+          "requested_model": "stub/echo"
+        }
+      ],
+      "attempts_truncated": false,
+      "schema_version": "dspx-provider-effect-evidence-v1",
+      "terminal_effect": "completed_success"
+    },
+    "metadata": {
+      "capabilities": {
+        "code_exec": false,
+        "json_mode": false,
+        "multi_turn": true,
+        "structured_output_format": "none",
+        "supports_audio": false,
+        "supports_tools": false,
+        "supports_vision": false
+      },
+      "model": "stub/echo",
+      "model_type": "text",
+      "provider": "stub",
+      "runtime": {
+        "base_endpoint": null,
+        "effective_timeout": null,
+        "provider_kind": "stub"
+      },
+      "typed_contract": "typed_lm"
+    },
+    "status": "configured"
+  },
+  "quality_evaluation": {
+    "criteria": [],
+    "criteria_failed": 0,
+    "criteria_passed": 0,
+    "criteria_total": 0,
+    "quality_approved": false,
+    "schema_version": "program-quality-evaluation-v1",
+    "status": "not_declared"
+  },
+  "runtime_episode_id": "prog-run-91cb60090d6faa98",
+  "schema_version": "program-behavior-results-v1",
+  "summary": {
+    "degraded": 0,
+    "error": 0,
+    "executed": 1,
+    "failed": 0,
+    "passed": 0,
+    "status": "executed",
+    "status_counts": {
+      "executed": 1
+    },
+    "total": 1
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "cache_enabled": false,
+  "cache_file": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/.cache/program-runtime/b32968ef82a97db04dbaf8cd78d2364a65887bd6f1cef79dbef67725f19aecc0.json",
+  "cache_key": "b32968ef82a97db04dbaf8cd78d2364a65887bd6f1cef79dbef67725f19aecc0",
+  "created_at": "2026-08-16T06:52:08.093597+00:00",
+  "execution_context": {
+    "env_hash": "c77ef81cbfe72e7c",
+    "git_commit": "d123a205e705",
+    "git_dirty": true,
+    "platform": "linux",
+    "python_version": "3.13.12"
+  },
+  "execution_id": "c96a5cc7c88e4f6db524316e876a3049",
+  "execution_replay": {
+    "effects": {
+      "explicit_replay_output_write": true,
+      "external_authority_mutation_requested": false,
+      "external_filesystem_access_requested": false,
+      "external_filesystem_isolation_enforced": false,
+      "mlflow": false,
+      "network_access_requested": false,
+      "network_isolation_enforced": false,
+      "provider_call": false,
+      "shared_oracle": false,
+      "source_artifact_write": false,
+      "subprocess": true,
+      "temporary_filesystem": true
+    },
+    "input_hash": "133be58c7cd3b4d58f3c1b179d5b4d9d9ab43182f0a74020ce37cca0e7e452bb",
+    "local_only": true,
+    "output_identity": {
+      "algorithm": "sha256",
+      "hash": "80eefcfa16f7046fcef793cfd1bd9fe1226dd8ca288210e58d58da755e0de532"
+    },
+    "provider_identity": {
+      "hash": "796f02a115ee2b4a84ecdaf595b131baca40431881b7c542974fa6709f652dcd",
+      "provider": "stub",
+      "provider_details": {
+        "effect_contract": "dspx-provider-effect-v1",
+        "model": "stub/echo",
+        "provider": "stub",
+        "provider_family": "stub",
+        "runtime": {
+          "base_endpoint": null,
+          "effective_timeout": null,
+          "provider_kind": "stub"
+        }
+      }
+    },
+    "runtime_identity": {
+      "executor_version": "local-execution-replay-v2",
+      "hash": "5f5de89b2b4c6676437678e53948a3c1889ba41350a495709cfe1c38e901862d",
+      "platform": "linux",
+      "python_version": "3.13"
+    },
+    "schema_version": "local-execution-replay-v2",
+    "strategy": "program-runtime-local-reexecution",
+    "supported": true,
+    "unsupported_reasons": []
+  },
+  "hash": "80eefcfa16f7046fcef793cfd1bd9fe1226dd8ca288210e58d58da755e0de532",
+  "outcome": "success",
+  "output_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+  "provider": "stub",
+  "provider_details": {
+    "effect_contract": "dspx-provider-effect-v1",
+    "model": "stub/echo",
+    "provider": "stub",
+    "provider_family": "stub",
+    "runtime": {
+      "base_endpoint": null,
+      "effective_timeout": null,
+      "provider_kind": "stub"
+    }
+  },
+  "receipt_version": "v2",
+  "replay_inputs": {
+    "candidate_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/manifest.json",
+    "candidate_manifest_sha256": "d9479c2981d4382fdbd9d54f5f5ba6684bdd1afcf73e1585a1d2a9664b342fd5",
+    "candidate_receipt_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/manifest.json.meta.json",
+    "candidate_receipt_sha256": "4ce7b6b8afaaa59bacce091a0131d15737c2fc6462bbfd3d3d108e1b47e99a5b",
+    "contract_mode": "none",
+    "expected_episode": {
+      "behavior_results_sha256": "4db411ed91ee9357d5fd05790f686175510ae6726f4241f66189695771ac5bad",
+      "contract_mode": "none",
+      "execution_status": "executed",
+      "observed_outputs_sha256": "f8eedc35b41bfe75abdcf0a65dfb1edc05f933ffebecf1b48925b95224454bad",
+      "oracle_evidence_sha256": "d7ddcf7da0f6180eb30dcd54aece6877712408d8c7bfe9d297decbeea6e5e61c",
+      "program_runtime_traces_sha256": "bd128c4b2e23a1b25accc275973a9b2f0cd26a7a8c8d70511603586d1fee3165",
+      "quality_evaluation_sha256": "52e8c3edc5e87f7a3bcd04493cb9e0346650efda345b92b4135cce05a511246f",
+      "quality_status": "not_declared",
+      "runtime_episode_id": "prog-run-ffcb53eb8d5520a0",
+      "runtime_episode_sha256": "80eefcfa16f7046fcef793cfd1bd9fe1226dd8ca288210e58d58da755e0de532",
+      "status": "executed"
+    },
+    "publication_preflight_requested": false,
+    "replay_fixture_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/socratic/runtime/historical-artifact-under-3.3-stub/runtime_replay_fixture.json",
+    "replay_fixture_sha256": "b6aa25489f481f7627df2eaa688576bdef6fb4a61cd0ec67059ac2827d6351e2",
+    "runtime_inputs_sha256": "0d03829483b09f20a598cf18064603cfeeab1f5580ff98b242d644511569d99a",
+    "skip_oracle_index": true
+  },
+  "run_kind": "program-runtime",
+  "run_summary": {
+    "behavior_results_sha256": "4db411ed91ee9357d5fd05790f686175510ae6726f4241f66189695771ac5bad",
+    "evidence_only": true,
+    "oracle_evidence_sha256": "d7ddcf7da0f6180eb30dcd54aece6877712408d8c7bfe9d297decbeea6e5e61c",
+    "program_runtime_traces_sha256": "bd128c4b2e23a1b25accc275973a9b2f0cd26a7a8c8d70511603586d1fee3165",
+    "provider": {
+      "effect_evidence": {
+        "attempt_total": 4,
+        "attempts": [
+          {
+            "dispatch_count": 1,
+            "effect_disposition": "completed_success",
+            "observed_model": "stub/echo",
+            "provider_kind": "stub",
+            "requested_model": "stub/echo"
+          },
+          {
+            "dispatch_count": 1,
+            "effect_disposition": "completed_success",
+            "observed_model": "stub/echo",
+            "provider_kind": "stub",
+            "requested_model": "stub/echo"
+          },
+          {
+            "dispatch_count": 1,
+            "effect_disposition": "completed_success",
+            "observed_model": "stub/echo",
+            "provider_kind": "stub",
+            "requested_model": "stub/echo"
+          },
+          {
+            "dispatch_count": 1,
+            "effect_disposition": "completed_success",
+            "observed_model": "stub/echo",
+            "provider_kind": "stub",
+            "requested_model": "stub/echo"
+          }
+        ],
+        "attempts_truncated": false,
+        "schema_version": "dspx-provider-effect-evidence-v1",
+        "terminal_effect": "completed_success"
+      },
+      "metadata": {
+        "capabilities": {
+          "code_exec": false,
+          "json_mode": false,
+          "multi_turn": true,
+          "structured_output_format": "none",
+          "supports_audio": false,
+          "supports_tools": false,
+          "supports_vision": false
+        },
+        "model": "stub/echo",
+        "model_type": "text",
+        "provider": "stub",
+        "runtime": {
+          "base_endpoint": null,
+          "effective_timeout": null,
+          "provider_kind": "stub"
+        },
+        "typed_contract": "typed_lm"
+      },
+      "status": "configured"
+    },
+    "replay_fixture_captured": true,
+    "runtime_episode_id": "prog-run-ffcb53eb8d5520a0",
+    "runtime_status": "executed"
+  },
+  "template_version": "program-runtime-v1"
+}

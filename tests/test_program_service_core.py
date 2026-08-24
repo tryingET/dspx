@@ -20,59 +20,11 @@ from dspx.services.run_replay_service import check_run_receipt
 runner = CliRunner()
 
 
-def test_behavior_results_retry_detects_codex_stream_errors() -> None:
-    payload = {
-        "summary": {"status": "error", "total": 2, "error": 2},
-        "examples": [
-            {
-                "status": "error",
-                "error": {
-                    "message": 'litellm.BadRequestError: OpenAIException - {"detail":"Stream must be set to true"}'
-                },
-            },
-            {
-                "status": "error",
-                "error": {"message": "OpenAIException - stream must be set to true"},
-            },
-        ],
-    }
-
-    assert program_service._behavior_results_has_retryable_codex_stream_error(payload)
-
-
-def test_behavior_results_retry_rejects_mixed_or_non_codex_errors() -> None:
-    assert not program_service._behavior_results_has_retryable_codex_stream_error(
-        {
-            "summary": {"status": "error"},
-            "examples": [
-                {"status": "error", "error": {"message": "Stream must be set to true"}},
-                {
-                    "status": "failed",
-                    "error": {"message": "Stream must be set to true"},
-                },
-            ],
-        }
+def test_codex_stream_compatibility_retry_is_not_available() -> None:
+    assert not hasattr(
+        program_service, "_behavior_results_has_retryable_codex_stream_error"
     )
-    assert not program_service._behavior_results_has_retryable_codex_stream_error(
-        {
-            "summary": {"status": "error"},
-            "examples": [{"status": "error", "error": {"message": "rate limit"}}],
-        }
-    )
-
-
-def test_codex_stream_compatibility_retry_can_be_disabled(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("DSPX_PROGRAM_CODEX_STREAM_COMPAT_RETRY", "0")
-    assert not program_service._codex_stream_compatibility_retry_enabled()
-
-
-def test_codex_stream_compatibility_retry_preserves_default(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("DSPX_PROGRAM_CODEX_STREAM_COMPAT_RETRY", raising=False)
-    assert program_service._codex_stream_compatibility_retry_enabled()
+    assert not hasattr(program_service, "_codex_stream_compatibility_retry_enabled")
 
 
 @pytest.mark.slow

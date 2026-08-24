@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-09T22:11:42.192021385+00:00",
+  "task_id": 4725,
+  "entity_version": 4,
+  "commit_sha": "1f264a3453d2b95878167d7c16ea7d55563f328e",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-gepa-0-1-1-materialization-disposition.md",
+      "governance/task-scopes/AK-4725.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/dspy-3-3-gepa-0-1-1-materialization-disposition.md",
+      "governance/task-scopes/AK-4725.snapshot.json"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "governance/release-signing/**",
+      "packages/**",
+      "tests/**",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-08T22:18:04.302998852+00:00",
+  "task_id": 4693,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-compatibility-probe.md",
+      "governance/task-scopes/AK-4693.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/dspy-3-3-compatibility-probe.md",
+      "governance/task-scopes/AK-4693.snapshot.json"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/**",
+      "governance/release-signing/**",
+      "packages/**",
+      "pyproject.toml",
+      "tests/**",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

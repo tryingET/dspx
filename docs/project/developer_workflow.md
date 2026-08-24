@@ -28,17 +28,33 @@ just hooks-install
 
 Implementation detail: this uses `uvx prek install` for both `pre-commit` and `pre-push` hooks. `prek` is a fast, language-agnostic Git hook manager; DSPx keeps the interoperable `.pre-commit-config.yaml` hook definition and uses `prek` as the runner.
 
-### Optional local auth-provider checkout
+### Typed provider support matrix
 
-When DSPx should use the local `dspy-lm-auth` checkout rather than a published wheel or an unrelated clone, install the contrib repo in editable mode from this workspace:
+The T3 matrix supports `DSPyTypedLMAdapter(StubProvider)` and exactly one restored
+`DSPyTypedLMAdapter(OpenAICompatibleProvider)`. The latter requires an explicit model
+and IP-literal loopback HTTP base URL; it has no credentials, redirects, retries,
+streaming, tools, async, state, or copy surface. Other legacy auth, CLI, HTTP, RPC,
+and aggregate providers remain removed rather than linked through compatibility helpers.
+Canonical secret-free TOML configuration is:
 
-```bash
-just link-dspy-lm-auth
-# optional explicit override:
-# just link-dspy-lm-auth path=~/ai-society/softwareco/contrib/dspy-lm-auth
+```toml
+[provider]
+name = "openai-compatible"
+model = "local-model"
+base_url = "http://127.0.0.1:8000/v1"
+timeout = 30
 ```
 
-The helper defaults to `~/ai-society/softwareco/contrib/dspy-lm-auth`, installs it with `uv pip install -e`, and fails if `import dspy_lm_auth` still resolves somewhere else.
+Dispatch additionally requires `DSPX_POLICY_ALLOW_NETWORK_MUTATE=1` and the existing
+provider/capability policy checks. The policy maximum timeout caps the configured value.
+Provider attempts retain only bounded model/effect metadata; prompts, bodies, URLs,
+headers, and exception text are excluded. The additive
+`dspx-provider-effect-evidence-v1` envelope records cumulative count, explicit
+history truncation, terminal effect, and at most 64 attempts. Any indeterminate
+effect permanently latches both the provider instance and typed adapter against
+later dispatch, including adapter-side response-construction failures. A shared
+reentrant operation lock serializes direct and adapter calls through final response
+construction, so concurrent GEPA/runtime calls cannot complete past that latch.
 
 ### 3. Validate before push
 
@@ -64,11 +80,14 @@ Reproducible semantic regression gate (offline by default):
 
 ```bash
 just semantic-benchmark
-# live provider evaluation is separate and explicit:
-just semantic-benchmark-live provider=dspy-lm-auth out=/tmp/semantic-live.json
 ```
 
-The machine-readable result is evidence only and grants no activation or external authority. See `docs/project/semantic-benchmarks.md` for corpus thresholds, result schema, and live-provider controls.
+The default benchmark remains credential-free and offline. The restored loopback HTTP
+provider is not exercised by that benchmark and is tested only with injected fake
+clients; no live-provider pass is claimed. The machine-readable result is evidence only
+and grants no activation or external
+authority. See `docs/project/semantic-benchmarks.md` for corpus thresholds and
+result schema.
 
 Artifact retention is inspection-first. Generated/server output roots are never cleaned implicitly. Preview aged files below the explicit server root and retain the emitted `plan_id`; apply requires that unchanged plan plus exact-root confirmation:
 

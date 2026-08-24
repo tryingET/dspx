@@ -572,29 +572,29 @@ def test_pytest_touched_uses_xdist_loadfile_for_existing_test_paths() -> None:
             "pytest_cache_boundary",
         ),
         (
-            "packages/dspx-core/src/dspx/multi_provider_lm.py",
+            "packages/dspx-core/src/dspx/openai_compatible_provider.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
         (
-            "packages/dspx-core/src/dspx/openrouter_lm.py",
+            "packages/dspx-core/src/dspx/dspy_typed_lm.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
         (
-            "packages/dspx-core/src/dspx/providers_register_openrouter.py",
+            "packages/dspx-core/src/dspx/provider_contract.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
         (
-            "packages/dspx-core/src/dspx/openai_compatible_lm.py",
+            "packages/dspx-core/src/dspx/provider_registry.py",
             "provider_boundary",
             "pytest_provider_runtime",
         ),
         (
-            "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py",
+            "packages/dspx-core/src/dspx/stub_provider.py",
             "provider_boundary",
-            "pytest_provider_v4",
+            "pytest_provider_runtime",
         ),
         (
             "packages/dspx-core/src/dspx/oracle_time_travel.py",
@@ -806,15 +806,15 @@ def test_refinement_episode_code_test_and_docs_stays_product_bounded() -> None:
     assert groups == {"program_refinement_episode", "docs"}
 
 
-def test_provider_v4_auth_adapter_change_stays_bounded() -> None:
-    plan = _plan("packages/dspx-core/src/dspx/dspy_lm_auth_lm.py")
+def test_typed_provider_adapter_change_stays_bounded() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/dspy_typed_lm.py")
 
     assert plan["risk"] == "expanded"
     assert plan["full_verification_required"] is False
     assert _command_ids(plan) == [
         "ruff_touched",
         "typecheck_core",
-        "pytest_provider_v4",
+        "pytest_provider_runtime",
     ]
     assert "verify_full" not in _command_ids(plan)
 
@@ -1256,3 +1256,51 @@ def test_plan_json_is_serializable() -> None:
     encoded = json.dumps(plan, sort_keys=True)
 
     assert "dspx-verification-impact-plan-v1" in encoded
+
+
+def test_openai_provider_source_only_plan_runs_its_focused_test() -> None:
+    plan = _plan("packages/dspx-core/src/dspx/openai_compatible_provider.py")
+    assert _command_ids(plan) == [
+        "ruff_touched",
+        "typecheck_core",
+        "pytest_provider_runtime",
+    ]
+    loaded = _load_module()
+    command = loaded.COMMAND_REGISTRY["pytest_provider_runtime"].command
+    assert "tests/test_openai_compatible_provider.py" in command
+    assert "tests/test_openai_compatible_runtime.py" in command
+    runtime_command = loaded.COMMAND_REGISTRY["pytest_program_runtime_episode"].command
+    assert "tests/test_program_execution_replay.py" in runtime_command
+
+
+@pytest.mark.parametrize(
+    "path,category,command",
+    [
+        (
+            "packages/dspx-core/src/dspx/config_loader.py",
+            "provider_config_boundary",
+            "pytest_provider_runtime",
+        ),
+        (
+            "packages/dspx-core/src/dspx/run_receipts.py",
+            "run_receipt_boundary",
+            "pytest_run_receipts",
+        ),
+    ],
+)
+def test_provider_config_and_receipt_sources_are_mapped(
+    path: str, category: str, command: str
+) -> None:
+    plan = _plan(path)
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert plan["classifications"][0]["category"] == category
+    assert command in _command_ids(plan)
+
+
+def test_program_runtime_replay_executor_is_mapped() -> None:
+    plan = _plan(
+        "packages/dspx-core/src/dspx/services/program_execution_replay_executor.py"
+    )
+    assert "unmapped path" not in str(plan.get("wide_reason"))
+    assert plan["classifications"][0]["category"] == ("program_runtime_replay_boundary")
+    assert "pytest_program_runtime_episode" in _command_ids(plan)

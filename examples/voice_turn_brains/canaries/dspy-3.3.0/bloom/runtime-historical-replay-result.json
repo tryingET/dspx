@@ -1,0 +1,192 @@
+{
+  "status": "executed",
+  "receipt_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+  "checks": {
+    "output_exists": true,
+    "output_hash_match": true,
+    "cache_file_matches_key": true,
+    "cache_kind_matches_run_kind": true,
+    "cache_key_recomputes": true,
+    "cache_file_exists": false,
+    "runtime_episode_id_match": true,
+    "contract_mode_match": true,
+    "execution_status_match": true,
+    "runtime_status_match": true,
+    "quality_status_match": true,
+    "quality_evaluation_match": true,
+    "observed_outputs_match": true,
+    "behavior_results_hash_match": true,
+    "runtime_traces_hash_match": true,
+    "oracle_evidence_hash_match": true
+  },
+  "errors": [],
+  "warnings": [
+    "cache disabled in receipt; cache existence/provenance checks are informational"
+  ],
+  "error_codes": [],
+  "error_details": [],
+  "replay_claims": {
+    "schema_version": "dspx-replay-claim-matrix-v1",
+    "mode": "runtime_execution_reproduction",
+    "dimensions": {
+      "receipt_integrity_check": {
+        "status": "passed",
+        "evidence_level": "current_receipt_and_declared_artifact_bindings"
+      },
+      "deterministic_regeneration": {
+        "status": "not_run",
+        "evidence_level": "fresh_producer_output_identity"
+      },
+      "runtime_execution_reproduction": {
+        "status": "passed",
+        "evidence_level": "fresh_receipt_bound_runtime_evidence_identity"
+      },
+      "semantic_reproduction": {
+        "status": "not_evaluated",
+        "evidence_level": "independent_semantic_equivalence_evaluation"
+      },
+      "quality_evaluation_reproduction": {
+        "status": "passed",
+        "evidence_level": "receipt_bound_quality_evaluation_identity_not_independent_approval"
+      }
+    },
+    "release_claim_allowed": false,
+    "authority": {
+      "release_authority": false,
+      "promotion_authority": false,
+      "activation_authority": false,
+      "governance_authority": false,
+      "external_authority": false
+    }
+  },
+  "receipt_version": "v2",
+  "run_kind": "program-runtime",
+  "output_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+  "receipt_hash": "20491fbebce6bd380e5e2824b0612e01490eeead3c73bd90ccdd6c9d696fef27",
+  "actual_output_hash": "20491fbebce6bd380e5e2824b0612e01490eeead3c73bd90ccdd6c9d696fef27",
+  "cache_key": "fcad875590286b3bb749b2c5869e2dead439a0c748654e690023c033a2a5a97e",
+  "cache_file": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/.cache/program-runtime/fcad875590286b3bb749b2c5869e2dead439a0c748654e690023c033a2a5a97e.json",
+  "cache_enabled": false,
+  "expected_cache_key": "fcad875590286b3bb749b2c5869e2dead439a0c748654e690023c033a2a5a97e",
+  "replay_mode": "execute",
+  "execution": {
+    "attempted": true,
+    "strategy": "program-runtime-local-reexecution",
+    "run_kind": "program-runtime",
+    "provider": "stub",
+    "source_receipt": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+    "source_output": "examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+    "replay_output": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/canaries/dspy-3.3.0/bloom/runtime/historical-artifact-under-3.3-stub/runtime_replay.json",
+    "bytes_written": 4232,
+    "effects": {
+      "network_access_requested": false,
+      "network_isolation_enforced": false,
+      "provider_call": false,
+      "mlflow": false,
+      "subprocess": true,
+      "temporary_filesystem": true,
+      "external_filesystem_access_requested": false,
+      "external_filesystem_isolation_enforced": false,
+      "source_artifact_write": false,
+      "shared_oracle": false,
+      "external_authority_mutation_requested": false,
+      "explicit_replay_output_write": true
+    },
+    "evidence": {
+      "schema_version": "program-execution-replay-evidence-v2",
+      "status": "execution_reproduced",
+      "strategy": "program-runtime-local-reexecution",
+      "replay_claims": {
+        "schema_version": "dspx-replay-claim-matrix-v1",
+        "mode": "runtime_execution_reproduction",
+        "dimensions": {
+          "receipt_integrity_check": {
+            "status": "passed",
+            "evidence_level": "current_receipt_and_declared_artifact_bindings"
+          },
+          "deterministic_regeneration": {
+            "status": "not_run",
+            "evidence_level": "fresh_producer_output_identity"
+          },
+          "runtime_execution_reproduction": {
+            "status": "passed",
+            "evidence_level": "fresh_receipt_bound_runtime_evidence_identity"
+          },
+          "semantic_reproduction": {
+            "status": "not_evaluated",
+            "evidence_level": "independent_semantic_equivalence_evaluation"
+          },
+          "quality_evaluation_reproduction": {
+            "status": "passed",
+            "evidence_level": "receipt_bound_quality_evaluation_identity_not_independent_approval"
+          }
+        },
+        "release_claim_allowed": false,
+        "authority": {
+          "release_authority": false,
+          "promotion_authority": false,
+          "activation_authority": false,
+          "governance_authority": false,
+          "external_authority": false
+        }
+      },
+      "source_receipt_sha256": "d45b456d6e2b16854de3c024c715261f65e75f8be8c850412afb4320c75162a1",
+      "candidate_manifest_sha256": "5be53b2630a37ebba1e0d60e7ee55ca256b2842a14a3676b1d85d71d07f6478c",
+      "candidate_receipt_sha256": "51dfea01d4a70c5e355063bd7b35897f3437dca7ff210b45d2068e4810b59876",
+      "runtime_episode_id": "prog-run-be4b660105d15c5b",
+      "contract_mode": "none",
+      "execution_status": "executed",
+      "behavior_status": "executed",
+      "quality_status": "not_declared",
+      "quality_evaluation_sha256": "52e8c3edc5e87f7a3bcd04493cb9e0346650efda345b92b4135cce05a511246f",
+      "behavior_quality_approved": false,
+      "checks": {
+        "runtime_episode_id_match": true,
+        "contract_mode_match": true,
+        "execution_status_match": true,
+        "runtime_status_match": true,
+        "quality_status_match": true,
+        "quality_evaluation_match": true,
+        "observed_outputs_match": true,
+        "behavior_results_hash_match": true,
+        "runtime_traces_hash_match": true,
+        "oracle_evidence_hash_match": true
+      },
+      "fresh": {
+        "behavior_results_sha256": "7111fcf26de3283c014de18fb9507d811f698fafda5842652a7385c7b440cb7d",
+        "program_runtime_traces_sha256": "37566653d38772b7051870325e9428ac3eacfa1130fe686d3f9b95dd209e3a6e",
+        "oracle_evidence_sha256": "8c63dd8e5c4e2a0ee392550fce5f755b489d2fd829374df59dc39ac72f151795",
+        "observed_outputs_sha256": "46af22eff29ae2522019a21e1924bcedc0ce1df65b909533f650546e158c56e4"
+      },
+      "subprocess": {
+        "returncode": 0,
+        "stdout_sha256": "1f4f2e3baee2ccefc9daee13b0fb333fd23278a5b3d0cf45b41b06563a6cfa25",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_preview": "{\n  \"behavior_results_path\": \"/home/tryinget/.local/state/pi-quests/tmp/dspx-program-replay-awfrxys2/fresh/behavior_results.json\",\n  \"candidate_manifest_path\": \"/home/tryinget/.local/state/pi-quests/tmp/dspx-program-replay-awfrxys2/candidate/manifest.json\",\n  \"effect\": {\n    \"ak_called\": false,\n    \"behavior_results_written\": true,\n    \"candidate_manifest_mutated\": false,\n    \"canonical_notes_mutated\": false,\n    \"external_authority_mutated\": false,\n    \"governance_mutated\": false,\n    \"oracle_e…[truncated]",
+        "stderr_preview": ""
+      },
+      "effects": {
+        "network_access_requested": false,
+        "network_isolation_enforced": false,
+        "provider_call": false,
+        "mlflow": false,
+        "subprocess": true,
+        "temporary_filesystem": true,
+        "external_filesystem_access_requested": false,
+        "external_filesystem_isolation_enforced": false,
+        "source_artifact_write": false,
+        "shared_oracle": false,
+        "external_authority_mutation_requested": false,
+        "explicit_replay_output_write": true
+      },
+      "non_authority": {
+        "promotion_authority": false,
+        "activation_authority": false,
+        "governance_mutated": false,
+        "ak_called": false,
+        "shared_oracle_mutated": false,
+        "external_authority_mutated": false
+      }
+    }
+  }
+}

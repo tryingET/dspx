@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import importlib.util
+from importlib.metadata import version
 import json
 import subprocess
 import sys
@@ -16,6 +17,7 @@ import pytest
 from dspx.services import program_service
 from dspx.services.program_intent import ProgramIntent
 from dspx.services.program_service import materialize_program_from_intent
+from dspx.services.program_topology import render_pipeline_module_surface
 from dspx.services.run_replay_service import check_run_receipt
 from program_topology_intent_helpers import (
     _explicit_topology_intent,
@@ -915,6 +917,84 @@ def test_named_bounded_topologies_materialize_as_declared_dags(
     assert check_run_receipt(root / "manifest.json.meta.json")["status"] == "ok"
 
 
+def test_program_of_thought_renderer_uses_exact_reviewed_interpreter_lifecycle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    intent = ProgramIntent(
+        name="ProgramOfThoughtLifecycleProgram",
+        objective="Use bounded ProgramOfThought reasoning.",
+        inputs=["question"],
+        outputs=["answer"],
+        topology={
+            "kind": "pipeline",
+            "execution_status": "declared_not_materialized",
+            "modules": [
+                {
+                    "id": "reason_answer",
+                    "primitive": "ProgramOfThought",
+                    "signature": {
+                        "name": "ReasonAnswer",
+                        "inputs": ["question"],
+                        "outputs": ["answer"],
+                    },
+                    "max_iters": 1,
+                }
+            ],
+            "edges": [
+                {"from": "input", "to": "reason_answer"},
+                {"from": "reason_answer", "to": "output"},
+            ],
+        },
+    )
+    module_code, _ = render_pipeline_module_surface(intent)
+    assert "excluded_lm_generated_runtime_code" in module_code
+
+    (tmp_path / "signature.py").write_text(
+        "import dspy\n"
+        "class ReasonAnswer(dspy.Signature):\n"
+        "    question: str = dspy.InputField()\n"
+        "    answer: str = dspy.OutputField()\n",
+        encoding="utf-8",
+    )
+    module_path = tmp_path / "module.py"
+    module_path.write_text(module_code, encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.delitem(sys.modules, "signature", raising=False)
+    spec = importlib.util.spec_from_file_location(
+        "generated_program_of_thought_lifecycle", module_path
+    )
+    assert spec is not None and spec.loader is not None
+    generated = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(generated)
+
+    instance = generated.ReasonAnswerModule()
+    assert instance._TRUSTED_LOCAL_CORE_PRODUCTION_STATUS == (
+        "excluded_lm_generated_runtime_code"
+    )
+    dspy_version = version("dspy")
+    if dspy_version in {"3.3.0", "3.3.1"}:
+        assert "interpreter_factory=lambda:" in module_code
+        assert "interpreter=dspy.PythonInterpreter" not in module_code
+        first = instance.predict._interpreter_factory()
+        second = instance.predict._interpreter_factory()
+        assert first is not second
+        interpreters = [first, second]
+    elif dspy_version == "3.1.3":
+        assert "interpreter=dspy.PythonInterpreter" in module_code
+        assert "interpreter_factory=" not in module_code
+        interpreters = [instance.predict.interpreter]
+    else:  # pragma: no cover - renderer fails closed before this branch
+        pytest.fail(f"unexpected reviewed DSPy version: {dspy_version}")
+
+    for interpreter in interpreters:
+        assert interpreter.enable_read_paths == []
+        assert interpreter.enable_write_paths == []
+        assert interpreter.enable_env_vars == []
+        assert interpreter.enable_network_access == []
+        assert interpreter.tools == {}
+        assert interpreter.sync_files is False
+
+
 @pytest.mark.parametrize(
     ("primitive", "expected_call", "config"),
     [
@@ -972,6 +1052,7 @@ def test_bounded_reasoning_primitives_materialize_without_external_tools(
         assert "dspy.PythonInterpreter" in module_text
         assert "enable_network_access=[]" in module_text
         assert "sync_files=False" in module_text
+        assert "excluded_lm_generated_runtime_code" in module_text
 
     policy = json.loads(
         (root / "generated_module_policy.json").read_text(encoding="utf-8")

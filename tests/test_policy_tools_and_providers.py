@@ -6,24 +6,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, cast
 import httpx
 import pytest
 
-from dspx.provider_registry import ensure_default_providers, create
+from dspx.provider_registry import UnsupportedProviderError, create
 from dspx.tools.openapi import load_spec
 from dspx.tools.registry import register_openapi_operations, get_tool
 
 
 def test_provider_policy_denies(monkeypatch) -> None:
-    ensure_default_providers()
     monkeypatch.setenv("DSPX_POLICY_DISALLOWED_PROVIDERS", "stub")
     with pytest.raises(PermissionError):
         _ = create("stub")
 
 
 def test_provider_policy_allows(monkeypatch) -> None:
-    ensure_default_providers()
     monkeypatch.setenv("DSPX_POLICY_ALLOWED_PROVIDERS", "stub")
     # should not raise
     _ = create("stub")
@@ -118,7 +115,7 @@ def test_openapi_mutation_denied_without_flag(tmp_path: Path, monkeypatch) -> No
     assert out.status_code == 201
 
 
-def test_codex_generated_cli_wrappers_are_safe_by_default() -> None:
+def test_generated_cli_wrappers_use_only_the_typed_stub() -> None:
     from dspx.cli.vibegen import wrap_script as gen_wrap_script
     from dspx.cli.viberefine import wrap_script as refine_wrap_script
 
@@ -126,42 +123,11 @@ def test_codex_generated_cli_wrappers_are_safe_by_default() -> None:
         gen_wrap_script("class Sig: pass"),
         refine_wrap_script("class Sig: pass"),
     ):
-        assert "dangerously_bypass=False" in rendered
-        assert "auto_mode=True" in rendered
-        assert "dangerously_bypass=True" not in rendered
+        assert "from dspx.provider_registry import create" in rendered
+        assert "create('stub')" in rendered
+        assert "CodexExecLM" not in rendered
 
 
-def test_codex_provider_defaults_to_safe_auto_mode(monkeypatch) -> None:
-    ensure_default_providers()
-    try:
-        from dspx.provider_registry import available
-
-        if "codex-exec" not in available():
-            pytest.skip("codex provider not registered")
-    except Exception:
-        pytest.skip("codex provider not available")
-    monkeypatch.delenv("CODEX_BYPASS", raising=False)
-    monkeypatch.delenv("DSPX_SANDBOX_WORKTREE", raising=False)
-    from dspx.provider_registry import create as create_provider
-
-    lm = cast(Any, create_provider("codex-exec"))
-    assert getattr(lm, "dangerously_bypass", None) is False
-    assert "--dangerously-bypass-approvals-and-sandbox" not in lm._build_command("noop")
-
-
-def test_codex_provider_uses_sandbox_when_enabled(monkeypatch) -> None:
-    ensure_default_providers()
-    # Only run if codex provider is present; if not present, skip
-    try:
-        from dspx.provider_registry import available
-
-        if "codex-exec" not in available():
-            pytest.skip("codex provider not registered")
-    except Exception:
-        pytest.skip("codex provider not available")
-    monkeypatch.setenv("DSPX_SANDBOX_WORKTREE", "1")
-    from dspx.provider_registry import create as create_provider
-
-    lm = create_provider("codex-exec")
-    # CodexExecLM has attribute 'workspace'
-    assert getattr(lm, "workspace", None) is not None
+def test_removed_codex_provider_fails_before_construction() -> None:
+    with pytest.raises(UnsupportedProviderError):
+        create("codex-exec")

@@ -154,21 +154,12 @@ def test_rate_limit_generic_path_bucket_is_shared_across_methods() -> None:
     assert client.post("/module").status_code == 429
 
 
-def test_provider_healthcheck_exception_returns_sanitized_payload(monkeypatch) -> None:
-    class _BadHealthProvider:
-        model = "fake/model"
-        model_type = "text"
-
-        def healthcheck(self, **_kwargs):  # noqa: ANN001
-            raise RuntimeError("provider failed token=supersecret-token")
-
-    monkeypatch.setattr(provider_runtime, "ensure_default_providers", lambda: None)
-    monkeypatch.setattr(provider_runtime, "create", lambda _name: _BadHealthProvider())
-
-    payload = provider_runtime.check_provider_health("fake")
+def test_provider_diagnostics_sanitize_sensitive_payloads() -> None:
+    payload = provider_runtime.sanitize_payload(
+        {"error": "provider failed token=supersecret-token", "api_key": "secret"}
+    )
 
     dumped = json.dumps(payload)
-    assert payload["ok"] is False
-    assert payload["status"] == "error"
     assert "supersecret-token" not in dumped
+    assert "secret" not in dumped
     assert "[REDACTED]" in dumped

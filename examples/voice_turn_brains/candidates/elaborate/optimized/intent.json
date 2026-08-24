@@ -1,0 +1,117 @@
+{
+  "capabilities": {},
+  "constraints": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before answering.",
+    "Develop the answer with context, reasoning, implications, and useful caveats.",
+    "Prefer coherent spoken prose over terse bullets.",
+    "Do not echo the transcription or persona intent.",
+    "Return only the response field.",
+    "load local GEPA optimizer output as the candidate program implementation"
+  ],
+  "dataset": {},
+  "datasets": {},
+  "examples": [
+    {
+      "inputs": {
+        "persona_intent": "A patient science explainer.",
+        "transcription": "Why do seasons change?"
+      },
+      "outputs": {
+        "response": "Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year."
+      }
+    },
+    {
+      "inputs": {
+        "persona_intent": "A thoughtful study coach.",
+        "transcription": "Why is sleep important for learning?"
+      },
+      "outputs": {
+        "response": "Sleep supports learning by stabilizing new memories, restoring attention, and helping the brain connect new material with prior knowledge; regular sleep therefore improves both recall and flexible understanding."
+      }
+    }
+  ],
+  "input_fields": [],
+  "inputs": [
+    "transcription",
+    "persona_intent"
+  ],
+  "jury": {},
+  "metric": "f1",
+  "name": "VoiceTurnElaborateBrain",
+  "objective": "Define the requested persona, then develop a complete, nuanced spoken answer to the transcription.",
+  "options": {
+    "gepa_candidate_lineage": {
+      "authority": "local_gepa_refinement_candidate_only_non_authoritative",
+      "gepa_refinement_result_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/elaborate/gepa-result.json",
+      "schema_version": "program-gepa-candidate-lineage-v1",
+      "source_identity": {
+        "assembly_id": "prog-asm-70dc1b583239",
+        "candidate_id": "prog-cand-64bb265920a4",
+        "episode_id": "prog-ep-c467a2fba777",
+        "receipt_bundle_id": "prog-rb-4988d30a0763",
+        "request_id": "prog-req-d44c8881c6f7"
+      },
+      "source_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/elaborate/original/manifest.json"
+    },
+    "module_inference": false
+  },
+  "output_fields": [],
+  "outputs": [
+    "response"
+  ],
+  "promotion": {},
+  "quality_criteria": [],
+  "runtime": {},
+  "schema_version": "program-intent-v2",
+  "task_type": "single_module",
+  "topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "define_persona",
+        "to": "answer_elaborate"
+      },
+      {
+        "from": "answer_elaborate",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "pipeline",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "answer_elaborate",
+        "primitive": "ChainOfThought",
+        "role": "developed_answer",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona"
+          ],
+          "name": "AnswerElaborate",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  }
+}

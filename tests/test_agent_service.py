@@ -30,7 +30,6 @@ def test_agent_service_react_uses_signature_type(monkeypatch) -> None:
 
     monkeypatch.setattr(agent_service, "load_config_env", lambda: None)
     monkeypatch.setattr(agent_service, "enable_mlflow_from_env", lambda: None)
-    monkeypatch.setattr(agent_service, "ensure_default_providers", lambda: None)
     monkeypatch.setattr(agent_service, "create_from_env", lambda: object())
     monkeypatch.setattr(agent_service.dspy, "configure", lambda **_kwargs: None)
     monkeypatch.setattr(agent_service.dspy, "ReAct", FakeAgent)

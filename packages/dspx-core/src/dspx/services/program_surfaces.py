@@ -116,6 +116,8 @@ from typing import Any
 OUTPUT_RECEIPT = 'direct_run_receipt.json'
 PROTECTED_OUTPUT_BASENAMES = __PROTECTED_OUTPUT_BASENAMES__
 CONFIG_CANDIDATES = ('dspx-local.config.toml', 'config.toml')
+_RUNTIME_LM: object | None = None
+_PREVIOUS_LM: object | None = None
 
 
 def _redact_url(value: object) -> str | None:
@@ -324,19 +326,22 @@ def _apply_runtime_config_env(data: object) -> None:
         return
     mlflow = data.get('mlflow')
     provider = data.get('provider')
-    lm_auth = data.get('lm_auth')
     _set_env_from_config(mlflow, 'enable', 'MLFLOW_ENABLE', boolean=True)
     _set_env_from_config(mlflow, 'tracking_uri', 'MLFLOW_TRACKING_URI')
     _set_env_from_config(mlflow, 'experiment', 'MLFLOW_EXPERIMENT')
     _set_env_from_config(mlflow, 'artifact_root', 'MLFLOW_ARTIFACT_ROOT')
+    if isinstance(provider, Mapping):
+        for env_key in (
+            'DSPX_PROVIDER',
+            'DSPX_OPENAI_COMPAT_MODEL',
+            'DSPX_OPENAI_COMPAT_API_BASE',
+            'DSPX_OPENAI_COMPAT_TIMEOUT',
+        ):
+            os.environ.pop(env_key, None)
     _set_env_from_config(provider, 'name', 'DSPX_PROVIDER')
-    _set_env_from_config(lm_auth, 'model', 'DSPX_LM_AUTH_MODEL')
-    _set_env_from_config(lm_auth, 'auth_provider', 'DSPX_LM_AUTH_PROVIDER')
-    _set_env_from_config(lm_auth, 'auth_storage', 'DSPX_LM_AUTH_STORAGE')
-    _set_env_from_config(lm_auth, 'timeout_s', 'DSPX_LM_AUTH_TIMEOUT')
-    _set_env_from_config(lm_auth, 'strict', 'DSPX_LM_AUTH_STRICT', boolean=True)
-    _set_env_from_config(lm_auth, 'temperature', 'DSPX_LM_AUTH_TEMPERATURE')
-    _set_env_from_config(lm_auth, 'max_tokens', 'DSPX_LM_AUTH_MAX_TOKENS')
+    _set_env_from_config(provider, 'model', 'DSPX_OPENAI_COMPAT_MODEL')
+    _set_env_from_config(provider, 'base_url', 'DSPX_OPENAI_COMPAT_API_BASE')
+    _set_env_from_config(provider, 'timeout', 'DSPX_OPENAI_COMPAT_TIMEOUT')
 
 
 def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str | None:
@@ -353,17 +358,83 @@ def _load_runtime_config(config_path: Path | None, *, program_dir: Path) -> str 
     return str(chosen) if chosen is not None else None
 
 
-def _configure_lm() -> dict[str, Any]:
-    import dspy
-    from dspx.provider_registry import create_from_env, ensure_default_providers
+def _provider_projection(metadata: dict[str, Any]) -> dict[str, Any]:
+    from dspx.provider_runtime import provider_effect_evidence_from_instance
 
-    ensure_default_providers()
-    lm = create_from_env(default='dspy-lm-auth')
-    dspy.configure(lm=lm)
+    if _RUNTIME_LM is None:
+        raise RuntimeError('runtime provider adapter is unavailable')
     return {
-        'provider': getattr(lm, 'model', type(lm).__name__),
-        'kwargs': dict(getattr(lm, 'kwargs', {}) or {}),
+        'status': 'configured',
+        'metadata': metadata,
+        'effect_evidence': provider_effect_evidence_from_instance(_RUNTIME_LM),
     }
+
+
+def _configure_lm() -> dict[str, Any]:
+    global _PREVIOUS_LM, _RUNTIME_LM
+    import dspy
+    from dspx.provider_registry import create_from_env
+    from dspx.provider_runtime import provider_metadata_from_instance
+
+    if _RUNTIME_LM is not None:
+        _close_runtime_lm()
+    previous_lm = getattr(dspy.settings, 'lm', None)
+    lm = create_from_env()
+    try:
+        provider_name = str(os.environ.get('DSPX_PROVIDER') or '')
+        metadata = provider_metadata_from_instance(provider_name, lm)
+    except BaseException:
+        from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+        from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+        if type(lm) is DSPyTypedLMAdapter and type(lm.provider) is OpenAICompatibleProvider:
+            lm.provider.close()
+        raise
+    _PREVIOUS_LM = previous_lm
+    _RUNTIME_LM = lm
+    try:
+        dspy.configure(lm=lm)
+        return _provider_projection(metadata)
+    except BaseException:
+        _close_runtime_lm()
+        raise
+
+
+def _refresh_provider(provider: dict[str, Any]) -> dict[str, Any]:
+    metadata = provider.get('metadata')
+    if not isinstance(metadata, dict):
+        return provider
+    return _provider_projection(metadata)
+
+
+def _close_runtime_lm() -> None:
+    global _PREVIOUS_LM, _RUNTIME_LM
+    if _RUNTIME_LM is None:
+        _PREVIOUS_LM = None
+        return
+    lm = _RUNTIME_LM
+    previous_lm = _PREVIOUS_LM
+    _RUNTIME_LM = None
+    _PREVIOUS_LM = None
+    try:
+        import dspy
+
+        dspy.configure(lm=previous_lm)
+    finally:
+        from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+        from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+        if type(lm) is DSPyTypedLMAdapter and type(lm.provider) is OpenAICompatibleProvider:
+            lm.provider.close()
+
+
+def _provider_error_code(error: BaseException) -> str | None:
+    code = getattr(error, 'code', None)
+    return code if code in {
+        'preflight_rejected',
+        'completed_failure',
+        'effect_indeterminate',
+    } else None
 
 
 def _active_mlflow_run_id() -> str | None:
@@ -441,7 +512,7 @@ def _write_direct_run_receipt(
         'inputs_path': str(inputs_path.resolve()),
         'outdir': str(outdir.resolve()),
         'config_path': config_path,
-        'provider': provider,
+        'provider': _refresh_provider(provider),
         'output_files': output_fields,
         'observability': {
             **_mlflow_receipt(),
@@ -457,6 +528,7 @@ def _write_direct_run_receipt(
         receipt['error'] = {
             'type': type(error).__name__,
             'message': _sanitize_diagnostic_text(error),
+            'code': _provider_error_code(error),
         }
     (outdir / OUTPUT_RECEIPT).write_text(
         json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + '\\n',
@@ -498,6 +570,18 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
                 encoding='utf-8',
             )
         artifacts_logged = _log_output_artifacts(outdir)
+        return _write_direct_run_receipt(
+            status='ok',
+            program_dir=program_dir,
+            inputs_path=inputs_path,
+            outdir=outdir,
+            config_path=loaded_config,
+            provider=provider,
+            output_fields=output_fields,
+            started=started,
+            mlflow_run_id=mlflow_run_id,
+            artifacts_logged=artifacts_logged,
+        )
     except BaseException as exc:
         end_status = 'FAILED'
         _set_runtime_failed(exc)
@@ -517,19 +601,7 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
         raise SystemExit(_sanitize_diagnostic_text(exc)) from None
     finally:
         end_observability_run(started, status=end_status)
-
-    return _write_direct_run_receipt(
-        status='ok',
-        program_dir=program_dir,
-        inputs_path=inputs_path,
-        outdir=outdir,
-        config_path=loaded_config,
-        provider=provider,
-        output_fields=output_fields,
-        started=started,
-        mlflow_run_id=mlflow_run_id,
-        artifacts_logged=artifacts_logged,
-    )
+        _close_runtime_lm()
 
 
 def _target_name(input_file: Path, inputs_root: Path) -> str:
@@ -561,7 +633,7 @@ def _tail_text(value: object, *, limit: int = 2000) -> str:
     return _sanitize_diagnostic_text(text, limit=limit)
 
 
-def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: int, config_path: Path | None) -> dict[str, Any]:
+def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, config_path: Path | None) -> dict[str, Any]:
     attempts: list[dict[str, Any]] = []
     cmd = [
         sys.executable,
@@ -574,31 +646,29 @@ def _run_child(input_file: Path, outdir: Path, timeout_seconds: int, retries: in
     ]
     if config_path is not None:
         cmd.extend(['--config', str(config_path)])
-    for attempt in range(retries + 1):
-        outdir.mkdir(parents=True, exist_ok=True)
-        try:
-            result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
-        except subprocess.TimeoutExpired as exc:
-            attempts.append({
-                'attempt': attempt + 1,
-                'returncode': None,
-                'timed_out': True,
-                'timeout_seconds': timeout_seconds,
-                'error_type': 'TimeoutExpired',
-                'stdout_tail': _tail_text(exc.stdout),
-                'stderr_tail': _tail_text(exc.stderr),
-            })
-            continue
-        except Exception as exc:
-            attempts.append({
-                'attempt': attempt + 1,
-                'returncode': None,
-                'error_type': type(exc).__name__,
-                'error': _sanitize_diagnostic_text(exc),
-            })
-            continue
+    outdir.mkdir(parents=True, exist_ok=True)
+    try:
+        result = subprocess.run(cmd, text=True, capture_output=True, timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
         attempts.append({
-            'attempt': attempt + 1,
+            'attempt': 1,
+            'returncode': None,
+            'timed_out': True,
+            'timeout_seconds': timeout_seconds,
+            'error_type': 'TimeoutExpired',
+            'stdout_tail': _tail_text(exc.stdout),
+            'stderr_tail': _tail_text(exc.stderr),
+        })
+    except Exception as exc:
+        attempts.append({
+            'attempt': 1,
+            'returncode': None,
+            'error_type': type(exc).__name__,
+            'error': _sanitize_diagnostic_text(exc),
+        })
+    else:
+        attempts.append({
+            'attempt': 1,
             'returncode': result.returncode,
             'stdout_tail': _tail_text(result.stdout),
             'stderr_tail': _tail_text(result.stderr),
@@ -626,25 +696,26 @@ def _preflight(config_path: Path | None = None) -> dict[str, Any]:
     program_dir = Path(__file__).resolve().parent
     loaded_config = _load_runtime_config(config_path, program_dir=program_dir)
     provider = _configure_lm()
-    return {
-        'schema_version': 'generated-dspy-direct-run-preflight-v1',
-        'status': 'ok',
-        'program_dir': str(program_dir),
-        'config_path': loaded_config,
-        'provider': provider,
-        'resolved_env': {
-            'DSPX_PROVIDER': os.getenv('DSPX_PROVIDER') or None,
-            'DSPX_LM_AUTH_MODEL': os.getenv('DSPX_LM_AUTH_MODEL') or None,
-            'DSPX_LM_AUTH_PROVIDER': os.getenv('DSPX_LM_AUTH_PROVIDER') or None,
-            'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
-            'MLFLOW_TRACKING_URI': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None),
-            'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
-            'MLFLOW_ARTIFACT_ROOT': os.getenv('MLFLOW_ARTIFACT_ROOT') or None,
-        },
-        'model_call_performed': False,
-        'canonical_notes_mutated': False,
-        'dspx_program_run_wrapper_used': False,
-    }
+    try:
+        return {
+            'schema_version': 'generated-dspy-direct-run-preflight-v1',
+            'status': 'ok',
+            'program_dir': str(program_dir),
+            'config_path': loaded_config,
+            'provider': provider,
+            'resolved_env': {
+                'DSPX_PROVIDER': os.getenv('DSPX_PROVIDER') or None,
+                'MLFLOW_ENABLE': os.getenv('MLFLOW_ENABLE') or None,
+                'MLFLOW_TRACKING_URI': _redact_url(os.getenv('MLFLOW_TRACKING_URI') or None),
+                'MLFLOW_EXPERIMENT': os.getenv('MLFLOW_EXPERIMENT') or None,
+                'MLFLOW_ARTIFACT_ROOT': os.getenv('MLFLOW_ARTIFACT_ROOT') or None,
+            },
+            'model_call_performed': False,
+            'canonical_notes_mutated': False,
+            'dspx_program_run_wrapper_used': False,
+        }
+    finally:
+        _close_runtime_lm()
 
 
 def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds: int, retries: int, config_path: Path | None = None) -> dict[str, Any]:
@@ -652,8 +723,8 @@ def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds
         raise SystemExit('--parallel must be >= 1')
     if timeout_seconds <= 0:
         raise SystemExit('--timeout-seconds must be > 0')
-    if retries < 0:
-        raise SystemExit('--retries must be >= 0')
+    if retries != 0:
+        raise SystemExit('--retries is disabled because child effect disposition is unavailable; use 0')
     input_files = _discover_input_files(inputs_root)
     if not input_files:
         raise SystemExit(f'no batch inputs found under {inputs_root}')
@@ -661,7 +732,7 @@ def _batch_run(inputs_root: Path, out_root: Path, parallel: int, timeout_seconds
     jobs = [(input_file, out_root / _target_name(input_file, inputs_root)) for input_file in input_files]
     results: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=parallel) as executor:
-        future_to_job = {executor.submit(_run_child, input_file, outdir, timeout_seconds, retries, config_path): (input_file, outdir) for input_file, outdir in jobs}
+        future_to_job = {executor.submit(_run_child, input_file, outdir, timeout_seconds, config_path): (input_file, outdir) for input_file, outdir in jobs}
         for future in as_completed(future_to_job):
             input_file, outdir = future_to_job[future]
             try:
@@ -711,7 +782,7 @@ def main() -> int:
     batch.add_argument('--out-root', type=Path, help='Directory for per-target output folders and batch receipt.')
     batch.add_argument('--parallel', type=int, default=1, help='Batch parallelism. Default: 1.')
     batch.add_argument('--timeout-seconds', type=int, default=600, help='Per-target timeout for batch child runs. Default: 600.')
-    batch.add_argument('--retries', type=int, default=0, help='Per-target retries after a failed child run. Default: 0.')
+    batch.add_argument('--retries', type=int, default=0, help='Compatibility flag; only 0 is accepted because child effects cannot be classified safely.')
     parser.add_argument('--config', type=Path, help='DSPx runtime config. Defaults to nearest dspx-local.config.toml or config.toml above direct_run.py.')
     parser.add_argument('--preflight', action='store_true', help='Load config and resolve/configure the provider without executing the generated program or making a model call.')
     parser.add_argument('--json', action='store_true', help='Print receipt JSON to stdout.')
@@ -722,7 +793,7 @@ def main() -> int:
         if args.json:
             print(json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True))
         else:
-            print(f"provider={receipt['resolved_env']['DSPX_PROVIDER']} model={receipt['resolved_env']['DSPX_LM_AUTH_MODEL']} config={receipt['config_path']}")
+            print(f"provider={receipt['provider']['metadata']['provider']} model={receipt['provider']['metadata']['model']} config={receipt['config_path']}")
         return 0
 
     if args.inputs_root or args.out_root:
@@ -1158,10 +1229,8 @@ def render_eval_examples(intent: Any) -> str:
             "def _configure_provider() -> dict[str, object]:",
             "    try:",
             "        import dspy",
-            "        from dspx.provider_registry import create_from_env, ensure_default_providers",
-            "",
-            "        ensure_default_providers()",
-            "        lm = create_from_env(default='dspy-lm-auth')",
+            "        from dspx.provider_registry import create_from_env",
+            "        lm = create_from_env()",
             "        dspy.configure(lm=lm)",
             "        return {'status': 'configured', 'provider': getattr(lm, 'model', type(lm).__name__)}",
             "    except Exception as exc:",

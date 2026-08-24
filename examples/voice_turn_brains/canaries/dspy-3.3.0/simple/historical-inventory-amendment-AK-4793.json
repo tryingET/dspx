@@ -1,0 +1,32 @@
+{
+  "authorized_successor": {
+    "change_kind": "documentation_front_matter_only",
+    "sha256": "63cae908833288632095c247c3c58df8abfc1b951d8f9f20c3bb8afdcdd3391d",
+    "size": 5544
+  },
+  "effect": {
+    "historical_candidate_mutated": false,
+    "historical_inventory_rewritten": false,
+    "historical_receipt_or_hash_rewritten": false,
+    "promotion_or_activation": false,
+    "refinement_or_gepa_artifact_mutated": false,
+    "runtime_routing_mutated": false
+  },
+  "notes": [
+    "historical-inventory.json remains the immutable pre-canary snapshot.",
+    "The regression test verifies every unamended path byte-for-byte and this exact authorized README successor."
+  ],
+  "path": "README.md",
+  "prior_inventory": {
+    "aggregate_sha256": "8a1d1075964cd465547247f6b6ba72af3336b6ac8b9804b14159133b82d64ce1",
+    "artifact_sha256": "a4f458dfebba82d589315899194df9bf7a6083bf0b05bf856df7afec32503379",
+    "artifact_size": 86799,
+    "file_count": 469,
+    "path_sha256": "caeadc2025f5e32d3e47e36f5abd3875a74e4f05df923f42d895080c2a89532a",
+    "path_size": 5199,
+    "schema_version": "voice-turn-historical-inventory-v1"
+  },
+  "reason": "Add required documentation front matter while preserving receipt-bound voice-turn artifacts.",
+  "schema_version": "voice-turn-historical-inventory-amendment-v1",
+  "task_id": 4793
+}

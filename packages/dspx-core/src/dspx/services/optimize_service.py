@@ -4,9 +4,24 @@
 
 from __future__ import annotations
 
+from _thread import RLock as ReentrantLock
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Literal, Optional, Tuple, cast
+
+from dspx.services.gepa_proposal_policy import (
+    GEPAProposalConfig,
+    GEPAReceiptCallback,
+    TerminalGEPAReflectionLM,
+    compile_with_terminal_reflection_effects,
+    detach_gepa_run_stats,
+    validate_gepa_budget,
+    validate_num_threads,
+)
+from dspx.services.python_import_guard import suppress_bytecode_writes
+
+_PROGRAM_IMPORT_LOCK = ReentrantLock()
 
 
 @dataclass
@@ -19,6 +34,8 @@ class GEPAResult:
     output_weights: Dict[str, float]
     student_provider: str
     reflection_provider: str
+    proposal_config: dict[str, object] | None = None
+    run_stats: dict[str, object] | None = None
 
 
 def _trusted_program_roots() -> List[Path]:
@@ -51,36 +68,44 @@ def _import_program_module(program_path: Path) -> object:
     spec = importlib.util.spec_from_file_location(program_path.stem, program_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Failed to import program module from {program_path}")
-    mod = importlib.util.module_from_spec(spec)
-    # Ensure imports beside the program file work for generated program assemblies
-    # whose program.py imports sibling module.py/signature.py artifacts.
-    sys.modules[spec.name] = mod
-    program_dir = str(program_path.parent)
-    inserted = False
-    if program_dir not in sys.path:
-        sys.path.insert(0, program_dir)
-        inserted = True
-    sibling_module_names = [
-        path.stem
-        for path in program_path.parent.glob("*.py")
-        if path.stem != program_path.stem
-    ]
-    previous_siblings = {name: sys.modules.get(name) for name in sibling_module_names}
-    try:
-        spec.loader.exec_module(mod)
-    finally:
-        if inserted:
-            try:
-                sys.path.remove(program_dir)
-            except ValueError:
-                pass
-        for name in sibling_module_names:
-            previous = previous_siblings.get(name)
-            if previous is None:
-                sys.modules.pop(name, None)
+    with _PROGRAM_IMPORT_LOCK, suppress_bytecode_writes():
+        mod = importlib.util.module_from_spec(spec)
+        # Keep optimization observational over the trusted source candidate. The
+        # imported program and sibling modules must not create __pycache__ there.
+        previous_program_module = sys.modules.get(spec.name)
+        sys.modules[spec.name] = mod
+        program_dir = str(program_path.parent)
+        inserted = False
+        if program_dir not in sys.path:
+            sys.path.insert(0, program_dir)
+            inserted = True
+        sibling_module_names = [
+            path.stem
+            for path in program_path.parent.glob("*.py")
+            if path.stem != program_path.stem
+        ]
+        previous_siblings = {
+            name: sys.modules.get(name) for name in sibling_module_names
+        }
+        try:
+            spec.loader.exec_module(mod)
+        finally:
+            if previous_program_module is None:
+                sys.modules.pop(spec.name, None)
             else:
-                sys.modules[name] = previous
-    return mod
+                sys.modules[spec.name] = previous_program_module
+            if inserted:
+                try:
+                    sys.path.remove(program_dir)
+                except ValueError:
+                    pass
+            for name in sibling_module_names:
+                previous = previous_siblings.get(name)
+                if previous is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = previous
+        return mod
 
 
 def _build_student(mod: object) -> object:
@@ -341,6 +366,22 @@ def _optimizer_output_payload_inventory(root: Path) -> dict[str, Any]:
     }
 
 
+def _resolve_optimizer_provider(name: str | None):
+    """Resolve one explicit configured provider without running the optimizer."""
+
+    from dspx.provider_registry import create_configured, create_from_env
+
+    return create_configured(name) if name is not None else create_from_env()
+
+
+def _close_optimizer_provider(lm: object) -> None:
+    from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+    from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+    if type(lm) is DSPyTypedLMAdapter and type(lm.provider) is OpenAICompatibleProvider:
+        lm.provider.close()
+
+
 def run_gepa_optimize(
     *,
     program_path: Path,
@@ -358,12 +399,79 @@ def run_gepa_optimize(
     output_weights: Optional[Dict[str, float]] = None,
     seed: int = 0,
     nrows: Optional[int] = None,
+    num_threads: int = 1,
+    proposal_config: GEPAProposalConfig | None = None,
+) -> GEPAResult:
+    """Run GEPA while deterministically closing owned HTTP providers."""
+
+    import dspy
+
+    validate_num_threads(num_threads)
+    effective_proposal_config = proposal_config or GEPAProposalConfig()
+    validate_gepa_budget(
+        effective_proposal_config,
+        auto=auto,
+        max_metric_calls=max_metric_calls,
+        max_full_evals=max_full_evals,
+    )
+
+    owned_lms: list[Any] = []
+    previous_lm = getattr(dspy.settings, "lm", None)
+    try:
+        return _run_gepa_optimize_impl(
+            program_path=program_path,
+            train_path=train_path,
+            out_dir=out_dir,
+            input_keys=input_keys,
+            output_keys=output_keys,
+            val_path=val_path,
+            student_provider=student_provider,
+            reflection_provider=reflection_provider,
+            auto=auto,
+            max_metric_calls=max_metric_calls,
+            max_full_evals=max_full_evals,
+            metric=metric,
+            output_weights=output_weights,
+            seed=seed,
+            nrows=nrows,
+            num_threads=num_threads,
+            proposal_config=effective_proposal_config,
+            _owned_lms=owned_lms,
+        )
+    finally:
+        try:
+            dspy.configure(lm=previous_lm)
+        finally:
+            for lm in reversed(owned_lms):
+                _close_optimizer_provider(lm)
+
+
+def _run_gepa_optimize_impl(
+    *,
+    program_path: Path,
+    train_path: Path,
+    out_dir: Path,
+    input_keys: Optional[List[str]] = None,
+    output_keys: Optional[List[str]] = None,
+    val_path: Optional[Path] = None,
+    student_provider: Optional[str] = None,
+    reflection_provider: Optional[str] = None,
+    auto: Optional[Literal["light", "medium", "heavy"]] = "light",
+    max_metric_calls: Optional[int] = None,
+    max_full_evals: Optional[int] = None,
+    metric: str = "exact",
+    output_weights: Optional[Dict[str, float]] = None,
+    seed: int = 0,
+    nrows: Optional[int] = None,
+    num_threads: int = 1,
+    proposal_config: GEPAProposalConfig,
+    _owned_lms: list[Any],
 ) -> GEPAResult:
     """
     Optimize a DSPy program/module via GEPA and save it as a loadable program dir.
 
     Provider selection:
-    - student_provider defaults to DSPX_PROVIDER (default: pi-rpc).
+    - student_provider defaults to DSPX_PROVIDER (supported default: stub).
     - reflection_provider defaults to student_provider.
 
     Program requirements:
@@ -378,25 +486,15 @@ def run_gepa_optimize(
     from datetime import datetime, timezone
 
     import dspy
-    from dspx.provider_registry import create, create_from_env, ensure_default_providers
     from dspx.provider_runtime import provider_metadata_from_instance
 
-    ensure_default_providers()
-
-    student_lm = (
-        create(student_provider)
-        if student_provider
-        else create_from_env(default="pi-rpc")
+    student_lm = _resolve_optimizer_provider(student_provider)
+    _owned_lms.append(student_lm)
+    reflection_lm = _resolve_optimizer_provider(
+        reflection_provider if reflection_provider is not None else student_provider
     )
-    reflection_lm = (
-        create(reflection_provider)
-        if reflection_provider
-        else (
-            create(student_provider)
-            if student_provider
-            else create_from_env(default="pi-rpc")
-        )
-    )
+    if reflection_lm is not student_lm:
+        _owned_lms.append(reflection_lm)
 
     # Ensure GEPA + Predict calls use the student LM; GEPA reflections use reflection_lm.
     dspy.configure(lm=student_lm)
@@ -442,15 +540,11 @@ def run_gepa_optimize(
 
     from dspy.teleprompt.gepa.gepa import GEPA
 
-    budget_set = sum(
-        1 for x in (auto, max_metric_calls, max_full_evals) if x is not None
-    )
-    if budget_set != 1:
-        raise ValueError(
-            "Exactly one of auto, max_metric_calls, max_full_evals must be set."
-        )
-
     normalize_output = _normalize_output_from_program(mod)
+    receipt_callback = GEPAReceiptCallback()
+    guarded_reflection_lm = TerminalGEPAReflectionLM(reflection_lm)
+    advanced_kwargs = proposal_config.to_gepa_kwargs()
+    advanced_kwargs["callbacks"] = [receipt_callback]
 
     gepa: Any = GEPA(
         _default_gepa_metric(
@@ -462,14 +556,22 @@ def run_gepa_optimize(
         auto=auto,
         max_full_evals=max_full_evals,
         max_metric_calls=max_metric_calls,
-        reflection_lm=cast(Any, reflection_lm),
+        reflection_lm=cast(Any, guarded_reflection_lm),
         seed=seed,
+        num_threads=num_threads,
+        track_stats=True,
+        track_best_outputs=False,
+        gepa_kwargs=advanced_kwargs,
     )
 
-    compiled: Any = gepa.compile(
+    compiled: Any = compile_with_terminal_reflection_effects(
+        gepa,
         student=cast(Any, student),
         trainset=cast(Any, trainset),
         valset=cast(Any, valset),
+    )
+    run_stats = detach_gepa_run_stats(
+        compiled, event_counts=receipt_callback.to_manifest()
     )
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -484,14 +586,21 @@ def run_gepa_optimize(
     copied_program = source_dir / program_path.name
     copied_program.write_bytes(program_path.read_bytes())
 
-    student_provider_name = student_provider or os.getenv("DSPX_PROVIDER", "pi-rpc")
+    student_provider_name = student_provider or os.getenv("DSPX_PROVIDER", "stub")
     reflection_provider_name = (
-        reflection_provider or student_provider or os.getenv("DSPX_PROVIDER", "pi-rpc")
+        reflection_provider or student_provider or os.getenv("DSPX_PROVIDER", "stub")
+    )
+    student_metadata = provider_metadata_from_instance(
+        str(student_provider_name), student_lm
+    )
+    reflection_metadata = provider_metadata_from_instance(
+        str(reflection_provider_name), reflection_lm
     )
 
     manifest = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "dspy_version": getattr(dspy, "__version__", "unknown"),
+        "gepa_version": _distribution_version("gepa"),
         "dspx_version": _dspx_version(),
         "python": _python_env(),
         "program": {
@@ -525,14 +634,13 @@ def run_gepa_optimize(
             "max_metric_calls": max_metric_calls,
             "max_full_evals": max_full_evals,
             "seed": seed,
+            "proposal_config": proposal_config.to_manifest(),
+            "run_stats": run_stats,
+            "metric_budget_semantics": "iteration_boundary_stop_threshold_not_hard_ceiling",
         },
         "providers": {
-            "student": provider_metadata_from_instance(
-                str(student_provider_name), student_lm
-            ),
-            "reflection": provider_metadata_from_instance(
-                str(reflection_provider_name), reflection_lm
-            ),
+            "student": student_metadata,
+            "reflection": reflection_metadata,
         },
         "output_payload": _optimizer_output_payload_inventory(out_dir),
     }
@@ -548,21 +656,27 @@ def run_gepa_optimize(
         chosen_output_keys=out_keys,
         metric=metric,
         output_weights=weights,
-        student_provider=str(student_provider_name),
-        reflection_provider=str(reflection_provider_name),
+        student_provider=str(student_metadata["provider"]),
+        reflection_provider=str(reflection_metadata["provider"]),
+        proposal_config=proposal_config.to_manifest(),
+        run_stats=run_stats,
     )
 
 
-def _dspx_version() -> str | None:
+def _distribution_version(distribution: str) -> str | None:
     try:
         from importlib.metadata import PackageNotFoundError, version
 
         try:
-            return version("dspx")
+            return version(distribution)
         except PackageNotFoundError:
             return None
     except Exception:
         return None
+
+
+def _dspx_version() -> str | None:
+    return _distribution_version("dspx")
 
 
 def _python_env() -> dict[str, str]:

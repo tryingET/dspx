@@ -1,0 +1,272 @@
+{
+  "claims": {
+    "behavior_quality": "not_evaluated",
+    "dspy_3_3_materialization_compatibility": "established_for_simple_original_shape",
+    "fresh_runtime_reproduction": "established_under_bounded_stub_fixture",
+    "optimized_or_gepa_compatibility": "not_evaluated",
+    "production_activation": false,
+    "receipt_integrity": "established_for_captured_local_artifacts",
+    "semantic_equivalence": "not_evaluated",
+    "version_causality": "not_evaluated"
+  },
+  "comparison": {
+    "artifact": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/comparison.json",
+      "sha256": "6be445f998426d006899099072207c8b3b07f7b92674b3125d10c0e7a3d41127",
+      "size": 9638
+    },
+    "causal_dspy_version_claim": false,
+    "generated_behavior_status": "failed",
+    "generated_failure_signals_persisted": [
+      "mismatch:response"
+    ],
+    "needs_more_evidence": true,
+    "quality_regression_claim": false,
+    "same_runtime_status_changed": false,
+    "semantic_equivalence_claim": false,
+    "status": "compared"
+  },
+  "effects": {
+    "activation": false,
+    "ak_runtime_called_by_candidate": false,
+    "credentials": false,
+    "external_tools": false,
+    "governance_mutated_by_candidate": false,
+    "live_provider_or_model": false,
+    "network": false,
+    "oracle_index_or_semantic_call": false,
+    "promotion": false,
+    "publication": false
+  },
+  "fresh_candidate": {
+    "excluded_capabilities": [
+      "GEPA",
+      "pickle",
+      "custom_import",
+      "tool",
+      "retriever",
+      "ReAct",
+      "ReActV2",
+      "ProgramOfThought",
+      "streaming",
+      "async"
+    ],
+    "generated_behavior": {
+      "behavior_quality": "not_evaluated",
+      "fixture_output_kind": "stub_placeholder",
+      "quality_approved": false,
+      "semantic_equivalence": "not_evaluated",
+      "status": "failed"
+    },
+    "generation_dspy": {
+      "distribution": "dspy",
+      "prerelease": false,
+      "version": "3.3.0"
+    },
+    "historical_manifest_sha256": "d83eefae351c6ba16e3a19c346f75e8b3bd47a25886a7e76359141e3b8b0acae",
+    "identity": {
+      "assembly_id": "prog-asm-ff4b916dc780",
+      "candidate_id": "prog-cand-d4f50d25a3fa",
+      "episode_id": "prog-ep-9dd1ec564343",
+      "receipt_bundle_id": "prog-rb-b8bce0f74404",
+      "request_id": "prog-req-c6660c9b1470"
+    },
+    "identity_is_new": true,
+    "lineage_kind": "regenerated_from_same_versioned_simple_intent_with_historical_manifest_hash_binding",
+    "manifest": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json",
+      "sha256": "aa0b473e7f0cd056246149eacfcb25c5ed023ab61a1b9410103443e68c30fac1",
+      "size": 173356
+    },
+    "manifest_receipt": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate/manifest.json.meta.json",
+      "sha256": "4cb846918dbb5033d1810b77f24fedfcf1e7849ee22a1bff52a7296590ee7eb1",
+      "size": 207354
+    },
+    "provider": {
+      "credentials_used": false,
+      "live_model_used": false,
+      "model": "stub/echo",
+      "name": "stub",
+      "network_used": false,
+      "typed_contract": "typed_lm"
+    },
+    "topology": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "kind": "pipeline",
+      "module_order": [
+        "define_persona",
+        "answer_simple"
+      ],
+      "outputs": [
+        "response"
+      ],
+      "primitives": [
+        "Predict",
+        "Predict"
+      ]
+    }
+  },
+  "historical_lineage": {
+    "behavior_posture": "historical_failed_evidence_not_semantic_baseline",
+    "generation_dspy": {
+      "distribution": "dspy",
+      "prerelease": false,
+      "version": "3.1.3"
+    },
+    "historical_inventory": {
+      "aggregate_sha256": "8a1d1075964cd465547247f6b6ba72af3336b6ac8b9804b14159133b82d64ce1",
+      "file_count": 469,
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/historical-inventory.json"
+    },
+    "identity": {
+      "assembly_id": "prog-asm-a4329751dd30",
+      "candidate_id": "prog-cand-9a22407aa649",
+      "episode_id": "prog-ep-1ad3a21148de",
+      "receipt_bundle_id": "prog-rb-1503e0d3f320",
+      "request_id": "prog-req-c6660c9b1470"
+    },
+    "intent": {
+      "path": "examples/voice_turn_brains/intents/simple.yaml",
+      "sha256": "860e2af718a1ff38f094955e9983cd9b43bc3e7d1daef0eb4f94f733dce48cd3",
+      "size": 1494
+    },
+    "manifest": {
+      "path": "examples/voice_turn_brains/candidates/simple/original/manifest.json",
+      "sha256": "d83eefae351c6ba16e3a19c346f75e8b3bd47a25886a7e76359141e3b8b0acae",
+      "size": 177013
+    },
+    "manifest_receipt": {
+      "path": "examples/voice_turn_brains/candidates/simple/original/manifest.json.meta.json",
+      "sha256": "267055a02a9b3a31c6850bfbc525414db81bb559a514fadb309a0ecbeaef042f",
+      "size": 212180
+    },
+    "optimized_candidate_in_scope": false
+  },
+  "posture": "non_destructive_offline_compatibility_canary",
+  "routing": {
+    "ai_control_brains_updated": false,
+    "canary_selected_for_runtime": false,
+    "manifest_index_updated": false
+  },
+  "same_runtime_control": {
+    "fixture_artifacts_match": true,
+    "fixture_kind": "bounded_redaction_safe_stub_response",
+    "fixture_payload_sha256": "8cef980b02954a08723debe802d8d38fcf9ea3f2fb56d8d757d5de0ba310765f",
+    "fresh_candidate_runtime": {
+      "attempt_total": 4,
+      "episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "d202f357c4874ec26f5b1e9c7ddc0cbdfa9628dcf4c22325440b0aa3bcb24679",
+        "size": 3125
+      },
+      "execution_status": "executed",
+      "quality_approved": false,
+      "quality_status": "not_declared",
+      "receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "6f9a57289a44cf1336c55052cca36b92ef994f9f9423fe5cb52cf7fca5e6f600",
+        "size": 7136
+      },
+      "replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/canary-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "60eeb59d68280914a8bbf4e12cada59a96f15a113ed86d6bdcc2e8dec33c2912",
+        "size": 4232
+      },
+      "runtime_episode_id": "prog-run-68e8b9e7c67da8fc",
+      "source_manifest_sha256": "aa0b473e7f0cd056246149eacfcb25c5ed023ab61a1b9410103443e68c30fac1",
+      "terminal_effect": "completed_success"
+    },
+    "historical_artifact_runtime": {
+      "attempt_total": 4,
+      "episode": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/historical-artifact-under-3.3-stub/runtime_episode.json",
+        "sha256": "5548a645a1fb2d50171fc31a05a80823ca6074fdeb10f96f2edb9e315244a773",
+        "size": 3119
+      },
+      "execution_status": "executed",
+      "quality_approved": false,
+      "quality_status": "not_declared",
+      "receipt": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/historical-artifact-under-3.3-stub/runtime_episode.json.meta.json",
+        "sha256": "3e2ca15cd0c6dd0d067731adda03c83e05f1e710aa3fae52885bfc1b8082a049",
+        "size": 7128
+      },
+      "replay_output": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime/historical-artifact-under-3.3-stub/runtime_replay.json",
+        "sha256": "6e5cbd2039cce1bd201723afce2fb0b81647edf469a22055386dfb48c9fa6a7d",
+        "size": 4232
+      },
+      "runtime_episode_id": "prog-run-91cb60090d6faa98",
+      "source_manifest_sha256": "d83eefae351c6ba16e3a19c346f75e8b3bd47a25886a7e76359141e3b8b0acae",
+      "terminal_effect": "completed_success"
+    },
+    "model": "stub/echo",
+    "provider": "stub",
+    "receipt_checks": {
+      "candidate-manifest-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/candidate-manifest-receipt-check.json",
+        "sha256": "99a5037cba8f3931723e2eefe85841089e32f373297c3ad3d7d9805223c9bdba",
+        "size": 42988
+      },
+      "historical-manifest-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/historical-manifest-receipt-check.json",
+        "sha256": "7d45e1865144f18638aed6d04c57027bc6cd7052369288a047840c059cc24d5c",
+        "size": 42428
+      },
+      "runtime-canary-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime-canary-receipt-check.json",
+        "sha256": "1904e70a40b7c22c3365a577355561deac7e277c286af8027d8340c048615e44",
+        "size": 2562
+      },
+      "runtime-historical-receipt-check.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime-historical-receipt-check.json",
+        "sha256": "be2476b123859405cfcddcd019fdb49ea127e22db1a01447e83a8d15105fc094",
+        "size": 2574
+      }
+    },
+    "runtime_inputs": {
+      "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime-inputs.json",
+      "sha256": "e1eeb9e8974d3716c76882af7dfba39c8ccf758eb51caf48fe6fe9a8426c74ff",
+      "size": 117
+    },
+    "runtime_replay_results": {
+      "runtime-canary-replay-result.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime-canary-replay-result.json",
+        "sha256": "fab62840b9ac45fe00365f0e5b416e8ec672450fdaee37bff5d10d1500020455",
+        "size": 8757
+      },
+      "runtime-historical-replay-result.json": {
+        "path": "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/runtime-historical-replay-result.json",
+        "sha256": "b0c39eaaf65d297aa86ec84272d3b1d4539010372e7aaa66a3aa985c26eccdf1",
+        "size": 8781
+      }
+    },
+    "typed_contract": "typed_lm"
+  },
+  "schema_version": "voice-turn-dspy-3.3-migration-canary-v1",
+  "source_identity": {
+    "core_pyproject": {
+      "path": "packages/dspx-core/pyproject.toml",
+      "sha256": "728f2d6b85b41d8d64cd64a85843eb2936ea091741bbdd7b5e743b161f592380",
+      "size": 1270
+    },
+    "dspx_core": "0.1.0",
+    "dspy": "3.3.0",
+    "dspy_ai": "3.3.0",
+    "generation_receipt_git_dirty": true,
+    "git_commit": "ceb5119d839e7277d5b41c4288648280f8655da3",
+    "preexisting_forbidden_untracked_ontology_present": true,
+    "python": "3.13.12",
+    "tracked_tree_was_clean_before_slice": true,
+    "uv_lock": {
+      "path": "uv.lock",
+      "sha256": "bcd995e465360e356378f410960ecc60fa778d66a2ad87f4eae9d1697fc827e3",
+      "size": 591542
+    }
+  },
+  "task_id": 4789
+}

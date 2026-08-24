@@ -387,54 +387,15 @@ def test_git_checks_ignore_ambient_repository_redirects(
     assert identity_git(REPO, "rev-parse", "HEAD") == expected == clean
 
 
-def test_runner_locks_reviewed_source_before_evaluator_import(tmp_path: Path) -> None:
-    runner = _runner()
+def test_runner_refuses_v10_after_bound_provider_sources_are_removed() -> None:
     contract, _, _ = load_candidate(REPO, check_sources=False)
-    review = {"source_hashes": contract["source_bindings"]}
-    with pytest.raises(RuntimeError, match="preloaded"):
-        runner._load_reviewed_evaluator(REPO, review)
-
-    shadow = tmp_path / "shadow"
-    for relative, source in (
-        ("dspx/__init__.py", "shadow = True\n"),
-        ("dspx/services/__init__.py", "shadow = True\n"),
-        (
-            "dspx/services/program_oracle_semantic_evaluation_v10.py",
-            "def evaluate_consumed(**kwargs):\n    return {'empirical_gate': 'passed'}\n",
-        ),
-    ):
-        path = shadow / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(source)
-    code = f"""
-import importlib.util
-import json
-import sys
-from pathlib import Path
-repo = Path({str(REPO)!r})
-spec = importlib.util.spec_from_file_location('isolated_v10_runner', repo / 'scripts/ci/run_oracle_semantic_analysis_evaluation_v10.py')
-assert spec and spec.loader
-runner = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = runner
-spec.loader.exec_module(runner)
-contract = json.loads((repo / 'benchmarks/semantic/oracle-semantic-analysis-evaluation-v10.json').read_text())
-module = runner._load_reviewed_evaluator(repo, {{'source_hashes': contract['source_bindings']}})
-expected = (repo / 'packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation_v10.py').resolve()
-assert Path(module.__file__).resolve() == expected
-assert Path(sys.modules['dspx'].__file__).resolve() == (repo / 'packages/dspx-core/src/dspx/__init__.py').resolve()
-assert Path(sys.modules['dspx.services'].__file__).resolve() == (repo / 'packages/dspx-core/src/dspx/services/__init__.py').resolve()
-"""
-    environment = dict(os.environ)
-    environment["PYTHONPATH"] = str(shadow)
-    completed = subprocess.run(
-        [sys.executable, "-c", code],
-        cwd=tmp_path,
-        env=environment,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert completed.returncode == 0, completed.stderr
+    missing = [path for path in EXPECTED_SOURCE_PATHS if not (REPO / path).exists()]
+    assert "packages/dspx-core/src/dspx/lm_base.py" in missing
+    assert "packages/dspx-core/src/dspx/dspy_lm_auth_lm.py" in missing
+    with pytest.raises(SemanticV10Error):
+        loaded_source_identity(
+            REPO, contract["source_bindings"], reject_unexpected=False
+        )
 
 
 def test_runner_rejects_unretained_function_pass(tmp_path: Path, monkeypatch) -> None:
@@ -543,23 +504,10 @@ def test_dependency_identity_rejects_wrong_name_and_shadow_import(
         runner._dependency("tryinget-dspy-lm-auth", "dspy_lm_auth", "0.1.5")
 
 
-def test_runtime_source_closure_includes_required_transitive_modules() -> None:
-    contract, _, _ = load_candidate(REPO, check_sources=False)
-    minimum = {
-        "packages/dspx-core/src/dspx/capabilities.py",
-        "packages/dspx-core/src/dspx/dtos.py",
-        "packages/dspx-core/src/dspx/lm_base.py",
-        "packages/dspx-core/src/dspx/policy.py",
-        "packages/dspx-core/src/dspx/redaction.py",
-        "packages/dspx-core/src/dspx/services/program_oracle_secret_policy.py",
-        "packages/dspx-core/src/dspx/services/program_oracle_semantic_evaluation.py",
-    }
-    assert minimum.issubset(EXPECTED_SOURCE_PATHS)
+def test_runtime_source_closure_remains_historical_and_non_runnable() -> None:
+    assert "packages/dspx-core/src/dspx/lm_base.py" in EXPECTED_SOURCE_PATHS
     assert set(_runner()._SOURCE_PATHS) == set(EXPECTED_SOURCE_PATHS)
-    observed = loaded_source_identity(
-        REPO, contract["source_bindings"], reject_unexpected=False
-    )
-    assert set(observed) == set(RUNTIME_SOURCE_MODULES)
+    assert any(not (REPO / path).exists() for path in RUNTIME_SOURCE_MODULES)
 
 
 def test_confidence_above_frozen_case_bound_fails() -> None:

@@ -10,7 +10,11 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 
-from dspx.dtos import LMRequest, LMResponse
+from dspx.provider_contract import (
+    EffectDisposition,
+    ProviderRequest,
+    ProviderResult,
+)
 from dspx.services.program_intent import load_program_intent
 from dspx.services.program_quality_contract import identity_for
 from dspx.services.program_quality_conversation import (
@@ -33,15 +37,35 @@ class _FakeQualityLM:
         self.payload = payload
         self.model = model
         self.prefix = prefix
-        self.requests: list[LMRequest] = []
+        self.requests: list[ProviderRequest] = []
 
-    def generate(self, request: LMRequest, **kwargs) -> LMResponse:  # noqa: ANN003
+    def invoke(self, request: ProviderRequest) -> ProviderResult:
         self.requests.append(request)
-        return LMResponse(
-            outputs=[self.prefix + json.dumps(self.payload)],
+        return ProviderResult(
+            text=self.prefix + json.dumps(self.payload),
             model=self.model,
+            effect_disposition=EffectDisposition.COMPLETED_SUCCESS,
             usage={"input_tokens": 100, "output_tokens": 50},
         )
+
+    def dump_state(self) -> dict[str, object]:
+        return {"kind": "quality-test-double"}
+
+
+class _IndeterminateQualityLM(_FakeQualityLM):
+    def invoke(self, request: ProviderRequest) -> ProviderResult:
+        self.requests.append(request)
+        return ProviderResult(
+            text=json.dumps(self.payload),
+            model=self.model,
+            effect_disposition=EffectDisposition.EFFECT_INDETERMINATE,
+        )
+
+
+class _LeakyFailingQualityLM(_FakeQualityLM):
+    def invoke(self, request: ProviderRequest) -> ProviderResult:
+        self.requests.append(request)
+        raise RuntimeError("api_key=secret-provider-value")
 
 
 def _model_payload() -> dict:
@@ -101,7 +125,34 @@ def test_proposal_uses_normalized_fields_and_stays_pending() -> None:
     assert payload["effect"]["program_generated"] is False
     assert payload["non_authority"]["model_proposal_is_decision"] is False
     assert len(lm.requests) == 1
-    assert "Return only one JSON object" in str(lm.requests[0].prompt)
+    assert "Return only one JSON object" in lm.requests[0].messages[0].text
+
+
+def test_indeterminate_provider_result_cannot_become_proposal_text() -> None:
+    lm = _IndeterminateQualityLM(_model_payload())
+
+    with pytest.raises(ProgramQualityConversationError, match="effect_indeterminate"):
+        propose_program_quality_criteria(
+            "Route support tickets by classifying billing versus technical issues, then draft a helpful response with rationale.",
+            lm=lm,
+        )
+
+    assert len(lm.requests) == 1
+
+
+def test_provider_exception_is_redacted_without_retaining_secret_cause() -> None:
+    lm = _LeakyFailingQualityLM(_model_payload())
+
+    with pytest.raises(ProgramQualityConversationError) as exc_info:
+        propose_program_quality_criteria(
+            "Route support tickets by classifying billing versus technical issues, then draft a helpful response with rationale.",
+            lm=lm,
+        )
+
+    assert "secret-provider-value" not in str(exc_info.value)
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__context__ is None
+    assert len(lm.requests) == 1
 
 
 def test_wrapped_model_reasoning_is_not_persisted_as_proposal_content() -> None:
@@ -132,7 +183,7 @@ def test_feedback_is_bound_into_next_proposal_turn() -> None:
         "turn": 1,
         "history": [],
     }
-    assert "Add a policy-safety criterion." in str(lm.requests[0].prompt)
+    assert "Add a policy-safety criterion." in lm.requests[0].messages[0].text
 
 
 def test_invalid_or_unbound_quality_contract_fails_closed() -> None:
@@ -313,7 +364,7 @@ def test_revision_turn_includes_prior_validated_proposal() -> None:
         second["conversation"]["history"][0]["proposal"]["quality_criteria"][0]["id"]
         == "helpful_response"
     )
-    assert "helpful_response" in str(lm.requests[0].prompt)
+    assert "helpful_response" in lm.requests[0].messages[0].text
 
 
 @pytest.mark.parametrize(

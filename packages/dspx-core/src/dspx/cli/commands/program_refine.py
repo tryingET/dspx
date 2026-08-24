@@ -4,6 +4,9 @@
 
 from __future__ import annotations
 
+import sys
+from contextlib import nullcontext, redirect_stdout
+
 import json
 from pathlib import Path
 
@@ -499,16 +502,18 @@ def optimize_gepa(
     )
 
     try:
-        result = build_program_refinement_gepa_result(
-            manifest_path=manifest,
-            outdir=outdir,
-            train_path=train,
-            validation_path=validation,
-            metric=metric,
-            max_metric_calls=max_metric_calls,
-            result_out=result_out,
-        )
-        payload = write_program_refinement_gepa_result(result, result_out)
+        progress_output = redirect_stdout(sys.stderr) if json_out else nullcontext()
+        with progress_output:
+            result = build_program_refinement_gepa_result(
+                manifest_path=manifest,
+                outdir=outdir,
+                train_path=train,
+                validation_path=validation,
+                metric=metric,
+                max_metric_calls=max_metric_calls,
+                result_out=result_out,
+            )
+            payload = write_program_refinement_gepa_result(result, result_out)
     except ProgramRefinementGepaError as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=2) from exc

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-09T12:30:08.475883541+00:00",
+  "task_id": 4707,
+  "entity_version": 4,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-4707.snapshot.json",
+      "packages/dspx-core/pyproject.toml",
+      "uv.lock"
+    ],
+    "required_paths": [
+      "governance/task-scopes/AK-4707.snapshot.json",
+      "packages/dspx-core/pyproject.toml",
+      "uv.lock"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "docs/**",
+      "examples/voice_turn_brains/**",
+      "governance/release-signing/**",
+      "packages/dspx-core/src/**",
+      "pyproject.toml",
+      "tests/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

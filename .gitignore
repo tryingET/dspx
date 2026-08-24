@@ -9,3 +9,4 @@ generated/
 mlruns/
 ontology/dist/.authority-receipt.lock
 ontology/dist/authority-receipt*.json
+.ontology/

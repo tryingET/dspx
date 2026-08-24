@@ -568,6 +568,9 @@ def _validate_module_class(node: ast.ClassDef, *, errors: list[str]) -> None:
         if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
             errors.append(f"module_class_stmt_not_allowed:{child.__class__.__name__}")
             continue
+        if child.name.startswith("__") and child.name != "__init__":
+            errors.append(f"method_dunder_name_not_allowed:{node.name}.{child.name}")
+            continue
         if child.decorator_list:
             errors.append(f"method_decorators_not_allowed:{node.name}.{child.name}")
         _validate_function_defaults(
@@ -936,7 +939,12 @@ def _run_module_worker(code: str, payload: Mapping[str, Any]) -> dict[str, Any]:
             try:
                 student.predict = capture
                 sample_inputs = {name: f"sample_{name}" for name in expected_inputs}
-                student.forward(**sample_inputs)
+                # Preserve ordinary descriptor and instance-attribute resolution while
+                # bypassing DSPy 3.3 Module.__getattribute__; generated dunder lookup
+                # overrides are rejected above. Its inspect.stack() warning path makes
+                # NumPy lazily import denied os during direct forward lookup.
+                forward = object.__getattribute__(student, "forward")
+                forward(**sample_inputs)
                 if not capture.calls:
                     errors.append("forward_did_not_call_predict")
                 elif capture.calls[-1] != sample_inputs:

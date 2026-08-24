@@ -573,9 +573,8 @@ def test_configure_provider_restores_provider_env_on_success(
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr("builtins.__import__", fake_import)
-    monkeypatch.setattr("dspx.provider_registry.ensure_default_providers", lambda: None)
     monkeypatch.setattr(
-        "dspx.provider_registry.create_from_env", lambda default: FakeProvider()
+        "dspx.provider_registry.create_from_env", lambda: FakeProvider()
     )
 
     assert model_jury._configure_provider("temporary")["provider"] == "stub"
@@ -597,7 +596,7 @@ def test_configure_provider_redacts_secret_failure_diagnostics(monkeypatch) -> N
             return FakeDspy
         return original_import(name, *args, **kwargs)
 
-    def failing_provider(default: str) -> object:
+    def failing_provider() -> object:
         raise RuntimeError(
             "provider failed with api_key=supersecret-value "
             "Authorization: Bearer bearer-secret "
@@ -605,7 +604,6 @@ def test_configure_provider_redacts_secret_failure_diagnostics(monkeypatch) -> N
         )
 
     monkeypatch.setattr("builtins.__import__", fake_import)
-    monkeypatch.setattr("dspx.provider_registry.ensure_default_providers", lambda: None)
     monkeypatch.setattr("dspx.provider_registry.create_from_env", failing_provider)
 
     try:

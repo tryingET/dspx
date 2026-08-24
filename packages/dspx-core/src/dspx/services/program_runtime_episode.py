@@ -1,6 +1,3 @@
-# summary: "Executes immutable generated program candidates on explicit inputs and emits validated local runtime, trace, receipt, and Oracle evidence bundles."
-# read_when:
-#   - "Changing program runtime safety, input materialization, quality evaluation, evidence contracts, replay, or Oracle preflight integration."
 from __future__ import annotations
 
 import ast
@@ -8,7 +5,6 @@ import hashlib
 import importlib
 import json
 import os
-import secrets
 import sys
 import threading
 from contextlib import contextmanager
@@ -18,12 +14,17 @@ from types import ModuleType, SimpleNamespace
 from typing import Any, Iterator, Mapping, TypeGuard, cast
 
 from dspx.cache import make_key
-from dspx.run_receipts import build_run_receipt, write_run_receipt
+from dspx.run_receipts import (
+    build_run_receipt,
+    canonical_replay_identity_hash,
+    write_run_receipt,
+)
 from dspx.services.program_oracle_index import index_program_oracle_evidence_path
 from dspx.services.program_oracle_publication_preflight import (
     build_program_oracle_publication_preflight,
     write_program_oracle_publication_preflight,
 )
+from dspx.services.python_import_guard import suppress_bytecode_writes
 from dspx.security import confine_path, confine_relative_path
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_oracle_report import build_program_oracle_evidence_report
@@ -37,6 +38,15 @@ from dspx.services.program_runtime_traces import (
     validate_program_runtime_traces,
 )
 from dspx.services.run_replay_service import check_run_receipt
+from dspx.services.soomfon_evaluation_filesystem import (
+    stable_source_bytes as _stable_source_bytes,
+    write_private_bytes_exclusive as _write_private_bytes_exclusive,
+)
+from dspx.services.soomfon_evaluation_runtime import (
+    SoomfonRuntimeSnapshot,
+    generated_program_module_from_snapshot,
+    verify_candidate_integrity,
+)
 from dspx.redaction import sanitize_diagnostic_text
 
 PROGRAM_RUNTIME_EPISODE_SCHEMA = "program-runtime-episode-v1"
@@ -77,14 +87,13 @@ RUNTIME_EPISODE_STATUSES = {
 
 @dataclass(frozen=True)
 class ProgramRuntimeEpisodeBundle:
-    """Current-file-bound runtime episode evidence for final consumers."""
-
     runtime_episode: dict[str, Any]
     behavior_results: dict[str, Any]
     runtime_episode_path: Path
     runtime_episode_sha256: str
     behavior_results_path: Path
     behavior_results_sha256: str
+    runtime_receipt_sha256: str = ""
 
 
 _GENERATED_PROGRAM_IMPORT_LOCK = threading.RLock()
@@ -95,6 +104,7 @@ _ALLOWED_GENERATED_PROGRAM_IMPORT_ROOTS = {
     "hashlib",
     "json",
     "module",
+    "os",
     "pathlib",
     "signature",
     "typing",
@@ -129,23 +139,17 @@ _DENIED_GENERATED_PROGRAM_CALLS = {
 }
 _DENIED_GENERATED_PROGRAM_ALIAS_CALLS = {"getattr"}
 
-_DENIED_GENERATED_PROGRAM_METHODS = {
-    "check_call",
-    "check_output",
-    "chmod",
-    "mkdir",
-    "popen",
-    "remove",
-    "rename",
-    "replace",
-    "rmdir",
-    "run",
-    "system",
-    "touch",
-    "unlink",
-    "write_bytes",
-    "write_text",
-}
+_DENIED_GENERATED_PROGRAM_METHODS = set(
+    "Popen _exit abort check_call check_output chdir chmod chown close closerange "
+    "copy_file_range dup dup2 execl execle execlp execlpe execv execve execvp execvpe "
+    "fchdir fchmod fchown fdopen fork forkpty ftruncate hardlink_to kill killpg link "
+    "lchown lchmod makedirs memfd_create mkdir mkfifo mknod open pipe pipe2 popen "
+    "posix_spawn posix_spawnp putenv pwrite remove removedirs rename renames replace "
+    "rmdir run sendfile setpgid setsid spawnl spawnle spawnlp spawnlpe spawnv spawnve "
+    "spawnvp spawnvpe splice symlink symlink_to system touch truncate unlink unsetenv "
+    "utime write write_bytes "
+    "write_text writev".split()
+)
 
 
 def _json_text(payload: Mapping[str, Any]) -> str:
@@ -176,57 +180,11 @@ def _canonical_hash(value: object) -> str:
 
 
 def _write_private_json_exclusive(path: Path, payload: Mapping[str, Any]) -> None:
-    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
-    parent_fd = os.open(path.parent, flags)
-    temporary_name = f".{path.name}.{secrets.token_hex(12)}.tmp"
-    descriptor = -1
-    published = False
-    try:
-        descriptor = os.open(
-            temporary_name,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
-            0o600,
-            dir_fd=parent_fd,
-        )
-        content = _json_text(payload).encode("utf-8")
-        written = 0
-        while written < len(content):
-            count = os.write(descriptor, content[written:])
-            if count <= 0:
-                raise OSError("runtime replay fixture write made no progress")
-            written += count
-        os.fsync(descriptor)
-        os.close(descriptor)
-        descriptor = -1
-        os.link(
-            temporary_name,
-            path.name,
-            src_dir_fd=parent_fd,
-            dst_dir_fd=parent_fd,
-            follow_symlinks=False,
-        )
-        published = True
-        os.unlink(temporary_name, dir_fd=parent_fd)
-        os.fsync(parent_fd)
-    except Exception:
-        if published:
-            try:
-                os.unlink(path.name, dir_fd=parent_fd)
-            except FileNotFoundError:
-                pass
-        raise
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-        try:
-            os.unlink(temporary_name, dir_fd=parent_fd)
-        except FileNotFoundError:
-            pass
-        os.close(parent_fd)
+    _write_private_bytes_exclusive(path, _json_text(payload).encode("utf-8"))
 
 
 def _safe_stub_response_for_replay() -> dict[str, Any] | None:
-    raw = os.getenv("DSPX_STUB_RESPONSE_JSON")
+    raw = os.getenv("DSPX_REPLAY_FIXTURE_JSON")
     if raw is None or len(raw) > 20_000:
         return None
     try:
@@ -290,8 +248,12 @@ def _manifest_identity(manifest: Mapping[str, Any]) -> dict[str, str | None]:
     }
 
 
-def _validated_manifest(path: Path) -> dict[str, Any]:
-    manifest = _load_json_object(path, label="program manifest")
+def _validated_manifest(source: Path | Mapping[str, Any]) -> dict[str, Any]:
+    manifest = (
+        _load_json_object(source, label="program manifest")
+        if isinstance(source, Path)
+        else dict(source)
+    )
     if manifest.get("schema_version") != PROGRAM_MANIFEST_SCHEMA:
         raise ValueError(
             f"program manifest schema_version must be {PROGRAM_MANIFEST_SCHEMA}"
@@ -304,61 +266,6 @@ def _validated_manifest(path: Path) -> dict[str, Any]:
     if not any(_manifest_identity(manifest).values()):
         raise ValueError("program manifest does not expose candidate identity")
     return manifest
-
-
-def _verified_surface_declarations(manifest: Mapping[str, Any]) -> list[dict[str, str]]:
-    candidate = _safe_mapping(manifest.get("candidate_assembly"))
-    surfaces = candidate.get("surfaces")
-    declarations: list[dict[str, str]] = []
-    if not isinstance(surfaces, list):
-        return declarations
-    for item in surfaces:
-        if not isinstance(item, Mapping):
-            continue
-        path_text = str(item.get("path") or "").strip()
-        content_hash = str(item.get("content_hash") or "").strip()
-        if path_text and content_hash:
-            declarations.append(
-                {
-                    "kind": str(item.get("kind") or path_text),
-                    "path": path_text,
-                    "content_hash": content_hash,
-                }
-            )
-    return declarations
-
-
-def _verify_candidate_integrity(
-    manifest_path: Path, manifest: Mapping[str, Any]
-) -> None:
-    candidate_root = manifest_path.parent.resolve()
-    receipt_path = manifest_path.with_name(f"{manifest_path.name}.meta.json")
-    replay = check_run_receipt(receipt_path)
-    if replay.get("status") != "ok":
-        raw_errors = replay.get("errors")
-        errors: list[Any] = raw_errors if isinstance(raw_errors, list) else []
-        detail = "; ".join(str(item) for item in errors[:3]) or str(
-            replay.get("status")
-        )
-        raise ValueError(f"program candidate integrity check failed: {detail}")
-
-    declarations = _verified_surface_declarations(manifest)
-    if not declarations:
-        raise ValueError("program candidate manifest declares no hashable surfaces")
-    for declaration in declarations:
-        rel_path = declaration["path"]
-        if rel_path == manifest_path.name:
-            continue
-        artifact_path = confine_path(candidate_root, rel_path)
-        if not artifact_path.is_file():
-            raise ValueError(f"program candidate artifact missing: {rel_path}")
-        actual_hash = _sha256_file(artifact_path)
-        expected_hash = declaration["content_hash"]
-        if actual_hash != expected_hash:
-            raise ValueError(
-                "program candidate artifact hash mismatch for "
-                f"{rel_path}: expected={expected_hash} actual={actual_hash}"
-            )
 
 
 def _load_inputs(path: Path) -> dict[str, Any]:
@@ -393,7 +300,7 @@ def _materialize_image_descriptor(value: Mapping[str, Any], *, base_dir: Path) -
         image_path = confine_path(base_dir, candidate_path)
         if not image_path.is_file():
             raise ValueError(f"image_file path does not exist: {image_path}")
-        return str(dspy.Image(str(image_path)))
+        return str(dspy.Image.from_path(str(image_path)))
 
     if descriptor_type == "image_base64":
         data = str(value.get("data") or value.get("base64") or "").strip()
@@ -873,7 +780,7 @@ def _generated_program_module(candidate_root: Path) -> Iterator[Any]:
     # Generated program candidates import sibling modules by process-global names
     # (program/module/signature). Keep the whole candidate context serialized so
     # concurrent runtime episodes cannot pop or replace each other's modules.
-    with _GENERATED_PROGRAM_IMPORT_LOCK:
+    with _GENERATED_PROGRAM_IMPORT_LOCK, suppress_bytecode_writes():
         saved: dict[str, ModuleType | None] = {
             name: sys.modules.get(name) for name in names
         }
@@ -923,26 +830,108 @@ def _prediction_mapping(prediction: object) -> dict[str, object]:
     return {}
 
 
-def _configure_provider() -> dict[str, object]:
+def _configure_provider() -> tuple[dict[str, object], object | None, object | None]:
+    lm: object | None = None
+    previous_lm: object | None = None
     try:
         import dspy
-        from dspx.provider_registry import create_from_env, ensure_default_providers
+        from dspx.provider_registry import create_from_env
+        from dspx.provider_runtime import (
+            provider_effect_evidence_from_instance,
+            provider_metadata_from_instance,
+        )
 
-        ensure_default_providers()
-        lm = create_from_env(default="dspy-lm-auth")
+        previous_lm = getattr(dspy.settings, "lm", None)
+        lm = create_from_env()
+        provider_name = str(os.getenv("DSPX_PROVIDER") or "")
+        metadata = provider_metadata_from_instance(provider_name, lm)
+        evidence = provider_effect_evidence_from_instance(lm)
         dspy.configure(lm=lm)
-        return {
-            "status": "configured",
-            "provider": getattr(lm, "model", type(lm).__name__),
-        }
-    except Exception as exc:
-        return {
-            "status": "unavailable",
-            "error": {
-                "type": type(exc).__name__,
-                "message": _sanitize_runtime_diagnostic(exc),
+        return (
+            {
+                "status": "configured",
+                "metadata": metadata,
+                "effect_evidence": evidence,
             },
+            lm,
+            previous_lm,
+        )
+    except Exception as exc:
+        if lm is not None:
+            _close_runtime_provider(lm, previous_lm)
+        return (
+            {
+                "status": "unavailable",
+                "error": {
+                    "type": type(exc).__name__,
+                    "message": _sanitize_runtime_diagnostic(exc),
+                },
+            },
+            None,
+            previous_lm,
+        )
+
+
+def _provider_effect_evidence(lm: object | None) -> dict[str, object]:
+    if lm is None:
+        raise ValueError("provider adapter is unavailable")
+    from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+    from dspx.provider_runtime import provider_effect_evidence_from_instance
+
+    adapter = cast(DSPyTypedLMAdapter, lm)
+    if type(adapter) is not DSPyTypedLMAdapter:
+        raise TypeError("provider adapter has an invalid type")
+    return provider_effect_evidence_from_instance(adapter)
+
+
+def _close_runtime_provider(lm: object | None, previous_lm: object | None) -> None:
+    if lm is None:
+        return
+    import dspy
+    from dspx.dspy_typed_lm import DSPyTypedLMAdapter
+    from dspx.openai_compatible_provider import OpenAICompatibleProvider
+
+    try:
+        dspy.configure(lm=previous_lm)
+    finally:
+        if (
+            type(lm) is DSPyTypedLMAdapter
+            and type(lm.provider) is OpenAICompatibleProvider
+        ):
+            lm.provider.close()
+
+
+def _receipt_provider_details(provider: Mapping[str, object]) -> dict[str, object]:
+    if provider.get("status") != "configured":
+        return {
+            "provider": "unavailable",
+            "provider_family": "unavailable",
+            "model": None,
+            "effect_contract": "dspx-provider-effect-v1",
+            "runtime": {"configuration_status": "unavailable"},
         }
+    metadata = _safe_mapping(provider.get("metadata"))
+    runtime = _safe_mapping(metadata.get("runtime"))
+    name = str(metadata.get("provider") or "")
+    return {
+        "provider": name,
+        "provider_family": name,
+        "model": metadata.get("model"),
+        "effect_contract": "dspx-provider-effect-v1",
+        "runtime": {
+            "provider_kind": runtime.get("provider_kind"),
+            "base_endpoint": runtime.get("base_endpoint"),
+            "effective_timeout": runtime.get("effective_timeout"),
+        },
+    }
+
+
+def _safe_lm_error_code(exc: Exception) -> str | None:
+    from dspx.provider_contract import EffectDisposition
+
+    code = getattr(exc, "code", None)
+    allowed = {item.value for item in EffectDisposition}
+    return code if isinstance(code, str) and code in allowed else None
 
 
 def _strip_json_fence(raw: str) -> str:
@@ -1024,6 +1013,12 @@ def _write_observed_output_files(
     outdir: Path, observed: Mapping[str, object]
 ) -> list[str]:
     written: list[str] = []
+    outdir_parts = outdir.parts
+    descriptor_bound = (
+        len(outdir_parts) == 5
+        and outdir_parts[:4] == ("/", "proc", "self", "fd")
+        and outdir_parts[4].isdigit()
+    )
     for field, value in observed.items():
         output_name = str(field).strip()
         path_parts = Path(output_name).parts
@@ -1037,15 +1032,26 @@ def _write_observed_output_files(
                 "runtime observed output field would overwrite protected artifact: "
                 + ", ".join(protected_parts)
             )
-        path = confine_relative_path(outdir, output_name)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        if descriptor_bound:
+            if len(path_parts) != 1 or path_parts[0] in {"", ".", ".."}:
+                raise ValueError("descriptor-bound observed output must be flat")
+            path = outdir / output_name
+        else:
+            path = confine_relative_path(outdir, output_name)
+            path.parent.mkdir(parents=True, exist_ok=True)
         text = (
             value
             if isinstance(value, str)
             else json.dumps(value, ensure_ascii=False, indent=2)
         )
-        path.write_text(str(text).rstrip() + "\n", encoding="utf-8")
-        written.append(path.relative_to(outdir.resolve()).as_posix())
+        _write_private_bytes_exclusive(
+            path, (str(text).rstrip() + "\n").encode("utf-8")
+        )
+        written.append(
+            output_name
+            if descriptor_bound
+            else path.relative_to(outdir.resolve()).as_posix()
+        )
     return sorted(written)
 
 
@@ -1302,6 +1308,207 @@ def _assert_identity_matches(
     ]
     if mismatches:
         raise ValueError(f"{label} identity mismatch: " + ", ".join(mismatches))
+
+
+_LEGACY_STUB_RECEIPT_PROVIDER_DETAILS: dict[str, object] = {
+    "provider": "stub",
+    "provider_family": "stub",
+    "model": "stub/echo",
+    "effect_contract": "dspx-provider-effect-v1",
+}
+
+
+def _legacy_receipt_matches_stub_provider(receipt: Mapping[str, object]) -> bool:
+    expected_identity = {
+        "provider": "stub",
+        "provider_details": _LEGACY_STUB_RECEIPT_PROVIDER_DETAILS,
+    }
+    replay = _safe_mapping(receipt.get("execution_replay"))
+    replay_identity = _safe_mapping(replay.get("provider_identity"))
+    return (
+        receipt.get("provider") == "stub"
+        and receipt.get("provider_details") == _LEGACY_STUB_RECEIPT_PROVIDER_DETAILS
+        and set(replay_identity) == {"provider", "provider_details", "hash"}
+        and replay_identity.get("provider") == expected_identity["provider"]
+        and replay_identity.get("provider_details")
+        == expected_identity["provider_details"]
+        and replay_identity.get("hash")
+        == canonical_replay_identity_hash(expected_identity)
+    )
+
+
+def _is_legacy_provider_evidence(value: object) -> bool:
+    evidence = _safe_mapping(value)
+    if evidence == {"status": "configured", "provider": "stub/echo"}:
+        return True
+    error = evidence.get("error")
+    return (
+        set(evidence) == {"status", "error"}
+        and evidence.get("status") == "unavailable"
+        and isinstance(error, Mapping)
+        and set(error) == {"type", "message"}
+        and all(isinstance(error.get(key), str) for key in ("type", "message"))
+    )
+
+
+def _validate_provider_evidence(value: object) -> dict[str, Any]:
+    evidence = _safe_mapping(value)
+    if evidence.get("status") == "unavailable":
+        if not _is_legacy_provider_evidence(evidence):
+            raise ValueError("unavailable provider evidence shape is invalid")
+        return evidence
+    if set(evidence) != {"status", "metadata", "effect_evidence"}:
+        raise ValueError("configured provider evidence shape is invalid")
+    if evidence.get("status") != "configured":
+        raise ValueError("provider evidence status is invalid")
+
+    metadata = _safe_mapping(evidence.get("metadata"))
+    if set(metadata) != {
+        "provider",
+        "model",
+        "model_type",
+        "typed_contract",
+        "capabilities",
+        "runtime",
+    }:
+        raise ValueError("provider runtime metadata shape is invalid")
+    kind = metadata.get("provider")
+    if kind not in {"stub", "openai-compatible"}:
+        raise ValueError("provider runtime identity is invalid")
+    if (
+        metadata.get("model_type") != "text"
+        or metadata.get("typed_contract") != "typed_lm"
+    ):
+        raise ValueError("provider typed metadata is invalid")
+    if metadata.get("capabilities") != {
+        "supports_tools": False,
+        "code_exec": False,
+        "json_mode": False,
+        "multi_turn": True,
+        "structured_output_format": "none",
+        "supports_vision": False,
+        "supports_audio": False,
+    }:
+        raise ValueError("provider capabilities metadata is invalid")
+
+    from dspx.openai_compatible_provider import _validated_model
+
+    model = metadata.get("model")
+    if not isinstance(model, str):
+        raise ValueError("provider runtime model is invalid")
+    try:
+        canonical_model = _validated_model(model)
+    except (TypeError, ValueError):
+        raise ValueError("provider runtime model is invalid") from None
+    if model != canonical_model:
+        raise ValueError("provider runtime model is not canonical")
+    runtime = _safe_mapping(metadata.get("runtime"))
+    if set(runtime) != {"provider_kind", "base_endpoint", "effective_timeout"}:
+        raise ValueError("provider runtime details shape is invalid")
+    if runtime.get("provider_kind") != kind:
+        raise ValueError("provider runtime kind is inconsistent")
+    if kind == "stub":
+        if (
+            model != "stub/echo"
+            or runtime.get("base_endpoint") is not None
+            or runtime.get("effective_timeout") is not None
+        ):
+            raise ValueError("stub runtime metadata contains HTTP fields")
+    else:
+        from dspx.openai_compatible_provider import (
+            _validated_endpoint,
+            _validated_timeout,
+        )
+
+        base_endpoint = runtime.get("base_endpoint")
+        if not isinstance(base_endpoint, str):
+            raise ValueError("provider runtime endpoint is invalid")
+        canonical_base, _ = _validated_endpoint(base_endpoint)
+        if base_endpoint != canonical_base:
+            raise ValueError("provider runtime endpoint is not canonical")
+        timeout = runtime.get("effective_timeout")
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise ValueError("provider runtime timeout is invalid")
+        try:
+            canonical_timeout = _validated_timeout(timeout)
+        except (TypeError, ValueError):
+            raise ValueError("provider runtime timeout is invalid") from None
+        if timeout != canonical_timeout:
+            raise ValueError("provider runtime timeout is not canonical")
+
+    effect_evidence = _safe_mapping(evidence.get("effect_evidence"))
+    if (
+        set(effect_evidence)
+        != {
+            "schema_version",
+            "attempt_total",
+            "attempts_truncated",
+            "terminal_effect",
+            "attempts",
+        }
+        or effect_evidence.get("schema_version") != "dspx-provider-effect-evidence-v1"
+    ):
+        raise ValueError("provider effect evidence envelope is invalid")
+    attempts = effect_evidence.get("attempts")
+    total = effect_evidence.get("attempt_total")
+    truncated = effect_evidence.get("attempts_truncated")
+    terminal = effect_evidence.get("terminal_effect")
+    if (
+        not isinstance(attempts, list)
+        or len(attempts) > 64
+        or isinstance(total, bool)
+        or not isinstance(total, int)
+        or total < len(attempts)
+        or not isinstance(truncated, bool)
+        or truncated != (total > len(attempts))
+        or (truncated and len(attempts) != 64)
+    ):
+        raise ValueError("provider attempt counts are inconsistent")
+    allowed_dispositions = {
+        "preflight_rejected",
+        "completed_success",
+        "completed_failure",
+        "effect_indeterminate",
+    }
+    for index, attempt in enumerate(attempts):
+        if not isinstance(attempt, Mapping) or set(attempt) != {
+            "provider_kind",
+            "requested_model",
+            "observed_model",
+            "dispatch_count",
+            "effect_disposition",
+        }:
+            raise ValueError("provider attempt shape is invalid")
+        disposition = attempt.get("effect_disposition")
+        dispatch_count = attempt.get("dispatch_count")
+        if (
+            attempt.get("provider_kind") != kind
+            or attempt.get("requested_model") != model
+            or (
+                attempt.get("observed_model") is not None
+                and (
+                    not isinstance(attempt.get("observed_model"), str)
+                    or _validated_model(cast(str, attempt.get("observed_model")))
+                    != attempt.get("observed_model")
+                )
+            )
+            or disposition not in allowed_dispositions
+            or dispatch_count not in {0, 1}
+            or (disposition == "preflight_rejected" and dispatch_count != 0)
+            or (disposition != "preflight_rejected" and dispatch_count != 1)
+            or (
+                disposition == "completed_success"
+                and attempt.get("observed_model") != model
+            )
+            or (disposition == "effect_indeterminate" and index != len(attempts) - 1)
+        ):
+            raise ValueError("provider attempt fields are inconsistent")
+    expected_terminal = attempts[-1].get("effect_disposition") if attempts else None
+    if terminal != expected_terminal or (total == 0) != (terminal is None):
+        raise ValueError("provider terminal effect is inconsistent")
+    if terminal not in allowed_dispositions | {None}:
+        raise ValueError("provider terminal effect is invalid")
+    return evidence
 
 
 def validate_program_runtime_episode_contract(
@@ -1634,6 +1841,38 @@ def validate_program_runtime_episode_contract(
                 "shared_oracle_mutated",
             ),
         )
+
+        receipt_path = _resolve_episode_artifact(
+            episode_root,
+            f"{runtime_episode_path.name}.meta.json",
+            label="runtime receipt",
+        )
+        receipt_check = check_run_receipt(receipt_path)
+        if receipt_check.get("status") != "ok":
+            fail("runtime receipt must pass replay validation")
+        receipt = _load_json_object(receipt_path, label="runtime receipt")
+        behavior_provider_raw = behavior.get("provider")
+        runtime_provider_raw = runtime_episode.get("provider")
+        if runtime_provider_raw is None:
+            if not _is_legacy_provider_evidence(behavior_provider_raw):
+                fail("runtime provider evidence is missing for non-legacy behavior")
+            if not _legacy_receipt_matches_stub_provider(receipt):
+                fail(
+                    "legacy runtime receipt provider identity drifts from behavior results"
+                )
+        else:
+            behavior_provider = _validate_provider_evidence(behavior_provider_raw)
+            runtime_provider = _validate_provider_evidence(runtime_provider_raw)
+            if runtime_provider != behavior_provider:
+                fail("runtime provider evidence drifts from behavior results")
+            receipt_provider = _safe_mapping(receipt.get("run_summary")).get("provider")
+            if _validate_provider_evidence(receipt_provider) != behavior_provider:
+                fail("runtime receipt provider evidence drifts from behavior results")
+            expected_details = _receipt_provider_details(behavior_provider)
+            if receipt.get("provider_details") != expected_details or receipt.get(
+                "provider"
+            ) != expected_details.get("provider"):
+                fail("runtime receipt provider details drift from provider evidence")
     except error_type:
         raise
     except Exception as exc:
@@ -1649,17 +1888,27 @@ def load_validated_program_runtime_episode_bundle(
     label: str = "runtime episode",
     error_type: type[Exception] = ValueError,
 ) -> ProgramRuntimeEpisodeBundle:
-    """Load and rebind a program-run runtime episode bundle.
-
-    Runtime episode sidecars are caller-controlled local evidence.  Final
-    consumers that need the episode and its current behavior payload should use
-    this helper so schema, identity, current-hash, trace, Oracle-evidence, and
-    non-authority checks remain owned by the runtime-episode contract.
-    """
-
     episode_path = runtime_episode_path.expanduser().resolve()
     try:
-        runtime_episode = _load_json_object(episode_path, label=label)
+        behavior_path = _resolve_episode_artifact(
+            episode_path.parent,
+            "behavior_results.json",
+            label=f"{label} behavior results",
+        )
+        receipt_path = _resolve_episode_artifact(
+            episode_path.parent,
+            f"{episode_path.name}.meta.json",
+            label=f"{label} receipt",
+        )
+        episode_raw = _stable_source_bytes(episode_path)
+        behavior_raw = _stable_source_bytes(behavior_path)
+        receipt_raw = _stable_source_bytes(receipt_path)
+        runtime_episode = json.loads(episode_raw)
+        behavior_results = json.loads(behavior_raw)
+        if not isinstance(runtime_episode, dict) or not isinstance(
+            behavior_results, dict
+        ):
+            raise ValueError(f"{label} evidence must contain JSON objects")
         validate_program_runtime_episode_contract(
             runtime_episode,
             runtime_episode_path=episode_path,
@@ -1668,14 +1917,12 @@ def load_validated_program_runtime_episode_bundle(
             expected_manifest_sha256=expected_manifest_sha256,
             error_type=error_type,
         )
-        behavior_path = _resolve_episode_artifact(
-            episode_path.parent,
-            "behavior_results.json",
-            label=f"{label} behavior results",
-        )
-        behavior_results = _load_json_object(
-            behavior_path, label=f"{label} behavior results"
-        )
+        if (
+            _stable_source_bytes(episode_path) != episode_raw
+            or _stable_source_bytes(behavior_path) != behavior_raw
+            or _stable_source_bytes(receipt_path) != receipt_raw
+        ):
+            raise ValueError(f"{label} evidence changed during validation")
     except error_type:
         raise
     except Exception as exc:
@@ -1684,9 +1931,10 @@ def load_validated_program_runtime_episode_bundle(
         runtime_episode=runtime_episode,
         behavior_results=behavior_results,
         runtime_episode_path=episode_path,
-        runtime_episode_sha256=_sha256_file(episode_path),
+        runtime_episode_sha256=hashlib.sha256(episode_raw).hexdigest(),
+        runtime_receipt_sha256=hashlib.sha256(receipt_raw).hexdigest(),
         behavior_results_path=behavior_path,
-        behavior_results_sha256=_sha256_file(behavior_path),
+        behavior_results_sha256=hashlib.sha256(behavior_raw).hexdigest(),
     )
 
 
@@ -1707,17 +1955,8 @@ def run_program_runtime_episode(
     retention_class: str | None = None,
     capture_replay_fixture: bool = False,
     run_oracle_semantic: bool = False,
+    soomfon_custody: object | None = None,
 ) -> dict[str, Any]:
-    """Run an existing generated program candidate on explicit runtime inputs.
-
-    The generated candidate is treated as an immutable behavior artifact. This
-    function writes a separate runtime episode directory with behavior evidence,
-    Oracle-readable evidence, a manifest copy that points at the runtime evidence,
-    and optional candidate-local Oracle indexing/reporting. It does not mutate AK,
-    governance, canonical notes, or shared Oracle unless a later explicit publish
-    command consumes the preflight.
-    """
-
     if contract_mode not in CONTRACT_MODES:
         raise ValueError(
             "contract_mode must be one of: " + ", ".join(sorted(CONTRACT_MODES))
@@ -1737,21 +1976,50 @@ def run_program_runtime_episode(
             "publication preflight requires target, label, publisher fields, redaction_status, and retention_class"
         )
     source_manifest_path = manifest_path.expanduser().resolve()
+    manifest_raw = _stable_source_bytes(source_manifest_path)
+    manifest_hash = hashlib.sha256(manifest_raw).hexdigest()
+    from dspx.services.soomfon_evaluation_custody import (
+        SoomfonRuntimeCustody,
+        validate_runtime_custody,
+    )
+
+    if soomfon_custody is not None and not isinstance(
+        soomfon_custody, SoomfonRuntimeCustody
+    ):
+        raise ValueError("Soomfon runtime custody object is invalid")
+    snapshot = validate_runtime_custody(
+        manifest_path=source_manifest_path,
+        manifest_sha256=manifest_hash,
+        inputs_path=inputs_path.expanduser().resolve(),
+        outdir=outdir.expanduser().resolve(),
+        custody=soomfon_custody,
+    )
     candidate_root = source_manifest_path.parent
-    manifest = _validated_manifest(source_manifest_path)
-    _verify_candidate_integrity(source_manifest_path, manifest)
     candidate_receipt_path = source_manifest_path.with_name(
         f"{source_manifest_path.name}.meta.json"
     )
-    candidate_receipt_hash = _sha256_file(candidate_receipt_path)
+    runtime_snapshot: SoomfonRuntimeSnapshot | None = None
+    if snapshot is None:
+        manifest_payload = json.loads(manifest_raw)
+        if not isinstance(manifest_payload, Mapping):
+            raise ValueError("program manifest must contain a JSON object")
+        manifest = _validated_manifest(manifest_payload)
+        verify_candidate_integrity(source_manifest_path, manifest)
+        candidate_receipt_hash = _sha256_file(candidate_receipt_path)
+        runtime_inputs = _load_inputs(inputs_path)
+    elif isinstance(snapshot, SoomfonRuntimeSnapshot):
+        runtime_snapshot = snapshot
+        manifest = snapshot.manifest_payload
+        candidate_receipt_hash = snapshot.receipt_sha256
+        runtime_inputs = snapshot.runtime_inputs
+    else:
+        raise ValueError("Soomfon runtime snapshot is invalid")
     manifest_identity = _manifest_identity(manifest)
-    runtime_inputs = _load_inputs(inputs_path)
     materialized_runtime_inputs = _materialize_runtime_inputs(
         runtime_inputs, inputs_path=inputs_path
     )
     source_inputs_text = _json_text({"inputs": runtime_inputs})
     inputs_hash = _sha256_text(source_inputs_text)
-    manifest_hash = _sha256_file(source_manifest_path)
     runtime_episode_id = _runtime_id(
         manifest_hash=manifest_hash,
         inputs_hash=inputs_hash,
@@ -1786,16 +2054,22 @@ def run_program_runtime_episode(
             "authority": "local_replay_input_only",
         }
 
-    root = outdir.expanduser().resolve()
+    resolved_root = outdir.expanduser().resolve()
     if (
-        root == candidate_root
-        or root in candidate_root.parents
-        or candidate_root in root.parents
+        resolved_root == candidate_root
+        or resolved_root in candidate_root.parents
+        or candidate_root in resolved_root.parents
     ):
         raise ValueError(
             "runtime episode output directory must be disjoint from the candidate root"
         )
-    root.mkdir(parents=True, exist_ok=True)
+    if runtime_snapshot is None:
+        root = resolved_root
+        root.mkdir(parents=True, exist_ok=True)
+    else:
+        root = outdir.expanduser().absolute()
+        if not str(root).startswith("/proc/self/fd/"):
+            raise ValueError("protected runtime output is not descriptor-bound")
     _write_private_json_exclusive(
         root / "runtime_inputs.json", {"inputs": runtime_inputs}
     )
@@ -1807,7 +2081,7 @@ def run_program_runtime_episode(
         replay_fixture_hash = _sha256_file(replay_fixture_path)
 
     manifest_intent = _safe_mapping(manifest.get("intent"))
-    provider = _configure_provider()
+    provider, provider_adapter, previous_lm = _configure_provider()
     observed: dict[str, object] = {}
     notes: list[str] = []
     error: dict[str, str] | None = None
@@ -1824,10 +2098,24 @@ def run_program_runtime_episode(
                 "provider configuration unavailable",
             )
             raise RuntimeError(f"provider configuration unavailable: {message}")
-        with _generated_program_module(candidate_root) as program_module:
+        program_context = (
+            generated_program_module_from_snapshot(runtime_snapshot)
+            if runtime_snapshot is not None
+            else _generated_program_module(candidate_root)
+        )
+        with program_context as program_module:
             spec = program_module.io_spec()
-            input_fields = [str(item) for item in spec.get("inputs") or []]
-            output_fields = [str(item) for item in spec.get("outputs") or []]
+            spec_inputs = [str(item) for item in spec.get("inputs") or []]
+            spec_outputs = [str(item) for item in spec.get("outputs") or []]
+            if runtime_snapshot is not None and (
+                spec_inputs != input_fields or spec_outputs != output_fields
+            ):
+                raise ValueError("protected runtime IO spec drifts from manifest")
+            input_fields, output_fields = spec_inputs, spec_outputs
+            if runtime_snapshot is not None and any(
+                len(Path(name).parts) != 1 for name in output_fields
+            ):
+                raise ValueError("protected runtime output field path is invalid")
             intent_summary = dict(program_module.intent_summary())
             missing_inputs = [
                 name for name in input_fields if name not in runtime_inputs
@@ -1872,8 +2160,16 @@ def run_program_runtime_episode(
     except Exception as exc:
         sanitized_error = _sanitize_runtime_diagnostic(exc)
         error = {"type": type(exc).__name__, "message": sanitized_error}
+        error_code = _safe_lm_error_code(exc)
+        if error_code is not None:
+            error["code"] = error_code
         notes.append(sanitized_error)
 
+    if provider.get("status") == "configured":
+        try:
+            provider["effect_evidence"] = _provider_effect_evidence(provider_adapter)
+        finally:
+            _close_runtime_provider(provider_adapter, previous_lm)
     execution_status = status
     quality_evaluation = evaluate_declared_quality(
         intent_summary.get("quality_criteria"), observed
@@ -1940,14 +2236,18 @@ def run_program_runtime_episode(
         },
     }
     behavior_path = root / "behavior_results.json"
-    behavior_path.write_text(_json_text(behavior_results), encoding="utf-8")
+    _write_private_json_exclusive(behavior_path, behavior_results)
     behavior_hash = _sha256_file(behavior_path)
 
     module_surfaces_path = candidate_root / "module_surfaces.json"
     module_surfaces = (
-        _load_json_object(module_surfaces_path, label="program module surfaces")
-        if module_surfaces_path.exists()
-        else {"module_surfaces": []}
+        runtime_snapshot.module_surfaces
+        if runtime_snapshot is not None
+        else (
+            _load_json_object(module_surfaces_path, label="program module surfaces")
+            if module_surfaces_path.exists()
+            else {"module_surfaces": []}
+        )
     )
     runtime_trace_intent = SimpleNamespace(
         name=str(intent_summary.get("name") or ""),
@@ -1961,7 +2261,7 @@ def run_program_runtime_episode(
         behavior_results_hash=behavior_hash,
     )
     runtime_traces_path = root / "program_runtime_traces.json"
-    runtime_traces_path.write_text(_json_text(runtime_traces), encoding="utf-8")
+    _write_private_json_exclusive(runtime_traces_path, runtime_traces)
     runtime_traces_hash = _sha256_file(runtime_traces_path)
 
     runtime_manifest = dict(manifest)
@@ -1983,7 +2283,7 @@ def run_program_runtime_episode(
         "path": "oracle_evidence.json",
     }
     runtime_manifest_path = root / "manifest.json"
-    runtime_manifest_path.write_text(_json_text(runtime_manifest), encoding="utf-8")
+    _write_private_json_exclusive(runtime_manifest_path, runtime_manifest)
 
     oracle_evidence = _oracle_evidence(
         manifest_identity=manifest_identity,
@@ -1997,7 +2297,7 @@ def run_program_runtime_episode(
         manifest=manifest,
     )
     oracle_path = root / "oracle_evidence.json"
-    oracle_path.write_text(_json_text(oracle_evidence), encoding="utf-8")
+    _write_private_json_exclusive(oracle_path, oracle_evidence)
 
     runtime_episode = {
         "schema_version": PROGRAM_RUNTIME_EPISODE_SCHEMA,
@@ -2005,8 +2305,9 @@ def run_program_runtime_episode(
         "status": status,
         "execution_status": execution_status,
         "contract_mode": contract_mode,
+        "provider": provider,
         "candidate_manifest_path": str(source_manifest_path),
-        "manifest_path": str(runtime_manifest_path),
+        "manifest_path": str(runtime_manifest_path.resolve()),
         "input_path": str(inputs_path.expanduser().resolve()),
         "output_files": output_files,
         "artifact_hashes": {
@@ -2025,7 +2326,7 @@ def run_program_runtime_episode(
         },
     }
     runtime_episode_path = root / "runtime_episode.json"
-    runtime_episode_path.write_text(_json_text(runtime_episode), encoding="utf-8")
+    _write_private_json_exclusive(runtime_episode_path, runtime_episode)
     runtime_episode_hash = _sha256_file(runtime_episode_path)
     replay_inputs: dict[str, Any] = {
         "candidate_manifest_path": str(source_manifest_path),
@@ -2064,10 +2365,12 @@ def run_program_runtime_episode(
         cache_key=cache_key,
         cache_file=str(root / ".cache" / "program-runtime" / f"{cache_key}.json"),
         cache_enabled=False,
+        provider_details_override=_receipt_provider_details(provider),
         replay_inputs=replay_inputs,
         run_summary={
             "runtime_episode_id": runtime_episode_id,
             "runtime_status": status,
+            "provider": provider,
             "behavior_results_sha256": behavior_hash,
             "program_runtime_traces_sha256": runtime_traces_hash,
             "oracle_evidence_sha256": _sha256_file(oracle_path),
@@ -2083,7 +2386,13 @@ def run_program_runtime_episode(
         }
         else "failure",
     )
-    runtime_receipt_path = write_run_receipt(runtime_episode_path, receipt)
+    if runtime_snapshot is None:
+        runtime_receipt_path = write_run_receipt(runtime_episode_path, receipt)
+    else:
+        runtime_receipt_path = runtime_episode_path.with_name(
+            f"{runtime_episode_path.name}.meta.json"
+        )
+        _write_private_json_exclusive(runtime_receipt_path, receipt)
 
     oracle_semantic_payload: dict[str, Any] | None = None
     oracle_semantic_path: Path | None = None

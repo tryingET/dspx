@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-16T05:52:04.885457795+00:00",
+  "task_id": 4789,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/simple/**",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "tests/test_voice_turn_brains_dspy_33_canary.py"
+    ],
+    "required_paths": [
+      "tests/test_voice_turn_brains_dspy_33_canary.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/ai-control-brains.json",
+      "examples/voice_turn_brains/candidates/**",
+      "examples/voice_turn_brains/intents/**",
+      "examples/voice_turn_brains/manifest-index.json",
+      "examples/voice_turn_brains/refinement/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

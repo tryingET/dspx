@@ -696,34 +696,6 @@ def _run_eval_examples(root: Path) -> dict[str, Any]:
     return _run_python_harness(root, "eval_examples.py", label="examples validation")
 
 
-def _behavior_results_has_retryable_codex_stream_error(
-    payload: Mapping[str, Any],
-) -> bool:
-    summary = payload.get("summary")
-    if not isinstance(summary, Mapping) or summary.get("status") != "error":
-        return False
-    examples = payload.get("examples")
-    if not isinstance(examples, list) or not examples:
-        return False
-    for record in examples:
-        if not isinstance(record, Mapping) or record.get("status") != "error":
-            return False
-        error = record.get("error")
-        if not isinstance(error, Mapping):
-            return False
-        message = str(error.get("message") or "").casefold()
-        if "stream must be set to true" not in message:
-            return False
-    return True
-
-
-def _codex_stream_compatibility_retry_enabled() -> bool:
-    """Allow the historical stream-compatibility retry unless explicitly disabled."""
-
-    value = os.environ.get("DSPX_PROGRAM_CODEX_STREAM_COMPAT_RETRY", "1")
-    return value not in {"", "0", "false", "False", "no", "No"}
-
-
 def _run_eval_dataset_split(root: Path, split: str) -> dict[str, Any]:
     return _run_python_harness(
         root, f"eval_{split}.py", label=f"dataset split {split} validation"
@@ -1766,14 +1738,6 @@ def _materialize_program_from_intent_unchecked(
             )
         behavior_results_text = behavior_results_path.read_text(encoding="utf-8")
         raw_behavior_payload = json.loads(behavior_results_text)
-        if (
-            isinstance(raw_behavior_payload, dict)
-            and _behavior_results_has_retryable_codex_stream_error(raw_behavior_payload)
-            and _codex_stream_compatibility_retry_enabled()
-        ):
-            examples_result = _run_eval_examples(root)
-            behavior_results_text = behavior_results_path.read_text(encoding="utf-8")
-            raw_behavior_payload = json.loads(behavior_results_text)
         behavior_results_hash = sha256_text(behavior_results_text)
         surface_hashes["behavior_results.json"] = behavior_results_hash
         if isinstance(raw_behavior_payload, dict):

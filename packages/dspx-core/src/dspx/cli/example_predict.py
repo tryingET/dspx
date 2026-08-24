@@ -1,43 +1,18 @@
-# summary: "Provides a minimal CodexExecLM-backed DSPy prediction example."
+# summary: "Provides a minimal credential-free typed-stub DSPy prediction example."
 # read_when:
-#   - "Changing the direct Codex execution demo, its default model, prompt, or debug output."
+#   - "Changing the supported provider example or typed DSPy call boundary."
 
 import dspy
-import os
 
-from dspx.config_loader import load_config_env
-from dspx.tracing import enable_mlflow_from_env
-from dspx.codex_exec_lm import CodexExecLM
+from dspx.provider_registry import create
 
 
 def main() -> int:
-    # Initialize Codex Exec as the active LM for DSPy.
-    try:
-        load_config_env()
-    except FileNotFoundError as exc:
-        raise SystemExit(f"Error: {exc}") from exc
-    enable_mlflow_from_env()
-
-    model = os.getenv("CODEX_MODEL", "gpt-5")
-    lm = CodexExecLM(
-        model_flag=model,
-        auto_mode=True,
-        dangerously_bypass=False,
-        reasoning_effort="minimal",
-    )
+    lm = create("stub")
     dspy.configure(lm=lm)
-
     qa = dspy.Predict("question -> answer")
-    question = "Write a Python function to check if a number is prime, and tell me if 37 is prime."
-    result = qa(question=question)
+    result = qa(question="Say hello")
     print(result.answer)
-
-    # Optional: debug CodexExecLM history
-    if getattr(lm, "history", None):
-        last = lm.history[-1]
-        print("\n--- Debug: History ---")
-        print("Return code:", getattr(last, "returncode", None))
-        print("Duration (s):", getattr(last, "duration_s", None))
     return 0
 
 

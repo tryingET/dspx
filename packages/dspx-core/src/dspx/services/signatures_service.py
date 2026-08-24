@@ -17,11 +17,10 @@ import dspy
 from dspx.cache import cache_enabled, make_key, read as cache_read, write as cache_write
 from dspx.config_loader import load_config_env
 from dspx.dtos import SignatureGenRequest, SignatureGenResult
-from dspx.lm_base import LMBase
+from dspy import BaseLM
 from dspx.provider_registry import (
     capabilities as provider_capabilities,
     create_from_env,
-    ensure_default_providers,
 )
 from dspx.templates import (
     format_signature_spec_prompt,
@@ -676,16 +675,15 @@ def _generate_native_payload(
     }
 
 
-def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
+def run_generate(prompt: str, *, lm: Optional[BaseLM] = None) -> str:
     """Generate a signature class code string from a natural-language prompt."""
     load_config_env()
     enable_mlflow_from_env()
 
-    ensure_default_providers()
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    provider_name = _os.getenv("DSPX_PROVIDER", "pi-rpc")
+    provider_name = _os.getenv("DSPX_PROVIDER", "stub")
     try:
         caps = getattr(active_lm, "capabilities", None) or provider_capabilities(
             provider_name
@@ -713,7 +711,7 @@ def run_generate(prompt: str, *, lm: Optional[LMBase] = None) -> str:
 
 
 def run_generate_dto(
-    req: SignatureGenRequest, *, lm: Optional[LMBase] = None
+    req: SignatureGenRequest, *, lm: Optional[BaseLM] = None
 ) -> SignatureGenResult:
     """DTO-oriented variant that returns structured result.
 
@@ -842,23 +840,10 @@ def run_generate_dto(
     budget_ms = (
         int(budget_ms_env) if budget_ms_env and budget_ms_env.isdigit() else None
     )
-    if budget_ms:
-        # best-effort propagate to known providers
-        secs = max(1, int((budget_ms + 999) // 1000))
-        for name in (
-            "CODEX_TIMEOUT",
-            "CLAUDE_TIMEOUT",
-            "GEMINI_TIMEOUT",
-            "OPENROUTER_TIMEOUT",
-            "DSPX_PI_TIMEOUT",
-        ):
-            _os.environ[name] = str(secs)
-
-    ensure_default_providers()
     active_lm = lm or create_from_env()
     dspy.configure(lm=active_lm)
 
-    provider_name = _os.getenv("DSPX_PROVIDER", "pi-rpc")
+    provider_name = _os.getenv("DSPX_PROVIDER", "stub")
     try:
         caps = getattr(active_lm, "capabilities", None) or provider_capabilities(
             provider_name

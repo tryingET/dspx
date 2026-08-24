@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from dspx.provider_registry import UnsupportedProviderError
 from dspx.model_roles import (
     ORACLE_SEMANTIC_ROLE,
     QUALITY_CRITERIA_ROLE,
@@ -68,19 +69,15 @@ def test_role_rejects_unknown_reasoning_effort() -> None:
         )
 
 
-def test_create_role_lm_preserves_route_model_effort_and_redacted_auth() -> None:
-    lm = create_role_lm(
-        "oracle_semantic",
-        environ={"DSPX_LM_AUTH_STORAGE": "/private/auth.json"},
-        timeout=90.0,
-    )
+def test_create_role_lm_rejects_removed_provider_without_auth_access() -> None:
+    with pytest.raises(UnsupportedProviderError) as exc_info:
+        create_role_lm(
+            "oracle_semantic",
+            environ={"DSPX_LM_AUTH_STORAGE": "/private/auth.json"},
+            timeout=90.0,
+        )
 
-    assert lm.requested_model == "codex/gpt-5.6-sol"
-    assert lm.auth_provider == "codex"
-    assert lm.auth_storage == "/private/auth.json"
-    assert lm.timeout == 90.0
-    assert lm.kwargs == {"reasoning_effort": "max"}
-    assert lm.runtime_metadata()["auth_storage"] == "[REDACTED]"
+    assert "/private/auth.json" not in str(exc_info.value)
 
 
 def test_create_role_lm_uses_one_pre_resolved_role_snapshot() -> None:
@@ -92,14 +89,12 @@ def test_create_role_lm_uses_one_pre_resolved_role_snapshot() -> None:
         },
     )
 
-    lm = create_role_lm(
-        "oracle_semantic",
-        environ={
-            "DSPX_ORACLE_SEMANTIC_MODEL": "codex/gpt-5.5",
-            "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT": "low",
-        },
-        resolved_role=role,
-    )
-
-    assert lm.requested_model == "codex/gpt-5.6-sol"
-    assert lm.kwargs == {"reasoning_effort": "xhigh"}
+    with pytest.raises(UnsupportedProviderError):
+        create_role_lm(
+            "oracle_semantic",
+            environ={
+                "DSPX_ORACLE_SEMANTIC_MODEL": "codex/gpt-5.5",
+                "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT": "low",
+            },
+            resolved_role=role,
+        )

@@ -355,15 +355,14 @@ def _configure_provider(provider: str | None = None) -> dict[str, Any]:
     try:
         import os
         import dspy
-        from dspx.provider_registry import create_from_env, ensure_default_providers
+        from dspx.provider_registry import create_from_env
 
         had_provider = "DSPX_PROVIDER" in os.environ
         previous_provider = os.environ.get("DSPX_PROVIDER")
         try:
             if provider:
                 os.environ["DSPX_PROVIDER"] = provider
-            ensure_default_providers()
-            lm = create_from_env(default="dspy-lm-auth")
+            lm = create_from_env()
             dspy.configure(lm=lm)
         finally:
             if provider:

@@ -1,0 +1,133 @@
+{
+  "created_at": "2026-08-08T22:22:09.688560+00:00",
+  "dataset": {
+    "train": {
+      "nrows_cap": null,
+      "nrows_loaded": 1,
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/socratic/optimizer-output/_gepa_inputs/train.csv",
+      "sha256": "31fe903f5f589b42442c372d9f6bc9bb313887dfe51a924ec35e5ddf09c3abf5"
+    },
+    "val": {
+      "nrows_cap": null,
+      "nrows_loaded": 1,
+      "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/socratic/optimizer-output/_gepa_inputs/validation.csv",
+      "sha256": "ded5966e076f7ed049c5012197b32c130012fb8b7ae63b8ebf546f64d958b6f6"
+    }
+  },
+  "dspx_version": null,
+  "dspy_version": "3.1.3",
+  "gepa": {
+    "auto": null,
+    "max_full_evals": null,
+    "max_metric_calls": 2,
+    "metric": "f1",
+    "output_weights": {
+      "response": 1.0
+    },
+    "seed": 0
+  },
+  "io": {
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "outputs": [
+      "response"
+    ]
+  },
+  "output_payload": {
+    "excludes": [
+      "manifest.json"
+    ],
+    "files": [
+      {
+        "path": "_gepa_inputs/train.csv",
+        "sha256": "31fe903f5f589b42442c372d9f6bc9bb313887dfe51a924ec35e5ddf09c3abf5",
+        "size_bytes": 173
+      },
+      {
+        "path": "_gepa_inputs/validation.csv",
+        "sha256": "ded5966e076f7ed049c5012197b32c130012fb8b7ae63b8ebf546f64d958b6f6",
+        "size_bytes": 244
+      },
+      {
+        "path": "metadata.json",
+        "sha256": "dbb229cc9da4ed43daf42034b9b9c6af5430f6aeb753ae6687403ff9edce53aa",
+        "size_bytes": 103
+      },
+      {
+        "path": "program.pkl",
+        "sha256": "2a4b4b43f8366d61be92f89b5f451535c8fb328a181689e27ba8aaf491747a47",
+        "size_bytes": 15307
+      },
+      {
+        "path": "source/program.py",
+        "sha256": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449",
+        "size_bytes": 16367
+      }
+    ],
+    "hash_algorithm": "sha256",
+    "tree_hash": "5d0afd5c57df64cafa5f049728824f0d4a6b20239fb365f478708ef33a7cf78b"
+  },
+  "program": {
+    "copied_to": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/socratic/optimizer-output/source/program.py",
+    "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/program.py",
+    "sha256": "7eb960883ca0db4635d3a81ba75bf3b8a0b1866ce1d3956fb9dfd0dfe9139449"
+  },
+  "providers": {
+    "reflection": {
+      "capabilities": {
+        "code_exec": false,
+        "json_mode": false,
+        "multi_turn": true,
+        "structured_output_format": "none",
+        "supports_audio": false,
+        "supports_tools": false,
+        "supports_vision": false
+      },
+      "model": "openai-compatible/baseline-text",
+      "model_type": "text",
+      "provider": "openai-compatible",
+      "runtime": {
+        "base_url": "http://127.0.0.1:1234/v1",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "loopback": true,
+        "model": "baseline-text",
+        "provider_family": "openai-compatible",
+        "timeout": 180.0
+      }
+    },
+    "student": {
+      "capabilities": {
+        "code_exec": false,
+        "json_mode": false,
+        "multi_turn": true,
+        "structured_output_format": "none",
+        "supports_audio": false,
+        "supports_tools": false,
+        "supports_vision": false
+      },
+      "model": "openai-compatible/baseline-text",
+      "model_type": "text",
+      "provider": "openai-compatible",
+      "runtime": {
+        "base_url": "http://127.0.0.1:1234/v1",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "loopback": true,
+        "model": "baseline-text",
+        "provider_family": "openai-compatible",
+        "timeout": 180.0
+      }
+    }
+  },
+  "python": {
+    "executable": "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.8-arch1-1-x86_64-with-glibc2.43",
+    "version": "3.13.12 (main, Mar  3 2026, 15:01:51) [Clang 21.1.4 ]"
+  }
+}

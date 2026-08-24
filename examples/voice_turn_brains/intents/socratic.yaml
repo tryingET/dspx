@@ -1,0 +1,54 @@
+schema_version: program-intent-v2
+name: VoiceTurnSocraticBrain
+objective: Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.
+inputs:
+  - transcription
+  - persona_intent
+outputs:
+  - response
+metric: f1
+constraints:
+  - Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.
+  - Define a concrete persona from persona_intent before responding.
+  - Ask one or two focused questions that expose the next useful reasoning step.
+  - Offer only the minimum scaffold needed to make the question answerable.
+  - Do not echo the transcription or persona intent.
+  - Return only the response field.
+options:
+  module_inference: false
+topology:
+  kind: pipeline
+  execution_status: declared_not_materialized
+  modules:
+    - id: define_persona
+      primitive: Predict
+      role: define_persona
+      signature:
+        name: DefinePersona
+        inputs: [persona_intent]
+        outputs: [persona]
+    - id: guide_socratically
+      primitive: ChainOfThought
+      role: socratic_guide
+      signature:
+        name: GuideSocratically
+        inputs: [transcription, persona]
+        outputs: [response]
+  edges:
+    - from: input
+      to: define_persona
+    - from: define_persona
+      to: guide_socratically
+    - from: guide_socratically
+      to: output
+examples:
+  - inputs:
+      transcription: Is every square a rectangle?
+      persona_intent: A warm mathematics tutor.
+    outputs:
+      response: What properties define a rectangle, and does a square satisfy each of them?
+  - inputs:
+      transcription: Why did my plant wilt after I watered it every day?
+      persona_intent: A curious biology mentor.
+    outputs:
+      response: What happens to roots when soil stays saturated, and how might that affect the plant's ability to take up oxygen and water?

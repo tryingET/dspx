@@ -1,0 +1,175 @@
+{
+  "capabilities": {},
+  "constraints": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before answering.",
+    "Use only facts supported by passages whose lexical score is greater than zero.",
+    "Cite every material claim with the exact retrieved document id in square brackets.",
+    "Never invent a citation id, source, quote, or external fact.",
+    "If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.",
+    "Return only the response field.",
+    "load local GEPA optimizer output as the candidate program implementation"
+  ],
+  "dataset": {},
+  "datasets": {},
+  "examples": [
+    {
+      "inputs": {
+        "persona_intent": "A precise systems researcher.",
+        "transcription": "Who owns capture, turn composition, and the six brains?"
+      },
+      "outputs": {
+        "response": "Workstation owns capture, local-ai-control-plane owns turn composition and its receipt, and DSPx owns the six separate brains and GEPA evidence [voice-turn-owner-split]."
+      }
+    },
+    {
+      "inputs": {
+        "persona_intent": "A concise technical analyst.",
+        "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+      },
+      "outputs": {
+        "response": "V1 is a batch, one-time turn; streaming, a continuing loop, and Pipecat are deferred to a later real-time phase [voice-turn-batch-scope]."
+      }
+    }
+  ],
+  "input_fields": [],
+  "inputs": [
+    "transcription",
+    "persona_intent"
+  ],
+  "jury": {},
+  "metric": "f1",
+  "name": "VoiceTurnResearchedBrain",
+  "objective": "Define the requested persona, retrieve bounded local evidence, and answer with corpus-grounded citations.",
+  "options": {
+    "gepa_candidate_lineage": {
+      "authority": "local_gepa_refinement_candidate_only_non_authoritative",
+      "gepa_refinement_result_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/researched/gepa-result.json",
+      "schema_version": "program-gepa-candidate-lineage-v1",
+      "source_identity": {
+        "assembly_id": "prog-asm-63a51dcb28e6",
+        "candidate_id": "prog-cand-3978945ae925",
+        "episode_id": "prog-ep-15f16153dfa2",
+        "receipt_bundle_id": "prog-rb-126fb7159d19",
+        "request_id": "prog-req-a3fc606f1561"
+      },
+      "source_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/researched/original/manifest.json"
+    },
+    "module_inference": false
+  },
+  "output_fields": [],
+  "outputs": [
+    "response"
+  ],
+  "promotion": {},
+  "quality_criteria": [],
+  "runtime": {},
+  "schema_version": "program-intent-v2",
+  "task_type": "single_module",
+  "topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "input",
+        "to": "retrieve_corpus"
+      },
+      {
+        "from": "define_persona",
+        "to": "answer_researched"
+      },
+      {
+        "from": "retrieve_corpus",
+        "to": "answer_researched"
+      },
+      {
+        "from": "answer_researched",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "retrieve_then_answer",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "retrieve_corpus",
+        "primitive": "Retriever",
+        "retriever": {
+          "documents": [
+            {
+              "id": "voice-turn-owner-split",
+              "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+            },
+            {
+              "id": "voice-turn-capture-contract",
+              "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+            },
+            {
+              "id": "voice-turn-batch-scope",
+              "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+            },
+            {
+              "id": "voice-turn-research-boundary",
+              "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+            },
+            {
+              "id": "voice-turn-receipt-boundary",
+              "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+            },
+            {
+              "id": "voice-turn-modality-boundary",
+              "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+            },
+            {
+              "id": "voice-turn-gepa-boundary",
+              "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+            }
+          ],
+          "k": 3,
+          "mode": "inline_corpus"
+        },
+        "role": "retrieve_grounding",
+        "signature": {
+          "inputs": [
+            "transcription"
+          ],
+          "name": "RetrieveVoiceTurnCorpus",
+          "outputs": [
+            "passages"
+          ]
+        }
+      },
+      {
+        "id": "answer_researched",
+        "primitive": "ChainOfThought",
+        "role": "cited_corpus_answer",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona",
+            "passages"
+          ],
+          "name": "AnswerResearched",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  }
+}

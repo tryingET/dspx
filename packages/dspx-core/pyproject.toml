@@ -1,9 +1,9 @@
 [project]
 name = "dspx-core"
-version = "0.1.0"
+version = "0.2.1"
 description = "Local-first behavioral intelligence runtime for DSPy programs"
 readme = { text = "DSPx Core provides the local-first DSPx runtime, provider and tool contracts, replayable receipts, Oracle analysis, and the `dspx` and `dspx-server` command-line interfaces.", content-type = "text/markdown" }
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.15"
 keywords = ["dspy", "evaluation", "replay", "behavioral-intelligence"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -12,7 +12,8 @@ classifiers = [
 ]
 dependencies = [
   "beautifulsoup4>=4.13.5",
-  "dspy-ai>=3.1.3",
+  "dspy==3.3.1",
+  "dspy-ai==3.3.1",
   "duckduckgo-search>=8.1.1",
   "httpx>=0.28.1",
   "jsonschema>=4.23.0",
@@ -26,9 +27,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-lm-auth = [
-  "tryinget-dspy-lm-auth==0.1.5",
-]
 oracle-embeddings = [
   "sentence-transformers==5.1.2",
   "torch==2.13.0+cpu",

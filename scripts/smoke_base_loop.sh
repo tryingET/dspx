@@ -52,7 +52,7 @@ uv run --package dspx-core -q python -m dspx.cli.dspx module-gen \
 cp examples/program_gen/ticket_intent.yaml "$OUT_DIR/intent.yaml"
 
 printf '[smoke-base] program-loop (materialization + behavior truth)\n'
-export DSPX_STUB_RESPONSE_JSON='{"urgency":"high"}'
+export DSPX_REPLAY_FIXTURE_JSON='{"urgency":"high"}'
 uv run --package dspx-core -q python -m dspx.cli.dspx program-loop \
   --intent "$OUT_DIR/intent.yaml" \
   --outdir "$PROGRAM_DIR" \

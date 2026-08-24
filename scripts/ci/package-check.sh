@@ -46,10 +46,55 @@ print(Path(sys.argv[1]).resolve().as_uri())
 PY
 )"
 
-printf '[package-check] install Core wheel alone\n'
+printf '[package-check] install the exact locked Core dependency graph plus the selected wheel\n'
+core_requirements="$work_dir/core-locked-requirements.txt"
+uv export --frozen --package dspx-core --no-dev --no-hashes \
+  --no-emit-package dspx-core --output-file "$core_requirements"
 uv venv --python 3.13 "$core_venv_dir"
-uv pip install --python "$core_venv_dir/bin/python" \
+uv pip install --python "$core_venv_dir/bin/python" --requirements "$core_requirements"
+uv pip install --python "$core_venv_dir/bin/python" --no-deps \
   "dspx-core @ ${core_wheel_uri}#sha256=${core_wheel_sha256}"
+printf '[package-check] prove installed dependency versions agree with the lock and Core metadata\n'
+"$core_venv_dir/bin/python" - "$repo_root/uv.lock" <<'PY'
+from importlib.metadata import PackageNotFoundError, distribution, distributions, version
+from pathlib import Path
+import sys
+import tomllib
+from packaging.specifiers import SpecifierSet
+from packaging.utils import canonicalize_name
+
+expected = {"dspy": "3.3.1", "dspy-ai": "3.3.1", "gepa": "0.1.4"}
+with Path(sys.argv[1]).open("rb") as stream:
+    lock = tomllib.load(stream)
+locked = {
+    canonicalize_name(row["name"]): row["version"] for row in lock["package"]
+}
+for installed in distributions():
+    name = canonicalize_name(installed.metadata["Name"])
+    if name == "dspx-core":
+        continue
+    assert name in locked, f"installed distribution absent from lock: {name}"
+    assert installed.version == locked[name], (
+        name,
+        installed.version,
+        locked[name],
+    )
+for name, required_version in expected.items():
+    assert locked.get(name) == required_version, (name, locked.get(name))
+    assert version(name) == required_version, (name, version(name))
+core = distribution("dspx-core")
+assert core.version == locked["dspx-core"], (core.version, locked["dspx-core"])
+assert SpecifierSet(core.metadata["Requires-Python"]) == SpecifierSet(">=3.13,<3.15")
+requirements = set(core.requires or ())
+assert "dspy==3.3.1" in requirements
+assert "dspy-ai==3.3.1" in requirements
+try:
+    distribution("tryinget-dspy-lm-auth")
+except PackageNotFoundError:
+    pass
+else:
+    raise AssertionError("removed dspy-lm-auth distribution is installed")
+PY
 "$core_venv_dir/bin/python" - <<'PY'
 from importlib.metadata import entry_points
 
@@ -97,13 +142,36 @@ printf '[package-check] build fail-closed Core release-evidence claim matrix\n'
   --resolved-environment-sbom "$work_dir/dspx-core-installed-environment-sbom.cdx.json" \
   > "$work_dir/release-evidence-output.json"
 
-printf '[package-check] install and smoke Forge separately\n'
+printf '[package-check] install and smoke Forge against its exact locked graph\n'
+forge_requirements="$work_dir/forge-locked-requirements.txt"
+uv export --frozen --package dspx-forge --no-dev --no-hashes \
+  --no-emit-package dspx-core --no-emit-package dspx-forge \
+  --output-file "$forge_requirements"
 uv venv --python 3.13 "$forge_venv_dir"
-uv pip install --python "$forge_venv_dir/bin/python" "$core_wheel" "$forge_wheel"
+uv pip install --python "$forge_venv_dir/bin/python" --requirements "$forge_requirements"
+uv pip install --python "$forge_venv_dir/bin/python" --no-deps \
+  "$core_wheel" "$forge_wheel"
 "$forge_venv_dir/bin/dspx-forge" --help >/dev/null
-"$forge_venv_dir/bin/python" - <<'PY'
-from importlib.metadata import entry_points
+"$forge_venv_dir/bin/python" - "$repo_root/uv.lock" <<'PY'
+from importlib.metadata import distributions, entry_points
+from pathlib import Path
+import sys
+import tomllib
+from packaging.utils import canonicalize_name
 
+with Path(sys.argv[1]).open("rb") as stream:
+    lock = tomllib.load(stream)
+locked = {
+    canonicalize_name(row["name"]): row["version"] for row in lock["package"]
+}
+for installed in distributions():
+    name = canonicalize_name(installed.metadata["Name"])
+    assert name in locked, f"installed distribution absent from lock: {name}"
+    assert installed.version == locked[name], (
+        name,
+        installed.version,
+        locked[name],
+    )
 scripts = {entry.name: entry.value for entry in entry_points(group="console_scripts")}
 assert scripts["dspx-forge"] == "dspx_forge.cli:main"
 PY

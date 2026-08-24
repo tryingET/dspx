@@ -215,7 +215,7 @@ def test_collect_issues_accepts_aligned_contract(tmp_path: Path) -> None:
         "loop-landing-check:\n"
         "  just check\n"
         "typecheck-tests:\n"
-        "  uvx ty check tests\n"
+        "  uv run --no-sync ty check tests\n"
         "verify-tests:\n"
         "  just typecheck\n"
         "  just typecheck-tests\n"
@@ -369,7 +369,8 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         tmp_path,
         "Justfile",
         "pre-commit install --hook-type pre-commit --hook-type pre-push\n"
-        "next_session_prompt checkpoint before failing closed\n",
+        "next_session_prompt checkpoint before failing closed\n"
+        "uvx ty check tests\n",
     )
     _write(tmp_path, "scripts/ci/smoke.sh", "")
     _write(tmp_path, "governance/README.md", "")
@@ -419,6 +420,7 @@ def test_collect_issues_flags_stale_contracts(tmp_path: Path) -> None:
         "Justfile: contains forbidden stale text: 'next_session_prompt checkpoint before failing closed'"
         in messages
     )
+    assert "Justfile: contains forbidden stale text: 'uvx ty'" in messages
 
 
 def test_core_reference_guidance_requires_executable_bounded_commands(

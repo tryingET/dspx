@@ -1,6 +1,6 @@
-# summary: "Provides provider-neutral live and deterministic fixture backends for program Oracle semantics."
+# summary: "Provides deterministic fixture replay and explicit live-provider unavailability for Oracle semantics."
 # read_when:
-#   - "Changing program Oracle semantic inference, preflight, fixtures, or model execution evidence."
+#   - "Changing program Oracle semantic preflight, fixture replay, or provider support posture."
 
 from __future__ import annotations
 
@@ -12,11 +12,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from dspx.dtos import LMRequest
 from dspx.model_roles import (
     ORACLE_SEMANTIC_ROLE,
     ModelRole,
-    create_role_lm,
     resolve_model_role,
 )
 from dspx.redaction import sanitize_diagnostic_text
@@ -159,108 +157,6 @@ def _analysis_prompt(request: OracleSemanticRequest) -> str:
     )
 
 
-def _parse_analysis_text(raw: str) -> OracleSemanticAnalysis:
-    text = str(raw or "").strip()
-    if text.startswith("```") and text.endswith("```"):
-        lines = text.splitlines()
-        text = "\n".join(lines[1:-1]).strip()
-    try:
-        payload = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ProgramOracleSemanticBackendError(
-            f"Oracle semantic extracted output was not valid JSON: {exc}"
-        ) from exc
-    if not isinstance(payload, dict):
-        raise ProgramOracleSemanticBackendError(
-            "Oracle semantic provider must return one JSON object"
-        )
-    return OracleSemanticAnalysis.from_mapping(payload)
-
-
-def _configured_model(lm: object) -> str | None:
-    for name in ("requested_model", "model"):
-        value = getattr(lm, name, None)
-        if value is not None and str(value).strip():
-            return str(value).strip()
-    return None
-
-
-class LiveLMOracleSemanticBackend:
-    def __init__(self, *, provider_name: str, preferred_model: str, lm: object):
-        self.provider_name = provider_name
-        self.preferred_model = preferred_model
-        self.lm = lm
-        self.configured_model = _configured_model(lm)
-
-    def analyze(self, request: OracleSemanticRequest) -> OracleSemanticResult:
-        generate = getattr(self.lm, "generate", None)
-        if not callable(generate):
-            return OracleSemanticResult(
-                request_sha256=request.request_sha256,
-                backend_kind="live",
-                preferred_model=self.preferred_model,
-                configured_provider=self.provider_name,
-                configured_model=self.configured_model,
-                executed_provider=None,
-                executed_model=None,
-                execution_status="failed_before_live_success",
-                live_call_succeeded=False,
-                error="configured provider does not implement generate(LMRequest)",
-            )
-        response_observed = False
-        executed_model: str | None = None
-        try:
-            response = generate(
-                LMRequest(prompt=_analysis_prompt(request)),
-                response_format=_analysis_response_format(request),
-            )
-            response_observed = True
-            observed_model = getattr(response, "model", None)
-            if observed_model is not None and str(observed_model).strip():
-                executed_model = str(observed_model).strip()
-            if executed_model is None:
-                raise ProgramOracleSemanticBackendError(
-                    "successful Oracle semantic response omitted executed model identity"
-                )
-            outputs = getattr(response, "outputs", None)
-            if not isinstance(outputs, list) or not outputs:
-                raise ProgramOracleSemanticBackendError(
-                    "Oracle semantic provider returned no outputs"
-                )
-            analysis = _parse_analysis_text(str(outputs[0]))
-            return OracleSemanticResult(
-                request_sha256=request.request_sha256,
-                backend_kind="live",
-                preferred_model=self.preferred_model,
-                configured_provider=self.provider_name,
-                configured_model=self.configured_model,
-                # LMResponse currently observes model, but not the final routed
-                # provider. Do not copy configured intent into executed evidence.
-                executed_provider=None,
-                executed_model=executed_model,
-                execution_status="succeeded",
-                live_call_succeeded=True,
-                analysis=analysis,
-            )
-        except Exception as exc:
-            return OracleSemanticResult(
-                request_sha256=request.request_sha256,
-                backend_kind="live",
-                preferred_model=self.preferred_model,
-                configured_provider=self.provider_name,
-                configured_model=self.configured_model,
-                executed_provider=None,
-                executed_model=executed_model,
-                execution_status=(
-                    "failed_after_live_response"
-                    if response_observed
-                    else "failed_before_live_success"
-                ),
-                live_call_succeeded=response_observed,
-                error=sanitize_diagnostic_text(str(exc)),
-            )
-
-
 class FixtureReplayOracleSemanticBackend:
     def __init__(self, *, fixture_path: Path, preferred_model: str):
         # Preserve the final path component so symlinks can be rejected before read.
@@ -392,9 +288,7 @@ def _settings(
             + ", ".join(sorted(_ALLOWED_BACKENDS))
         )
     role = resolve_model_role("oracle_semantic", environ=env)
-    provider_name = str(
-        env.get("DSPX_ORACLE_SEMANTIC_PROVIDER", "dspy-lm-auth")
-    ).strip()
+    provider_name = str(env.get("DSPX_ORACLE_SEMANTIC_PROVIDER", "stub")).strip()
     fixture_path = str(env.get("DSPX_ORACLE_SEMANTIC_FIXTURE_PATH", "")).strip() or None
     return backend_kind, role, provider_name, fixture_path
 
@@ -413,17 +307,9 @@ def resolve_program_oracle_semantic_backend(
             fixture_path=Path(fixture_path), preferred_model=preferred_model
         )
 
-    if provider_name == "dspy-lm-auth":
-        lm = create_role_lm("oracle_semantic", environ=environ, resolved_role=role)
-    else:
-        from dspx import provider_registry
-
-        provider_registry.ensure_default_providers()
-        lm = provider_registry.create(provider_name)
-    return LiveLMOracleSemanticBackend(
-        provider_name=provider_name,
-        preferred_model=preferred_model,
-        lm=lm,
+    raise ProgramOracleSemanticBackendError(
+        "live Oracle semantic providers are unsupported after the typed hard cutover; "
+        "use fixture-replay"
     )
 
 
@@ -504,50 +390,18 @@ def preflight_program_oracle_semantic_backend(
             ),
         )
 
-    try:
-        from dspx import provider_registry
-
-        provider_registry.ensure_default_providers()
-        caps = provider_registry.capabilities(provider_name)
-        if not caps.json_mode and caps.structured_output_format != "json":
-            raise ProgramOracleSemanticBackendError(
-                f"provider {provider_name!r} does not advertise JSON output capability"
-            )
-        # Registration and capability inspection are the side-effect-free
-        # preflight boundary. Provider factories run only during execution.
-        if provider_name not in provider_registry.available():
-            raise ProgramOracleSemanticBackendError(
-                f"unknown provider: {provider_name}"
-            )
-        configured_model = preferred_model if provider_name == "dspy-lm-auth" else None
-    except Exception as exc:
-        return OracleSemanticPreflight(
-            ready=False,
-            backend_kind=backend_kind,
-            preferred_model=preferred_model,
-            configured_provider=provider_name,
-            configured_model=None,
-            fixture_path=None,
-            checks=(
-                {
-                    "name": "provider_configuration",
-                    "ok": False,
-                    "detail": sanitize_diagnostic_text(str(exc)),
-                },
-            ),
-        )
     return OracleSemanticPreflight(
-        ready=True,
+        ready=False,
         backend_kind=backend_kind,
         preferred_model=preferred_model,
         configured_provider=provider_name,
-        configured_model=configured_model,
+        configured_model=None,
         fixture_path=None,
         checks=(
             {
                 "name": "provider_configuration",
-                "ok": True,
-                "detail": "provider registration and capabilities resolved without running its factory or making a semantic model call",
+                "ok": False,
+                "detail": "live Oracle semantic providers are unsupported after the typed hard cutover; use fixture-replay",
             },
         ),
     )

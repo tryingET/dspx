@@ -1,0 +1,84 @@
+{
+  "contracts": [],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_binding_authority": false,
+    "tool_contracts_only": true,
+    "tool_execution_authority": false
+  },
+  "notes": [
+    "Tool contracts are descriptor-only and hash-bound evidence for future safe adapters.",
+    "This sidecar does not enable dspy.Tool, ReAct tools, custom imports, live retrievers, network access, filesystem access, subprocesses, or external authority mutation.",
+    "Future generated adapters must record adapter hashes/provenance and remain replay-checked before any runtime effect is allowed."
+  ],
+  "react_v2_tool_readiness": {
+    "declared_tool_contract_count": 0,
+    "declared_tool_ids": [],
+    "effect": {
+      "dspy_tool_bound": false,
+      "external_authority_mutated": false,
+      "filesystem_write": false,
+      "network": false,
+      "subprocess": false,
+      "tool_called": false
+    },
+    "missing_tool_contracts": [],
+    "next_actions": [
+      "Keep ReActV2 tools=[] for materialization until generated tool adapters are policy-approved.",
+      "For every desired tool, declare a descriptor-only tool capability with schemas, effect class, allowlists, timeout, redaction, and mutation posture.",
+      "Land generated dspy.Tool adapter policy with adapter hashes/provenance and replay checks before enabling tool binding."
+    ],
+    "production_readiness_blockers": [],
+    "pure_tool_adapter_preflight": {
+      "all_referenced_adapter_blueprints_hash_bound": false,
+      "all_referenced_tool_schemas_bounded": false,
+      "all_referenced_tools_have_pure_contracts": false,
+      "all_referenced_tools_have_replay_policy_preconditions": false,
+      "blueprint_unready_tool_refs": [],
+      "materialization_status": "blocked_until_pure_contracts_schemas_blueprints_and_replay_policy",
+      "missing_tool_contracts": [],
+      "non_pure_tool_refs": [],
+      "ready_for_tool_adapter_materialization": false,
+      "referenced_tool_ids": [],
+      "replay_policy_unready_tool_refs": [],
+      "schema_unready_tool_refs": []
+    },
+    "react_v2_module_count": 0,
+    "react_v2_module_tool_refs": [],
+    "react_v2_requested": false,
+    "ready_for_react_v2_no_tool_materialization": false,
+    "ready_for_react_v2_tool_binding": false,
+    "schema_version": "program-react-v2-tool-readiness-v1",
+    "status": "not_requested_or_no_tool_need"
+  },
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "fail_closed_without_explicit_future_adapter": true,
+    "filesystem_allowed": false,
+    "generated_adapters_allowed": false,
+    "mutation_allowed": false,
+    "network_allowed": false,
+    "subprocess_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-tool-contracts-v1",
+  "status": "descriptor_only_no_tool_binding",
+  "tool_adapter_policy": {
+    "adapter_blueprint_count": 0,
+    "all_adapters_hash_bound": false,
+    "all_adapters_replay_checked": false,
+    "dspy_tool_binding_allowed": false,
+    "generated_adapter_count": 0,
+    "next_required_slice": "generate_hash_bound_dspy_tool_adapters_with_replay_visible_traces",
+    "schema_version": "program-tool-adapter-policy-v1",
+    "status": "no_generated_adapters_present",
+    "tool_execution_allowed": false
+  },
+  "tool_contract_count": 0
+}

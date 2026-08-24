@@ -11,7 +11,11 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.coordinates import reset_embedding_engine
-from dspx.dtos import LMRequest, LMResponse
+from dspx.provider_contract import (
+    EffectDisposition,
+    ProviderRequest,
+    ProviderResult,
+)
 import dspx.services.program_foundry as foundry
 from dspx.services.program_foundry_io import foundry_lock
 from dspx.services.program_quality_contract import (
@@ -25,7 +29,7 @@ from dspx.services.program_quality_conversation import propose_program_quality_c
 class _QualityLM:
     model = "openai/gpt-5.6-sol"
 
-    def generate(self, request: LMRequest, **kwargs) -> LMResponse:
+    def invoke(self, request: ProviderRequest) -> ProviderResult:
         payload = {
             "metric": "concept_coverage",
             "quality_criteria": [
@@ -41,7 +45,14 @@ class _QualityLM:
             "rationale": "Require a useful resolution or next step.",
             "clarifying_questions": [],
         }
-        return LMResponse(outputs=[json.dumps(payload)], model=self.model)
+        return ProviderResult(
+            text=json.dumps(payload),
+            model=self.model,
+            effect_disposition=EffectDisposition.COMPLETED_SUCCESS,
+        )
+
+    def dump_state(self) -> dict[str, object]:
+        return {"kind": "quality-test-double"}
 
 
 def _quality_artifacts(
@@ -71,7 +82,7 @@ def _env(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         '{"response":"Provide a resolution and next step"}',
     )
     monkeypatch.setenv("MLFLOW_ENABLE", "0")

@@ -1,4 +1,4 @@
-# summary: "Provides the legacy argparse entry point for DSPx code generation."
+# summary: "Provides the standalone argparse entry point for typed DSPx code generation."
 # read_when:
 #   - "You are maintaining the standalone codegen CLI or its provider and output options."
 
@@ -9,7 +9,9 @@ from dspx.services.codegen_service import run as run_codegen
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    p = argparse.ArgumentParser(description="Generate code using DSPy + Codex Exec")
+    p = argparse.ArgumentParser(
+        description="Generate code using the supported DSPy provider"
+    )
     p.add_argument("spec", help="Short spec of what to generate (quoted)")
     p.add_argument(
         "-l", "--lang", dest="language", help="Language hint, e.g. python, ts, rust"
@@ -22,7 +24,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         action="store_true",
         help="Print full Codex output (not just code block)",
     )
-    p.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
+    p.add_argument("--provider", help="Supported provider name (currently: stub)")
     args = p.parse_args(argv)
 
     # Optional provider override via env for the registry

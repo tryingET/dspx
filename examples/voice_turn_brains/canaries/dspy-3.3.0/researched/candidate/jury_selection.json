@@ -1,0 +1,47 @@
+{
+  "authority": "selection_contract_only_non_authoritative",
+  "eligible_juror_count": 6,
+  "jury_schema_version": "program-jury-v1",
+  "minimum_jurors": 3,
+  "notes": [
+    "Selection is deterministic metadata for future jury execution binding.",
+    "No juror model is called during deterministic materialization.",
+    "Selected jurors cannot rank, prune, promote, or grant Oracle authority."
+  ],
+  "schema_version": "program-jury-selection-v1",
+  "selected_juror_count": 3,
+  "selected_jurors": [
+    {
+      "id": "inferred_correctness",
+      "model": null,
+      "perspective": "correctness",
+      "reason": "baseline behavior correctness coverage",
+      "source": "inferred_from_intent"
+    },
+    {
+      "id": "inferred_robustness",
+      "model": null,
+      "perspective": "robustness",
+      "reason": "baseline edge-case and failure-mode coverage",
+      "source": "inferred_from_intent"
+    },
+    {
+      "id": "inferred_instruction_following",
+      "model": null,
+      "perspective": "instruction_following",
+      "reason": "baseline objective and instruction adherence coverage",
+      "source": "inferred_from_intent"
+    }
+  ],
+  "selected_perspectives": [
+    "correctness",
+    "robustness",
+    "instruction_following"
+  ],
+  "selection_constraints": {
+    "prefer_diverse_models": true,
+    "prefer_diverse_perspectives": true
+  },
+  "selection_model": "perspective_balanced_explicit_pool",
+  "status": "selected"
+}

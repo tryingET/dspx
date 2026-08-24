@@ -1,0 +1,25 @@
+{
+  "authority": "local_gepa_candidate_lineage_only_non_authoritative",
+  "gepa_optimizer_manifest_sha256": "314d92e364ac837cce33f1f00e2048bc9a572fd1dfcf361d8169bc4037c53702",
+  "gepa_optimizer_payload_file_count": 5,
+  "gepa_optimizer_payload_tree_sha256": "5d0afd5c57df64cafa5f049728824f0d4a6b20239fb365f478708ef33a7cf78b",
+  "gepa_refinement_result_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/socratic/gepa-result.json",
+  "gepa_refinement_result_sha256": "53cf8127e76824950ed6384d6859b7b351ce620d3c9b2333edf9e8b3dff32ca6",
+  "non_authority": {
+    "automatic_promotion": false,
+    "external_authority_export": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "winner_selection": false
+  },
+  "schema_version": "program-gepa-candidate-lineage-v1",
+  "source_identity": {
+    "assembly_id": "prog-asm-43c16b7ca8af",
+    "candidate_id": "prog-cand-34daf659208a",
+    "episode_id": "prog-ep-b00b2db3eea4",
+    "receipt_bundle_id": "prog-rb-220496194f3b",
+    "request_id": "prog-req-b6db3b684620"
+  },
+  "source_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/socratic/original/manifest.json",
+  "source_manifest_sha256": "d9479c2981d4382fdbd9d54f5f5ba6684bdd1afcf73e1585a1d2a9664b342fd5"
+}

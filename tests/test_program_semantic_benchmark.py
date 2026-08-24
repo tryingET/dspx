@@ -325,7 +325,7 @@ def test_program_semantic_benchmark_redacts_runtime_errors_and_restores_environm
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DSPX_PROVIDER", "operator-provider")
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", '{"operator":"value"}')
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", '{"operator":"value"}')
 
     def fail(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise RuntimeError("api_key=super-secret bearer abc.def.ghi")
@@ -342,7 +342,7 @@ def test_program_semantic_benchmark_redacts_runtime_errors_and_restores_environm
     assert "abc.def.ghi" not in result["cases"][0]["error"]
     assert result["cases"][0]["status"] == "error"
     assert benchmark.os.environ["DSPX_PROVIDER"] == "operator-provider"
-    assert benchmark.os.environ["DSPX_STUB_RESPONSE_JSON"] == '{"operator":"value"}'
+    assert benchmark.os.environ["DSPX_REPLAY_FIXTURE_JSON"] == '{"operator":"value"}'
 
 
 def test_program_semantic_corpus_rejects_unknown_fields_and_oversize(

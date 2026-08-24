@@ -12,8 +12,8 @@ from typing import Optional, cast
 
 from dspx.config_loader import load_config_env
 from dspx.dtos import SignatureGenRequest
-from dspx.lm_base import LMBase
-from dspx.provider_registry import create_from_env, ensure_default_providers
+from dspy import BaseLM
+from dspx.provider_registry import create_from_env
 from dspx.services.signatures_service import run_generate_dto
 from dspx.tracing import enable_mlflow_from_env
 
@@ -25,11 +25,10 @@ def _wrap_script(signature_code: str) -> str:
         "import dspy",
         "from dspx.config_loader import load_config_env",
         "from dspx.tracing import enable_mlflow_from_env",
-        "from dspx.provider_registry import ensure_default_providers, create_from_env",
+        "from dspx.provider_registry import create_from_env",
         "",
         "load_config_env()",
         "enable_mlflow_from_env()",
-        "ensure_default_providers()",
         "lm = create_from_env()",
         "dspy.configure(lm=lm)",
         "",
@@ -110,7 +109,7 @@ def _native_generate_signature(
     attempts: int = 1,
     constraints: list[str] | None = None,
     feedback: list[str] | None = None,
-    lm: Optional[LMBase] = None,
+    lm: Optional[BaseLM] = None,
 ) -> str:
     options: dict[str, object] = {
         "class_name": class_name,
@@ -138,7 +137,7 @@ def run_refine(
     attempts: int = 3,
     wrap_script: bool = False,
     non_interactive: bool = False,
-    lm: Optional[LMBase] = None,
+    lm: Optional[BaseLM] = None,
 ) -> str:
     import os
     import time
@@ -146,8 +145,7 @@ def run_refine(
     load_config_env()
     enable_mlflow_from_env()
 
-    ensure_default_providers()
-    active_lm = cast(Optional[LMBase], lm or create_from_env())
+    active_lm = cast(Optional[BaseLM], lm or create_from_env())
 
     t0 = time.time()
     budget_ms_env = os.getenv("DSPX_BUDGET_SIGNATURE_MS")

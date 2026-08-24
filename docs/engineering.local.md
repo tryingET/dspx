@@ -26,13 +26,13 @@ Unknown disciplines, symbolic or malformed pins, failed upstream retrieval, and 
 
 Local notes for DSPx:
 - Python 3.13, `uv` workflow, `ruff` lint/format, `pytest` tests.
-- Typechecking uses `ty` (not mypy): `uvx ty check packages/dspx-core/src apps/forge/src`
+- Typechecking uses the lockfile-pinned `ty` (not mypy): `uv run --no-sync ty check packages/dspx-core/src apps/forge/src`. Do not use unpinned `uvx ty`; it resolves the latest tool independently of `uv.lock` and can change the validation contract.
 - Canonical local workflow contract: `docs/project/developer_workflow.md`
 - Commands are standardized in `Justfile` via the owned-lane contract: `just help`, `just test`, `just check`, `just build`, `just lint`, `just fmt`, `just ci`, `just doctor`, plus repo-specific helpers like `just typecheck`.
 - `just run ...` is the truthful one-shot entrypoint and delegates to the DSPx CLI surface; plain `just run` falls back to CLI help and keeps the lockfile untouched.
 - Read-only validation/sanity commands that use `uv run` now prefer `--no-sync` so `just doctor`, `just test`, `just replay-provenance-check`, `just monorepo-check`, `just module-synthesis-quality-check`, and `just verify-full` no longer dirty `uv.lock` just by being executed.
 - No `just dev` target is exposed because DSPx has multiple long-running helper surfaces but no single canonical dev/watch entrypoint.
-- Local auth-backed provider work should prefer the workspace contrib checkout via `just link-dspy-lm-auth` (defaults to `~/ai-society/softwareco/contrib/dspy-lm-auth`).
+- The T2 typed-cutover support matrix is stub-only. Auth-backed and other live providers remain unavailable until separately restored; no local provider-link helper is supported.
 - Optional py-lane companions when the repo actually benefits:
   - `pytest-bdd` for executable Gherkin/BDD scenarios
   - `Jinja2` for reusable text/config/html templates

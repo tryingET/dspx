@@ -1,0 +1,80 @@
+{
+  "authority": "behavior_evidence_only_non_authoritative",
+  "non_authority": {
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "optimization_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "quality_evaluation": {
+    "criteria_declared": false,
+    "evaluations_failed": 0,
+    "evaluations_passed": 0,
+    "evaluations_total": 0,
+    "quality_approved": false,
+    "status": "not_declared"
+  },
+  "schema_version": "program-behavior-episode-v1",
+  "sources": [
+    {
+      "behavior_results_hash": "423a2e7f4b26f1f9abeda4d0ae6e28e41fa262fdcc0fd99a40afb5cf58c3d76f",
+      "behavior_results_path": "behavior_results.json",
+      "behavior_status": "failed",
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_examples.py"
+      ],
+      "count": 2,
+      "harness_path": "eval_examples.py",
+      "kind": "examples",
+      "provider": {
+        "provider": "stub/echo",
+        "status": "configured"
+      },
+      "quality_evaluation": {
+        "criteria_declared": false,
+        "evaluations_failed": 0,
+        "evaluations_passed": 0,
+        "evaluations_total": 0,
+        "quality_approved": false,
+        "status": "not_declared"
+      },
+      "returncode": 0,
+      "source_kind": "inline_examples",
+      "split": null,
+      "status": "passed",
+      "stderr": "",
+      "stdout": "program examples ok: 2 example(s); behavior status: failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 1,
+        "passed": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1,
+          "passed": 1
+        },
+        "total": 2
+      }
+    }
+  ],
+  "status": "failed",
+  "summary": {
+    "degraded": 0,
+    "error": 0,
+    "failed": 1,
+    "passed": 1,
+    "source_count": 1,
+    "status": "failed",
+    "status_counts": {
+      "failed": 1
+    },
+    "total": 2
+  }
+}

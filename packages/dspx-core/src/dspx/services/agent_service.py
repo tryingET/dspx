@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import dspy
 
-from ..provider_registry import create_from_env, ensure_default_providers
+from ..provider_registry import create_from_env
 from ..tools.registry import ensure_default_tools, get_tool
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
@@ -31,7 +31,6 @@ def run(question: str, *, tools: Optional[List[str]] = None, max_iters: int = 3)
     enable_mlflow_from_env()
 
     # LM provider
-    ensure_default_providers()
     lm = create_from_env()
     dspy.configure(lm=lm)
 

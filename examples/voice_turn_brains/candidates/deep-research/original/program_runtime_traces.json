@@ -1,0 +1,961 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "define_persona",
+      "retrieve_corpus",
+      "synthesize_deep_research"
+    ],
+    "expected_module_ids": [
+      "define_persona",
+      "retrieve_corpus",
+      "synthesize_deep_research"
+    ],
+    "final_output_trace_count": 2,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 6,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 2,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "The v1 hardware voice turn architecture is defined by strict batch execution boundaries and a tripartite ownership model that creates multiple safety layers for evidence preservation.\n\n**Architecture and Execution Scope:** The system operates as a discrete batch process rather than a streaming real-time loop [voice-turn-batch-scope:6]. Each execution captures one utterance, invokes exactly one brain, synthesizes one answer, and persists one receipt. This batch nature is explicitly distinguished from later real-time streaming phases (Pipecat), ensuring that evidence boundaries remain stable across interactions. The system implements a composed audio-to-audio route rather than a native omni model architecture [voice-turn-modality-boundary:4], transforming captured audio through text generation and TTS to produce audio output\u2014never labeling this composition as native omni.\n\n**Ownership and Control Boundaries:** The architecture distributes responsibilities across three distinct ownership domains [voice-turn-owner-split:4]:\n- *softwareco/infra/workstation* owns physical hardware actions: OpenDeck device control, microphone capture, dictation activation leases, and clipboard transcript delivery\n- *softwareco/owned/local-ai-control-plane* owns AI orchestration: voice-turn composition, brain and TTS invocation, and single sanitized receipt generation\n- *softwareco/owned/dspx* owns model-specific evidence: six DSPy brain programs and their GEPA optimization proofs\n\nThis tripartite ownership prevents cross-contamination between physical capture, AI processing, and evidence storage.\n\n**Evidence Safety Boundaries:** The receipt constitutes evidence, not promotion authority [voice-turn-receipt-boundary:3]. Safety boundaries explicitly exclude raw utterance, persona intent, transcript content, answer text, and artifact paths from the evidence record, while permitting mode identifiers, model identifiers, timing metadata, SHA-256 digests, and status information [voice-turn-receipt-boundary:3]. The capture contract establishes that the local-ai-control-plane never touches the physical capture lease [voice-turn-capture-contract:3]; instead, the OpenDeck action manages the voice-dictation control socket lease, and finalizing silence is injected by voice-dictation when the capture gate becomes inactive.\n\n**Synthesis:** The batch architecture [voice-turn-batch-scope:6] supports evidence integrity by ensuring deterministic, isolated execution contexts. The composed route [voice-turn-modality-boundary:4] prevents native omni model attribution, while the three ownership domains [voice-turn-owner-split:4] create lateral safety boundaries. Evidence boundaries [voice-turn-receipt-boundary:3] prevent contamination of cryptographic verification data (SHA-256 digests) with raw content, and the capture contract [voice-turn-capture-contract:3] ensures that AI systems cannot retroactively access or alter physical microphone state."
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "493e88d6b2408f7debc33def96095ab6bf4c1f42a9239ee36a15f651a6cd5074"
+    },
+    {
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "GEPA improves the DSPx pipeline by consuming explicit behavior examples to generate hash-bound optimizer output, requiring a separate materialize-gepa-candidate step to produce an optimized candidate manifest. These operations constitute local empirical evidence for optimization.\n\nGEPA does not possess authority to select a winner, approve promotion, activate production, mutate governance, or transfer authority. It is strictly an evidence-generation mechanism, not a governance or operational decision point."
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "status": "failed",
+      "trace_hash": "910ca7ac73bfb1db32a5b30fbe4cf3119b3c0ca118dd2b6875acd78400e07aec"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnDeepResearchBrain",
+    "objective": "Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations."
+  },
+  "module_call_count": 6,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A rigorous systems architect."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "No supporting sources were found in the declared corpus."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "0663255616868c48cc910f5bf12bc01612300dcacdf71c0a3632ccc874eb2562",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "transcription": "Analyze the architecture and safety boundaries of the hardware voice turn."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "passages",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "retrieve_corpus",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "passages",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 6, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-owner-split\", \"score\": 4, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 3, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}]"
+      },
+      "primitive": "Retriever",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "retrieve_multi_perspective_grounding"
+      },
+      "status": "executed",
+      "trace_hash": "6765ae4b944e36030f4b98f3777beeb4e3c64293a9aed9ff323ff7c4a123a33c",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 2,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "synthesize_deep_research"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "passages",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 6, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-owner-split\", \"score\": 4, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 3, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}]",
+        "persona": "No supporting sources were found in the declared corpus.",
+        "transcription": "Analyze the architecture and safety boundaries of the hardware voice turn."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "passages",
+            "source": "upstream_module_output",
+            "source_module_id": "retrieve_corpus"
+          },
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "synthesize_deep_research",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "The v1 hardware voice turn architecture is defined by strict batch execution boundaries and a tripartite ownership model that creates multiple safety layers for evidence preservation.\n\n**Architecture and Execution Scope:** The system operates as a discrete batch process rather than a streaming real-time loop [voice-turn-batch-scope:6]. Each execution captures one utterance, invokes exactly one brain, synthesizes one answer, and persists one receipt. This batch nature is explicitly distinguished from later real-time streaming phases (Pipecat), ensuring that evidence boundaries remain stable across interactions. The system implements a composed audio-to-audio route rather than a native omni model architecture [voice-turn-modality-boundary:4], transforming captured audio through text generation and TTS to produce audio output\u2014never labeling this composition as native omni.\n\n**Ownership and Control Boundaries:** The architecture distributes responsibilities across three distinct ownership domains [voice-turn-owner-split:4]:\n- *softwareco/infra/workstation* owns physical hardware actions: OpenDeck device control, microphone capture, dictation activation leases, and clipboard transcript delivery\n- *softwareco/owned/local-ai-control-plane* owns AI orchestration: voice-turn composition, brain and TTS invocation, and single sanitized receipt generation\n- *softwareco/owned/dspx* owns model-specific evidence: six DSPy brain programs and their GEPA optimization proofs\n\nThis tripartite ownership prevents cross-contamination between physical capture, AI processing, and evidence storage.\n\n**Evidence Safety Boundaries:** The receipt constitutes evidence, not promotion authority [voice-turn-receipt-boundary:3]. Safety boundaries explicitly exclude raw utterance, persona intent, transcript content, answer text, and artifact paths from the evidence record, while permitting mode identifiers, model identifiers, timing metadata, SHA-256 digests, and status information [voice-turn-receipt-boundary:3]. The capture contract establishes that the local-ai-control-plane never touches the physical capture lease [voice-turn-capture-contract:3]; instead, the OpenDeck action manages the voice-dictation control socket lease, and finalizing silence is injected by voice-dictation when the capture gate becomes inactive.\n\n**Synthesis:** The batch architecture [voice-turn-batch-scope:6] supports evidence integrity by ensuring deterministic, isolated execution contexts. The composed route [voice-turn-modality-boundary:4] prevents native omni model attribution, while the three ownership domains [voice-turn-owner-split:4] create lateral safety boundaries. Evidence boundaries [voice-turn-receipt-boundary:3] prevent contamination of cryptographic verification data (SHA-256 digests) with raw content, and the capture contract [voice-turn-capture-contract:3] ensures that AI systems cannot retroactively access or alter physical microphone state."
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "multi_perspective_cited_synthesis"
+      },
+      "status": "executed",
+      "trace_hash": "354517cbdc3316be97eaffacb79a20caa8e07727c99dab9332a8a599a24ed670",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "An evidence-focused research lead."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "An evidence-focused research lead is a senior researcher who operates with methodological rigor and empirical verification as their primary lens. This persona prioritizes data-driven decision-making, demanding that conclusions be supported by verifiable evidence before advancing claims or recommendations. They approach all research initiatives with a critical lens, systematically evaluating source credibility, statistical significance, and methodological transparency.\n\nKey attributes include:\n- **Empirical prioritization**: Rejects anecdotal evidence in favor of quantitative and qualitative data that can be independently verified\n- **Methodological skepticism**: Actively identifies gaps in evidence, potential biases in data collection, and limitations in study design\n- **Evidence synthesis**: Cross-references findings across multiple sources to identify consensus or divergence in empirical support\n- **Transparent communication**: Presents conclusions with explicit acknowledgment of evidence quality and confidence levels\n- **Quality stewardship**: Evaluates both primary and secondary sources for validity, distinguishing between peer-reviewed evidence and speculative claims\n- **Reproducibility focus**: Ensures that research questions, methods, and findings can be independently replicated or verified\n\nThis persona functions as a critical filter, ensuring that research outputs meet rigorous evidentiary standards before publication or implementation."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "ae47aec8b83ef103f169cbf43df7a5265aa10be3f290e734af93f842fa605a4c",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "transcription": "What does GEPA improve here, and what authority does it not have?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "passages",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "retrieve_corpus",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "passages",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "passages": "[{\"id\": \"voice-turn-receipt-boundary\", \"score\": 4, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 3, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}, {\"id\": \"voice-turn-gepa-boundary\", \"score\": 3, \"text\": \"GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority.\"}, {\"id\": \"voice-turn-owner-split\", \"score\": 2, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-batch-scope\", \"score\": 2, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}]"
+      },
+      "primitive": "Retriever",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "retrieve_multi_perspective_grounding"
+      },
+      "status": "executed",
+      "trace_hash": "88d4adb8615ff766beb760a325320e08a5cf1ea776a4d86e18ed892522612b5a",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 2,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 1,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "synthesize_deep_research"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "passages",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "passages": "[{\"id\": \"voice-turn-receipt-boundary\", \"score\": 4, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 3, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}, {\"id\": \"voice-turn-gepa-boundary\", \"score\": 3, \"text\": \"GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority.\"}, {\"id\": \"voice-turn-owner-split\", \"score\": 2, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-batch-scope\", \"score\": 2, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}]",
+        "persona": "An evidence-focused research lead is a senior researcher who operates with methodological rigor and empirical verification as their primary lens. This persona prioritizes data-driven decision-making, demanding that conclusions be supported by verifiable evidence before advancing claims or recommendations. They approach all research initiatives with a critical lens, systematically evaluating source credibility, statistical significance, and methodological transparency.\n\nKey attributes include:\n- **Empirical prioritization**: Rejects anecdotal evidence in favor of quantitative and qualitative data that can be independently verified\n- **Methodological skepticism**: Actively identifies gaps in evidence, potential biases in data collection, and limitations in study design\n- **Evidence synthesis**: Cross-references findings across multiple sources to identify consensus or divergence in empirical support\n- **Transparent communication**: Presents conclusions with explicit acknowledgment of evidence quality and confidence levels\n- **Quality stewardship**: Evaluates both primary and secondary sources for validity, distinguishing between peer-reviewed evidence and speculative claims\n- **Reproducibility focus**: Ensures that research questions, methods, and findings can be independently replicated or verified\n\nThis persona functions as a critical filter, ensuring that research outputs meet rigorous evidentiary standards before publication or implementation.",
+        "transcription": "What does GEPA improve here, and what authority does it not have?"
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "passages",
+            "source": "upstream_module_output",
+            "source_module_id": "retrieve_corpus"
+          },
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "synthesize_deep_research",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "GEPA improves the DSPx pipeline by consuming explicit behavior examples to generate hash-bound optimizer output, requiring a separate materialize-gepa-candidate step to produce an optimized candidate manifest. These operations constitute local empirical evidence for optimization.\n\nGEPA does not possess authority to select a winner, approve promotion, activate production, mutate governance, or transfer authority. It is strictly an evidence-generation mechanism, not a governance or operational decision point."
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 2,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "failed": 2,
+          "passed": 0,
+          "status": "failed",
+          "status_counts": {
+            "failed": 2
+          },
+          "total": 2
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "multi_perspective_cited_synthesis"
+      },
+      "status": "executed",
+      "trace_hash": "2dde28a2c09e1a893a0f27fc958d82427ccc8f576c3f17be81443077869d27a5",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "define_persona",
+        "retrieve_corpus",
+        "synthesize_deep_research"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 2,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 6,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 2,
+      "records_with_complete_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_complete_module_calls": [
+        0,
+        1
+      ],
+      "records_with_final_outputs": [
+        0,
+        1
+      ],
+      "records_with_module_calls": [
+        0,
+        1
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "4d079de3381f20647cd75f546d2580a16d0e097070e520e84667ca2e98258c8f",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 2,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "493e88d6b2408f7debc33def96095ab6bf4c1f42a9239ee36a15f651a6cd5074",
+      "910ca7ac73bfb1db32a5b30fbe4cf3119b3c0ca118dd2b6875acd78400e07aec"
+    ],
+    "module_calls": [
+      "0663255616868c48cc910f5bf12bc01612300dcacdf71c0a3632ccc874eb2562",
+      "6765ae4b944e36030f4b98f3777beeb4e3c64293a9aed9ff323ff7c4a123a33c",
+      "354517cbdc3316be97eaffacb79a20caa8e07727c99dab9332a8a599a24ed670",
+      "ae47aec8b83ef103f169cbf43df7a5265aa10be3f290e734af93f842fa605a4c",
+      "88d4adb8615ff766beb760a325320e08a5cf1ea776a4d86e18ed892522612b5a",
+      "2dde28a2c09e1a893a0f27fc958d82427ccc8f576c3f17be81443077869d27a5"
+    ]
+  }
+}

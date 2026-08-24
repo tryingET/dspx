@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-16T08:44:53.147116829+00:00",
+  "task_id": 4805,
+  "entity_version": 5,
+  "commit_sha": "fa667816a736b9741f0b8175811f5339222d0ecb",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-gepa-0-1-4-materialization-disposition.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine.py",
+      "packages/dspx-core/src/dspx/services/optimize_service.py",
+      "packages/dspx-core/src/dspx/services/program_execution_replay.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_comparison.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_gepa.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_workflow.py",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "packages/dspx-core/src/dspx/services/python_import_guard.py",
+      "packages/dspx-core/src/dspx/services/run_replay_service.py",
+      "tests/test_program_refinement_gepa.py",
+      "tests/test_program_refinement_gepa_014_real_materialization.py"
+    ],
+    "required_paths": [
+      "docs/project/dspy-3-3-gepa-0-1-4-materialization-disposition.md",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine.py",
+      "packages/dspx-core/src/dspx/services/optimize_service.py",
+      "packages/dspx-core/src/dspx/services/program_execution_replay.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate.py",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "packages/dspx-core/src/dspx/services/python_import_guard.py",
+      "tests/test_program_refinement_gepa_014_real_materialization.py"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/**",
+      "governance/release-signing/**",
+      "pyproject.toml",
+      "uv.lock"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

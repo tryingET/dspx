@@ -1,0 +1,739 @@
+{
+  "capability_contracts": {
+    "path": "program_capability_registry.json",
+    "schema_version": "program-capability-registry-v1",
+    "status": "descriptor_only_no_runtime_binding"
+  },
+  "constraints": [
+    "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+    "Define a concrete persona from persona_intent before answering.",
+    "Use only facts supported by passages whose lexical score is greater than zero.",
+    "Synthesize at least two relevant perspectives such as ownership, execution scope, evidence safety, optimization, or residual limitations when the corpus supports them.",
+    "Cite every material claim with the exact retrieved document id in square brackets.",
+    "Never invent a citation id, source, quote, or external fact.",
+    "State conflicts or missing evidence explicitly.",
+    "If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.",
+    "Return only the response field."
+  ],
+  "dataset": {
+    "source": "none"
+  },
+  "declared_topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "input",
+        "to": "retrieve_corpus"
+      },
+      {
+        "from": "define_persona",
+        "to": "synthesize_deep_research"
+      },
+      {
+        "from": "retrieve_corpus",
+        "to": "synthesize_deep_research"
+      },
+      {
+        "from": "synthesize_deep_research",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "retrieve_then_answer",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "retrieve_corpus",
+        "primitive": "Retriever",
+        "retriever": {
+          "documents": [
+            {
+              "id": "voice-turn-owner-split",
+              "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+            },
+            {
+              "id": "voice-turn-capture-contract",
+              "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+            },
+            {
+              "id": "voice-turn-batch-scope",
+              "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+            },
+            {
+              "id": "voice-turn-research-boundary",
+              "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+            },
+            {
+              "id": "voice-turn-receipt-boundary",
+              "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+            },
+            {
+              "id": "voice-turn-modality-boundary",
+              "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+            },
+            {
+              "id": "voice-turn-gepa-boundary",
+              "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+            }
+          ],
+          "k": 5,
+          "mode": "inline_corpus"
+        },
+        "role": "retrieve_multi_perspective_grounding",
+        "signature": {
+          "inputs": [
+            "transcription"
+          ],
+          "name": "RetrieveVoiceTurnResearchCorpus",
+          "outputs": [
+            "passages"
+          ]
+        }
+      },
+      {
+        "id": "synthesize_deep_research",
+        "primitive": "ChainOfThought",
+        "role": "multi_perspective_cited_synthesis",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona",
+            "passages"
+          ],
+          "name": "SynthesizeDeepResearch",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  },
+  "evaluation_strategy": {
+    "aggregation": "deliberation_summary",
+    "authority": "advisory_evidence_only",
+    "jurors": [
+      {
+        "id": "inferred_correctness",
+        "model": null,
+        "perspective": "correctness",
+        "reason": "baseline behavior correctness coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_robustness",
+        "model": null,
+        "perspective": "robustness",
+        "reason": "baseline edge-case and failure-mode coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_instruction_following",
+        "model": null,
+        "perspective": "instruction_following",
+        "reason": "baseline objective and instruction adherence coverage",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_example_generalization",
+        "model": null,
+        "perspective": "example_generalization",
+        "reason": "examples are present, so held-out/generalization behavior matters",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_grounding",
+        "model": null,
+        "perspective": "grounding",
+        "reason": "context/source/citation cues require grounding critique",
+        "source": "inferred_from_intent"
+      },
+      {
+        "id": "inferred_constraint_adherence",
+        "model": null,
+        "perspective": "constraint_adherence",
+        "reason": "declared constraints require adversarial checking",
+        "source": "inferred_from_intent"
+      }
+    ],
+    "minimum_jurors": 3,
+    "mode": "jury",
+    "notes": [
+      "ProgramPlan records the intended evaluation shape only.",
+      "No juror model is called during deterministic materialization.",
+      "Jury evidence cannot rank, prune, promote, or grant Oracle authority."
+    ],
+    "perspectives": [
+      "constraint_adherence",
+      "correctness",
+      "example_generalization",
+      "grounding",
+      "instruction_following",
+      "robustness"
+    ],
+    "pool": {
+      "explicit_juror_count": 0,
+      "explicit_perspective_count": 0,
+      "explicit_perspective_juror_count": 0,
+      "inference_basis": [
+        "intent.name",
+        "intent.objective",
+        "intent.task_type",
+        "intent.metric",
+        "intent.inputs",
+        "intent.outputs",
+        "intent.constraints",
+        "intent.examples"
+      ],
+      "inferred_juror_count": 6,
+      "merged_juror_count": 6,
+      "scope": "program"
+    },
+    "schema_version": "program-jury-v1",
+    "selection_constraints": {
+      "prefer_diverse_models": true,
+      "prefer_diverse_perspectives": true
+    },
+    "selection_model": "perspective_balanced_explicit_pool",
+    "status": "planned_not_executed"
+  },
+  "examples": {
+    "count": 2,
+    "hash": "60edc0e6b6130074fdcc3e9eef566bf42d3f869341795594009775b970b829c0",
+    "path": null,
+    "source": "inline"
+  },
+  "fields": {
+    "inputs": [
+      {
+        "desc": "transcription (input)",
+        "name": "transcription",
+        "type": "str"
+      },
+      {
+        "desc": "persona intent (input)",
+        "name": "persona_intent",
+        "type": "str"
+      }
+    ],
+    "outputs": [
+      {
+        "desc": "response (output)",
+        "name": "response",
+        "type": "str"
+      }
+    ]
+  },
+  "generated_module_policy": {
+    "path": "generated_module_policy.json",
+    "schema_version": "program-generated-module-policy-v1",
+    "status": "passed"
+  },
+  "inferred_topology": null,
+  "intent": {
+    "name": "VoiceTurnDeepResearchBrain",
+    "objective": "Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations.",
+    "schema_version": "program-intent-v2"
+  },
+  "materialization_scope": {
+    "current_renderer": "retrieve_then_answer_topology_renderer",
+    "notes": [
+      "Explicit retrieve_then_answer topology is preserved as declared input and rendered through the bounded topology renderer.",
+      "Only explicit bounded inline or materialization-time local_corpus_snapshot Retriever modules feeding generated Predict/ChainOfThought/ReAct/ProgramOfThought answer modules are supported in this slice.",
+      "No live external retriever, tool binding, custom import, ranking, promotion, or external authority execution is performed; ReAct uses tools=[] and ProgramOfThought uses an empty sandbox."
+    ],
+    "topology_declared": true,
+    "topology_inferred": false,
+    "topology_materialized": true
+  },
+  "materialized_topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "input",
+        "to": "retrieve_corpus"
+      },
+      {
+        "from": "define_persona",
+        "to": "synthesize_deep_research"
+      },
+      {
+        "from": "retrieve_corpus",
+        "to": "synthesize_deep_research"
+      },
+      {
+        "from": "synthesize_deep_research",
+        "to": "output"
+      }
+    ],
+    "execution_status": "retrieve_then_answer_materialized",
+    "kind": "retrieve_then_answer",
+    "materialized_from_kind": "retrieve_then_answer",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "retrieve_corpus",
+        "primitive": "Retriever",
+        "retriever": {
+          "documents": [
+            {
+              "id": "voice-turn-owner-split",
+              "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+            },
+            {
+              "id": "voice-turn-capture-contract",
+              "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+            },
+            {
+              "id": "voice-turn-batch-scope",
+              "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+            },
+            {
+              "id": "voice-turn-research-boundary",
+              "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+            },
+            {
+              "id": "voice-turn-receipt-boundary",
+              "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+            },
+            {
+              "id": "voice-turn-modality-boundary",
+              "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+            },
+            {
+              "id": "voice-turn-gepa-boundary",
+              "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+            }
+          ],
+          "k": 5,
+          "mode": "inline_corpus"
+        },
+        "role": "retrieve_multi_perspective_grounding",
+        "signature": {
+          "inputs": [
+            "transcription"
+          ],
+          "name": "RetrieveVoiceTurnResearchCorpus",
+          "outputs": [
+            "passages"
+          ]
+        }
+      },
+      {
+        "id": "synthesize_deep_research",
+        "primitive": "ChainOfThought",
+        "role": "multi_perspective_cited_synthesis",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona",
+            "passages"
+          ],
+          "name": "SynthesizeDeepResearch",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ],
+    "renderer": "retrieve_then_answer_topology_renderer",
+    "scheduler_plan": {
+      "declaration_order": [
+        "define_persona",
+        "retrieve_corpus",
+        "synthesize_deep_research"
+      ],
+      "effect": {
+        "authority_mutated": false,
+        "custom_import_loaded": false,
+        "provider_called": false,
+        "retriever_called": false,
+        "tool_called": false
+      },
+      "module_order": [
+        "define_persona",
+        "retrieve_corpus",
+        "synthesize_deep_research"
+      ],
+      "module_readiness": {
+        "define_persona": {
+          "inbound_edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            }
+          ],
+          "primitive": "Predict",
+          "produced_outputs": [
+            "persona"
+          ],
+          "required_inputs": [
+            "persona_intent"
+          ]
+        },
+        "retrieve_corpus": {
+          "inbound_edges": [
+            {
+              "from": "input",
+              "to": "retrieve_corpus"
+            }
+          ],
+          "primitive": "Retriever",
+          "produced_outputs": [
+            "passages"
+          ],
+          "required_inputs": [
+            "transcription"
+          ]
+        },
+        "synthesize_deep_research": {
+          "inbound_edges": [
+            {
+              "from": "define_persona",
+              "to": "synthesize_deep_research"
+            },
+            {
+              "from": "retrieve_corpus",
+              "to": "synthesize_deep_research"
+            }
+          ],
+          "primitive": "ChainOfThought",
+          "produced_outputs": [
+            "response"
+          ],
+          "required_inputs": [
+            "transcription",
+            "persona",
+            "passages"
+          ]
+        }
+      },
+      "output_producers": [
+        "synthesize_deep_research"
+      ],
+      "scheduler": "bounded_ready_queue",
+      "schema_version": "program-topology-scheduler-plan-v1",
+      "status": "deterministic_local_dag_schedule"
+    }
+  },
+  "metric": "f1",
+  "non_authority": {
+    "candidate_assembly": "materialized_not_promoted",
+    "governance_authority": false,
+    "oracle_role": "behavioral_interpreter_only",
+    "program_gen_evidence": "non_authoritative",
+    "ranking_pruning_promotion": false
+  },
+  "retriever_snapshots": {
+    "content_hash": "184e7a8cbd19ffb17f06c9714a7c64e165f82e0f4bd0e9efe5283164e2338005",
+    "path": "retriever_snapshots.json",
+    "schema_version": "program-retriever-snapshots-v1",
+    "status": "materialized_to_bounded_inline_adapters"
+  },
+  "runtime": {},
+  "runtime_outcomes": {
+    "content_hash": "dd0bddfd87a5fcf1f21001cbaf67285aceb7d5dddb13cd85d41c9cd16cfac67f",
+    "path": "program_runtime_outcomes.json",
+    "schema_version": "program-runtime-outcomes-v1",
+    "status": "outcome_contracts_declared"
+  },
+  "runtime_traces": {
+    "content_hash": "5013139f6a91229a16c1c978bd524cbbb9ba59118bfdf962585e66d23d1df4f7",
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "status": "runtime_traces_captured_or_not_applicable"
+  },
+  "schema_version": "program-plan-v1",
+  "surfaces": [
+    {
+      "generator": "program-gen",
+      "kind": "plan",
+      "path": "plan.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury",
+      "path": "jury.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury_selection",
+      "path": "jury_selection.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury_rubric",
+      "path": "jury_rubric.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_review",
+      "path": "promotion_review.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_adjudication_request",
+      "path": "promotion_adjudication_request.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_decision_template",
+      "path": "promotion_decision_template.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "intent",
+      "path": "intent.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "module_surfaces",
+      "path": "module_surfaces.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "execution_episode",
+      "path": "execution_episode.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "capability_registry",
+      "path": "program_capability_registry.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "generated_module_policy",
+      "path": "generated_module_policy.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "runtime_outcomes",
+      "path": "program_runtime_outcomes.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "tool_contracts",
+      "path": "program_tool_contracts.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "retriever_snapshots",
+      "path": "retriever_snapshots.json"
+    },
+    {
+      "generator": "signature-gen",
+      "kind": "signature",
+      "path": "signature.py"
+    },
+    {
+      "generator": "module-gen",
+      "kind": "module",
+      "path": "module.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "program",
+      "path": "program.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "direct_runner",
+      "path": "direct_run.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "smoke_harness",
+      "path": "eval_smoke.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "jury_harness",
+      "path": "eval_jury.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "promotion_harness",
+      "path": "eval_promotion.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "examples",
+      "path": "examples.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "examples_harness",
+      "path": "eval_examples.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "behavior_results",
+      "path": "behavior_results.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "behavior_harness",
+      "path": "eval_behavior.py"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "behavior_episode",
+      "path": "behavior_episode.json"
+    },
+    {
+      "generator": "program-gen",
+      "kind": "oracle_evidence",
+      "path": "oracle_evidence.json"
+    }
+  ],
+  "task_type": "single_module",
+  "tool_contracts": {
+    "content_hash": "edda6d329dcfe4fe991fd6f6a9791b99dedbc9c9be67de2d154b754ccbdd7620",
+    "path": "program_tool_contracts.json",
+    "schema_version": "program-tool-contracts-v1",
+    "status": "descriptor_only_no_tool_binding"
+  },
+  "topology": {
+    "edges": [
+      {
+        "from": "input",
+        "to": "define_persona"
+      },
+      {
+        "from": "input",
+        "to": "retrieve_corpus"
+      },
+      {
+        "from": "define_persona",
+        "to": "synthesize_deep_research"
+      },
+      {
+        "from": "retrieve_corpus",
+        "to": "synthesize_deep_research"
+      },
+      {
+        "from": "synthesize_deep_research",
+        "to": "output"
+      }
+    ],
+    "execution_status": "declared_not_materialized",
+    "kind": "retrieve_then_answer",
+    "modules": [
+      {
+        "id": "define_persona",
+        "primitive": "Predict",
+        "role": "define_persona",
+        "signature": {
+          "inputs": [
+            "persona_intent"
+          ],
+          "name": "DefinePersona",
+          "outputs": [
+            "persona"
+          ]
+        }
+      },
+      {
+        "id": "retrieve_corpus",
+        "primitive": "Retriever",
+        "retriever": {
+          "documents": [
+            {
+              "id": "voice-turn-owner-split",
+              "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+            },
+            {
+              "id": "voice-turn-capture-contract",
+              "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+            },
+            {
+              "id": "voice-turn-batch-scope",
+              "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+            },
+            {
+              "id": "voice-turn-research-boundary",
+              "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+            },
+            {
+              "id": "voice-turn-receipt-boundary",
+              "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+            },
+            {
+              "id": "voice-turn-modality-boundary",
+              "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+            },
+            {
+              "id": "voice-turn-gepa-boundary",
+              "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+            }
+          ],
+          "k": 5,
+          "mode": "inline_corpus"
+        },
+        "role": "retrieve_multi_perspective_grounding",
+        "signature": {
+          "inputs": [
+            "transcription"
+          ],
+          "name": "RetrieveVoiceTurnResearchCorpus",
+          "outputs": [
+            "passages"
+          ]
+        }
+      },
+      {
+        "id": "synthesize_deep_research",
+        "primitive": "ChainOfThought",
+        "role": "multi_perspective_cited_synthesis",
+        "signature": {
+          "inputs": [
+            "transcription",
+            "persona",
+            "passages"
+          ],
+          "name": "SynthesizeDeepResearch",
+          "outputs": [
+            "response"
+          ]
+        }
+      }
+    ]
+  },
+  "topology_execution_status": "retrieve_then_answer_materialized"
+}

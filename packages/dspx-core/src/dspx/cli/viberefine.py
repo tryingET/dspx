@@ -12,15 +12,11 @@ from dspx.services.refine_service import run_refine as service_refine
 
 def wrap_script(signature_code: str) -> str:
     lines = []
-    lines.append("# Auto-generated DSPy script (Codex Exec enabled)")
-    lines.append("import os")
+    lines.append("# Auto-generated DSPy script (typed stub)")
     lines.append("import dspy")
-    lines.append("from dspx.codex_exec_lm import CodexExecLM")
+    lines.append("from dspx.provider_registry import create")
     lines.append("")
-    lines.append("MODEL = os.getenv('CODEX_MODEL', 'gpt-5')")
-    lines.append(
-        "lm = CodexExecLM(model_flag=MODEL, auto_mode=True, dangerously_bypass=False, reasoning_effort='minimal')"
-    )
+    lines.append("lm = create('stub')")
     lines.append("dspy.configure(lm=lm)")
     lines.append("")
     lines.append(signature_code)
@@ -51,14 +47,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument(
         "--wrap-script",
         action="store_true",
-        help="Wrap final code into a runnable script with Codex Exec",
+        help="Wrap final code into a credential-free typed-stub script",
     )
     ap.add_argument(
         "--non-interactive",
         action="store_true",
         help="Auto-accept first draft (no prompts)",
     )
-    ap.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
+    ap.add_argument("--provider", choices=["stub"], help="Supported provider")
     args = ap.parse_args(argv)
 
     ensure_env_and_tracing()

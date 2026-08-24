@@ -262,7 +262,7 @@ def test_program_receipt_fails_after_behavior_episode_mutation_or_deletion(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
-    monkeypatch.setenv("DSPX_STUB_RESPONSE_JSON", json.dumps({"answer": "safe"}))
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", json.dumps({"answer": "safe"}))
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "0")
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     root = tmp_path / "candidate"

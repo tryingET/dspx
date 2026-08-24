@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tomllib
 import tarfile
 from types import ModuleType
 from typing import Any
@@ -22,6 +23,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = REPO_ROOT / "scripts/ci"
+_CORE_VERSION = tomllib.loads(
+    (REPO_ROOT / "packages/dspx-core/pyproject.toml").read_text(encoding="utf-8")
+)["project"]["version"]
 
 
 def _load(name: str) -> ModuleType:
@@ -43,15 +47,15 @@ def _wheel(path: Path, *, marker: str = "original") -> str:
     metadata = (
         "Metadata-Version: 2.4\n"
         "Name: dspx-core\n"
-        "Version: 0.1.0\n"
+        f"Version: {_CORE_VERSION}\n"
         "Requires-Python: >=3.13\n"
         "Requires-Dist: httpx>=0.28.1\n\n"
     ).encode()
     files = {
-        "dspx_core-0.1.0.dist-info/METADATA": metadata,
+        f"dspx_core-{_CORE_VERSION}.dist-info/METADATA": metadata,
         "dspx/__init__.py": f"MARKER = {marker!r}\n".encode(),
     }
-    record_path = "dspx_core-0.1.0.dist-info/RECORD"
+    record_path = f"dspx_core-{_CORE_VERSION}.dist-info/RECORD"
     output = StringIO()
     writer = csv.writer(output, lineterminator="\n")
     for name, raw in sorted(files.items()):
@@ -67,13 +71,13 @@ def _wheel(path: Path, *, marker: str = "original") -> str:
 
 def _sdist(path: Path) -> None:
     files = {
-        "dspx_core-0.1.0/PKG-INFO": (
-            b"Metadata-Version: 2.4\nName: dspx-core\nVersion: 0.1.0\n\n"
+        f"dspx_core-{_CORE_VERSION}/PKG-INFO": (
+            f"Metadata-Version: 2.4\nName: dspx-core\nVersion: {_CORE_VERSION}\n\n".encode()
         ),
-        "dspx_core-0.1.0/pyproject.toml": (
-            b"[project]\nname='dspx-core'\nversion='0.1.0'\n"
+        f"dspx_core-{_CORE_VERSION}/pyproject.toml": (
+            f"[project]\nname='dspx-core'\nversion='{_CORE_VERSION}'\n".encode()
         ),
-        "dspx_core-0.1.0/src/dspx/__init__.py": b"__version__ = '0.1.0'\n",
+        f"dspx_core-{_CORE_VERSION}/src/dspx/__init__.py": f"__version__ = '{_CORE_VERSION}'\n".encode(),
     }
     with tarfile.open(path, "w:gz") as archive:
         for name, raw in files.items():
@@ -131,14 +135,14 @@ def _proof(path: Path, *, wheel_path: Path, wheel_sha256: str) -> None:
                     "filename": wheel_path.name,
                     "sha256": wheel_sha256,
                     "distribution_name": "dspx-core",
-                    "distribution_version": "0.1.0",
+                    "distribution_version": _CORE_VERSION,
                     "direct_url_bound": True,
                     "installed_payload_record_verified": True,
                     "installed_payload_file_count": 2,
                 },
                 "install": {
                     "module_path": "/venv/site-packages/dspx/__init__.py",
-                    "distribution_version": "0.1.0",
+                    "distribution_version": _CORE_VERSION,
                 },
                 "independent_effect_observations": {
                     "path_resolved_ak_canary_invoked": False
@@ -154,8 +158,8 @@ def _inputs(
 ) -> tuple[ModuleType, Path, Path, Path, Path]:
     tmp_path.mkdir(parents=True, exist_ok=True)
     release_module = _load("core_release_evidence")
-    wheel = tmp_path / "dspx_core-0.1.0-py3-none-any.whl"
-    sdist = tmp_path / "dspx_core-0.1.0.tar.gz"
+    wheel = tmp_path / f"dspx_core-{_CORE_VERSION}-py3-none-any.whl"
+    sdist = tmp_path / f"dspx_core-{_CORE_VERSION}.tar.gz"
     proof = tmp_path / "installed-proof.json"
     release_path = tmp_path / "release-evidence.json"
     wheel_hash = _wheel(wheel)
@@ -228,7 +232,7 @@ def _inputs_v3(
                 records=[
                     {
                         "name": "dspx-core",
-                        "version": "0.1.0",
+                        "version": _CORE_VERSION,
                         "requirements": ["httpx>=0.28.1"],
                     },
                     {"name": "httpx", "version": "0.28.1", "requirements": []},

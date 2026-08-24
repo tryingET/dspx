@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 import dspy
 from dspx.config_loader import load_config_env
 from dspx.tracing import enable_mlflow_from_env
-from dspx.provider_registry import create_from_env, ensure_default_providers
+from dspx.provider_registry import create_from_env
 
 PROGRAM_NAME = "clarity_flow"
 
@@ -12,8 +12,7 @@ PROGRAM_NAME = "clarity_flow"
 def _configure_lm() -> None:
     load_config_env()
     enable_mlflow_from_env()
-    ensure_default_providers()
-    lm = create_from_env()
+    lm = create_from_env(allow_stub_default=True)
     dspy.configure(lm=lm)
 
 

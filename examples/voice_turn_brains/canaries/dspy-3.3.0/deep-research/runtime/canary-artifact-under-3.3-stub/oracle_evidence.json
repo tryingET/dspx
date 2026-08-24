@@ -1,0 +1,170 @@
+{
+  "authority": "oracle_readability_only_non_authoritative",
+  "behavior": {
+    "evaluation_sources": [
+      {
+        "behavior_results_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+        "behavior_results_path": "behavior_results.json",
+        "input_artifact_hash": "70e353703745866e51c60260d2d1a7122897e0e8c1bbaabc331e08ac8dce9e7d",
+        "input_artifact_path": "runtime_inputs.json",
+        "kind": "runtime_inputs",
+        "source_kind": "runtime_inputs"
+      }
+    ],
+    "evidence_summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    },
+    "example_count": 1,
+    "failure_modes": [],
+    "result_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+    "result_path": "behavior_results.json",
+    "source_statuses": [
+      "executed"
+    ],
+    "statuses": {
+      "executed": 1
+    },
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    }
+  },
+  "evidence_kind": "program_execution_episode",
+  "identity": {
+    "assembly_id": "prog-asm-a60ec3427568",
+    "candidate_id": "prog-cand-3b0ba61de49a",
+    "episode_id": "prog-ep-0fc2374bdff9",
+    "receipt_bundle_id": "prog-rb-839cfb25cdfd",
+    "request_id": "prog-req-3bc4e2736aac",
+    "runtime_episode_id": "prog-run-3f33838abca28760"
+  },
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Use only facts supported by passages whose lexical score is greater than zero.",
+      "Synthesize at least two relevant perspectives such as ownership, execution scope, evidence safety, optimization, or residual limitations when the corpus supports them.",
+      "Cite every material claim with the exact retrieved document id in square brackets.",
+      "Never invent a citation id, source, quote, or external fact.",
+      "State conflicts or missing evidence explicitly.",
+      "If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.",
+      "Return only the response field."
+    ],
+    "metric": "runtime_episode:none",
+    "name": "VoiceTurnDeepResearchBrain",
+    "objective": "Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations.",
+    "task_type": "single_module"
+  },
+  "io": {
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "outputs": [
+      "response"
+    ]
+  },
+  "non_authority": {
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false
+  },
+  "oracle_facets": {
+    "behavior_source_kinds": [
+      "runtime_inputs"
+    ],
+    "behavior_status": "executed",
+    "contract_mode": "none",
+    "dataset_split_count": 0,
+    "evidence_source_count": 1,
+    "example_count": 1,
+    "failure_mode_count": 0,
+    "has_dataset_splits": false,
+    "has_examples": true,
+    "has_failures": false,
+    "input_fields": [
+      "transcription",
+      "persona_intent"
+    ],
+    "metric": "runtime_episode:none",
+    "output_fields": [
+      "response"
+    ],
+    "runtime_episode_id": "prog-run-3f33838abca28760",
+    "runtime_trace_coverage_status": "complete",
+    "runtime_trace_final_output_trace_count": 1,
+    "runtime_trace_module_call_count": 3,
+    "runtime_trace_source_record_coverage_status": "complete",
+    "runtime_trace_status": "runtime_traces_captured",
+    "status_counts": {
+      "executed": 1
+    },
+    "task_type": "single_module",
+    "total_evaluation_count": 1
+  },
+  "oracle_text": "schema_version=program-oracle-evidence-v1\nevidence_kind=program_execution_episode\nintent.name=VoiceTurnDeepResearchBrain\nintent.objective=Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations.\nintent.task_type=single_module\nintent.metric=runtime_episode:none\nio.inputs=transcription,persona_intent\nio.outputs=response\nidentity.runtime_episode_id=prog-run-3f33838abca28760\nidentity.candidate_id=prog-cand-3b0ba61de49a\nidentity.assembly_id=prog-asm-a60ec3427568\nbehavior.status=executed\nbehavior.source_kinds=runtime_inputs\nbehavior.example_count=1\nruntime_traces.status=runtime_traces_captured\nruntime_traces.coverage_status=complete\nruntime_traces.source_record_coverage_status=complete\nruntime_traces.module_call_count=3\nruntime_traces.final_output_trace_count=1\nauthority=oracle_readability_only_non_authoritative; oracle_ranking=false; oracle_pruning=false; oracle_promotion=false; governance_authority=false; external_mutation=false",
+  "runtime_traces": {
+    "content_hash": "307c6ba1d563f9489e5bcbdedf693c4cea8953dc18b44d8c8604cda9f084e31a",
+    "coverage": {
+      "schema_version": "program-runtime-trace-coverage-v1",
+      "source_record_coverage_status": "complete",
+      "status": "complete"
+    },
+    "final_output_trace_count": 1,
+    "module_call_count": 3,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "source_count": 1,
+    "status": "runtime_traces_captured"
+  },
+  "schema_version": "program-oracle-evidence-v1",
+  "source_artifacts": [
+    {
+      "content_hash": "70e353703745866e51c60260d2d1a7122897e0e8c1bbaabc331e08ac8dce9e7d",
+      "kind": "runtime_inputs",
+      "path": "runtime_inputs.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+      "kind": "behavior_results",
+      "path": "behavior_results.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "307c6ba1d563f9489e5bcbdedf693c4cea8953dc18b44d8c8604cda9f084e31a",
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json"
+    }
+  ]
+}

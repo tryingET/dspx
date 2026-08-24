@@ -6,12 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
-from dspx.capabilities import ProviderCapabilities
 from dspx.cli.commands.oracle import app as oracle_app
-from dspx.dtos import LMResponse
 from dspx.services.program_oracle_semantic_backend import (
     FixtureReplayOracleSemanticBackend,
-    LiveLMOracleSemanticBackend,
     ProgramOracleSemanticBackendError,
     _analysis_prompt,
     _analysis_response_format,
@@ -125,30 +122,6 @@ def test_code_semantics_and_request_values_constrain_prompt_and_schema() -> None
     assert properties["evidence_refs"]["uniqueItems"] is True
 
 
-class _LiveLM:
-    requested_model = "openai/gpt-5.4"
-
-    def __init__(self, *, fail: bool = False) -> None:
-        self.calls = 0
-        self.fail = fail
-
-    def generate(self, request, **kwargs):
-        self.calls += 1
-        response_format = kwargs.get("response_format")
-        assert isinstance(response_format, dict)
-        assert response_format["name"] == "dspx_oracle_semantic_analysis"
-        assert response_format["strict"] is True
-        if self.fail:
-            raise RuntimeError(
-                "provider unavailable; authorization: Bearer secret-token-value"
-            )
-        assert "local transition authority" not in request.prompt
-        return LMResponse(
-            outputs=[json.dumps(_analysis())],
-            model="openai/gpt-5.4-2026-06-01",
-        )
-
-
 def test_request_hash_is_deterministic_and_secret_shaped_evidence_fails() -> None:
     left = _request()
     right = OracleSemanticRequest(
@@ -171,175 +144,48 @@ def test_request_hash_is_deterministic_and_secret_shaped_evidence_fails() -> Non
         )
 
 
-def test_live_preflight_resolves_provider_without_calling_model(monkeypatch) -> None:
-    from dspx import provider_registry
-
-    monkeypatch.setattr(provider_registry, "ensure_default_providers", lambda: None)
-    monkeypatch.setattr(
-        provider_registry,
-        "capabilities",
-        lambda name: ProviderCapabilities(
-            json_mode=True, structured_output_format="json"
-        ),
-    )
-    monkeypatch.setattr(
-        provider_registry,
-        "available",
-        lambda: {"test-provider": object()},
-    )
-    monkeypatch.setattr(
-        provider_registry,
-        "create",
-        lambda name: pytest.fail("preflight must not run provider factories"),
-    )
-
-    payload = preflight_program_oracle_semantic_backend(
-        environ={
-            "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
-            "DSPX_ORACLE_SEMANTIC_PROVIDER": "test-provider",
-        }
-    ).to_dict()
-
-    assert payload["ready"] is True
-    assert payload["preferred_model"] == "codex/gpt-5.6-sol"
-    assert payload["configured_provider"] == "test-provider"
-    assert payload["configured_model"] is None
-    assert payload["executed_model"] is None
-    assert payload["live_verified"] is False
-
-
-def test_dspy_lm_auth_preflight_binds_configured_model_without_factory(
-    monkeypatch,
+def test_live_preflight_is_explicitly_unavailable_without_provider_factory(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from dspx import provider_registry
 
-    monkeypatch.setattr(provider_registry, "ensure_default_providers", lambda: None)
-    monkeypatch.setattr(
-        provider_registry,
-        "capabilities",
-        lambda name: ProviderCapabilities(
-            json_mode=True, structured_output_format="json"
-        ),
-    )
-    monkeypatch.setattr(
-        provider_registry,
-        "available",
-        lambda: {"dspy-lm-auth": object()},
-    )
     monkeypatch.setattr(
         provider_registry,
         "create",
-        lambda name: pytest.fail("preflight must not run provider factories"),
+        lambda name: pytest.fail(f"live preflight must not create provider {name}"),
     )
-
     payload = preflight_program_oracle_semantic_backend(
         environ={
             "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
-            "DSPX_ORACLE_SEMANTIC_PROVIDER": "dspy-lm-auth",
-            "DSPX_ORACLE_SEMANTIC_MODEL": "codex/gpt-5.6-sol",
+            "DSPX_ORACLE_SEMANTIC_PROVIDER": "stub",
         }
     ).to_dict()
 
-    assert payload["ready"] is True
-    assert payload["preferred_model"] == "codex/gpt-5.6-sol"
-    assert payload["configured_model"] == "codex/gpt-5.6-sol"
-    assert payload["executed_model"] is None
-    assert payload["live_verified"] is False
+    assert payload["ready"] is False
+    assert payload["configured_provider"] == "stub"
+    assert (
+        "live Oracle semantic providers are unsupported"
+        in payload["checks"][0]["detail"]
+    )
 
 
-def test_dspy_lm_auth_resolver_constructs_the_resolved_role(monkeypatch) -> None:
-    import dspx.services.program_oracle_semantic_backend as semantic_backend
+def test_live_resolver_fails_before_provider_construction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from dspx import provider_registry
 
-    lm = _LiveLM()
-    lm.requested_model = "codex/gpt-5.6-sol"
-    captured: dict[str, object] = {}
-
-    def fake_create_role_lm(name, *, environ, resolved_role):
-        captured["name"] = name
-        captured["environ"] = environ
-        captured["role"] = resolved_role
-        return lm
-
-    monkeypatch.setattr(semantic_backend, "create_role_lm", fake_create_role_lm)
     monkeypatch.setattr(
         provider_registry,
         "create",
-        lambda name: pytest.fail("role-bound dspy-lm-auth must bypass generic factory"),
+        lambda name: pytest.fail(f"live resolver must not create provider {name}"),
     )
-    environ = {
-        "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
-        "DSPX_ORACLE_SEMANTIC_PROVIDER": "dspy-lm-auth",
-        "DSPX_ORACLE_SEMANTIC_MODEL": "codex/gpt-5.6-sol",
-        "DSPX_ORACLE_SEMANTIC_REASONING_EFFORT": "xhigh",
-    }
-
-    backend = resolve_program_oracle_semantic_backend(environ=environ)
-
-    assert isinstance(backend, LiveLMOracleSemanticBackend)
-    assert backend.preferred_model == "codex/gpt-5.6-sol"
-    assert backend.configured_model == "codex/gpt-5.6-sol"
-    assert captured["name"] == "oracle_semantic"
-    assert captured["environ"] is environ
-    role = captured["role"]
-    assert getattr(role, "model") == "codex/gpt-5.6-sol"
-    assert getattr(role, "reasoning_effort") == "xhigh"
-
-
-def test_live_preflight_fails_for_provider_without_json_capability(monkeypatch) -> None:
-    from dspx import provider_registry
-
-    monkeypatch.setattr(provider_registry, "ensure_default_providers", lambda: None)
-    monkeypatch.setattr(
-        provider_registry,
-        "capabilities",
-        lambda name: ProviderCapabilities(
-            json_mode=False, structured_output_format="none"
-        ),
-    )
-
-    payload = preflight_program_oracle_semantic_backend(
-        environ={"DSPX_ORACLE_SEMANTIC_PROVIDER": "text-only"}
-    ).to_dict()
-
-    assert payload["ready"] is False
-    assert payload["executed_provider"] is None
-    assert "JSON output capability" in payload["checks"][0]["detail"]
-
-
-def test_live_execution_preserves_preferred_configured_and_observed_models() -> None:
-    lm = _LiveLM()
-    backend = LiveLMOracleSemanticBackend(
-        provider_name="openai-api",
-        preferred_model="codex/gpt-5.6-sol",
-        lm=lm,
-    )
-
-    payload = backend.analyze(_request()).to_dict()
-
-    assert payload["execution_status"] == "succeeded"
-    assert payload["preferred_model"] == "codex/gpt-5.6-sol"
-    assert payload["configured_model"] == "openai/gpt-5.4"
-    assert payload["executed_provider"] is None
-    assert payload["executed_model"] == "openai/gpt-5.4-2026-06-01"
-    assert payload["live_call_succeeded"] is True
-    assert payload["analysis"] == _analysis()
-
-
-def test_failed_live_execution_never_claims_executed_identity() -> None:
-    backend = LiveLMOracleSemanticBackend(
-        provider_name="openai-api",
-        preferred_model="codex/gpt-5.6-sol",
-        lm=_LiveLM(fail=True),
-    )
-
-    payload = backend.analyze(_request()).to_dict()
-
-    assert payload["execution_status"] == "failed_before_live_success"
-    assert payload["executed_provider"] is None
-    assert payload["executed_model"] is None
-    assert payload["live_call_succeeded"] is False
-    assert "secret-token-value" not in payload["error"]
+    with pytest.raises(ProgramOracleSemanticBackendError, match="live Oracle semantic"):
+        resolve_program_oracle_semantic_backend(
+            environ={
+                "DSPX_ORACLE_SEMANTIC_BACKEND": "live",
+                "DSPX_ORACLE_SEMANTIC_PROVIDER": "stub",
+            }
+        )
 
 
 def _write_fixture(path: Path, request: OracleSemanticRequest) -> None:

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-08T21:59:41.142684771+00:00",
+  "task_id": 4692,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-trusted-local-core-production-frame.md",
+      "governance/task-scopes/AK-4692.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/dspy-3-3-trusted-local-core-production-frame.md",
+      "governance/task-scopes/AK-4692.snapshot.json"
+    ],
+    "forbidden_paths": [
+      ".ontology/**",
+      "examples/voice_turn_brains/**",
+      "governance/release-signing/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

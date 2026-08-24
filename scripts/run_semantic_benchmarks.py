@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # ---
-# summary: "Run the semantic corpus with offline fixtures or an explicit live provider."
+# summary: "Run the semantic corpus with offline fixtures under the typed hard cutover."
 # read_when:
-#   - "Changing semantic benchmark inputs, live-provider controls, or result emission."
+#   - "Changing semantic benchmark inputs or offline result emission."
 # ---
-"""Run the DSPx semantic corpus offline or with an explicitly selected provider."""
+"""Run the DSPx semantic corpus offline; live providers are unavailable in T2."""
 
 from __future__ import annotations
 
@@ -12,9 +12,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
-
-from dspx.provider_runtime import invoke_provider
 from dspx.services.semantic_benchmark import (
     load_semantic_corpus,
     run_semantic_benchmark,
@@ -50,8 +47,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    if args.live and not args.provider:
-        print("error: --live requires --provider", file=sys.stderr)
+    if args.live:
+        print(
+            "error: live semantic providers are unsupported after the typed hard cutover",
+            file=sys.stderr,
+        )
         return 2
     if not args.live and args.provider:
         print("error: --provider is accepted only with --live", file=sys.stderr)
@@ -62,25 +62,11 @@ def main() -> int:
 
     try:
         corpus = load_semantic_corpus(args.corpus)
-        invoker = None
-        if args.live:
-            from dspx.provider_registry import create, ensure_default_providers
-
-            ensure_default_providers()
-            lm: Any = create(args.provider)
-
-            def call(prompt: str) -> str:
-                text, _usage = invoke_provider(
-                    lm, prompt=prompt, max_tokens=args.max_tokens
-                )
-                return text
-
-            invoker = call
         result = run_semantic_benchmark(
             corpus,
-            mode="live" if args.live else "offline",
-            provider=args.provider,
-            invoke=invoker,
+            mode="offline",
+            provider=None,
+            invoke=None,
         )
         write_result(result, args.out, result_schema_path=args.result_schema)
     except Exception as exc:

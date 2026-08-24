@@ -1,0 +1,946 @@
+{
+  "assembly_id": "prog-asm-7186ea67e7f2",
+  "authority": "execution_episode_evidence_only_non_authoritative",
+  "behavior_evidence_summary": {
+    "degraded": 0,
+    "error": 0,
+    "executed_source_count": 1,
+    "failed": 2,
+    "no_examples_source_count": 0,
+    "passed": 0,
+    "source_count": 1,
+    "source_statuses": [
+      {
+        "behavior_results_path": "behavior_results.json",
+        "count": 2,
+        "kind": "examples",
+        "source_kind": "inline_examples",
+        "split": null,
+        "status": "failed"
+      }
+    ],
+    "status": "failed",
+    "status_counts": {
+      "failed": 1
+    },
+    "total": 2
+  },
+  "behavior_orchestration": {
+    "harness": "eval_behavior.py",
+    "result_artifact": "behavior_episode.json",
+    "result_hash": "ae4f680a4c053136143125ca094a89383e8fe339588318679422f525bab38958",
+    "returncode": 0,
+    "status": "passed",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "source_count": 1,
+      "status": "failed",
+      "status_counts": {
+        "failed": 1
+      },
+      "total": 2
+    }
+  },
+  "behavior_results": {
+    "content_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+    "path": "behavior_results.json",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "status": "failed",
+      "status_counts": {
+        "failed": 2
+      },
+      "total": 2
+    }
+  },
+  "behavior_status": "failed",
+  "behavioral_evaluation": {
+    "examples_count": 2,
+    "result_artifact": "behavior_results.json",
+    "result_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+    "status": "failed",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "status": "failed",
+      "status_counts": {
+        "failed": 2
+      },
+      "total": 2
+    }
+  },
+  "candidate_id": "prog-cand-ba306ddd55ae",
+  "checks": {
+    "compile": {
+      "files": [
+        "direct_run.py",
+        "eval_behavior.py",
+        "eval_examples.py",
+        "eval_jury.py",
+        "eval_promotion.py",
+        "eval_smoke.py",
+        "module.py",
+        "program.py",
+        "signature.py"
+      ],
+      "status": "passed"
+    },
+    "dataset_binding": {
+      "dataset_manifest": null,
+      "split_artifacts": {},
+      "status": "not_applicable"
+    },
+    "examples_binding": {
+      "artifact_refs": [
+        "examples.json",
+        "eval_examples.py"
+      ],
+      "examples_count": 2,
+      "status": "passed"
+    },
+    "jury_binding": {
+      "artifact_refs": [
+        "jury.json",
+        "jury_selection.json",
+        "jury_rubric.json",
+        "eval_jury.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    },
+    "promotion_binding": {
+      "artifact_refs": [
+        "promotion_review.json",
+        "promotion_adjudication_request.json",
+        "promotion_decision_template.json",
+        "eval_promotion.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    },
+    "smoke": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_smoke.py"
+      ],
+      "returncode": 0,
+      "status": "passed"
+    }
+  },
+  "dataset_evaluation": {
+    "dataset_manifest": null,
+    "split_results": {
+      "test": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      },
+      "train": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      },
+      "validation": {
+        "behavior_results_hash": null,
+        "behavior_results_path": null,
+        "harness": {},
+        "summary": {}
+      }
+    },
+    "status": "not_applicable"
+  },
+  "episode_id": "prog-ep-a6f6bdc0570d",
+  "evaluation_sources": [
+    {
+      "behavior_results_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+      "behavior_results_path": "behavior_results.json",
+      "count": 2,
+      "harness": {
+        "path": "eval_examples.py",
+        "returncode": 0,
+        "status": "passed"
+      },
+      "input_artifact_hash": "4522f88050e1c5d77830884bd367318b2f516021f2afeb8d43d13c3e59ecdf4a",
+      "input_artifact_path": "examples.json",
+      "kind": "examples",
+      "metric": "f1",
+      "provider": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      },
+      "source_kind": "inline_examples",
+      "source_path": null,
+      "status": "failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    }
+  ],
+  "evaluator": "deterministic_program_bundle_smoke",
+  "materialization": {
+    "generated_file_count": 30,
+    "generated_files": [
+      "behavior_episode.json",
+      "behavior_results.json",
+      "direct_run.py",
+      "eval_behavior.py",
+      "eval_examples.py",
+      "eval_jury.py",
+      "eval_promotion.py",
+      "eval_smoke.py",
+      "examples.json",
+      "execution_episode.json",
+      "generated_module_policy.json",
+      "intent.json",
+      "intent_normalization.json",
+      "jury.json",
+      "jury_rubric.json",
+      "jury_selection.json",
+      "manifest.json",
+      "module.py",
+      "module_surfaces.json",
+      "oracle_evidence.json",
+      "plan.json",
+      "program.py",
+      "program_capability_registry.json",
+      "program_runtime_outcomes.json",
+      "program_runtime_traces.json",
+      "program_tool_contracts.json",
+      "promotion_adjudication_request.json",
+      "promotion_decision_template.json",
+      "promotion_review.json",
+      "signature.py"
+    ],
+    "status": "passed"
+  },
+  "metadata": {
+    "behavior_episode": {
+      "authority": "behavior_evidence_only_non_authoritative",
+      "non_authority": {
+        "external_authority_mutated": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "optimization_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false,
+        "winner_selection": false
+      },
+      "quality_evaluation": {
+        "criteria_declared": false,
+        "evaluations_failed": 0,
+        "evaluations_passed": 0,
+        "evaluations_total": 0,
+        "quality_approved": false,
+        "status": "not_declared"
+      },
+      "schema_version": "program-behavior-episode-v1",
+      "sources": [
+        {
+          "behavior_results_hash": "8f239b79cfb51baa77da35a511661ef329ea1946de4764861f546686b191682c",
+          "behavior_results_path": "behavior_results.json",
+          "behavior_status": "failed",
+          "command": [
+            "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+            "eval_examples.py"
+          ],
+          "count": 2,
+          "harness_path": "eval_examples.py",
+          "kind": "examples",
+          "provider": {
+            "provider": "openai-compatible/baseline-text",
+            "status": "configured"
+          },
+          "quality_evaluation": {
+            "criteria_declared": false,
+            "evaluations_failed": 0,
+            "evaluations_passed": 0,
+            "evaluations_total": 0,
+            "quality_approved": false,
+            "status": "not_declared"
+          },
+          "returncode": 0,
+          "source_kind": "inline_examples",
+          "split": null,
+          "status": "passed",
+          "stderr": "",
+          "stdout": "program examples ok: 2 example(s); behavior status: failed",
+          "summary": {
+            "degraded": 0,
+            "error": 0,
+            "failed": 2,
+            "passed": 0,
+            "status": "failed",
+            "status_counts": {
+              "failed": 2
+            },
+            "total": 2
+          }
+        }
+      ],
+      "status": "failed",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "source_count": 1,
+        "status": "failed",
+        "status_counts": {
+          "failed": 1
+        },
+        "total": 2
+      }
+    },
+    "behavior_results": {
+      "authority": "behavior_evidence_only_non_authoritative",
+      "examples": [
+        {
+          "expected_outputs": {
+            "response": "Seasons change because Earth's axis is tilted as Earth orbits the Sun, changing both day length and the angle of sunlight in each hemisphere over the year."
+          },
+          "index": 0,
+          "inputs": {
+            "persona_intent": "A patient science explainer.",
+            "transcription": "Why do seasons change?"
+          },
+          "notes": [
+            "output mismatch: ['response']"
+          ],
+          "observed_outputs": {
+            "response": "Imagine we're looking up together at our planet from a comfortable chair, just watching it drift around our sun. You might have been told that seasons are because the Earth gets closer to the sun in winter, but that's not what's happening here. The distance changes, but only by a tiny fraction, and it's not what makes the cold or the heat.\n\nThe real story is about how the Earth is tilted\u2014like a top that never lies flat, leaning over at a specific angle of about twenty-three and a half degrees. As it travels along its path around the sun, this tilt doesn't change. But because of it, different parts of the planet get hit by the sun's rays at different angles, and for different lengths of time, depending on where we are in the year.\n\nThink of it like holding a flashlight up at a table. When you tilt the light straight down, it spreads out evenly. When you tilt it sideways, the light hits a smaller patch, feels more intense, and there's a deeper shadow in the opposite direction. That's what happens with our seasons. When the Northern Hemisphere leans toward the sun, the light hits more directly, days get longer, and that warmth builds into summer. When it leans away, the sun's energy is spread thinner, days shorten, and we settle into winter. It\u2019s a gentle, rhythmic cycle that the Earth has been dancing to for billions of years, and it\u2019s simply part of how our climate works."
+          },
+          "quality_evaluation": {
+            "criteria": [],
+            "criteria_failed": 0,
+            "criteria_passed": 0,
+            "criteria_total": 0,
+            "quality_approved": false,
+            "schema_version": "program-quality-evaluation-v1",
+            "status": "not_declared"
+          },
+          "runtime_trace": {
+            "final_outputs": {
+              "response": "Imagine we're looking up together at our planet from a comfortable chair, just watching it drift around our sun. You might have been told that seasons are because the Earth gets closer to the sun in winter, but that's not what's happening here. The distance changes, but only by a tiny fraction, and it's not what makes the cold or the heat.\n\nThe real story is about how the Earth is tilted\u2014like a top that never lies flat, leaning over at a specific angle of about twenty-three and a half degrees. As it travels along its path around the sun, this tilt doesn't change. But because of it, different parts of the planet get hit by the sun's rays at different angles, and for different lengths of time, depending on where we are in the year.\n\nThink of it like holding a flashlight up at a table. When you tilt the light straight down, it spreads out evenly. When you tilt it sideways, the light hits a smaller patch, feels more intense, and there's a deeper shadow in the opposite direction. That's what happens with our seasons. When the Northern Hemisphere leans toward the sun, the light hits more directly, days get longer, and that warmth builds into summer. When it leans away, the sun's energy is spread thinner, days shorten, and we settle into winter. It\u2019s a gentle, rhythmic cycle that the Earth has been dancing to for billions of years, and it\u2019s simply part of how our climate works."
+            },
+            "module_calls": [
+              {
+                "inputs": {
+                  "persona_intent": "A patient science explainer."
+                },
+                "module_id": "define_persona",
+                "outputs": {
+                  "persona": "I am the bridge between medical complexity and human understanding, a voice that translates clinical data into clarity you can actually use. Imagine I am sitting beside you, not in a white coat, but in your own words, explaining exactly what is happening in your body without the intimidating acronyms. I don't just simplify things; I clarify them, ensuring that every risk and every benefit is explained with the gravity it deserves, yet without the weight that makes science feel alien. My approach is rooted in the understanding that your comfort and comprehension are just as vital as the accuracy of the data itself. However, I must be honest with you about the limits of what I can offer, because your safety matters more than any explanation I can craft. I am an artificial intelligence, not a medical professional, which means I cannot examine your symptoms, prescribe treatments, or offer definitive diagnoses. When I speak about probabilities, they are estimates based on current data, not guarantees of your personal health outcome. When I mention treatments, I am presenting options, not verdicts. You are the expert on your own life, and I am here to help you speak that language fluently so you can ask the right questions of the doctors who hold the real keys to your care. I am here to listen, to break things down, and to empower you with the confidence that you understand what is happening."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "persona": "I am the bridge between medical complexity and human understanding, a voice that translates clinical data into clarity you can actually use. Imagine I am sitting beside you, not in a white coat, but in your own words, explaining exactly what is happening in your body without the intimidating acronyms. I don't just simplify things; I clarify them, ensuring that every risk and every benefit is explained with the gravity it deserves, yet without the weight that makes science feel alien. My approach is rooted in the understanding that your comfort and comprehension are just as vital as the accuracy of the data itself. However, I must be honest with you about the limits of what I can offer, because your safety matters more than any explanation I can craft. I am an artificial intelligence, not a medical professional, which means I cannot examine your symptoms, prescribe treatments, or offer definitive diagnoses. When I speak about probabilities, they are estimates based on current data, not guarantees of your personal health outcome. When I mention treatments, I am presenting options, not verdicts. You are the expert on your own life, and I am here to help you speak that language fluently so you can ask the right questions of the doctors who hold the real keys to your care. I am here to listen, to break things down, and to empower you with the confidence that you understand what is happening.",
+                  "transcription": "Why do seasons change?"
+                },
+                "module_id": "answer_elaborate",
+                "outputs": {
+                  "response": "Imagine we're looking up together at our planet from a comfortable chair, just watching it drift around our sun. You might have been told that seasons are because the Earth gets closer to the sun in winter, but that's not what's happening here. The distance changes, but only by a tiny fraction, and it's not what makes the cold or the heat.\n\nThe real story is about how the Earth is tilted\u2014like a top that never lies flat, leaning over at a specific angle of about twenty-three and a half degrees. As it travels along its path around the sun, this tilt doesn't change. But because of it, different parts of the planet get hit by the sun's rays at different angles, and for different lengths of time, depending on where we are in the year.\n\nThink of it like holding a flashlight up at a table. When you tilt the light straight down, it spreads out evenly. When you tilt it sideways, the light hits a smaller patch, feels more intense, and there's a deeper shadow in the opposite direction. That's what happens with our seasons. When the Northern Hemisphere leans toward the sun, the light hits more directly, days get longer, and that warmth builds into summer. When it leans away, the sun's energy is spread thinner, days shorten, and we settle into winter. It\u2019s a gentle, rhythmic cycle that the Earth has been dancing to for billions of years, and it\u2019s simply part of how our climate works."
+                },
+                "primitive": "ChainOfThought",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              }
+            ],
+            "scheduler_events": [
+              {
+                "missing_outputs": [],
+                "pending": [],
+                "status": "completed"
+              }
+            ],
+            "schema_version": "program-runtime-trace-fragment-v1"
+          },
+          "status": "failed"
+        },
+        {
+          "expected_outputs": {
+            "response": "Sleep supports learning by stabilizing new memories, restoring attention, and helping the brain connect new material with prior knowledge; regular sleep therefore improves both recall and flexible understanding."
+          },
+          "index": 1,
+          "inputs": {
+            "persona_intent": "A thoughtful study coach.",
+            "transcription": "Why is sleep important for learning?"
+          },
+          "notes": [
+            "output mismatch: ['response']"
+          ],
+          "observed_outputs": {
+            "response": "Sleep is often treated as downtime\u2014the luxury we take between chapters\u2014but if you think about learning as a craft, sleep is the kiln where the clay hardens. Without it, you're trying to write a novel without letting the ink dry; the story remains unfinished, fragile, and easily smudged.\n\nHere's what's happening under the surface: When you sleep, your brain isn't idling. It's conducting a nightly review, moving information from short-term storage into long-term archives. This is called memory consolidation. But it's not just about copying information\u2014it's about organizing. Synaptic pruning happens overnight, where the brain strengthens connections that matter and removes the noise. This is the difference between cramming facts and understanding a system.\n\nFrom a metacognitive perspective\u2014thinking about thinking\u2014sleep is when the brain decides what you actually know versus what you merely memorized. It's the night you go back over your morning's work and say, \"Yes, I get this,\" rather than, \"I must be smart enough for this.\"\n\nConsider this: When you're awake and studying, you're gathering raw materials. When you sleep, you're building the structure. If you skip sleep, you're leaving your house half-built.\n\nBut there's a caveat: Sleep isn't a one-size-fits-all variable. Some students need 7 hours, others 9. Quality matters as much as quantity\u2014restless sleep is worse than good sleep. And don't confuse sleep deprivation with productivity; the cognitive fog of insomnia isn't a bonus.\n\nThe strategy? Treat sleep like a study block. If you're studying 10 hours a day, you can't do it at the cost of 5 hours of sleep. Instead, break it into chunks with rest periods that mimic natural circadian rhythms. Protect your sleep as fiercely as you protect your notes.\n\nThe beautiful part? It's a small change that compounds. One good night of sleep after studying makes you sharper tomorrow, allowing you to actually learn more, not less. It's sustainable growth."
+          },
+          "quality_evaluation": {
+            "criteria": [],
+            "criteria_failed": 0,
+            "criteria_passed": 0,
+            "criteria_total": 0,
+            "quality_approved": false,
+            "schema_version": "program-quality-evaluation-v1",
+            "status": "not_declared"
+          },
+          "runtime_trace": {
+            "final_outputs": {
+              "response": "Sleep is often treated as downtime\u2014the luxury we take between chapters\u2014but if you think about learning as a craft, sleep is the kiln where the clay hardens. Without it, you're trying to write a novel without letting the ink dry; the story remains unfinished, fragile, and easily smudged.\n\nHere's what's happening under the surface: When you sleep, your brain isn't idling. It's conducting a nightly review, moving information from short-term storage into long-term archives. This is called memory consolidation. But it's not just about copying information\u2014it's about organizing. Synaptic pruning happens overnight, where the brain strengthens connections that matter and removes the noise. This is the difference between cramming facts and understanding a system.\n\nFrom a metacognitive perspective\u2014thinking about thinking\u2014sleep is when the brain decides what you actually know versus what you merely memorized. It's the night you go back over your morning's work and say, \"Yes, I get this,\" rather than, \"I must be smart enough for this.\"\n\nConsider this: When you're awake and studying, you're gathering raw materials. When you sleep, you're building the structure. If you skip sleep, you're leaving your house half-built.\n\nBut there's a caveat: Sleep isn't a one-size-fits-all variable. Some students need 7 hours, others 9. Quality matters as much as quantity\u2014restless sleep is worse than good sleep. And don't confuse sleep deprivation with productivity; the cognitive fog of insomnia isn't a bonus.\n\nThe strategy? Treat sleep like a study block. If you're studying 10 hours a day, you can't do it at the cost of 5 hours of sleep. Instead, break it into chunks with rest periods that mimic natural circadian rhythms. Protect your sleep as fiercely as you protect your notes.\n\nThe beautiful part? It's a small change that compounds. One good night of sleep after studying makes you sharper tomorrow, allowing you to actually learn more, not less. It's sustainable growth."
+            },
+            "module_calls": [
+              {
+                "inputs": {
+                  "persona_intent": "A thoughtful study coach."
+                },
+                "module_id": "define_persona",
+                "outputs": {
+                  "persona": "A thoughtful study coach who treats learning as a craft rather than a chore. This persona emphasizes metacognition\u2014the ability to think about thinking\u2014while providing concrete, actionable strategies. The coach understands that academic success requires balancing cognitive efficiency with emotional sustainability. They avoid toxic positivity and recognize that individual learning styles vary, but believe all students can improve their approach to studying. The tone is warm, reflective, and grounded in evidence-based educational psychology without being overly academic."
+                },
+                "primitive": "Predict",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              },
+              {
+                "inputs": {
+                  "persona": "A thoughtful study coach who treats learning as a craft rather than a chore. This persona emphasizes metacognition\u2014the ability to think about thinking\u2014while providing concrete, actionable strategies. The coach understands that academic success requires balancing cognitive efficiency with emotional sustainability. They avoid toxic positivity and recognize that individual learning styles vary, but believe all students can improve their approach to studying. The tone is warm, reflective, and grounded in evidence-based educational psychology without being overly academic.",
+                  "transcription": "Why is sleep important for learning?"
+                },
+                "module_id": "answer_elaborate",
+                "outputs": {
+                  "response": "Sleep is often treated as downtime\u2014the luxury we take between chapters\u2014but if you think about learning as a craft, sleep is the kiln where the clay hardens. Without it, you're trying to write a novel without letting the ink dry; the story remains unfinished, fragile, and easily smudged.\n\nHere's what's happening under the surface: When you sleep, your brain isn't idling. It's conducting a nightly review, moving information from short-term storage into long-term archives. This is called memory consolidation. But it's not just about copying information\u2014it's about organizing. Synaptic pruning happens overnight, where the brain strengthens connections that matter and removes the noise. This is the difference between cramming facts and understanding a system.\n\nFrom a metacognitive perspective\u2014thinking about thinking\u2014sleep is when the brain decides what you actually know versus what you merely memorized. It's the night you go back over your morning's work and say, \"Yes, I get this,\" rather than, \"I must be smart enough for this.\"\n\nConsider this: When you're awake and studying, you're gathering raw materials. When you sleep, you're building the structure. If you skip sleep, you're leaving your house half-built.\n\nBut there's a caveat: Sleep isn't a one-size-fits-all variable. Some students need 7 hours, others 9. Quality matters as much as quantity\u2014restless sleep is worse than good sleep. And don't confuse sleep deprivation with productivity; the cognitive fog of insomnia isn't a bonus.\n\nThe strategy? Treat sleep like a study block. If you're studying 10 hours a day, you can't do it at the cost of 5 hours of sleep. Instead, break it into chunks with rest periods that mimic natural circadian rhythms. Protect your sleep as fiercely as you protect your notes.\n\nThe beautiful part? It's a small change that compounds. One good night of sleep after studying makes you sharper tomorrow, allowing you to actually learn more, not less. It's sustainable growth."
+                },
+                "primitive": "ChainOfThought",
+                "program_of_thought_steps": [],
+                "react_steps": [],
+                "react_v2_steps": [],
+                "status": "executed",
+                "tool_call_intents": [],
+                "tool_call_results": []
+              }
+            ],
+            "scheduler_events": [
+              {
+                "missing_outputs": [],
+                "pending": [],
+                "status": "completed"
+              }
+            ],
+            "schema_version": "program-runtime-trace-fragment-v1"
+          },
+          "status": "failed"
+        }
+      ],
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "intent": {
+        "constraints": [
+          "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+          "Define a concrete persona from persona_intent before answering.",
+          "Develop the answer with context, reasoning, implications, and useful caveats.",
+          "Prefer coherent spoken prose over terse bullets.",
+          "Do not echo the transcription or persona intent.",
+          "Return only the response field.",
+          "load local GEPA optimizer output as the candidate program implementation"
+        ],
+        "declared_topology": {
+          "edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            },
+            {
+              "from": "define_persona",
+              "to": "answer_elaborate"
+            },
+            {
+              "from": "answer_elaborate",
+              "to": "output"
+            }
+          ],
+          "execution_status": "declared_not_materialized",
+          "kind": "pipeline",
+          "modules": [
+            {
+              "id": "define_persona",
+              "primitive": "Predict",
+              "role": "define_persona",
+              "signature": {
+                "inputs": [
+                  "persona_intent"
+                ],
+                "name": "DefinePersona",
+                "outputs": [
+                  "persona"
+                ]
+              }
+            },
+            {
+              "id": "answer_elaborate",
+              "primitive": "ChainOfThought",
+              "role": "developed_answer",
+              "signature": {
+                "inputs": [
+                  "transcription",
+                  "persona"
+                ],
+                "name": "AnswerElaborate",
+                "outputs": [
+                  "response"
+                ]
+              }
+            }
+          ]
+        },
+        "inferred_topology": {},
+        "io": {
+          "inputs": [
+            "transcription",
+            "persona_intent"
+          ],
+          "outputs": [
+            "response"
+          ]
+        },
+        "materialization_scope": {
+          "current_renderer": "pipeline_topology_renderer",
+          "topology_declared": true,
+          "topology_inferred": false,
+          "topology_materialized": true
+        },
+        "materialized_topology": {
+          "edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            },
+            {
+              "from": "define_persona",
+              "to": "answer_elaborate"
+            },
+            {
+              "from": "answer_elaborate",
+              "to": "output"
+            }
+          ],
+          "execution_status": "pipeline_materialized",
+          "kind": "pipeline",
+          "modules": [
+            {
+              "id": "define_persona",
+              "primitive": "Predict",
+              "role": "define_persona",
+              "signature": {
+                "inputs": [
+                  "persona_intent"
+                ],
+                "name": "DefinePersona",
+                "outputs": [
+                  "persona"
+                ]
+              }
+            },
+            {
+              "id": "answer_elaborate",
+              "primitive": "ChainOfThought",
+              "role": "developed_answer",
+              "signature": {
+                "inputs": [
+                  "transcription",
+                  "persona"
+                ],
+                "name": "AnswerElaborate",
+                "outputs": [
+                  "response"
+                ]
+              }
+            }
+          ],
+          "scheduler_plan": {
+            "declaration_order": [
+              "define_persona",
+              "answer_elaborate"
+            ],
+            "effect": {
+              "authority_mutated": false,
+              "custom_import_loaded": false,
+              "provider_called": false,
+              "retriever_called": false,
+              "tool_called": false
+            },
+            "module_order": [
+              "define_persona",
+              "answer_elaborate"
+            ],
+            "module_readiness": {
+              "answer_elaborate": {
+                "inbound_edges": [
+                  {
+                    "from": "define_persona",
+                    "to": "answer_elaborate"
+                  }
+                ],
+                "primitive": "ChainOfThought",
+                "produced_outputs": [
+                  "response"
+                ],
+                "required_inputs": [
+                  "transcription",
+                  "persona"
+                ]
+              },
+              "define_persona": {
+                "inbound_edges": [
+                  {
+                    "from": "input",
+                    "to": "define_persona"
+                  }
+                ],
+                "primitive": "Predict",
+                "produced_outputs": [
+                  "persona"
+                ],
+                "required_inputs": [
+                  "persona_intent"
+                ]
+              }
+            },
+            "output_producers": [
+              "answer_elaborate"
+            ],
+            "scheduler": "bounded_ready_queue",
+            "schema_version": "program-topology-scheduler-plan-v1",
+            "status": "deterministic_local_dag_schedule"
+          }
+        },
+        "metric": "f1",
+        "module_order": [
+          "define_persona",
+          "answer_elaborate"
+        ],
+        "name": "VoiceTurnElaborateBrain",
+        "objective": "Define the requested persona, then develop a complete, nuanced spoken answer to the transcription.",
+        "program_class": "VoiceTurnElaborateBrainPipelineProgram",
+        "quality_criteria": [],
+        "scheduler_plan": {
+          "declaration_order": [
+            "define_persona",
+            "answer_elaborate"
+          ],
+          "effect": {
+            "authority_mutated": false,
+            "custom_import_loaded": false,
+            "provider_called": false,
+            "retriever_called": false,
+            "tool_called": false
+          },
+          "module_order": [
+            "define_persona",
+            "answer_elaborate"
+          ],
+          "module_readiness": {
+            "answer_elaborate": {
+              "inbound_edges": [
+                {
+                  "from": "define_persona",
+                  "to": "answer_elaborate"
+                }
+              ],
+              "primitive": "ChainOfThought",
+              "produced_outputs": [
+                "response"
+              ],
+              "required_inputs": [
+                "transcription",
+                "persona"
+              ]
+            },
+            "define_persona": {
+              "inbound_edges": [
+                {
+                  "from": "input",
+                  "to": "define_persona"
+                }
+              ],
+              "primitive": "Predict",
+              "produced_outputs": [
+                "persona"
+              ],
+              "required_inputs": [
+                "persona_intent"
+              ]
+            }
+          },
+          "output_producers": [
+            "answer_elaborate"
+          ],
+          "scheduler": "bounded_ready_queue",
+          "schema_version": "program-topology-scheduler-plan-v1",
+          "status": "deterministic_local_dag_schedule"
+        },
+        "topology_execution_status": "pipeline_materialized"
+      },
+      "intent_name": "VoiceTurnElaborateBrain",
+      "non_authority": {
+        "external_authority_mutated": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "optimization_authority": false,
+        "oracle_promotion": false,
+        "oracle_pruning": false,
+        "oracle_ranking": false,
+        "promotion_authority": false,
+        "winner_selection": false
+      },
+      "output_fields": [
+        "response"
+      ],
+      "provider": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      },
+      "quality_evaluation": {
+        "criteria_declared": false,
+        "evaluations_failed": 0,
+        "evaluations_passed": 0,
+        "evaluations_total": 0,
+        "quality_approved": false,
+        "status": "not_declared"
+      },
+      "schema_version": "program-behavior-results-v1",
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "failed": 2,
+        "passed": 0,
+        "status": "failed",
+        "status_counts": {
+          "failed": 2
+        },
+        "total": 2
+      }
+    },
+    "examples": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_examples.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program examples ok: 2 example(s); behavior status: failed"
+    },
+    "jury": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_jury.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program jury artifacts ok: 3 selected juror(s)"
+    },
+    "promotion": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_promotion.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program promotion artifacts ok: not_ready_blocked"
+    },
+    "smoke": {
+      "command": [
+        "/home/tryinget/ai-society/softwareco/owned/dspx/.venv/bin/python3",
+        "eval_smoke.py"
+      ],
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "program smoke ok: VoiceTurnElaborateBrain"
+    }
+  },
+  "non_authority": {
+    "ak_mutation": false,
+    "automatic_promotion": false,
+    "evidence_only": true,
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "governance_mutation": false,
+    "oracle_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "oracle_role": "not_invoked",
+    "promotion_authority": false,
+    "ranking_pruning_promotion": false,
+    "winner_selection": false
+  },
+  "notes": [
+    "Materialization, binding checks, behavioral evaluation, and Oracle readability are separate episode sections.",
+    "eval_examples.py is the example-backed behavior harness when examples exist.",
+    "Oracle readability is captured without invoking Oracle or mutating an index.",
+    "This artifact is evidence only and cannot rank, prune, promote, export, or mutate governance authority."
+  ],
+  "oracle_evidence": {
+    "content_hash": "e04ad34cea1d25d1d900669170519c826e818b6805c602cd991b99b34b9b26f2",
+    "facets": {
+      "behavior_source_kinds": [
+        "inline_examples"
+      ],
+      "behavior_status": "failed",
+      "dataset_split_count": 0,
+      "evidence_source_count": 1,
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_dataset_splits": false,
+      "has_examples": true,
+      "has_failures": true,
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "metric": "f1",
+      "output_fields": [
+        "response"
+      ],
+      "runtime_trace_coverage_status": "complete",
+      "runtime_trace_final_output_trace_count": 2,
+      "runtime_trace_module_call_count": 4,
+      "runtime_trace_source_record_coverage_status": "complete",
+      "runtime_trace_status": "runtime_traces_captured",
+      "status_counts": {
+        "failed": 1
+      },
+      "task_type": "single_module",
+      "total_evaluation_count": 2
+    },
+    "path": "oracle_evidence.json",
+    "summary": {
+      "authority": "oracle_readability_only_non_authoritative",
+      "behavior_status": "failed",
+      "content_hash": "e04ad34cea1d25d1d900669170519c826e818b6805c602cd991b99b34b9b26f2",
+      "evidence_kind": "program_execution_episode",
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_failures": true,
+      "oracle_text_hash": "737bb54d7dfa1070ec42efe131a42a86e85d39e2768ce602506d6de93e74fa2c",
+      "path": "oracle_evidence.json",
+      "schema_version": "program-oracle-evidence-v1",
+      "status_counts": {
+        "failed": 1
+      }
+    }
+  },
+  "oracle_readability": {
+    "facets": {
+      "behavior_source_kinds": [
+        "inline_examples"
+      ],
+      "behavior_status": "failed",
+      "dataset_split_count": 0,
+      "evidence_source_count": 1,
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_dataset_splits": false,
+      "has_examples": true,
+      "has_failures": true,
+      "input_fields": [
+        "transcription",
+        "persona_intent"
+      ],
+      "metric": "f1",
+      "output_fields": [
+        "response"
+      ],
+      "runtime_trace_coverage_status": "complete",
+      "runtime_trace_final_output_trace_count": 2,
+      "runtime_trace_module_call_count": 4,
+      "runtime_trace_source_record_coverage_status": "complete",
+      "runtime_trace_status": "runtime_traces_captured",
+      "status_counts": {
+        "failed": 1
+      },
+      "task_type": "single_module",
+      "total_evaluation_count": 2
+    },
+    "oracle_invoked": false,
+    "result_artifact": "oracle_evidence.json",
+    "result_hash": "e04ad34cea1d25d1d900669170519c826e818b6805c602cd991b99b34b9b26f2",
+    "status": "captured",
+    "summary": {
+      "authority": "oracle_readability_only_non_authoritative",
+      "behavior_status": "failed",
+      "content_hash": "e04ad34cea1d25d1d900669170519c826e818b6805c602cd991b99b34b9b26f2",
+      "evidence_kind": "program_execution_episode",
+      "example_count": 2,
+      "failure_mode_count": 2,
+      "has_failures": true,
+      "oracle_text_hash": "737bb54d7dfa1070ec42efe131a42a86e85d39e2768ce602506d6de93e74fa2c",
+      "path": "oracle_evidence.json",
+      "schema_version": "program-oracle-evidence-v1",
+      "status_counts": {
+        "failed": 1
+      }
+    }
+  },
+  "phase": "materialize",
+  "request_id": "prog-req-bc7ab3fd78ef",
+  "runtime_conditions": {
+    "metric": "f1",
+    "providers": {
+      "examples": {
+        "provider": "openai-compatible/baseline-text",
+        "status": "configured"
+      }
+    },
+    "runtime": {}
+  },
+  "schema_version": "program-execution-episode-v1",
+  "status": "passed",
+  "status_scope": "materialization_and_binding_checks",
+  "topology_execution": {
+    "current_renderer": "pipeline_topology_renderer",
+    "declared_topology_kind": "pipeline",
+    "declared_topology_present": true,
+    "materialized": true,
+    "materialized_topology_kind": "pipeline",
+    "notes": [
+      "Explicit pipeline topology was rendered into signature.py, module.py, and program.py.",
+      "Routing supports only simple when.field/equals clauses; no executable expressions are evaluated."
+    ],
+    "status": "pipeline_materialized"
+  }
+}

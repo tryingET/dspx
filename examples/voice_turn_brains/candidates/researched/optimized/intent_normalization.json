@@ -1,0 +1,478 @@
+{
+  "assumptions": [],
+  "effect": {
+    "ak_called": false,
+    "external_authority_mutated": false,
+    "governance_mutated": false,
+    "normalized_intent_written": false,
+    "oracle_index_mutated": false,
+    "program_materialized": false,
+    "promotion_applied": false,
+    "provider_called": false,
+    "winner_selected": false
+  },
+  "generation_assumptions_preview": {
+    "capability_boundaries": {
+      "custom_modules": {
+        "boundary": "Custom module/import requests remain declarations and policy metadata only.",
+        "imports_enabled": false,
+        "requested": false,
+        "status": "blocked_policy_only"
+      },
+      "program_of_thought": {
+        "boundary": "No filesystem, network, env vars, tools, or sync files are exposed.",
+        "requested": false,
+        "sandbox": "empty",
+        "status": "empty_sandbox_boundary"
+      },
+      "react": {
+        "boundary": "ReAct materialization is explicit, bounded, and tools=[] only.",
+        "requested": false,
+        "status": "no_tool_boundary",
+        "tools_enabled": false
+      },
+      "react_v2": {
+        "boundary": "ReActV2 follows the DSPy 3.3 beta boundary: explicit opt-in, public dspy.ReActV2 availability, and tools=[] only.",
+        "requested": false,
+        "safe_next_action": "Declare desired tools as descriptor-only capability/tool contracts first; materialize ReActV2 with tools=[] until a reviewed generated tool-adapter policy lands.",
+        "status": "experimental_no_tool_explicit_opt_in_boundary",
+        "tool_binding_status": "blocked_until_safe_tool_adapter_contract",
+        "tool_need_detected": false,
+        "tools_enabled": false,
+        "why_tools_not_enabled": [
+          "DSPy 3.3 beta ReActV2 availability does not by itself define DSPx tool authority, effect, redaction, timeout, sandbox, replay, or receipt contracts.",
+          "program_tool_contracts.json is descriptor-only in this slice; no generated dspy.Tool adapter hash/provenance exists yet.",
+          "Enabling ReActV2 tools would allow external side effects unless every tool is explicitly declared, bounded, replay-visible, and policy-checked before materialization."
+        ]
+      },
+      "retrievers": {
+        "boundary": "Retriever materialization requires an explicit bounded Retriever topology module; external/live retrievers remain disabled.",
+        "live_retrievers_enabled": false,
+        "need_detected": true,
+        "safe_modes_available": [
+          "inline_corpus",
+          "local_corpus_snapshot"
+        ],
+        "status": "bounded_declared_adapters_only"
+      },
+      "tools": {
+        "boundary": "Tool declarations may be recorded, but dspy.Tool/live tool execution is not bound by program-gen.",
+        "enabled": false,
+        "need_detected": false,
+        "status": "disabled_descriptor_only"
+      }
+    },
+    "effect": {
+      "authority_mutated": false,
+      "custom_import_loaded": false,
+      "program_materialized": false,
+      "retriever_called": false,
+      "tool_called": false
+    },
+    "missing_questions": [],
+    "safe_next_actions": [
+      "Review this preview before materialization.",
+      "Add explicit topology when the inferred candidate is wrong or too vague.",
+      "Use only bounded inline/local retriever declarations; do not expect live retriever/tool execution.",
+      "Keep custom module/import requests declared-only until a reviewed safe import policy exists."
+    ],
+    "schema_version": "program-generation-assumptions-preview-v1",
+    "status": "preview_only_not_materialization_authority",
+    "topology_candidates": [
+      {
+        "confidence": "operator_declared",
+        "kind": "retrieve_then_answer",
+        "materializable_now": true,
+        "reason": "The intent includes an explicit topology.kind; program-gen preserves it before deciding what subset can materialize.",
+        "renderer": "retrieve_then_answer_topology_renderer",
+        "safety_boundary": "Declared topology is evidence/assumption metadata unless the bounded renderer validates it; custom remains policy-only.",
+        "source": "declared_topology"
+      },
+      {
+        "confidence": "medium",
+        "kind": "retrieve_then_answer",
+        "materializable_now": true,
+        "reason": "Retrieval/search/document cues suggest a retrieve-then-answer posture.",
+        "renderer": "retrieve_then_answer_topology_renderer",
+        "safety_boundary": "Only explicit inline_corpus or local_corpus_snapshot Retriever declarations can materialize; live retrievers remain disabled.",
+        "source": "objective_or_capability_cues"
+      }
+    ],
+    "unsupported_or_preserved_declared_only_features": [
+      {
+        "feature": "retrievers",
+        "message": "Retriever materialization requires an explicit bounded Retriever topology module; external/live retrievers remain disabled.",
+        "status": "bounded_declared_adapters_only"
+      }
+    ]
+  },
+  "generation_risks": [],
+  "materialization_gate": {
+    "blocks_materialization": false,
+    "notes": [
+      "Direct program-gen now emits this assumption/risk sidecar before writing candidate surfaces.",
+      "This sidecar does not approve generation, promotion, activation, or external authority mutation."
+    ],
+    "review_required_before_trusting_outputs": true,
+    "status": "emitted_before_candidate_materialization"
+  },
+  "missing_evidence": [
+    {
+      "kind": "dataset",
+      "message": "No dataset or explicit splits were supplied; tournament evaluation cannot compare broader data behavior.",
+      "severity": "medium"
+    }
+  ],
+  "next_actions": [
+    "Inspect assumptions, missing evidence, topology hints, and generation risks before materialization.",
+    "Run `dspx program-architect plan --intent <normalized-intent>` to inspect candidate architectures.",
+    "Add examples or datasets before using tournament evidence for serious comparison."
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "normalization_only": true,
+    "oracle_authority": false,
+    "program_generation": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "winner_selection": false
+  },
+  "normalized_intent": {
+    "capabilities": {},
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before answering.",
+      "Use only facts supported by passages whose lexical score is greater than zero.",
+      "Cite every material claim with the exact retrieved document id in square brackets.",
+      "Never invent a citation id, source, quote, or external fact.",
+      "If no retrieved passage with positive score supports the question, respond exactly: No supporting sources were found in the declared corpus.",
+      "Return only the response field.",
+      "load local GEPA optimizer output as the candidate program implementation"
+    ],
+    "dataset": {},
+    "datasets": {},
+    "examples": [
+      {
+        "inputs": {
+          "persona_intent": "A precise systems researcher.",
+          "transcription": "Who owns capture, turn composition, and the six brains?"
+        },
+        "outputs": {
+          "response": "Workstation owns capture, local-ai-control-plane owns turn composition and its receipt, and DSPx owns the six separate brains and GEPA evidence [voice-turn-owner-split]."
+        }
+      },
+      {
+        "inputs": {
+          "persona_intent": "A concise technical analyst.",
+          "transcription": "Is this voice turn streaming, and is Pipecat part of v1?"
+        },
+        "outputs": {
+          "response": "V1 is a batch, one-time turn; streaming, a continuing loop, and Pipecat are deferred to a later real-time phase [voice-turn-batch-scope]."
+        }
+      }
+    ],
+    "input_fields": [],
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "jury": {},
+    "metric": "f1",
+    "name": "VoiceTurnResearchedBrain",
+    "objective": "Define the requested persona, retrieve bounded local evidence, and answer with corpus-grounded citations.",
+    "options": {
+      "gepa_candidate_lineage": {
+        "authority": "local_gepa_refinement_candidate_only_non_authoritative",
+        "gepa_refinement_result_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/researched/gepa-result.json",
+        "schema_version": "program-gepa-candidate-lineage-v1",
+        "source_identity": {
+          "assembly_id": "prog-asm-63a51dcb28e6",
+          "candidate_id": "prog-cand-3978945ae925",
+          "episode_id": "prog-ep-15f16153dfa2",
+          "receipt_bundle_id": "prog-rb-126fb7159d19",
+          "request_id": "prog-req-a3fc606f1561"
+        },
+        "source_manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/researched/original/manifest.json"
+      },
+      "module_inference": false
+    },
+    "output_fields": [],
+    "outputs": [
+      "response"
+    ],
+    "promotion": {},
+    "quality_criteria": [],
+    "runtime": {},
+    "schema_version": "program-intent-v2",
+    "task_type": "single_module",
+    "topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "input",
+          "to": "retrieve_corpus"
+        },
+        {
+          "from": "define_persona",
+          "to": "answer_researched"
+        },
+        {
+          "from": "retrieve_corpus",
+          "to": "answer_researched"
+        },
+        {
+          "from": "answer_researched",
+          "to": "output"
+        }
+      ],
+      "execution_status": "declared_not_materialized",
+      "kind": "retrieve_then_answer",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "retrieve_corpus",
+          "primitive": "Retriever",
+          "retriever": {
+            "documents": [
+              {
+                "id": "voice-turn-owner-split",
+                "text": "The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence."
+              },
+              {
+                "id": "voice-turn-capture-contract",
+                "text": "Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease."
+              },
+              {
+                "id": "voice-turn-batch-scope",
+                "text": "The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1."
+              },
+              {
+                "id": "voice-turn-research-boundary",
+                "text": "The researched and deep-research brains retrieve only from an operator-declared bounded inline or local corpus snapshot. They do not use live external retrieval, ReAct tool binding, or fabricated sources. If retrieved passages do not support an answer, the brain must say that no supporting sources were found."
+              },
+              {
+                "id": "voice-turn-receipt-boundary",
+                "text": "A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text."
+              },
+              {
+                "id": "voice-turn-modality-boundary",
+                "text": "The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni."
+              },
+              {
+                "id": "voice-turn-gepa-boundary",
+                "text": "GEPA optimization in DSPx consumes explicit behavior examples, writes hash-bound optimizer output, and requires a separate materialize-gepa-candidate step to create an optimized candidate manifest. Optimization and materialization are local empirical evidence; neither selects a winner, approves promotion, activates production, mutates governance, or transfers authority."
+              }
+            ],
+            "k": 3,
+            "mode": "inline_corpus"
+          },
+          "role": "retrieve_grounding",
+          "signature": {
+            "inputs": [
+              "transcription"
+            ],
+            "name": "RetrieveVoiceTurnCorpus",
+            "outputs": [
+              "passages"
+            ]
+          }
+        },
+        {
+          "id": "answer_researched",
+          "primitive": "ChainOfThought",
+          "role": "cited_corpus_answer",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona",
+              "passages"
+            ],
+            "name": "AnswerResearched",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "normalized_intent_hash": "f3c79775edb4223faa5dd99b121e57f9d18c6732d81a7dba040293f7c85c51a5",
+  "primitive_hints": [
+    {
+      "primitive": "ChainOfThought",
+      "reason": "Reasoned generation/review/validation can use the current generated ChainOfThought primitive.",
+      "status": "supported"
+    },
+    {
+      "primitive": "Retriever",
+      "reason": "Prompt mentions 'retrieve', and the explicit topology declares a bounded inline_corpus Retriever adapter materializable by the current pipeline/retrieve_then_answer renderer.",
+      "status": "conditionally_materializable_with_bounded_inline_adapter"
+    }
+  ],
+  "schema_version": "program-intent-normalization-v1",
+  "source": {
+    "content_hash": "356e916bd3e1708b1ff504caea105ffca36cf571ca0669baa20df9c4440d530b",
+    "kind": "intent_file",
+    "path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/intents/researched.yaml"
+  },
+  "status": "normalized_for_direct_materialization",
+  "support_level_preview": {
+    "classifications": {
+      "features": [
+        {
+          "blockers": [
+            "Retriever materialization requires an explicit bounded Retriever topology module; external/live retrievers remain disabled."
+          ],
+          "capability_kind": "feature_boundary",
+          "materialization_effects_allowed": true,
+          "name": "retrievers",
+          "safe_next_actions": [
+            "Materialize retrievers only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence."
+          ],
+          "source_status": "bounded_declared_adapters_only",
+          "support_level": "executable_local"
+        }
+      ],
+      "primitives": [
+        {
+          "blockers": [],
+          "capability_kind": "primitive",
+          "materialization_effects_allowed": true,
+          "name": "ChainOfThought",
+          "safe_next_actions": [
+            "Materialize ChainOfThought only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence."
+          ],
+          "source_status": "supported",
+          "support_level": "executable_local"
+        },
+        {
+          "blockers": [
+            "Materialization requires an explicit bounded local adapter declaration and receipt replay evidence.",
+            "External/live retrievers and authority effects remain disabled."
+          ],
+          "capability_kind": "primitive",
+          "materialization_effects_allowed": true,
+          "name": "Retriever",
+          "safe_next_actions": [
+            "Materialize Retriever only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence."
+          ],
+          "source_status": "conditionally_materializable_with_bounded_inline_adapter",
+          "support_level": "executable_local"
+        }
+      ],
+      "production_activation": {
+        "blockers": [
+          "Generated-program artifacts remain non-authoritative.",
+          "Activation requires a separate owner-authorized governance path."
+        ],
+        "capability_kind": "authority_boundary",
+        "in_scope": false,
+        "materialization_effects_allowed": false,
+        "name": "production_activation",
+        "safe_next_actions": [
+          "Route production activation through the owner-authorized governance boundary; this blocker does not grant activation authority."
+        ],
+        "support_level": "production_activation"
+      },
+      "topology_candidates": [
+        {
+          "blockers": [
+            "Declared topology is evidence/assumption metadata unless the bounded renderer validates it; custom remains policy-only."
+          ],
+          "capability_kind": "topology_candidate",
+          "materialization_effects_allowed": true,
+          "name": "retrieve_then_answer",
+          "renderer": "retrieve_then_answer_topology_renderer",
+          "safe_next_actions": [
+            "Materialize retrieve_then_answer only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence."
+          ],
+          "source": "declared_topology",
+          "support_level": "executable_local"
+        },
+        {
+          "blockers": [
+            "Only explicit inline_corpus or local_corpus_snapshot Retriever declarations can materialize; live retrievers remain disabled."
+          ],
+          "capability_kind": "topology_candidate",
+          "materialization_effects_allowed": true,
+          "name": "retrieve_then_answer",
+          "renderer": "retrieve_then_answer_topology_renderer",
+          "safe_next_actions": [
+            "Materialize retrieve_then_answer only through the bounded local renderer.",
+            "Run generated-module policy checks and receipt replay before trusting evidence."
+          ],
+          "source": "objective_or_capability_cues",
+          "support_level": "executable_local"
+        }
+      ]
+    },
+    "effect": {
+      "authority_mutated": false,
+      "custom_import_loaded": false,
+      "program_materialized": false,
+      "retriever_called": false,
+      "tool_called": false
+    },
+    "safe_next_actions": [
+      "Review support levels, blockers, missing evidence, and topology candidates before materialization.",
+      "Treat descriptor-only capabilities as preserved contracts, not executable behavior.",
+      "Keep production activation outside program-gen blocker #1 unless the owning governance surface explicitly authorizes it."
+    ],
+    "schema_version": "program-support-level-preview-v1",
+    "status": "preview_only_not_materialization_authority",
+    "taxonomy": [
+      {
+        "allowed_in_blocker": true,
+        "effect_allowed": false,
+        "label": "Descriptor-only",
+        "level": "descriptor_only",
+        "meaning": "Capability is represented in the normalized intent/preview evidence but is not executed."
+      },
+      {
+        "allowed_in_blocker": true,
+        "effect_allowed": false,
+        "label": "Local dry-run/evaluation",
+        "level": "local_dry_run_evaluation",
+        "meaning": "Capability may be checked locally through schema/hash/preview validation without live tool, retriever, import, or authority effects."
+      },
+      {
+        "allowed_in_blocker": true,
+        "effect_allowed": true,
+        "label": "Executable local",
+        "level": "executable_local",
+        "meaning": "Capability may execute only inside the generated candidate's declared local runtime/evaluation boundary."
+      },
+      {
+        "allowed_in_blocker": false,
+        "effect_allowed": false,
+        "label": "Production activation",
+        "level": "production_activation",
+        "meaning": "Capability affects live routing, canonical state, source-owner systems, or external authority."
+      }
+    ]
+  },
+  "topology_hints": []
+}

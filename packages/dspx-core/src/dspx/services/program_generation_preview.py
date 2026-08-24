@@ -227,10 +227,6 @@ def _contract_skeleton(kind: str, intent: ProgramIntent) -> dict[str, Any]:
     if kind == "ReActV2":
         return {
             "intent_patch": {
-                "options": {
-                    "enable_react_v2_materialization": True,
-                    "react_v2_materialization": True,
-                },
                 "topology": {
                     "kind": "pipeline",
                     "execution_status": "declared_not_materialized",
@@ -255,9 +251,8 @@ def _contract_skeleton(kind: str, intent: ProgramIntent) -> dict[str, Any]:
                 },
             },
             "production_readiness_missing": [
-                "Confirm installed DSPy exposes public dspy.ReActV2 before materialization.",
-                "Keep tools=[] until generated tool adapters have authority/effect/redaction/timeout/sandbox/replay/receipt contracts.",
-                "Run generated-module policy and receipt replay after materialization.",
+                "ReActV2 materialization is unavailable during the typed Core cutover.",
+                "Keep any ReActV2 topology and tool references descriptor-only.",
             ],
         }
     if kind == "router":
@@ -607,10 +602,10 @@ def _topology_candidate_preview(
             "ReActV2",
             source="objective_or_declared_primitive",
             confidence="medium",
-            reason="ReActV2 cues or declared ReActV2 primitives indicate the DSPy 3.3 structured agent candidate.",
+            reason="ReActV2 cues or declared ReActV2 primitives are preserved as descriptor-only intent.",
             materializable_now=False,
-            renderer="experimental_react_v2_no_tools_adapter",
-            boundary="ReActV2 is DSPy 3.3 beta/experimental: materialization requires explicit opt-in, public dspy.ReActV2, and tools=[].",
+            renderer="declared_only_policy_surface",
+            boundary="ReActV2 materialization is unavailable during the typed Core cutover.",
         )
     if (
         token_set & _PROGRAM_OF_THOUGHT_CUES
@@ -703,15 +698,14 @@ def _feature_boundary_preview(
             "requested": react_v2_requested,
             "tool_need_detected": bool(react_v2_requested and tools_needed),
             "tools_enabled": False,
-            "tool_binding_status": "blocked_until_safe_tool_adapter_contract",
-            "status": "experimental_no_tool_explicit_opt_in_boundary",
-            "boundary": "ReActV2 follows the DSPy 3.3 beta boundary: explicit opt-in, public dspy.ReActV2 availability, and tools=[] only.",
+            "tool_binding_status": "disabled",
+            "status": "unavailable_typed_core_cutover",
+            "boundary": "ReActV2 materialization is unavailable during the typed Core cutover.",
             "why_tools_not_enabled": [
-                "DSPy 3.3 beta ReActV2 availability does not by itself define DSPx tool authority, effect, redaction, timeout, sandbox, replay, or receipt contracts.",
-                "program_tool_contracts.json is descriptor-only in this slice; no generated dspy.Tool adapter hash/provenance exists yet.",
-                "Enabling ReActV2 tools would allow external side effects unless every tool is explicitly declared, bounded, replay-visible, and policy-checked before materialization.",
+                "DSPy 3.3 ReActV2 availability does not authorize DSPx runtime or tool execution.",
+                "ReActV2 and its tool references remain descriptor-only in this cutover.",
             ],
-            "safe_next_action": "Declare desired tools as descriptor-only capability/tool contracts first; materialize ReActV2 with tools=[] until a reviewed generated tool-adapter policy lands.",
+            "safe_next_action": "Retain the request as descriptor-only evidence; do not materialize or execute ReActV2.",
         },
         "program_of_thought": {
             "requested": program_of_thought_requested,

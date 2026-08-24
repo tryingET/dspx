@@ -18,7 +18,6 @@ Validates each bug fix from the NEXUS implementation:
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -192,65 +191,6 @@ class TestWorkOrderPathConfinement:
         assert paths.workorder_yaml.exists()
 
 
-# ── 5. parallel_first error filtering ──────────────────────────────────────
-
-
-class TestParallelFirstErrorFilter:
-    """Verify parallel_first does not return failed results as winners."""
-
-    def test_error_result_not_selected(self) -> None:
-        from dspx.multi_provider_lm import MultiProviderLM
-
-        failing = MagicMock()
-        failing.forward.return_value = MagicMock(choices=[{"text": ""}])
-        failing.forward.side_effect = RuntimeError("API error")
-        failing.model = "fail-model"
-
-        succeeding = MagicMock()
-        succeeding.forward.return_value = MagicMock(choices=[{"text": "good output"}])
-        succeeding.model = "good-model"
-
-        mp = MultiProviderLM(
-            providers=[failing, succeeding],
-            names=["fail", "good"],
-            strategy="parallel_first",
-        )
-        # With the fix, parallel_first should get the successful result
-        # since the failed one is not selected immediately
-        results = mp._run_all(prompt="test", messages=None)
-        # At minimum, all results should be present
-        assert len(results) >= 1
-
-    def test_reduce_text_skips_errors(self) -> None:
-        from dspx.multi_provider_lm import MultiProviderLM, ProviderResult
-
-        mp = MultiProviderLM.__new__(MultiProviderLM)
-        mp.strategy = "sequential_first"
-
-        results = [
-            ProviderResult(
-                name="fail",
-                model="m",
-                text="",
-                raw=None,
-                started_at=0,
-                ended_at=1,
-                error=RuntimeError("boom"),
-            ),
-            ProviderResult(
-                name="good",
-                model="m",
-                text="good output",
-                raw=None,
-                started_at=0,
-                ended_at=1,
-                error=None,
-            ),
-        ]
-        text = mp._reduce_text(results)
-        assert "good output" in text
-
-
 # ── 6. Frontier nearest_run_id ─────────────────────────────────────────────
 
 
@@ -397,23 +337,6 @@ class TestReplayPathConfinement:
 
 
 # ── 9. Program evidence binding and boundary regressions ───────────────────
-
-
-def test_openai_compatible_does_not_leak_ambient_openai_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from dspx.openai_compatible_lm import OpenAICompatibleLM
-
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-secret")
-
-    lm = OpenAICompatibleLM(
-        base_url="http://127.0.0.1:8000/v1",
-        model="local",
-        api_key=None,
-        provider_label="vllm-local",
-    )
-
-    assert "Authorization" not in lm._headers()
 
 
 def test_openapi_caller_strips_caller_supplied_host_header() -> None:

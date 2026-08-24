@@ -136,20 +136,20 @@ def test_installed_payload_verifier_supports_an_explicit_alternate_package_root(
     contract = _load_payload_contract()
     wheel, site_root = _payload_wheel_and_install(
         tmp_path,
-        package_root_name="dspy_lm_auth",
-        distribution_stem="dspy_lm_auth",
+        package_root_name="sample_extension",
+        distribution_stem="sample_extension",
         version="0.1.3",
     )
 
     verified = contract.verify_installed_payload(
         wheel_path=wheel,
         site_packages_root=site_root,
-        package_root_name="dspy_lm_auth",
+        package_root_name="sample_extension",
     )
 
     assert verified["record_verified_file_count"] == 3
     assert verified["package_inventory_verified"] is True
-    assert verified["package_root_name"] == "dspy_lm_auth"
+    assert verified["package_root_name"] == "sample_extension"
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> str:

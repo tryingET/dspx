@@ -19,7 +19,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "--tools",
         help="Comma-separated tool names (e.g., retrieve_stub,python_exec_stub)",
     )
-    p.add_argument("--provider", help="Provider name (registry), e.g., codex-exec")
+    p.add_argument("--provider", help="Supported provider name (currently: stub)")
     p.add_argument("--iters", type=int, default=3, help="Max ReAct iterations")
     args = p.parse_args(argv)
 

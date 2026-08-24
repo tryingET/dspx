@@ -1,0 +1,80 @@
+{
+  "aggregation": "deliberation_summary",
+  "authority": "advisory_evidence_only",
+  "jurors": [
+    {
+      "id": "inferred_correctness",
+      "model": null,
+      "perspective": "correctness",
+      "reason": "baseline behavior correctness coverage",
+      "source": "inferred_from_intent"
+    },
+    {
+      "id": "inferred_robustness",
+      "model": null,
+      "perspective": "robustness",
+      "reason": "baseline edge-case and failure-mode coverage",
+      "source": "inferred_from_intent"
+    },
+    {
+      "id": "inferred_instruction_following",
+      "model": null,
+      "perspective": "instruction_following",
+      "reason": "baseline objective and instruction adherence coverage",
+      "source": "inferred_from_intent"
+    },
+    {
+      "id": "inferred_example_generalization",
+      "model": null,
+      "perspective": "example_generalization",
+      "reason": "examples are present, so held-out/generalization behavior matters",
+      "source": "inferred_from_intent"
+    },
+    {
+      "id": "inferred_constraint_adherence",
+      "model": null,
+      "perspective": "constraint_adherence",
+      "reason": "declared constraints require adversarial checking",
+      "source": "inferred_from_intent"
+    }
+  ],
+  "minimum_jurors": 3,
+  "mode": "jury",
+  "notes": [
+    "ProgramPlan records the intended evaluation shape only.",
+    "No juror model is called during deterministic materialization.",
+    "Jury evidence cannot rank, prune, promote, or grant Oracle authority."
+  ],
+  "perspectives": [
+    "constraint_adherence",
+    "correctness",
+    "example_generalization",
+    "instruction_following",
+    "robustness"
+  ],
+  "pool": {
+    "explicit_juror_count": 0,
+    "explicit_perspective_count": 0,
+    "explicit_perspective_juror_count": 0,
+    "inference_basis": [
+      "intent.name",
+      "intent.objective",
+      "intent.task_type",
+      "intent.metric",
+      "intent.inputs",
+      "intent.outputs",
+      "intent.constraints",
+      "intent.examples"
+    ],
+    "inferred_juror_count": 5,
+    "merged_juror_count": 5,
+    "scope": "program"
+  },
+  "schema_version": "program-jury-v1",
+  "selection_constraints": {
+    "prefer_diverse_models": true,
+    "prefer_diverse_perspectives": true
+  },
+  "selection_model": "perspective_balanced_explicit_pool",
+  "status": "planned_not_executed"
+}

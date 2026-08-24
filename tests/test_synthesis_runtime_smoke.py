@@ -57,6 +57,106 @@ def normalize_output(key: str, gold: str, pred: str, pred_name: str | None = Non
     assert errors == []
 
 
+def test_module_smoke_checks_preserve_instance_shadowed_forward_failure() -> None:
+    code = """
+import dspy
+
+class ShadowedForward(dspy.Module):
+    def __init__(self, use_cot: bool = False) -> None:
+        super().__init__()
+        self.predict = dspy.Predict("text -> summary")
+        self.forward = self.shadowed_forward
+
+    def forward(self, text: str) -> dspy.Prediction:
+        return self.predict(text=text)
+
+    def shadowed_forward(self, text: str) -> dspy.Prediction:
+        raise SystemExit("instance forward must remain observable")
+
+
+def build_student(*, use_cot: bool = False) -> dspy.Module:
+    return ShadowedForward(use_cot=use_cot)
+
+
+def io_spec() -> dict[str, list[str]]:
+    return {"inputs": ["text"], "outputs": ["summary"]}
+
+
+def output_weights() -> dict[str, float]:
+    return {"summary": 1.0}
+
+
+def normalize_output(key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None) -> tuple[str, str]:
+    return gold, pred
+"""
+    request = build_module_synthesis_request(
+        ModuleSpec(
+            name="ShadowedForward",
+            description="instance-level forward resolution remains observable",
+            inputs=["text"],
+            outputs=["summary"],
+            options={},
+        ),
+        use_signature=False,
+    )
+
+    ok, checks, errors = _module_smoke_checks(request, code)
+
+    assert ok is False
+    assert checks["module-smoke"] is False
+    assert errors == ["forward_error:SystemExit"]
+
+
+def test_module_smoke_checks_reject_generated_dunder_dispatch_overrides() -> None:
+    for method_name in ("__getattribute__", "__getattr__", "__setattr__", "__call__"):
+        code = f"""
+import dspy
+
+class DunderOverride(dspy.Module):
+    def __init__(self, use_cot: bool = False) -> None:
+        super().__init__()
+        self.predict = dspy.Predict("text -> summary")
+
+    def {method_name}(self, *args):
+        raise SystemExit("generated dunder dispatch must not bypass smoke")
+
+    def forward(self, text: str) -> dspy.Prediction:
+        return self.predict(text=text)
+
+
+def build_student(*, use_cot: bool = False) -> dspy.Module:
+    return DunderOverride(use_cot=use_cot)
+
+
+def io_spec() -> dict[str, list[str]]:
+    return {{"inputs": ["text"], "outputs": ["summary"]}}
+
+
+def output_weights() -> dict[str, float]:
+    return {{"summary": 1.0}}
+
+
+def normalize_output(key: str, gold: str, pred: str, pred_name: str | None = None, pred_trace: object | None = None) -> tuple[str, str]:
+    return gold, pred
+"""
+        request = build_module_synthesis_request(
+            ModuleSpec(
+                name="DunderOverride",
+                description="generated dunder dispatch is unsupported",
+                inputs=["text"],
+                outputs=["summary"],
+                options={},
+            ),
+            use_signature=False,
+        )
+
+        ok, checks, errors = _module_smoke_checks(request, code)
+
+        assert ok is False
+        assert checks["module-smoke"] is False
+        assert f"method_dunder_name_not_allowed:DunderOverride.{method_name}" in errors
+
+
 def test_module_smoke_checks_fail_closed_on_top_level_side_effects(
     tmp_path: Path, monkeypatch
 ) -> None:

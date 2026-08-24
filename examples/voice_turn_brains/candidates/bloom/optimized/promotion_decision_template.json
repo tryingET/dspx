@@ -1,0 +1,10 @@
+{
+  "adjudicator_kind": "human_operator",
+  "adjudicator_ref": "local_operator",
+  "decided_by": null,
+  "evidence_refs": [],
+  "outcome": null,
+  "rationale": null,
+  "schema_version": "program-promotion-decision-v1",
+  "status": "pending"
+}

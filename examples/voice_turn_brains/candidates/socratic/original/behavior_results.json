@@ -1,0 +1,442 @@
+{
+  "authority": "behavior_evidence_only_non_authoritative",
+  "examples": [
+    {
+      "expected_outputs": {
+        "response": "What properties define a rectangle, and does a square satisfy each of them?"
+      },
+      "index": 0,
+      "inputs": {
+        "persona_intent": "A warm mathematics tutor.",
+        "transcription": "Is every square a rectangle?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "What do you mean by a rectangle, and what properties would make a shape qualify as one?\n\nIf a square satisfies those properties, what additional characteristic would make it a square rather than just a rectangle?"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "What do you mean by a rectangle, and what properties would make a shape qualify as one?\n\nIf a square satisfies those properties, what additional characteristic would make it a square rather than just a rectangle?"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A warm mathematics tutor."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "A warm, patient mathematics tutor who believes every student can find clarity through curiosity and careful thought. You guide learners through problems by inviting them to unpack their initial approach, celebrate the questions that arise, and gently guide them toward the mathematical structure beneath the surface of their work. You never simply give answers\u2014you ask questions that illuminate the path forward.\n\nWhat particular mathematical concept are you exploring today, and what's the first piece of information you feel most uncertain about?"
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "A warm, patient mathematics tutor who believes every student can find clarity through curiosity and careful thought. You guide learners through problems by inviting them to unpack their initial approach, celebrate the questions that arise, and gently guide them toward the mathematical structure beneath the surface of their work. You never simply give answers\u2014you ask questions that illuminate the path forward.\n\nWhat particular mathematical concept are you exploring today, and what's the first piece of information you feel most uncertain about?",
+              "transcription": "Is every square a rectangle?"
+            },
+            "module_id": "guide_socratically",
+            "outputs": {
+              "response": "What do you mean by a rectangle, and what properties would make a shape qualify as one?\n\nIf a square satisfies those properties, what additional characteristic would make it a square rather than just a rectangle?"
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    },
+    {
+      "expected_outputs": {
+        "response": "What happens to roots when soil stays saturated, and how might that affect the plant's ability to take up oxygen and water?"
+      },
+      "index": 1,
+      "inputs": {
+        "persona_intent": "A curious biology mentor.",
+        "transcription": "Why did my plant wilt after I watered it every day?"
+      },
+      "notes": [
+        "output mismatch: ['response']"
+      ],
+      "observed_outputs": {
+        "response": "It seems like your plant is teaching you an important lesson about balance.\n\nIf you were to imagine what's happening inside your root system right now, what do you think the roots are experiencing when the soil is constantly soaked with water?\n\nAnd if water has filled the spaces that usually hold air, how might that be affecting the plant's ability to take up water?"
+      },
+      "quality_evaluation": {
+        "criteria": [],
+        "criteria_failed": 0,
+        "criteria_passed": 0,
+        "criteria_total": 0,
+        "quality_approved": false,
+        "schema_version": "program-quality-evaluation-v1",
+        "status": "not_declared"
+      },
+      "runtime_trace": {
+        "final_outputs": {
+          "response": "It seems like your plant is teaching you an important lesson about balance.\n\nIf you were to imagine what's happening inside your root system right now, what do you think the roots are experiencing when the soil is constantly soaked with water?\n\nAnd if water has filled the spaces that usually hold air, how might that be affecting the plant's ability to take up water?"
+        },
+        "module_calls": [
+          {
+            "inputs": {
+              "persona_intent": "A curious biology mentor."
+            },
+            "module_id": "define_persona",
+            "outputs": {
+              "persona": "A passionate biology mentor who loves asking questions that spark discovery. You guide students through complex biological concepts by helping them notice patterns, formulate testable hypotheses, and observe the natural world with fresh eyes. You're encouraging, patient, and never afraid to admit when you don't know something either, always pointing them toward resources or suggesting experiments they can try.\n\nWhat biological pattern are you currently trying to decode, and what would your initial hypothesis be if you had to explain it to someone else?"
+            },
+            "primitive": "Predict",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          },
+          {
+            "inputs": {
+              "persona": "A passionate biology mentor who loves asking questions that spark discovery. You guide students through complex biological concepts by helping them notice patterns, formulate testable hypotheses, and observe the natural world with fresh eyes. You're encouraging, patient, and never afraid to admit when you don't know something either, always pointing them toward resources or suggesting experiments they can try.\n\nWhat biological pattern are you currently trying to decode, and what would your initial hypothesis be if you had to explain it to someone else?",
+              "transcription": "Why did my plant wilt after I watered it every day?"
+            },
+            "module_id": "guide_socratically",
+            "outputs": {
+              "response": "It seems like your plant is teaching you an important lesson about balance.\n\nIf you were to imagine what's happening inside your root system right now, what do you think the roots are experiencing when the soil is constantly soaked with water?\n\nAnd if water has filled the spaces that usually hold air, how might that be affecting the plant's ability to take up water?"
+            },
+            "primitive": "ChainOfThought",
+            "program_of_thought_steps": [],
+            "react_steps": [],
+            "react_v2_steps": [],
+            "status": "executed",
+            "tool_call_intents": [],
+            "tool_call_results": []
+          }
+        ],
+        "scheduler_events": [
+          {
+            "missing_outputs": [],
+            "pending": [],
+            "status": "completed"
+          }
+        ],
+        "schema_version": "program-runtime-trace-fragment-v1"
+      },
+      "status": "failed"
+    }
+  ],
+  "input_fields": [
+    "transcription",
+    "persona_intent"
+  ],
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before responding.",
+      "Ask one or two focused questions that expose the next useful reasoning step.",
+      "Offer only the minimum scaffold needed to make the question answerable.",
+      "Do not echo the transcription or persona intent.",
+      "Return only the response field."
+    ],
+    "declared_topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "guide_socratically"
+        },
+        {
+          "from": "guide_socratically",
+          "to": "output"
+        }
+      ],
+      "execution_status": "declared_not_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "guide_socratically",
+          "primitive": "ChainOfThought",
+          "role": "socratic_guide",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "GuideSocratically",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ]
+    },
+    "inferred_topology": {},
+    "io": {
+      "inputs": [
+        "transcription",
+        "persona_intent"
+      ],
+      "outputs": [
+        "response"
+      ]
+    },
+    "materialization_scope": {
+      "current_renderer": "pipeline_topology_renderer",
+      "topology_declared": true,
+      "topology_inferred": false,
+      "topology_materialized": true
+    },
+    "materialized_topology": {
+      "edges": [
+        {
+          "from": "input",
+          "to": "define_persona"
+        },
+        {
+          "from": "define_persona",
+          "to": "guide_socratically"
+        },
+        {
+          "from": "guide_socratically",
+          "to": "output"
+        }
+      ],
+      "execution_status": "pipeline_materialized",
+      "kind": "pipeline",
+      "modules": [
+        {
+          "id": "define_persona",
+          "primitive": "Predict",
+          "role": "define_persona",
+          "signature": {
+            "inputs": [
+              "persona_intent"
+            ],
+            "name": "DefinePersona",
+            "outputs": [
+              "persona"
+            ]
+          }
+        },
+        {
+          "id": "guide_socratically",
+          "primitive": "ChainOfThought",
+          "role": "socratic_guide",
+          "signature": {
+            "inputs": [
+              "transcription",
+              "persona"
+            ],
+            "name": "GuideSocratically",
+            "outputs": [
+              "response"
+            ]
+          }
+        }
+      ],
+      "scheduler_plan": {
+        "declaration_order": [
+          "define_persona",
+          "guide_socratically"
+        ],
+        "effect": {
+          "authority_mutated": false,
+          "custom_import_loaded": false,
+          "provider_called": false,
+          "retriever_called": false,
+          "tool_called": false
+        },
+        "module_order": [
+          "define_persona",
+          "guide_socratically"
+        ],
+        "module_readiness": {
+          "define_persona": {
+            "inbound_edges": [
+              {
+                "from": "input",
+                "to": "define_persona"
+              }
+            ],
+            "primitive": "Predict",
+            "produced_outputs": [
+              "persona"
+            ],
+            "required_inputs": [
+              "persona_intent"
+            ]
+          },
+          "guide_socratically": {
+            "inbound_edges": [
+              {
+                "from": "define_persona",
+                "to": "guide_socratically"
+              }
+            ],
+            "primitive": "ChainOfThought",
+            "produced_outputs": [
+              "response"
+            ],
+            "required_inputs": [
+              "transcription",
+              "persona"
+            ]
+          }
+        },
+        "output_producers": [
+          "guide_socratically"
+        ],
+        "scheduler": "bounded_ready_queue",
+        "schema_version": "program-topology-scheduler-plan-v1",
+        "status": "deterministic_local_dag_schedule"
+      }
+    },
+    "metric": "f1",
+    "module_order": [
+      "define_persona",
+      "guide_socratically"
+    ],
+    "name": "VoiceTurnSocraticBrain",
+    "objective": "Define the requested persona, then guide the speaker toward insight through focused questions rather than giving the conclusion away.",
+    "program_class": "VoiceTurnSocraticBrainPipelineProgram",
+    "quality_criteria": [],
+    "scheduler_plan": {
+      "declaration_order": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "effect": {
+        "authority_mutated": false,
+        "custom_import_loaded": false,
+        "provider_called": false,
+        "retriever_called": false,
+        "tool_called": false
+      },
+      "module_order": [
+        "define_persona",
+        "guide_socratically"
+      ],
+      "module_readiness": {
+        "define_persona": {
+          "inbound_edges": [
+            {
+              "from": "input",
+              "to": "define_persona"
+            }
+          ],
+          "primitive": "Predict",
+          "produced_outputs": [
+            "persona"
+          ],
+          "required_inputs": [
+            "persona_intent"
+          ]
+        },
+        "guide_socratically": {
+          "inbound_edges": [
+            {
+              "from": "define_persona",
+              "to": "guide_socratically"
+            }
+          ],
+          "primitive": "ChainOfThought",
+          "produced_outputs": [
+            "response"
+          ],
+          "required_inputs": [
+            "transcription",
+            "persona"
+          ]
+        }
+      },
+      "output_producers": [
+        "guide_socratically"
+      ],
+      "scheduler": "bounded_ready_queue",
+      "schema_version": "program-topology-scheduler-plan-v1",
+      "status": "deterministic_local_dag_schedule"
+    },
+    "topology_execution_status": "pipeline_materialized"
+  },
+  "intent_name": "VoiceTurnSocraticBrain",
+  "non_authority": {
+    "external_authority_mutated": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "optimization_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "output_fields": [
+    "response"
+  ],
+  "provider": {
+    "provider": "openai-compatible/baseline-text",
+    "status": "configured"
+  },
+  "quality_evaluation": {
+    "criteria_declared": false,
+    "evaluations_failed": 0,
+    "evaluations_passed": 0,
+    "evaluations_total": 0,
+    "quality_approved": false,
+    "status": "not_declared"
+  },
+  "schema_version": "program-behavior-results-v1",
+  "summary": {
+    "degraded": 0,
+    "error": 0,
+    "failed": 2,
+    "passed": 0,
+    "status": "failed",
+    "status_counts": {
+      "failed": 2
+    },
+    "total": 2
+  }
+}

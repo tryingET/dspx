@@ -1,0 +1,78 @@
+{
+  "behavior_refresh": {
+    "behavior_episode_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/elaborate/optimized/behavior_episode.json",
+    "behavior_episode_sha256": "f331f1ee290d99aeaa418f8aeed4ab61a6d7eaeb59e5de70617a05ec80beb7f1",
+    "behavior_results_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/elaborate/optimized/behavior_results.json",
+    "behavior_results_sha256": "de790f40010fbab5469cef689db9e4d6bdd6145ad94cd0c6b45b9aad4c9da55c",
+    "oracle_evidence_removed": true,
+    "status": "refreshed",
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "failed": 2,
+      "passed": 0,
+      "source_count": 1,
+      "status": "failed",
+      "status_counts": {
+        "failed": 1
+      },
+      "total": 2
+    }
+  },
+  "candidate": {
+    "assembly_id": "prog-asm-7186ea67e7f2",
+    "candidate_id": "prog-cand-ba306ddd55ae",
+    "episode_id": "prog-ep-a6f6bdc0570d",
+    "manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/elaborate/optimized/manifest.json",
+    "promotion_state": "not_promoted",
+    "receipt_bundle_id": "prog-rb-25d758044ce4",
+    "request_id": "prog-req-bc7ab3fd78ef",
+    "root_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/elaborate/optimized"
+  },
+  "created_from": {
+    "gepa_optimizer_output_root": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/elaborate/optimizer-output",
+    "gepa_refinement_result_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/refinement/elaborate/gepa-result.json",
+    "manifest_path": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/elaborate/original/manifest.json"
+  },
+  "effect": {
+    "external_authority_mutated": false,
+    "gepa_optimizer_output_mutated": false,
+    "governance_mutated": false,
+    "local_gepa_candidate_generated": true,
+    "source_dataset_artifacts_mutated": false,
+    "source_program_files_mutated": false
+  },
+  "gepa_output": {
+    "copied_to": "/home/tryinget/ai-society/softwareco/owned/dspx/examples/voice_turn_brains/candidates/elaborate/optimized/gepa_optimizer_output",
+    "manifest_sha256": "610640629365a612e595dc425f72684139579c45204208a575ab06beb9880855",
+    "optimizer_manifest_program_sha256": "aa67f224ef829ac4a58055632e3d49d8710b196eea688036528ec2454a1f8bb9",
+    "payload_file_count": 5,
+    "payload_tree_sha256": "d92246f6bcd3dde74540749a66e628d6242e0c82d1987b730c2cfecd701a5373",
+    "source_program_sha256": "aa67f224ef829ac4a58055632e3d49d8710b196eea688036528ec2454a1f8bb9"
+  },
+  "non_authority": {
+    "automatic_promotion": false,
+    "external_authority_export": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "local_candidate_generation_only": true,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false,
+    "winner_selection": false
+  },
+  "notes": [
+    "This command materializes one local candidate assembly from hash-bound GEPA optimizer output.",
+    "It does not mutate the source candidate, GEPA output, AK, governance, Oracle authority, or external authority.",
+    "It does not rank, select a winner, approve, promote, deploy, or activate the candidate."
+  ],
+  "schema_version": "program-refinement-gepa-candidate-result-v1",
+  "source_identity": {
+    "assembly_id": "prog-asm-70dc1b583239",
+    "candidate_id": "prog-cand-64bb265920a4",
+    "episode_id": "prog-ep-c467a2fba777",
+    "receipt_bundle_id": "prog-rb-4988d30a0763",
+    "request_id": "prog-req-d44c8881c6f7"
+  },
+  "status": "materialized"
+}

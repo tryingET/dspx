@@ -6,9 +6,14 @@ from __future__ import annotations
 
 import json
 import math
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Mapping, Sequence
 
-from dspx.dtos import LMRequest, LMResponse
+from dspx.provider_contract import (
+    EffectDisposition,
+    Provider,
+    ProviderMessage,
+    ProviderRequest,
+)
 from dspx.model_roles import create_role_lm, resolve_model_role
 from dspx.redaction import sanitize_diagnostic_text
 from dspx.services.program_intent import ProgramIntent
@@ -44,10 +49,6 @@ _USAGE_KEYS = {
     "prompt_tokens",
     "completion_tokens",
 }
-
-
-class QualityProposalLM(Protocol):
-    def generate(self, request: LMRequest, **kwargs: Any) -> LMResponse: ...
 
 
 def _reject_secret_shaped_text(value: str, *, label: str) -> None:
@@ -176,7 +177,7 @@ def propose_program_quality_criteria(
     *,
     feedback: Sequence[str] = (),
     history: Sequence[Mapping[str, Any]] = (),
-    lm: QualityProposalLM | None = None,
+    lm: Provider | None = None,
 ) -> dict[str, Any]:
     """Propose a validated quality contract before program materialization."""
 
@@ -197,25 +198,42 @@ def propose_program_quality_criteria(
         )
     draft = ProgramIntent.model_validate(dict(raw_intent))
     injected_lm = lm is not None
-    active_lm = lm or create_role_lm("quality_criteria")
+    if lm is None:
+        create_role_lm("quality_criteria")
+        raise AssertionError("removed model role unexpectedly returned")
+    active_provider = lm
+    normalized_error: ProgramQualityConversationError | None = None
     try:
-        response = active_lm.generate(
-            LMRequest(
-                prompt=_prompt(
-                    objective=draft.objective,
-                    inputs=draft.inputs,
-                    outputs=draft.outputs,
-                    feedback=cleaned_feedback,
-                    history=history_entries,
-                )
+        response = active_provider.invoke(
+            ProviderRequest(
+                model=active_provider.model,
+                messages=(
+                    ProviderMessage(
+                        role="user",
+                        text=_prompt(
+                            objective=draft.objective,
+                            inputs=draft.inputs,
+                            outputs=draft.outputs,
+                            feedback=cleaned_feedback,
+                            history=history_entries,
+                        ),
+                    ),
+                ),
             )
         )
     except Exception as exc:
         diagnostic = sanitize_diagnostic_text(str(exc))
-        raise ProgramQualityConversationError(
+        normalized_error = ProgramQualityConversationError(
             f"quality proposal model call failed: {type(exc).__name__}: {diagnostic}"
-        ) from exc
-    raw_output = response.outputs[0] if response.outputs else ""
+        )
+    if normalized_error is not None:
+        raise normalized_error from None
+    if response.effect_disposition is not EffectDisposition.COMPLETED_SUCCESS:
+        raise ProgramQualityConversationError(
+            "quality proposal model call did not complete successfully: "
+            f"{response.effect_disposition.value}"
+        )
+    raw_output = response.text
     stripped_output = raw_output.strip()
     response_json_extraction = (
         "direct_object"

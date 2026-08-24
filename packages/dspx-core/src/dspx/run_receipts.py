@@ -705,79 +705,123 @@ def normalize_receipt_provenance(
 
 
 def _current_provider_details() -> dict[str, Any]:
-    provider = str(os.getenv("DSPX_PROVIDER") or "pi-rpc")
-    details: dict[str, Any] = {
-        "provider": provider,
-        "provider_family": provider,
-    }
-
-    if provider == "dspy-lm-auth":
-        details.update(
-            {
-                "requested_model": os.getenv("DSPX_LM_AUTH_MODEL") or "codex/gpt-5.5",
-                "auth_provider": os.getenv("DSPX_LM_AUTH_PROVIDER") or None,
-                "auth_storage": "[REDACTED]",
-                "auth_storage_exists": "[REDACTED]",
-                "timeout": os.getenv("DSPX_LM_AUTH_TIMEOUT") or None,
-            }
+    provider = str(os.getenv("DSPX_PROVIDER") or "stub").strip().lower()
+    if provider == "stub":
+        return {
+            "provider": "stub",
+            "provider_family": "stub",
+            "model": "stub/echo",
+            "effect_contract": "dspx-provider-effect-v1",
+        }
+    if provider == "openai-compatible":
+        from dspx.openai_compatible_provider import (
+            _validated_endpoint,
+            _validated_model,
+            _validated_timeout,
         )
-        return details
+        from dspx.policy import max_timeout
 
-    if provider in {"openai-compatible", "vllm-local"}:
-        prefix = "DSPX_VLLM" if provider == "vllm-local" else "DSPX_OPENAI_COMPAT"
-        details.update(
-            {
-                "base_url": redact_url(
-                    str(os.getenv(f"{prefix}_API_BASE") or "http://127.0.0.1:8000/v1")
-                ),
-                "model": os.getenv(f"{prefix}_MODEL") or "local-model",
-                "timeout": os.getenv(f"{prefix}_TIMEOUT") or None,
-                "json_mode": _bool_env(f"{prefix}_JSON_MODE"),
-            }
+        raw_model = os.getenv("DSPX_OPENAI_COMPAT_MODEL")
+        raw_base_endpoint = os.getenv("DSPX_OPENAI_COMPAT_API_BASE")
+        if raw_model is None or raw_base_endpoint is None:
+            raise ValueError("openai-compatible receipt metadata is incomplete")
+        model = _validated_model(raw_model)
+        base_endpoint, _ = _validated_endpoint(raw_base_endpoint)
+        try:
+            raw_timeout = float(os.getenv("DSPX_OPENAI_COMPAT_TIMEOUT", "30"))
+        except (TypeError, ValueError):
+            raise ValueError("openai-compatible receipt timeout is invalid") from None
+        configured_timeout = _validated_timeout(raw_timeout)
+        timeout_cap = max_timeout()
+        effective_timeout = (
+            min(configured_timeout, timeout_cap)
+            if timeout_cap is not None
+            else configured_timeout
         )
-        return details
+        return {
+            "provider_kind": "openai-compatible",
+            "provider": "openai-compatible",
+            "model": model,
+            "base_endpoint": base_endpoint,
+            "effective_timeout": effective_timeout,
+        }
+    raise ValueError(
+        f"provider {provider!r} is unsupported after the typed hard cutover; "
+        "supported=('stub', 'openai-compatible')"
+    )
 
-    if provider == "openrouter":
-        details.update(
-            {
-                "base_url": redact_url(
-                    str(
-                        os.getenv("OPENROUTER_BASE_URL")
-                        or "https://openrouter.ai/api/v1"
-                    )
-                ),
-                "model": os.getenv("OPENROUTER_MODEL") or None,
-                "timeout": os.getenv("OPENROUTER_TIMEOUT") or None,
-            }
+
+def _validated_provider_details_override(
+    value: Mapping[str, Any],
+) -> dict[str, Any]:
+    details = {str(key): item for key, item in value.items()}
+    if set(details) != {
+        "provider",
+        "provider_family",
+        "model",
+        "effect_contract",
+        "runtime",
+    }:
+        raise ValueError("provider details override shape is invalid")
+    provider = details.get("provider")
+    if (
+        provider not in {"stub", "openai-compatible", "unavailable"}
+        or details.get("provider_family") != provider
+        or details.get("effect_contract") != "dspx-provider-effect-v1"
+    ):
+        raise ValueError("provider details override identity is invalid")
+    runtime = details.get("runtime")
+    if not isinstance(runtime, Mapping):
+        raise ValueError("provider details override runtime is invalid")
+    runtime_payload = {str(key): item for key, item in runtime.items()}
+    if provider == "unavailable":
+        if details.get("model") is not None or runtime_payload != {
+            "configuration_status": "unavailable"
+        }:
+            raise ValueError("unavailable provider details override is invalid")
+    else:
+        from dspx.openai_compatible_provider import (
+            _validated_endpoint,
+            _validated_model,
+            _validated_timeout,
         )
-        return details
 
-    if provider == "pi-rpc":
-        details.update(
-            {
-                "pi_provider": os.getenv("DSPX_PI_PROVIDER") or None,
-                "model": os.getenv("DSPX_PI_MODEL") or None,
-                "thinking": os.getenv("DSPX_PI_THINKING") or None,
-                "timeout": os.getenv("DSPX_PI_TIMEOUT") or None,
-                "no_tools": _bool_env("DSPX_PI_NO_TOOLS"),
-                "no_session": _bool_env("DSPX_PI_NO_SESSION"),
+        raw_model = details.get("model")
+        if not isinstance(raw_model, str):
+            raise ValueError("configured provider details model is invalid")
+        model = _validated_model(raw_model)
+        if (
+            model != raw_model
+            or set(runtime_payload)
+            != {
+                "provider_kind",
+                "base_endpoint",
+                "effective_timeout",
             }
-        )
-        return details
-
-    if provider == "codex-exec":
-        details.update(
-            {
-                "model": os.getenv("CODEX_MODEL") or None,
-                "reasoning": os.getenv("CODEX_REASONING") or None,
-                "timeout": os.getenv("CODEX_TIMEOUT") or None,
-                "search": _bool_env("CODEX_SEARCH"),
-                "bypass": _bool_env("CODEX_BYPASS"),
-            }
-        )
-        return details
-
-    return details
+            or runtime_payload.get("provider_kind") != provider
+        ):
+            raise ValueError("configured provider details override is invalid")
+        if provider == "stub":
+            if (
+                model != "stub/echo"
+                or runtime_payload.get("base_endpoint") is not None
+                or runtime_payload.get("effective_timeout") is not None
+            ):
+                raise ValueError("stub provider details override is invalid")
+        else:
+            endpoint = runtime_payload.get("base_endpoint")
+            raw_timeout = runtime_payload.get("effective_timeout")
+            if not isinstance(endpoint, str):
+                raise ValueError("openai-compatible provider endpoint is invalid")
+            if isinstance(raw_timeout, bool) or not isinstance(
+                raw_timeout, (int, float)
+            ):
+                raise ValueError("openai-compatible provider timeout is invalid")
+            canonical_endpoint, _ = _validated_endpoint(endpoint)
+            timeout = _validated_timeout(raw_timeout)
+            if endpoint != canonical_endpoint or timeout != raw_timeout:
+                raise ValueError("openai-compatible provider details are invalid")
+    return _json_safe(details)
 
 
 def build_mlflow_hints(
@@ -841,6 +885,7 @@ def build_run_receipt(
     cache_key: str | None,
     cache_file: str | None,
     cache_enabled: bool,
+    provider_details_override: Mapping[str, Any] | None = None,
     replay_inputs: Mapping[str, Any] | None = None,
     run_summary: Mapping[str, Any] | None = None,
     extra: Mapping[str, Any] | None = None,
@@ -889,8 +934,12 @@ def build_run_receipt(
         capture_context: If True, capture git commit, Python version, env hash.
             Used by Consciousness for environment correlation.
     """
-    provider_name = os.getenv("DSPX_PROVIDER") or "pi-rpc"
-    provider_details = _json_safe(_current_provider_details())
+    provider_details = (
+        _json_safe(_current_provider_details())
+        if provider_details_override is None
+        else _validated_provider_details_override(provider_details_override)
+    )
+    provider_name = str(provider_details["provider"])
     replay_inputs_payload = _json_safe(dict(replay_inputs or {}))
     receipt: dict[str, Any] = {
         "receipt_version": RUN_RECEIPT_VERSION,

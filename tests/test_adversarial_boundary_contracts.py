@@ -659,7 +659,11 @@ def test_generated_eval_behavior_rejects_child_criteria_substitution(
     [
         ("--parallel", "0", "--parallel must be >= 1"),
         ("--timeout-seconds", "0", "--timeout-seconds must be > 0"),
-        ("--retries", "-1", "--retries must be >= 0"),
+        (
+            "--retries",
+            "1",
+            "--retries is disabled because child effect disposition is unavailable; use 0",
+        ),
     ],
 )
 def test_generated_direct_batch_rejects_invalid_limits(
@@ -747,6 +751,28 @@ def build_program(): return P()
     attempt = summary["results"][0]["attempts"][0]
     assert attempt["timed_out"] is True
     assert attempt["error_type"] == "TimeoutExpired"
+
+
+def test_generated_direct_child_nonzero_is_never_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    namespace: dict[str, Any] = {"__file__": str(tmp_path / "direct_run.py")}
+    exec(render_direct_run_code(object()), namespace, namespace)
+    calls = 0
+
+    def fail_once(*args: Any, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        return subprocess.CompletedProcess(
+            args=args, returncode=1, stdout="", stderr="failed"
+        )
+
+    monkeypatch.setattr(namespace["subprocess"], "run", fail_once)
+    result = namespace["_run_child"](tmp_path / "input.json", tmp_path / "out", 1, None)
+
+    assert calls == 1
+    assert result["status"] == "failed"
+    assert len(result["attempts"]) == 1
 
 
 def test_generated_direct_batch_records_internal_worker_exception(
@@ -913,13 +939,6 @@ def test_cli_boundary_failures_are_concise(
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.delenv("DSPX_CONFIG", raising=False)
 
-    provider_result = runner.invoke(
-        app, ["providers", "resolve", "--provider", "no-such", "--json"]
-    )
-    assert provider_result.exit_code == 2
-    assert "unknown provider: no-such" in provider_result.output
-    assert "Traceback" not in provider_result.output
-
     spec = tmp_path / "spec.json"
     spec.write_text(
         json.dumps(
@@ -955,56 +974,6 @@ def test_cli_boundary_failures_are_concise(
     assert "failed to load OpenAPI spec /no/such" in missing_spec.output
     assert "Traceback" not in missing_spec.output
 
-    bad_config_dir = tmp_path / "bad-config"
-    bad_config_dir.mkdir()
-    (bad_config_dir / "config.toml").write_text("[provider\n", encoding="utf-8")
-    with runner.isolated_filesystem(temp_dir=bad_config_dir):
-        bad_config = runner.invoke(app, ["providers", "list", "--json"])
-    assert bad_config.exit_code == 2
-    assert "Failed to parse DSPx config TOML" in bad_config.output
-    assert "Traceback" not in bad_config.output
-
-    capabilities_result = runner.invoke(
-        app, ["providers", "capabilities", "--provider", "no-such", "--json"]
-    )
-    assert capabilities_result.exit_code == 2
-    assert "unknown provider: no-such" in capabilities_result.output
-    assert "Traceback" not in capabilities_result.output
-
-    missing_key = runner.invoke(
-        app,
-        [
-            "--openrouter-api-key-file",
-            str(tmp_path / "missing.key"),
-            "providers",
-            "health",
-            "--provider",
-            "openrouter",
-            "--json",
-        ],
-    )
-    assert missing_key.exit_code == 2
-    assert "failed to read OpenRouter API key file" in missing_key.output
-    assert "Traceback" not in missing_key.output
-
-    invalid_key = tmp_path / "invalid.key"
-    invalid_key.write_bytes(b"\xff\xfe")
-    invalid_key_result = runner.invoke(
-        app,
-        [
-            "--openrouter-api-key-file",
-            str(invalid_key),
-            "providers",
-            "health",
-            "--provider",
-            "openrouter",
-            "--json",
-        ],
-    )
-    assert invalid_key_result.exit_code == 2
-    assert "failed to read OpenRouter API key file" in invalid_key_result.output
-    assert "Traceback" not in invalid_key_result.output
-
 
 def test_cli_boundary_errors_redact_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
     secret_error = (
@@ -1012,30 +981,14 @@ def test_cli_boundary_errors_redact_secrets(monkeypatch: pytest.MonkeyPatch) -> 
         "https://user:pass@example.test/spec.json?api_key=url-secret&ok=1"
     )
 
-    import dspx.provider_runtime as provider_runtime
     import dspx.tools.openapi as openapi_tools
-
-    def raise_secret_provider(_name: str) -> dict[str, object]:
-        raise RuntimeError(secret_error)
 
     def raise_secret_spec(
         _spec: str, *, allowed_hosts: object = None
     ) -> dict[str, object]:
         raise RuntimeError(secret_error)
 
-    monkeypatch.setattr(provider_runtime, "describe_provider", raise_secret_provider)
     monkeypatch.setattr(openapi_tools, "load_spec", raise_secret_spec)
-
-    provider_result = runner.invoke(
-        app, ["providers", "resolve", "--provider", "secret-provider", "--json"]
-    )
-    assert provider_result.exit_code == 2
-    assert "[REDACTED]" in provider_result.output
-    assert "secret-token" not in provider_result.output
-    assert "bearer-secret" not in provider_result.output
-    assert "url-secret" not in provider_result.output
-    assert "user:pass" not in provider_result.output
-    assert "Traceback" not in provider_result.output
 
     spec_result = runner.invoke(
         app,

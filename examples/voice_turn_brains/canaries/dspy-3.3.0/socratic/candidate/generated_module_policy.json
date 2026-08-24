@@ -1,0 +1,35 @@
+{
+  "allowed_from_imports": [
+    "signature",
+    "typing"
+  ],
+  "allowed_imports": [
+    "dspy",
+    "json"
+  ],
+  "checked_module_surface_count": 2,
+  "checked_surface": "module.py",
+  "denied_dspy_calls": [
+    "dspy.ColBERTv2",
+    "dspy.LM",
+    "dspy.ReActV2",
+    "dspy.Retrieve",
+    "dspy.Tool",
+    "dspy.configure",
+    "dspy.settings.configure"
+  ],
+  "effects": {
+    "custom_import_loaded": false,
+    "external_authority": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "network": false,
+    "provider_called": false,
+    "subprocess": false,
+    "tool_called": false
+  },
+  "policy_version": "program-module-surface-strict-v1",
+  "schema_version": "program-generated-module-policy-v1",
+  "status": "passed",
+  "violations": []
+}

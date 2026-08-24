@@ -1,0 +1,560 @@
+{
+  "coverage": {
+    "captured_final_output_fields": [
+      "response"
+    ],
+    "captured_module_ids": [
+      "define_persona",
+      "retrieve_corpus",
+      "synthesize_deep_research"
+    ],
+    "expected_module_ids": [
+      "define_persona",
+      "retrieve_corpus",
+      "synthesize_deep_research"
+    ],
+    "final_output_trace_count": 1,
+    "missing_final_output_fields": [],
+    "missing_module_ids": [],
+    "module_call_count": 3,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "program_outputs": [
+      "response"
+    ],
+    "schema_version": "program-runtime-trace-coverage-v1",
+    "source_count": 1,
+    "source_record_coverage_status": "complete",
+    "status": "complete"
+  },
+  "final_output_trace_count": 1,
+  "final_outputs": [
+    {
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true
+        }
+      ],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "outputs": {
+        "response": "The architecture separates physical capture in workstation, turn composition and one receipt in local-ai-control-plane, and six brain programs plus GEPA evidence in DSPx [voice-turn-owner-split]. It remains a batch composed route rather than native omni or streaming [voice-turn-batch-scope] [voice-turn-modality-boundary]. Receipt evidence excludes raw conversational content and raw artifact paths [voice-turn-receipt-boundary]."
+      },
+      "schema_version": "program-runtime-final-output-v1",
+      "source": {
+        "content_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "status": "executed",
+      "trace_hash": "28a88d92a22748fb91481f4e300e8edd8e3fc1b9edb6305c2f85d2ff77985e37"
+    }
+  ],
+  "intent": {
+    "name": "VoiceTurnDeepResearchBrain",
+    "objective": "Define the requested persona, retrieve bounded local evidence, and synthesize multiple evidence perspectives with corpus-grounded citations."
+  },
+  "module_call_count": 3,
+  "module_calls": [
+    {
+      "call_index": 0,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "persona_intent",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "persona_intent": "A rigorous systems architect."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "persona_intent",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "persona",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "define_persona",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "persona",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "persona": "A rigorous systems architect."
+      },
+      "primitive": "Predict",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "define_persona"
+      },
+      "status": "executed",
+      "trace_hash": "92f9b5d2d7f8c131a08defb80c3a8e159e74a365663f01f2e88ad1fc1dc6b1b0",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 1,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": false,
+          "source_module_id": null
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        }
+      ],
+      "inputs": {
+        "transcription": "Analyze the architecture and safety boundaries of the hardware voice turn."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "passages",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "retrieve_corpus",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": false,
+          "field": "passages",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 6, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-owner-split\", \"score\": 4, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 3, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}]"
+      },
+      "primitive": "Retriever",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "retrieve_multi_perspective_grounding"
+      },
+      "status": "executed",
+      "trace_hash": "5848e07fef5b4eb5b3812aa22ddc84aa8fd767ceb626b501c697b00b3296de86",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    },
+    {
+      "call_index": 2,
+      "capture_status": "actual_module_call_captured",
+      "effects": {
+        "custom_import_loaded": false,
+        "external_authority": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "network": false,
+        "provider_called": false,
+        "subprocess": false,
+        "tool_called": false
+      },
+      "example_index": 0,
+      "final_output_linkage": [
+        {
+          "field": "response",
+          "present": true,
+          "source_module_id": "synthesize_deep_research"
+        }
+      ],
+      "input_field_linkage": [
+        {
+          "declared_available_from_prior_output": false,
+          "field": "transcription",
+          "present": true,
+          "source": "program_input"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "persona",
+          "present": true,
+          "source": "upstream_module_output"
+        },
+        {
+          "declared_available_from_prior_output": true,
+          "field": "passages",
+          "present": true,
+          "source": "upstream_module_output"
+        }
+      ],
+      "inputs": {
+        "passages": "[{\"id\": \"voice-turn-batch-scope\", \"score\": 6, \"text\": \"The v1 hardware-triggered voice-turn is batch and one-time: capture one utterance, run exactly one selected mode brain, synthesize one answer, and persist one receipt. Streaming, a continuing interactive loop, and Pipecat belong to a later real-time phase and are not part of v1.\"}, {\"id\": \"voice-turn-owner-split\", \"score\": 4, \"text\": \"The batch voice-turn has three explicit owners. softwareco/infra/workstation owns physical OpenDeck actions, the dictation activation lease, microphone capture, and clipboard transcript delivery. softwareco/owned/local-ai-control-plane owns ai-control voice-turn composition, brain and TTS invocation, and the single sanitized receipt. softwareco/owned/dspx owns the six separate DSPy brain programs and their GEPA optimization evidence.\"}, {\"id\": \"voice-turn-modality-boundary\", \"score\": 4, \"text\": \"The voice-turn is a composed audio-to-audio route: captured audio becomes text, a text-generation brain transforms it, and TTS produces audio. A composed route is not a native omni model and must never be labeled native-omni.\"}, {\"id\": \"voice-turn-capture-contract\", \"score\": 3, \"text\": \"Capture reuses the existing dictate-clip path. The OpenDeck action starts an acknowledged same-user lease on the voice-dictation control socket; a second press releases that lease. When the combined gate becomes inactive, voice-dictation injects finalizing silence and publishes the final transcript to the clipboard. local-ai-control-plane never touches this lease.\"}, {\"id\": \"voice-turn-receipt-boundary\", \"score\": 3, \"text\": \"A voice-turn receipt is evidence, not promotion authority. It may contain mode identifiers, model identifiers, timings, statuses, and SHA-256 digests, but it must not contain raw utterance, persona intent, transcript, answer text, or raw artifact paths. Operator-visible stdout may carry in-flight transcript and answer text.\"}]",
+        "persona": "A rigorous systems architect.",
+        "transcription": "Analyze the architecture and safety boundaries of the hardware voice turn."
+      },
+      "intermediate_field_lineage": {
+        "inputs": [
+          {
+            "field": "passages",
+            "source": "upstream_module_output",
+            "source_module_id": "retrieve_corpus"
+          },
+          {
+            "field": "persona",
+            "source": "upstream_module_output",
+            "source_module_id": "define_persona"
+          },
+          {
+            "field": "transcription",
+            "source": "program_input",
+            "source_module_id": null
+          }
+        ],
+        "outputs": [
+          {
+            "field": "response",
+            "source": "module_output"
+          }
+        ]
+      },
+      "module_id": "synthesize_deep_research",
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "output_field_linkage": [
+        {
+          "delivered_to_final_output": true,
+          "field": "response",
+          "present": true,
+          "source": "module_output"
+        }
+      ],
+      "outputs": {
+        "response": "The architecture separates physical capture in workstation, turn composition and one receipt in local-ai-control-plane, and six brain programs plus GEPA evidence in DSPx [voice-turn-owner-split]. It remains a batch composed route rather than native omni or streaming [voice-turn-batch-scope] [voice-turn-modality-boundary]. Receipt evidence excludes raw conversational content and raw artifact paths [voice-turn-receipt-boundary]."
+      },
+      "primitive": "ChainOfThought",
+      "scheduler_events": [
+        {
+          "missing_outputs": [],
+          "pending": [],
+          "status": "completed"
+        }
+      ],
+      "schema_version": "program-runtime-module-call-v1",
+      "source": {
+        "content_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+        "kind": "examples",
+        "path": "behavior_results.json",
+        "record_count": 1,
+        "split": null,
+        "summary": {
+          "degraded": 0,
+          "error": 0,
+          "executed": 1,
+          "failed": 0,
+          "passed": 0,
+          "status": "executed",
+          "status_counts": {
+            "executed": 1
+          },
+          "total": 1
+        }
+      },
+      "stage": {
+        "metadata_source": "program_intent_topology_module.role",
+        "role": "multi_perspective_cited_synthesis"
+      },
+      "status": "executed",
+      "trace_hash": "50d00d9b0054cec37d4752ac795475d31281a5eaa4d2795ffda6c175b27b66fc",
+      "trajectory_slots": {
+        "prediction_steps": [],
+        "tool_call_intents": [],
+        "tool_call_results": [],
+        "tool_calls_executed": false
+      }
+    }
+  ],
+  "non_authority": {
+    "activation_authority": false,
+    "canonical_mutation": false,
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_authority": false,
+    "promotion_authority": false,
+    "ranking_authority": false,
+    "runtime_evidence_only": true,
+    "winner_selection": false
+  },
+  "notes": [
+    "This sidecar records local generated-harness runtime trace evidence only.",
+    "Single-module traces are reconstructed from behavior result inputs and observed outputs; generated pipeline traces use explicit runtime trace fragments when available.",
+    "ReAct, ReActV2, and ProgramOfThought trajectory slots are present but tool-call lists remain empty and no tools are bound or executed."
+  ],
+  "runtime_policy": {
+    "dspy_tool_materialization_allowed": false,
+    "external_authority_mutation_allowed": false,
+    "filesystem_mutation_allowed_by_trace_contract": false,
+    "live_external_retriever_allowed": false,
+    "network_allowed_by_trace_contract": false,
+    "provider_calls_may_have_occurred_in_behavior_harness": true,
+    "react_tool_binding_allowed": false,
+    "react_v2_tool_binding_allowed": false,
+    "source": "local_generated_behavior_harnesses_only",
+    "tool_binding_allowed": false,
+    "tool_execution_allowed": false
+  },
+  "schema_version": "program-runtime-traces-v1",
+  "source_count": 1,
+  "source_record_coverage": [
+    {
+      "expected_module_ids": [
+        "define_persona",
+        "retrieve_corpus",
+        "synthesize_deep_research"
+      ],
+      "final_output_coverage_gaps": [],
+      "final_output_trace_count": 1,
+      "missing_final_output_record_indexes": [],
+      "missing_module_call_record_indexes": [],
+      "module_call_count": 3,
+      "module_coverage_gaps": [],
+      "non_authority": {
+        "activation_authority": false,
+        "canonical_mutation": false,
+        "external_mutation": false,
+        "governance_authority": false,
+        "oracle_authority": false,
+        "promotion_authority": false,
+        "ranking_authority": false,
+        "runtime_evidence_only": true,
+        "winner_selection": false
+      },
+      "path": "behavior_results.json",
+      "program_outputs": [
+        "response"
+      ],
+      "record_count": 1,
+      "records_with_complete_final_outputs": [
+        0
+      ],
+      "records_with_complete_module_calls": [
+        0
+      ],
+      "records_with_final_outputs": [
+        0
+      ],
+      "records_with_module_calls": [
+        0
+      ],
+      "schema_version": "program-runtime-trace-source-coverage-v1",
+      "split": null,
+      "status": "complete"
+    }
+  ],
+  "sources": [
+    {
+      "content_hash": "b7bbbb01f79fa9445f520c79c08986b99f8b509f813ae95e8ec106d3b6a0d771",
+      "kind": "examples",
+      "path": "behavior_results.json",
+      "record_count": 1,
+      "split": null,
+      "summary": {
+        "degraded": 0,
+        "error": 0,
+        "executed": 1,
+        "failed": 0,
+        "passed": 0,
+        "status": "executed",
+        "status_counts": {
+          "executed": 1
+        },
+        "total": 1
+      }
+    }
+  ],
+  "status": "runtime_traces_captured",
+  "trace_hashes": {
+    "final_outputs": [
+      "28a88d92a22748fb91481f4e300e8edd8e3fc1b9edb6305c2f85d2ff77985e37"
+    ],
+    "module_calls": [
+      "92f9b5d2d7f8c131a08defb80c3a8e159e74a365663f01f2e88ad1fc1dc6b1b0",
+      "5848e07fef5b4eb5b3812aa22ddc84aa8fd767ceb626b501c697b00b3296de86",
+      "50d00d9b0054cec37d4752ac795475d31281a5eaa4d2795ffda6c175b27b66fc"
+    ]
+  }
+}

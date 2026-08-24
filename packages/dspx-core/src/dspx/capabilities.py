@@ -18,7 +18,7 @@ class ProviderCapabilities(BaseModel):
 
     Used by:
     - Template adapter for parse_mode auto-selection
-    - MultiProviderLM for aggregate capability reporting
+    - Typed provider adapters for pre-effect capability checks
     - Services for provider-aware behavior selection
 
     Note: This model is frozen to prevent accidental mutation at runtime.

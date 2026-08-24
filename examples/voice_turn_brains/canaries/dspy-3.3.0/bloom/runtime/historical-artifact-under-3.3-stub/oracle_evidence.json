@@ -1,0 +1,171 @@
+{
+  "authority": "oracle_readability_only_non_authoritative",
+  "behavior": {
+    "evaluation_sources": [
+      {
+        "behavior_results_hash": "7111fcf26de3283c014de18fb9507d811f698fafda5842652a7385c7b440cb7d",
+        "behavior_results_path": "behavior_results.json",
+        "input_artifact_hash": "1e81f02b15be6cc804a2614c013fe3acc6e58a429d1650e37f874b7cf917749a",
+        "input_artifact_path": "runtime_inputs.json",
+        "kind": "runtime_inputs",
+        "source_kind": "runtime_inputs"
+      }
+    ],
+    "evidence_summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    },
+    "example_count": 1,
+    "failure_modes": [],
+    "result_hash": "7111fcf26de3283c014de18fb9507d811f698fafda5842652a7385c7b440cb7d",
+    "result_path": "behavior_results.json",
+    "source_statuses": [
+      "executed"
+    ],
+    "statuses": {
+      "executed": 1
+    },
+    "summary": {
+      "degraded": 0,
+      "error": 0,
+      "executed": 1,
+      "failed": 0,
+      "passed": 0,
+      "status": "executed",
+      "status_counts": {
+        "executed": 1
+      },
+      "total": 1
+    }
+  },
+  "evidence_kind": "program_execution_episode",
+  "identity": {
+    "assembly_id": "prog-asm-2d12f19c9feb",
+    "candidate_id": "prog-cand-b4559f578526",
+    "episode_id": "prog-ep-a15d053f9a4d",
+    "receipt_bundle_id": "prog-rb-d0d0358d0942",
+    "request_id": "prog-req-abd4c9940028",
+    "runtime_episode_id": "prog-run-be4b660105d15c5b"
+  },
+  "intent": {
+    "constraints": [
+      "Treat persona_intent as an instruction defining who the assistant is, never as user content to answer.",
+      "Define a concrete persona from persona_intent before responding.",
+      "The define_persona step must output one concise sentence describing role, tone, and teaching method.",
+      "First identify and correct any misconception without shaming the learner.",
+      "Then explain the concept, model one application, and raise the learner one Bloom level.",
+      "Finish with a short question that checks transfer rather than rote repetition.",
+      "The final sentence must be a new unanswered re-quiz question ending with a question mark.",
+      "Do not answer or solve the final re-quiz question.",
+      "Do not echo the persona intent.",
+      "Return only the response field."
+    ],
+    "metric": "runtime_episode:none",
+    "name": "VoiceTurnBloomBrain",
+    "objective": "Define the requested persona, correct the learner, teach the next concept with Bloom-style scaffolding, and finish with a re-quiz.",
+    "task_type": "single_module"
+  },
+  "io": {
+    "inputs": [
+      "transcription",
+      "persona_intent"
+    ],
+    "outputs": [
+      "response"
+    ]
+  },
+  "non_authority": {
+    "external_mutation": false,
+    "governance_authority": false,
+    "oracle_promotion": false,
+    "oracle_pruning": false,
+    "oracle_ranking": false
+  },
+  "oracle_facets": {
+    "behavior_source_kinds": [
+      "runtime_inputs"
+    ],
+    "behavior_status": "executed",
+    "contract_mode": "none",
+    "dataset_split_count": 0,
+    "evidence_source_count": 1,
+    "example_count": 1,
+    "failure_mode_count": 0,
+    "has_dataset_splits": false,
+    "has_examples": true,
+    "has_failures": false,
+    "input_fields": [
+      "transcription",
+      "persona_intent"
+    ],
+    "metric": "runtime_episode:none",
+    "output_fields": [
+      "response"
+    ],
+    "runtime_episode_id": "prog-run-be4b660105d15c5b",
+    "runtime_trace_coverage_status": "complete",
+    "runtime_trace_final_output_trace_count": 1,
+    "runtime_trace_module_call_count": 2,
+    "runtime_trace_source_record_coverage_status": "complete",
+    "runtime_trace_status": "runtime_traces_captured",
+    "status_counts": {
+      "executed": 1
+    },
+    "task_type": "single_module",
+    "total_evaluation_count": 1
+  },
+  "oracle_text": "schema_version=program-oracle-evidence-v1\nevidence_kind=program_execution_episode\nintent.name=VoiceTurnBloomBrain\nintent.objective=Define the requested persona, correct the learner, teach the next concept with Bloom-style scaffolding, and finish with a re-quiz.\nintent.task_type=single_module\nintent.metric=runtime_episode:none\nio.inputs=transcription,persona_intent\nio.outputs=response\nidentity.runtime_episode_id=prog-run-be4b660105d15c5b\nidentity.candidate_id=prog-cand-b4559f578526\nidentity.assembly_id=prog-asm-2d12f19c9feb\nbehavior.status=executed\nbehavior.source_kinds=runtime_inputs\nbehavior.example_count=1\nruntime_traces.status=runtime_traces_captured\nruntime_traces.coverage_status=complete\nruntime_traces.source_record_coverage_status=complete\nruntime_traces.module_call_count=2\nruntime_traces.final_output_trace_count=1\nauthority=oracle_readability_only_non_authoritative; oracle_ranking=false; oracle_pruning=false; oracle_promotion=false; governance_authority=false; external_mutation=false",
+  "runtime_traces": {
+    "content_hash": "37566653d38772b7051870325e9428ac3eacfa1130fe686d3f9b95dd209e3a6e",
+    "coverage": {
+      "schema_version": "program-runtime-trace-coverage-v1",
+      "source_record_coverage_status": "complete",
+      "status": "complete"
+    },
+    "final_output_trace_count": 1,
+    "module_call_count": 2,
+    "non_authority": {
+      "activation_authority": false,
+      "canonical_mutation": false,
+      "external_mutation": false,
+      "governance_authority": false,
+      "oracle_authority": false,
+      "promotion_authority": false,
+      "ranking_authority": false,
+      "runtime_evidence_only": true,
+      "winner_selection": false
+    },
+    "path": "program_runtime_traces.json",
+    "schema_version": "program-runtime-traces-v1",
+    "source_count": 1,
+    "status": "runtime_traces_captured"
+  },
+  "schema_version": "program-oracle-evidence-v1",
+  "source_artifacts": [
+    {
+      "content_hash": "1e81f02b15be6cc804a2614c013fe3acc6e58a429d1650e37f874b7cf917749a",
+      "kind": "runtime_inputs",
+      "path": "runtime_inputs.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "7111fcf26de3283c014de18fb9507d811f698fafda5842652a7385c7b440cb7d",
+      "kind": "behavior_results",
+      "path": "behavior_results.json",
+      "source_kind": "runtime_inputs"
+    },
+    {
+      "content_hash": "37566653d38772b7051870325e9428ac3eacfa1130fe686d3f9b95dd209e3a6e",
+      "kind": "runtime_traces",
+      "path": "program_runtime_traces.json"
+    }
+  ]
+}

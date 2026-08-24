@@ -796,6 +796,8 @@ def build_program_refinement_gepa_result(
             "output_weights": dict(gepa_result.output_weights),
             "student_provider": gepa_result.student_provider,
             "reflection_provider": gepa_result.reflection_provider,
+            "proposal_config": dict(gepa_result.proposal_config or {}),
+            "run_stats": dict(gepa_result.run_stats or {}),
             "notes": [
                 "GEPA completed and wrote a local DSPy optimizer output.",
                 "The existing optimizer output is not a program-candidate-assembly-v1 manifest, so no refinement candidate is claimed.",

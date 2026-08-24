@@ -177,7 +177,7 @@ def test_generated_example_harness_uses_declared_quality_instead_of_exact_text(
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps(
             {
                 "reasoning": "bounded",
@@ -219,7 +219,7 @@ def test_generated_example_harness_keeps_exact_match_for_uncovered_outputs(
     monkeypatch.setenv("DSPX_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv(
-        "DSPX_STUB_RESPONSE_JSON",
+        "DSPX_REPLAY_FIXTURE_JSON",
         json.dumps(
             {
                 "response": "One test failed for an unknown reason; investigate.",
