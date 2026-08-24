@@ -90,7 +90,7 @@ CONTRACT_RELATIVE_PATH = Path(
 )
 CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v1"
 REVIEWED_CONTRACT_SHA256 = (
-    "c65d6771c2b4267acb41a0615131ab8789a168fae30db72b7a225cf47e495840"
+    "f349a6be93b062c1b1eb937a52d9e820a1f7c4bd79afcef750546694218887db"
 )
 EXPECTED_MODES = (
     "simple",
@@ -126,8 +126,8 @@ REQUIRED_ENVIRONMENT = {
 FORBIDDEN_ENVIRONMENT = ("DSPX_OPENAI_COMPAT_API_KEY",)
 _EXPECTED_DISTRIBUTIONS = {
     "dspx-core": "0.2.0",
-    "dspy": "3.3.0",
-    "dspy-ai": "3.3.0",
+    "dspy": "3.3.1",
+    "dspy-ai": "3.3.1",
     "gepa": "0.1.4",
 }
 _TOP_LEVEL_KEYS = {

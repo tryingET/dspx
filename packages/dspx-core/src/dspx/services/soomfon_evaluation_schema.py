@@ -27,7 +27,7 @@ PROTECTED_DENIED_ATTRIBUTES = set(
 
 
 _EXPECTED_CANONICAL_SHA256 = (
-    "416510e09864085401979b810ec1e026fc6f7d958041b222145b0bd619e71976"
+    "72ba1c613abb87b077e952540ee01d92da7c215ae48ef846e187c7a3c7fc1e9a"
 )
 
 
@@ -84,8 +84,8 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     if runtime != {
         "python": "3.13.12",
         "dspx_core": "0.2.0",
-        "dspy": "3.3.0",
-        "dspy_ai": "3.3.0",
+        "dspy": "3.3.1",
+        "dspy_ai": "3.3.1",
         "gepa": "0.1.4",
         "provider": "openai-compatible",
         "typed_contract": "typed_lm",
