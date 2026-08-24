@@ -1,0 +1,23 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "/commit"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "3f7c456a7e2294067f0190ea153f38f3edf96259"
+created_at: "2026-08-24T15:29:47Z"
+intent: "Record provider-free root cause for task #4969 terminal: frozen generated program rejected current snapshot safety before provider dispatch"
+files:
+  - "docs/project/product-posture.md"
+  - "governance/task-scopes/AK-4970.snapshot.json"
+validation:
+  fast_gate:
+    command: "just check"
+    status: "pass"
+  full_gate:
+    command: "not required: diagnosis only"
+    status: "pass"
+group:
+  index: 1
+  total: 1
+links:
+  task_ids:
+    - 4970
