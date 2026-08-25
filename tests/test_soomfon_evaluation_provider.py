@@ -728,12 +728,35 @@ def test_exact_ak4991_owner_venv_passes_loaded_boundary_without_auth_access(
     assert not list(clean_owner_root.rglob("__pycache__"))
     source_root = Path(__file__).resolve().parents[1] / "packages/dspx-core/src"
     script = """
+import sys
 from pathlib import Path
+
+socket_events = []
+blocked_network_events = {
+    'socket.connect', 'socket.connect_ex', 'socket.getaddrinfo',
+    'socket.gethostbyaddr', 'socket.gethostbyname', 'socket.gethostbyname_ex',
+    'socket.sendmsg', 'socket.sendto',
+}
+
+def reject_network(event, args):
+    if event.startswith('socket.'):
+        socket_events.append(event)
+    if event in blocked_network_events:
+        raise AssertionError('external network access forbidden in boundary proof')
+
+sys.addaudithook(reject_network)
+remote_cost_map_calls = 0
+def deny_remote_cost_map(*args, **kwargs):
+    global remote_cost_map_calls
+    remote_cost_map_calls += 1
+    raise AssertionError('remote cost-map access forbidden in boundary proof')
+def denied(*args, **kwargs):
+    raise AssertionError('credential access forbidden in boundary proof')
+import httpx
+httpx.get = deny_remote_cost_map
 from dspx.services.soomfon_evaluation_auth_provider import _assert_exact_lm
 from dspx.services.soomfon_evaluation_owner import verify_loaded_soomfon_owner
 owner = verify_loaded_soomfon_owner(Path(__import__('os').environ['OWNER_ROOT']))
-def denied(*args, **kwargs):
-    raise AssertionError('credential or network access forbidden in boundary proof')
 owner.lm_module.read_existing_oauth_credential_without_refresh = denied
 __import__('socket').socket = denied
 lm = owner.lm_type(
@@ -741,6 +764,8 @@ lm = owner.lm_type(
     reasoning_effort='xhigh', num_retries=0, cache=False, timeout=60.0,
 )
 _assert_exact_lm(owner, lm)
+assert not blocked_network_events.intersection(socket_events)
+assert remote_cost_map_calls == 0
 assert lm.kwargs == {
     'temperature': None, 'max_tokens': None, 'reasoning_effort': 'xhigh',
     'timeout': 60.0, 'api_base': 'https://chatgpt.com/backend-api/codex',
@@ -753,6 +778,7 @@ print('exact-owner-boundary-ok')
         "PATH": f"{python.parent}:/usr/bin",
         "PYTHONPATH": str(source_root),
         "PYTHONDONTWRITEBYTECODE": "1",
+        "LITELLM_LOCAL_MODEL_COST_MAP": "True",
         "OWNER_ROOT": str(clean_owner_root),
     }
     result = subprocess.run(

@@ -94,9 +94,9 @@ CONTRACT_RELATIVE_PATH = Path(
     "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json"
 )
 CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v3"
-CONTRACT_PREPARATION_TASK_ID = 5056
+CONTRACT_PREPARATION_TASK_ID = 5061
 REVIEWED_CONTRACT_SHA256 = (
-    "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
+    "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
 )
 EXPECTED_MODES = (
     "simple",
@@ -464,6 +464,7 @@ def build_sanitized_child_environment(
         "PYTHONUNBUFFERED": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
         "DSPX_MLFLOW_ENABLE": "0",
+        "LITELLM_LOCAL_MODEL_COST_MAP": "True",
     }
 
 

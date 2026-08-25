@@ -1,5 +1,5 @@
 ---
-summary: "AK-5056 closed-diagnostic and fd-cursor repair; pending review and execution unauthorized."
+summary: "AK-5061 seals LiteLLM cost-map network access; pending review and execution unauthorized."
 read_when:
   - "Before considering any model-backed evaluation of the six fresh DSPy 3.3 voice originals."
   - "Before changing Soomfon evaluation custody, authorization, provider receipts, or routing."
@@ -10,26 +10,38 @@ type: "reference"
 
 ## Disposition
 
-Task AK-5056 makes retained-journal enumeration independent of inherited directory cursor state
-by opening a separately positioned directory fd from the authoritative parent fd, while retaining
-parent/member inode and nofollow checks. Post-provider verification now emits only closed,
-allowlisted phase and reason codes; exception text, paths, traces, prompts, responses, tokens,
-headers, and credentials remain excluded. Provider-free parent-child-parent dogfood covers an
-inherited EOF cursor and the real retained verifier. The fresh schema-v3 contract remains
-**pending independent review, execution unauthorized**. No task 5056 artifact authorizes a
-provider/model call, OAuth flow, credential inspection, physical key, microphone, TTS, routing,
-promotion, activation, release, or publication.
+Task AK-5061 preserves the AK-5056 fd-native retained-journal and closed-diagnostic repair and
+forces LiteLLM to use its bundled local model-cost map before the owner package is imported.
+Provider-free review of attempted execution task #5060 found that owner import could otherwise
+make an unbudgeted remote cost-map request before per-call AK reconciliation and receipt custody.
+Task #5060 stopped before state creation with zero provider transports, credential accesses, or
+raw-response reads. The fresh schema-v3 contract remains **pending independent review, execution unauthorized**.
+No task 5061 artifact authorizes a provider/model call, OAuth flow, credential
+inspection, physical key, microphone, TTS, routing, promotion, activation, release, or
+publication. The inherited EOF-cursor dogfood, fd/inode custody, and closed non-sensitive
+verification diagnostics remain required.
 
 The active machine contract is:
 
 `examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json`
 
 Its current raw SHA-256 is
-`44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97`.
+`9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837`.
 The digest must be supplied out-of-band; deriving the trust anchor from contract bytes is
 forbidden.
 
 ## Predecessors and immutable history
+
+The immediate AK-5056 successor is archived byte-for-byte at:
+
+`examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json`
+
+Its raw SHA-256 remains
+`44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97`.
+Execution task #5060 was rejected by provider-free review before state creation because LiteLLM
+owner import could attempt an unbudgeted remote model-cost-map request. No provider transport,
+credential access, raw-response read, retry, or resume occurred. The contract remains immutable
+and cannot receive transferred authority.
 
 The latest consumed Luna xhigh contract is archived byte-for-byte at:
 
@@ -154,6 +166,7 @@ The task-local provider configuration is exactly:
 - `auth_provider="codex"` and `credential_mode="no-refresh"`;
 - `reasoning_effort="xhigh"`, `num_retries=0`, `cache=False`, timeout 60 seconds;
 - DSPy 3.3.1 defaults `temperature=None` and `max_tokens=None`, with no other LM kwargs;
+- `LITELLM_LOCAL_MODEL_COST_MAP=True` is forced in the closed sanitized child environment before owner import;
 - synchronous execution only, with no fallback, health probe, resume, or selective rerun;
 - parent `sys.dont_write_bytecode is True`, child `-B` plus
   `PYTHONDONTWRITEBYTECODE=1`, and no `__pycache__`, `.pyc`, or existing loaded-module
@@ -208,7 +221,7 @@ The JSON is an integrity/binding projection only. It is neither produced nor aut
 AK and cannot authorize itself. Before state-root creation the parent requires at least 1800
 seconds on the claim lease; immediately before every marker it repeats that minimum and the
 exact read-only canonical AK queries for the later task, live completion contract and guardrails,
-attached evidence, each named evidence record, and done dependency #5056. The child reconciles
+attached evidence, each named evidence record, and done dependency #5061. The child reconciles
 again before task-local provider import or any possible credential access. Each logical call
 reconciles once more with a 90-second minimum and requires the task, contract, evidence,
 projection, and authorization state to remain unchanged.
@@ -241,7 +254,7 @@ check types are `review:independent-security`, `test:independent-provider-free`,
 bytes to exact Git blobs at the authorized clean commit/tree. Installed mode compares origins
 and complete payload to the exact distribution/RECORD. Any package shadow, `__pycache__`,
 `.pyc`, or existing security-module `__cached__` artifact rejects. No AK mutation occurs.
-Task #5056 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5056 and depend exactly on `[5056]`.
+Task #5061 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5061 and depend exactly on `[5061]`.
 
 ## Private response behavior
 
@@ -257,9 +270,9 @@ This implementation proves no live model compatibility, answer quality, semantic
 GEPA improvement, backend locality, physical Soomfon execution, routing, promotion, activation,
 release, or publication.
 
-The next lawful move is independent review of this provider-free closed-diagnostic and fd-cursor
-repair, followed only then by a separate exact claimed AK task greater than 5056, depending
-exactly on `[5056]`, with
+The next lawful move is independent review of the provider-free local-cost-map network seal,
+followed only then by a separate exact claimed AK task greater than 5061, depending exactly on
+`[5061]`, with
 canonical attached review/operator evidence and a local integrity projection for one suite.
 Only independently reviewed resulting evidence could inform a later, distinct owner binding
 decision. The active routing file must remain unchanged until that separate decision exists.

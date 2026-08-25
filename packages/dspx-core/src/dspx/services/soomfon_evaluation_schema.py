@@ -1,4 +1,4 @@
-"""Closed exact schema for the AK-5056 verification repair contract."""
+"""Closed exact schema for the AK-5061 local-cost-map repair contract."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ PROTECTED_DENIED_ATTRIBUTES = set(
     "parse_raw read_bytes read_text rglob save setpriority settings setxattr sys tb_frame".split()
 )
 _EXPECTED_CANONICAL_SHA256 = (
-    "956d3ecaba0a3bb43425ecad7cb1297d6b01b70d08bef2ffe9a4173c6ba45915"
+    "9f97499f289f377d1d29bd0573c422dba933797438bcef24fe845092730bb826"
 )
 
 
@@ -46,7 +46,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         payload.get("schema_version") != CONTRACT_SCHEMA
         or payload.get("task_id") != CONTRACT_PREPARATION_TASK_ID
         or payload.get("status")
-        != "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review"
+        != "luna_xhigh_local_cost_map_network_sealed_execution_unauthorized_pending_review"
     ):
         raise SoomfonEvaluationContractError("contract identity is invalid")
 
@@ -59,21 +59,14 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
             "task_id",
             "status",
             "execution_task_id",
-            "attempted_modes",
-            "unattempted_modes",
-            "terminal_disposition",
+            "execution_disposition",
             "terminal_reason",
-            "response_sha256",
-            "response_length",
-            "runtime_evidence",
-            "authorization_evidence",
-            "owner_source_identity_sha256",
-            "runtime_identity",
-            "completed_receipt_chains",
+            "provider_transports",
+            "credential_accesses",
+            "raw_response_reads",
+            "state_created",
             "retry_allowed",
-            "empirical_relabel_allowed",
             "ledger_namespace_reuse_allowed",
-            "unattempted_modes_execution_authority_transferred",
             "earlier_predecessor",
         },
         label="contract predecessor",
@@ -83,127 +76,41 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         {"archive_path", "raw_sha256", "terminal_disposition", "retry_allowed"},
         label="earlier predecessor",
     )
-    runtime_evidence = _require_exact_keys(
-        predecessor.get("runtime_evidence"),
-        {
-            "latency_ms",
-            "runtime_episode_sha256",
-            "runtime_tree_sha256",
-            "runtime_receipt_sha256",
-            "behavior_results_sha256",
-        },
-        label="predecessor runtime evidence",
-    )
-    authorization_evidence = _require_exact_keys(
-        predecessor.get("authorization_evidence"),
-        {"authorization_sha256", "ak_reconciliation_sha256"},
-        label="predecessor authorization evidence",
-    )
-    completed_chains = predecessor.get("completed_receipt_chains")
     if (
         predecessor.get("archive_path")
-        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json"
+        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json"
         or predecessor.get("raw_sha256")
-        != "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
+        != "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
         or predecessor.get("canonical_sha256")
-        != "b416b542bdbc62dc949773ecb2ff10f71769205ebf78f75e63466a70b7363dc4"
-        or predecessor.get("task_id") != 5042
+        != "956d3ecaba0a3bb43425ecad7cb1297d6b01b70d08bef2ffe9a4173c6ba45915"
+        or predecessor.get("task_id") != 5056
         or predecessor.get("status")
-        != "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
-        or predecessor.get("execution_task_id") != 5045
-        or predecessor.get("attempted_modes") != ["simple"]
-        or predecessor.get("unattempted_modes") != list(EXPECTED_MODES[1:])
-        or predecessor.get("terminal_disposition") != "effect_indeterminate"
-        or predecessor.get("terminal_reason") != "provider_receipt_journal_invalid"
-        or predecessor.get("response_sha256")
-        != "749af25da49ba89dda58ee9bf2b02114282241def1f5d7c2b4430e43be22edbb"
-        or predecessor.get("response_length") != 304
+        != "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review"
+        or predecessor.get("execution_task_id") != 5060
+        or predecessor.get("execution_disposition") != "pre_effect_review_rejected"
+        or predecessor.get("terminal_reason")
+        != "unbudgeted_litellm_model_cost_map_network_attempt_before_receipt_custody"
+        or predecessor.get("provider_transports") != 0
+        or predecessor.get("credential_accesses") != 0
+        or predecessor.get("raw_response_reads") != 0
+        or predecessor.get("state_created") is not False
         or predecessor.get("retry_allowed") is not False
-        or predecessor.get("empirical_relabel_allowed") is not False
         or predecessor.get("ledger_namespace_reuse_allowed") is not False
-        or predecessor.get("unattempted_modes_execution_authority_transferred")
-        is not False
-        or earlier.get("archive_path")
-        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
-        or earlier.get("raw_sha256")
-        != "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
-        or earlier.get("terminal_disposition") != "effect_indeterminate"
-        or earlier.get("retry_allowed") is not False
-        or predecessor.get("runtime_identity")
+        or earlier
         != {
-            "python": "3.13.12",
-            "dspx-core": "0.2.1",
-            "dspy": "3.3.1",
-            "dspy-ai": "3.3.1",
-            "gepa": "0.1.4",
-            "litellm": "1.82.1",
-            "httpx": "0.28.1",
-            "httpcore": "1.0.9",
+            "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json",
+            "raw_sha256": "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae",
+            "terminal_disposition": "effect_indeterminate",
+            "retry_allowed": False,
         }
-        or not isinstance(completed_chains, list)
-        or len(completed_chains) != 2
     ):
         raise SoomfonEvaluationContractError("contract predecessor is invalid")
-    evidence_hashes = (
+    for value in (
         predecessor.get("raw_sha256"),
         predecessor.get("canonical_sha256"),
-        predecessor.get("response_sha256"),
-        predecessor.get("owner_source_identity_sha256"),
         earlier.get("raw_sha256"),
-        runtime_evidence.get("runtime_episode_sha256"),
-        runtime_evidence.get("runtime_tree_sha256"),
-        runtime_evidence.get("runtime_receipt_sha256"),
-        runtime_evidence.get("behavior_results_sha256"),
-        authorization_evidence.get("authorization_sha256"),
-        authorization_evidence.get("ak_reconciliation_sha256"),
-    )
-    for value in evidence_hashes:
+    ):
         _require_hash(value, "predecessor evidence hash is invalid")
-    if (
-        runtime_evidence.get("latency_ms") != 43992
-        or runtime_evidence.get("runtime_episode_sha256")
-        != "af5cf2e553b382f1a2f6ee5dc171a034680781603c2ee3c0338dc33bb8fc42fa"
-        or runtime_evidence.get("runtime_tree_sha256")
-        != "c231960ab57d7248e2438b12b8f1de453e57b20b1d82628e669065de10792983"
-        or runtime_evidence.get("runtime_receipt_sha256")
-        != "12c6e1af5349bd70c50f13d5d05b73bfbb4cf49f6aab7f843b89924ac37e0cf2"
-        or runtime_evidence.get("behavior_results_sha256")
-        != "8275e28fda59b9b80207350d3d000577d240385a9192f62703608f9c8589d7e0"
-        or authorization_evidence.get("authorization_sha256")
-        != "94cca8f14fc17660de94ad4f09214395f01b1fa049c329c029a9d15a40435a58"
-        or authorization_evidence.get("ak_reconciliation_sha256")
-        != "97a271cc914e9d4f9e26f5c367c790aa231ad4ab08bc5f0fbbbab91c4f97b097"
-    ):
-        raise SoomfonEvaluationContractError("predecessor retained evidence is invalid")
-    chain_keys = {
-        "call_ordinal",
-        "signature_name",
-        "reservation_id",
-        "journal_sha256",
-        "provider_outcome_receipt",
-        "request_acknowledged",
-        "external_effect_possible",
-        "producer_terminal",
-        "empirical_disposition",
-        "reason",
-    }
-    for ordinal, (chain, signature) in enumerate(
-        zip(completed_chains, ("DefinePersona", "AnswerSimple"), strict=True), start=1
-    ):
-        row = _require_exact_keys(chain, chain_keys, label="completed receipt chain")
-        if (
-            row.get("call_ordinal") != ordinal
-            or row.get("signature_name") != signature
-            or row.get("provider_outcome_receipt") != "accepted"
-            or row.get("request_acknowledged") is not True
-            or row.get("external_effect_possible") is not True
-            or row.get("producer_terminal") != "provider_response_completed"
-            or row.get("empirical_disposition") != "not_evaluated"
-            or row.get("reason") != "attributable_completion_not_evaluated"
-        ):
-            raise SoomfonEvaluationContractError("completed receipt chain is invalid")
-        for key in ("reservation_id", "journal_sha256"):
-            _require_hash(row.get(key), "completed receipt chain hash is invalid")
 
     owner = _require_exact_keys(
         payload.get("provider_owner_candidate"),
@@ -312,6 +219,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         "reasoning_effort": "xhigh",
         "num_retries": 0,
         "cache": False,
+        "litellm_local_model_cost_map": True,
         "timeout_seconds": 60,
         "sync_only": True,
         "fallback_allowed": False,
@@ -327,7 +235,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     if not isinstance(executor, Mapping) or (
         executor.get("implementation_ready") is not True
         or executor.get("execution_authorized") is not False
-        or executor.get("task_5056_can_authorize_execution") is not False
+        or executor.get("task_5061_can_authorize_execution") is not False
         or executor.get("implementation_requires_later_exact_ak_task") is not True
         or executor.get("execution_authorization_artifact_required") is not True
         or executor.get("execution_authorization_sha256_argument_required") is not True
@@ -336,6 +244,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
             "open_independently_positioned_verification_fd_from_authoritative_parent_fd_and_rebind_parent_inode",
             "retain_only_closed_allowlisted_post_provider_verification_phase_and_reason_without_exception_text",
             "provider_free_parent_child_parent_eof_cursor_dogfood_required",
+            "force_litellm_bundled_local_model_cost_map_before_owner_import",
         }.issubset(set(executor.get("required_executor_properties", [])))
         or executor.get("execution_authorization_schema")
         != "soomfon-execution-authorization-v3"

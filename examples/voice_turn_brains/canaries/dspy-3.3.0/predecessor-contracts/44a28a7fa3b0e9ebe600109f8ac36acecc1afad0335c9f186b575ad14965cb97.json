@@ -1,26 +1,84 @@
 {
   "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v3",
-  "task_id": 5061,
-  "status": "luna_xhigh_local_cost_map_network_sealed_execution_unauthorized_pending_review",
-  "purpose": "Archive the AK-5056 successor byte-for-byte, preserve consumed AK-5045 evidence, force LiteLLM to its bundled local model-cost map before owner import, and retain closed fd-native verification; execution remains unauthorized.",
+  "task_id": 5056,
+  "status": "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review",
+  "purpose": "Preserve consumed AK-5045 evidence, retain closed non-sensitive post-provider verification diagnostics, and make fd-backed retained-journal enumeration independent of inherited directory cursor state; execution remains unauthorized.",
   "predecessor_contract": {
-    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json",
-    "raw_sha256": "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97",
-    "canonical_sha256": "956d3ecaba0a3bb43425ecad7cb1297d6b01b70d08bef2ffe9a4173c6ba45915",
-    "task_id": 5056,
-    "status": "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review",
-    "execution_task_id": 5060,
-    "execution_disposition": "pre_effect_review_rejected",
-    "terminal_reason": "unbudgeted_litellm_model_cost_map_network_attempt_before_receipt_custody",
-    "provider_transports": 0,
-    "credential_accesses": 0,
-    "raw_response_reads": 0,
-    "state_created": false,
+    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json",
+    "raw_sha256": "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae",
+    "canonical_sha256": "b416b542bdbc62dc949773ecb2ff10f71769205ebf78f75e63466a70b7363dc4",
+    "task_id": 5042,
+    "status": "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review",
+    "execution_task_id": 5045,
+    "attempted_modes": [
+      "simple"
+    ],
+    "unattempted_modes": [
+      "elaborate",
+      "researched",
+      "deep-research",
+      "socratic",
+      "bloom"
+    ],
+    "terminal_disposition": "effect_indeterminate",
+    "terminal_reason": "provider_receipt_journal_invalid",
+    "response_sha256": "749af25da49ba89dda58ee9bf2b02114282241def1f5d7c2b4430e43be22edbb",
+    "response_length": 304,
+    "runtime_evidence": {
+      "latency_ms": 43992,
+      "runtime_episode_sha256": "af5cf2e553b382f1a2f6ee5dc171a034680781603c2ee3c0338dc33bb8fc42fa",
+      "runtime_tree_sha256": "c231960ab57d7248e2438b12b8f1de453e57b20b1d82628e669065de10792983",
+      "runtime_receipt_sha256": "12c6e1af5349bd70c50f13d5d05b73bfbb4cf49f6aab7f843b89924ac37e0cf2",
+      "behavior_results_sha256": "8275e28fda59b9b80207350d3d000577d240385a9192f62703608f9c8589d7e0"
+    },
+    "authorization_evidence": {
+      "authorization_sha256": "94cca8f14fc17660de94ad4f09214395f01b1fa049c329c029a9d15a40435a58",
+      "ak_reconciliation_sha256": "97a271cc914e9d4f9e26f5c367c790aa231ad4ab08bc5f0fbbbab91c4f97b097"
+    },
+    "owner_source_identity_sha256": "05aa16facba3d6802d18e4292b49bf62889df5304d248010a2c533cc3679c3a7",
+    "runtime_identity": {
+      "dspx-core": "0.2.1",
+      "dspy": "3.3.1",
+      "dspy-ai": "3.3.1",
+      "gepa": "0.1.4",
+      "httpcore": "1.0.9",
+      "httpx": "0.28.1",
+      "litellm": "1.82.1",
+      "python": "3.13.12"
+    },
+    "completed_receipt_chains": [
+      {
+        "call_ordinal": 1,
+        "empirical_disposition": "not_evaluated",
+        "external_effect_possible": true,
+        "journal_sha256": "735ba48b3854e955ab33af0cf113b2d68b55d7313399e1f68c0d89a1168dfaa5",
+        "producer_terminal": "provider_response_completed",
+        "provider_outcome_receipt": "accepted",
+        "reason": "attributable_completion_not_evaluated",
+        "request_acknowledged": true,
+        "reservation_id": "7c07357def5891e15935b5aa0924cd9fa55532cc8d92e088fe22e41d3ee337ea",
+        "signature_name": "DefinePersona"
+      },
+      {
+        "call_ordinal": 2,
+        "empirical_disposition": "not_evaluated",
+        "external_effect_possible": true,
+        "journal_sha256": "d7a86f4ccb79f0f86e162fa7b7e77b0941cac13bf32f0ffbba07fb52791059c3",
+        "producer_terminal": "provider_response_completed",
+        "provider_outcome_receipt": "accepted",
+        "reason": "attributable_completion_not_evaluated",
+        "request_acknowledged": true,
+        "reservation_id": "d6f75e6d2180ff46aa49cb900454fe91fcb3c27a6f49098985285966693e25bd",
+        "signature_name": "AnswerSimple"
+      }
+    ],
     "retry_allowed": false,
+    "empirical_relabel_allowed": false,
     "ledger_namespace_reuse_allowed": false,
+    "unattempted_modes_execution_authority_transferred": false,
     "earlier_predecessor": {
-      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json",
-      "raw_sha256": "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae",
+      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json",
+      "raw_sha256": "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a",
       "terminal_disposition": "effect_indeterminate",
       "retry_allowed": false
     }
@@ -113,7 +171,6 @@
     "reasoning_effort": "xhigh",
     "num_retries": 0,
     "cache": false,
-    "litellm_local_model_cost_map": true,
     "timeout_seconds": 60,
     "sync_only": true,
     "fallback_allowed": false,
@@ -131,7 +188,7 @@
     "implementation_ready": true,
     "execution_authorized": false,
     "implementation_requires_later_exact_ak_task": true,
-    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5061",
+    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5056",
     "expected_contract_sha256_argument_required": true,
     "derive_expected_contract_sha256_from_contract_forbidden": true,
     "execution_authorization_schema": "soomfon-execution-authorization-v3",
@@ -140,7 +197,7 @@
     "owner_source_root_argument_required": true,
     "authorization_required_fields": [
       "later_exact_claimed_task_id_with_at_least_1800_seconds_lease",
-      "exact_repo_and_done_task_5061_dependency",
+      "exact_repo_and_done_task_5056_dependency",
       "exact_live_completion_kind_and_guardrails",
       "current_raw_contract_sha256",
       "reviewed_dspx_source_commit_tree_or_installed_payload_and_loaded_origins",
@@ -161,7 +218,6 @@
       "bind_loaded_dspx_origins_and_source_or_record_bytes_in_parent_and_child",
       "reject_security_critical_dspx_or_owner_pycache_pyc_or_existing_module_cached_artifact",
       "require_parent_dont_write_bytecode_and_child_B_plus_PYTHONDONTWRITEBYTECODE",
-      "force_litellm_bundled_local_model_cost_map_before_owner_import",
       "verify_owner_worktree_before_marker",
       "reconcile_canonical_ak_in_child_before_provider_import_or_credential_access",
       "reconcile_unchanged_canonical_authority_with_90_second_lease_before_each_logical_call",
@@ -177,7 +233,7 @@
       "retain_no_prompt_response_token_header_credential_raw_ak_details_or_raw_diagnostic_in_provider_evidence"
     ],
     "known_blockers": [
-      "task_5061_contract_is_execution_unauthorized_and_archived_44a28a7f_predecessor_had_zero_provider_effect",
+      "task_5056_contract_is_execution_unauthorized",
       "no_later_exact_claimed_ak_execution_task_with_complete_canonical_evidence_exists",
       "final_hardened_implementation_requires_independent_rereview",
       "execution_requires_clean_no_bytecode_reviewed_source_or_installed_payload_environment",
@@ -197,7 +253,7 @@
       "before_each_logical_call_minimum_seconds": 90,
       "call_minimum_basis": "provider_timeout_60_plus_30_seconds"
     },
-    "task_5061_can_authorize_execution": false
+    "task_5056_can_authorize_execution": false
   },
   "effect_budget": {
     "fixed_case_order": [

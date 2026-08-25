@@ -17,6 +17,10 @@ CONTRACT_PATH = (
     REPO_ROOT
     / "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json"
 )
+IMMEDIATE_PREDECESSOR = (
+    REPO_ROOT
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json"
+)
 PREDECESSOR = (
     REPO_ROOT
     / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json"
@@ -56,7 +60,10 @@ EXPECTED_MODES = (
     "bloom",
 )
 RESEARCH_MODES = {"researched", "deep-research"}
-CURRENT_SHA256 = "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
+CURRENT_SHA256 = "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
+IMMEDIATE_PREDECESSOR_SHA256 = (
+    "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
+)
 PREDECESSOR_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
 EARLIER_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
 EARLIEST_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
@@ -88,6 +95,7 @@ def _hash_json(value: object) -> str:
 def _copy_contract_chain(root: Path) -> None:
     for source in (
         CONTRACT_PATH,
+        IMMEDIATE_PREDECESSOR,
         PREDECESSOR,
         EARLIER,
         EARLIEST,
@@ -124,6 +132,7 @@ def test_production_loader_reaches_complete_predecessor_chain(
     )
 
     assert {
+        IMMEDIATE_PREDECESSOR.resolve(),
         PREDECESSOR.resolve(),
         EARLIER.resolve(),
         EARLIEST.resolve(),
@@ -291,13 +300,13 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
         contract["schema_version"]
         == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
     )
-    assert contract["task_id"] == 5056
+    assert contract["task_id"] == 5061
     assert (
         contract["status"]
-        == "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review"
+        == "luna_xhigh_local_cost_map_network_sealed_execution_unauthorized_pending_review"
     )
     assert contract["executor_contract"]["execution_authorized"] is False
-    assert contract["executor_contract"]["task_5056_can_authorize_execution"] is False
+    assert contract["executor_contract"]["task_5061_can_authorize_execution"] is False
     assert (
         contract["executor_contract"]["implementation_requires_later_exact_ak_task"]
         is True
@@ -311,7 +320,14 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
 
 def test_predecessors_are_byte_exact_and_namespaces_are_immutable() -> None:
     contract = _load(CONTRACT_PATH)
-    predecessor = contract["predecessor_contract"]
+    immediate = contract["predecessor_contract"]
+    assert _sha256(IMMEDIATE_PREDECESSOR) == IMMEDIATE_PREDECESSOR_SHA256
+    assert immediate["raw_sha256"] == IMMEDIATE_PREDECESSOR_SHA256
+    assert immediate["execution_task_id"] == 5060
+    assert immediate["execution_disposition"] == "pre_effect_review_rejected"
+    assert immediate["provider_transports"] == 0
+    assert immediate["state_created"] is False
+    predecessor = _load(IMMEDIATE_PREDECESSOR)["predecessor_contract"]
     assert _sha256(PREDECESSOR) == predecessor["raw_sha256"] == PREDECESSOR_SHA256
     assert _sha256(EARLIER) == EARLIER_SHA256
     assert _sha256(EARLIEST) == EARLIEST_SHA256
@@ -357,7 +373,10 @@ def test_contract_binds_all_six_fresh_originals_exactly() -> None:
     assert (
         contract["provider_owner_candidate"] == predecessor["provider_owner_candidate"]
     )
-    assert contract["runtime_target"] == predecessor["runtime_target"]
+    assert contract["runtime_target"] == {
+        **predecessor["runtime_target"],
+        "litellm_local_model_cost_map": True,
+    }
     assert contract["effect_budget"] == predecessor["effect_budget"]
     assert contract["effect_budget"]["fixed_case_order"] == list(EXPECTED_MODES)
     active = _load(ACTIVE_BINDING_PATH)
@@ -430,6 +449,7 @@ def test_provider_owner_and_runtime_identity_are_exact() -> None:
     assert runtime["reasoning_effort"] == "xhigh"
     assert runtime["num_retries"] == 0
     assert runtime["cache"] is False
+    assert runtime["litellm_local_model_cost_map"] is True
     assert runtime["timeout_seconds"] == 60
     assert runtime["fallback_allowed"] is False
     assert runtime["dspx_lm_subclass_added"] is False
@@ -464,6 +484,11 @@ def test_executor_attempt_receipt_and_retention_requirements_are_explicit() -> N
     assert contract["runtime_target"]["dont_write_bytecode_required"] is True
     assert contract["runtime_target"]["child_python_flag_B_required"] is True
     assert contract["runtime_target"]["bytecode_cache_allowed"] is False
+    assert contract["runtime_target"]["litellm_local_model_cost_map"] is True
+    assert (
+        "force_litellm_bundled_local_model_cost_map_before_owner_import"
+        in executor["required_executor_properties"]
+    )
     budget = contract["effect_budget"]
     assert budget["ordered_logical_lm_calls_per_successful_case"] == 2
     assert budget["maximum_suite_logical_lm_calls"] == 12
