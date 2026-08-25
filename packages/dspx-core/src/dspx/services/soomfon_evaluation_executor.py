@@ -155,34 +155,67 @@ def _evaluate_case(
         }
     state, provider_details = classify_provider_disposition(bundle.behavior_results)
     if state == "succeeded":
-        try:
-            from dspx.services.soomfon_evaluation_provider import (
-                verify_retained_soomfon_journals,
-                verify_soomfon_owner_source,
-            )
+        from dspx.services.soomfon_evaluation_provider import (
+            closed_retained_journal_reason,
+            verify_retained_soomfon_journals,
+            verify_soomfon_owner_source,
+        )
 
+        try:
             verify_soomfon_owner_source(owner_source_root)
-            provider = bundle.behavior_results.get("provider")
-            if not isinstance(provider, Mapping):
-                raise SoomfonEvaluationExecutorError(
-                    "validated provider evidence envelope is missing"
-                )
-            full_provider_evidence = provider.get("effect_evidence")
-            if not isinstance(full_provider_evidence, Mapping):
-                raise SoomfonEvaluationExecutorError(
-                    "validated provider evidence envelope is missing"
-                )
-            verify_retained_soomfon_journals(
-                provider_journal_fd,
-                full_provider_evidence,
-                mode=str(case["mode"]),
-                execution_task_id=execution_task_id,
-                contract_sha256=contract_sha256,
-                expected_marker_sha256=marker_sha256(marker_fd),
-            )
-        except Exception:
+        except BaseException:
             state = "effect_indeterminate"
-            provider_details = {"reason": "provider_receipt_journal_invalid"}
+            provider_details = {
+                "reason": "provider_receipt_custody_invalid",
+                "verification_phase": "owner_source",
+                "verification_reason": "owner_source_verification_failed",
+            }
+        full_provider_evidence: Mapping[str, Any] | None = None
+        if state == "succeeded":
+            provider = bundle.behavior_results.get("provider")
+            if isinstance(provider, Mapping):
+                candidate_evidence = provider.get("effect_evidence")
+                if isinstance(candidate_evidence, Mapping):
+                    full_provider_evidence = candidate_evidence
+            if full_provider_evidence is None:
+                state = "effect_indeterminate"
+                provider_details = {
+                    "reason": "provider_receipt_custody_invalid",
+                    "verification_phase": "provider_envelope",
+                    "verification_reason": "provider_evidence_missing",
+                }
+        expected_marker_sha256: str | None = None
+        if state == "succeeded":
+            try:
+                expected_marker_sha256 = marker_sha256(marker_fd)
+            except BaseException:
+                state = "effect_indeterminate"
+                provider_details = {
+                    "reason": "provider_receipt_custody_invalid",
+                    "verification_phase": "marker_hash",
+                    "verification_reason": "marker_hash_failed",
+                }
+        if (
+            state == "succeeded"
+            and full_provider_evidence is not None
+            and expected_marker_sha256 is not None
+        ):
+            try:
+                verify_retained_soomfon_journals(
+                    provider_journal_fd,
+                    full_provider_evidence,
+                    mode=str(case["mode"]),
+                    execution_task_id=execution_task_id,
+                    contract_sha256=contract_sha256,
+                    expected_marker_sha256=expected_marker_sha256,
+                )
+            except BaseException as exc:
+                state = "effect_indeterminate"
+                provider_details = {
+                    "reason": "provider_receipt_custody_invalid",
+                    "verification_phase": "retained_journal",
+                    "verification_reason": closed_retained_journal_reason(exc),
+                }
     if (
         state == "succeeded"
         and bundle.runtime_episode.get("execution_status") != "executed"

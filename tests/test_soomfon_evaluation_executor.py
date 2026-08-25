@@ -40,7 +40,7 @@ from dspx.services.soomfon_evaluation_custody import SoomfonCustodyError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
+CONTRACT_SHA256 = "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
 
 
 @pytest.fixture(autouse=True)
@@ -672,31 +672,111 @@ def test_parent_verifies_exact_full_provider_evidence_envelope(
     monkeypatch.setattr(
         provider_service, "verify_retained_soomfon_journals", capture_full_envelope
     )
-    state, details = executor._evaluate_case(
-        case={"manifest_payload": {}, "manifest_sha256": "c" * 64, "mode": "simple"},
-        staged_manifest=tmp_path / "manifest.json",
-        raw_root=raw,
-        child_environment={},
-        contract_sha256=CONTRACT_SHA256,
-        marker_fd=-1,
-        ledger_fd=-1,
-        lock_fd=-1,
-        provider_journal_fd=journal_fd,
-        execution_task_id=6000,
-        authorization_sha256="f" * 64,
-        ak_reconciliation_sha256="e" * 64,
-        owner_source_root=REPO_ROOT,
-        authorization_path=Path("fixture-authorization.json"),
-        repo_root=REPO_ROOT,
-    )
 
-    os.close(journal_fd)
+    def evaluate() -> tuple[str, dict[str, object]]:
+        return executor._evaluate_case(
+            case={
+                "manifest_payload": {},
+                "manifest_sha256": "c" * 64,
+                "mode": "simple",
+            },
+            staged_manifest=tmp_path / "manifest.json",
+            raw_root=raw,
+            child_environment={},
+            contract_sha256=CONTRACT_SHA256,
+            marker_fd=-1,
+            ledger_fd=-1,
+            lock_fd=-1,
+            provider_journal_fd=journal_fd,
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+            owner_source_root=REPO_ROOT,
+            authorization_path=Path("fixture-authorization.json"),
+            repo_root=REPO_ROOT,
+        )
 
+    state, details = evaluate()
     assert state == "succeeded"
     assert received == [full_evidence]
     outward = cast(dict[str, Any], details["provider"])
     assert "schema_version" not in outward
     assert outward["logical_call_total"] == 2
+
+    monkeypatch.setattr(
+        executor, "classify_provider_disposition", lambda *_: ("succeeded", {})
+    )
+    retained_provider = behavior.pop("provider")
+    state, details = evaluate()
+    behavior["provider"] = retained_provider
+    assert state == "effect_indeterminate"
+    assert details["provider"] == {
+        "reason": "provider_receipt_custody_invalid",
+        "verification_phase": "provider_envelope",
+        "verification_reason": "provider_evidence_missing",
+    }
+
+    def reject(message: str) -> None:
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(
+        provider_service,
+        "verify_soomfon_owner_source",
+        lambda *_: reject("sensitive owner diagnostic"),
+    )
+    state, details = evaluate()
+    assert state == "effect_indeterminate"
+    assert details["provider"] == {
+        "reason": "provider_receipt_custody_invalid",
+        "verification_phase": "owner_source",
+        "verification_reason": "owner_source_verification_failed",
+    }
+
+    monkeypatch.setattr(provider_service, "verify_soomfon_owner_source", lambda *_: {})
+    monkeypatch.setattr(
+        executor, "marker_sha256", lambda *_: reject("sensitive marker diagnostic")
+    )
+    state, details = evaluate()
+    assert state == "effect_indeterminate"
+    assert details["provider"] == {
+        "reason": "provider_receipt_custody_invalid",
+        "verification_phase": "marker_hash",
+        "verification_reason": "marker_hash_failed",
+    }
+
+    monkeypatch.setattr(executor, "marker_sha256", lambda *_: "e" * 64)
+    monkeypatch.setattr(
+        provider_service,
+        "verify_retained_soomfon_journals",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            provider_service.SoomfonProviderError(
+                "retained_journal_count_drift", "sensitive retained diagnostic"
+            )
+        ),
+    )
+    state, details = evaluate()
+    assert state == "effect_indeterminate"
+    assert details["provider"] == {
+        "reason": "provider_receipt_custody_invalid",
+        "verification_phase": "retained_journal",
+        "verification_reason": "retained_journal_count_drift",
+    }
+    assert "sensitive" not in json.dumps(details)
+
+    monkeypatch.setattr(
+        provider_service,
+        "verify_retained_soomfon_journals",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(KeyboardInterrupt()),
+    )
+    state, details = evaluate()
+    assert state == "effect_indeterminate"
+    assert details["provider"] == {
+        "reason": "provider_receipt_custody_invalid",
+        "verification_phase": "retained_journal",
+        "verification_reason": "retained_journal_verification_failed",
+    }
+    assert "KeyboardInterrupt" not in json.dumps(details)
+    os.close(journal_fd)
 
 
 def test_suite_consumes_all_cases_once_without_exposing_responses(

@@ -19,13 +19,17 @@ CONTRACT_PATH = (
 )
 PREDECESSOR = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json"
 )
 EARLIER = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
 )
 EARLIEST = (
+    REPO_ROOT
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json"
+)
+UNATTEMPTED = (
     REPO_ROOT
     / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json"
 )
@@ -52,10 +56,11 @@ EXPECTED_MODES = (
     "bloom",
 )
 RESEARCH_MODES = {"researched", "deep-research"}
-CURRENT_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
-PREDECESSOR_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
-EARLIER_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
-EARLIEST_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
+CURRENT_SHA256 = "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
+PREDECESSOR_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
+EARLIER_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
+EARLIEST_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+UNATTEMPTED_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
 OLDER_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
 ANCIENT_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
 ORIGINAL_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
@@ -286,13 +291,13 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
         contract["schema_version"]
         == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
     )
-    assert contract["task_id"] == 5042
+    assert contract["task_id"] == 5056
     assert (
         contract["status"]
-        == "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
+        == "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review"
     )
     assert contract["executor_contract"]["execution_authorized"] is False
-    assert contract["executor_contract"]["task_5042_can_authorize_execution"] is False
+    assert contract["executor_contract"]["task_5056_can_authorize_execution"] is False
     assert (
         contract["executor_contract"]["implementation_requires_later_exact_ak_task"]
         is True
@@ -310,26 +315,27 @@ def test_predecessors_are_byte_exact_and_namespaces_are_immutable() -> None:
     assert _sha256(PREDECESSOR) == predecessor["raw_sha256"] == PREDECESSOR_SHA256
     assert _sha256(EARLIER) == EARLIER_SHA256
     assert _sha256(EARLIEST) == EARLIEST_SHA256
+    assert _sha256(UNATTEMPTED) == UNATTEMPTED_SHA256
     assert _sha256(OLDER) == OLDER_SHA256
     assert _sha256(ANCIENT) == ANCIENT_SHA256
     assert _sha256(ORIGINAL) == ORIGINAL_SHA256
 
     archived = _load(PREDECESSOR)
-    assert archived["task_id"] == 5038
+    assert archived["task_id"] == 5042
     assert (
         archived["status"]
-        == "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review"
+        == "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
     )
-    assert predecessor["task_id"] == 5038
-    assert predecessor["execution_task_id"] == 5040
+    assert predecessor["task_id"] == 5042
+    assert predecessor["execution_task_id"] == 5045
     assert predecessor["attempted_modes"] == ["simple"]
     assert predecessor["unattempted_modes"] == list(EXPECTED_MODES[1:])
     assert predecessor["terminal_disposition"] == "effect_indeterminate"
     assert predecessor["terminal_reason"] == "provider_receipt_journal_invalid"
     assert predecessor["response_sha256"] == (
-        "c798d55e21204d61345cc514019dcf473e2d14a6d3d533489090f4fe2aaf6e50"
+        "749af25da49ba89dda58ee9bf2b02114282241def1f5d7c2b4430e43be22edbb"
     )
-    assert predecessor["response_length"] == 315
+    assert predecessor["response_length"] == 304
     assert len(predecessor["completed_receipt_chains"]) == 2
     assert all(
         row["provider_outcome_receipt"] == "accepted"

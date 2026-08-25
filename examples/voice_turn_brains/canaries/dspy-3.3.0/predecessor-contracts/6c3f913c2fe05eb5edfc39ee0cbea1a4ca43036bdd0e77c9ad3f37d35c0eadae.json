@@ -1,15 +1,15 @@
 {
   "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v3",
-  "task_id": 5056,
-  "status": "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review",
-  "purpose": "Preserve consumed AK-5045 evidence, retain closed non-sensitive post-provider verification diagnostics, and make fd-backed retained-journal enumeration independent of inherited directory cursor state; execution remains unauthorized.",
+  "task_id": 5042,
+  "status": "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review",
+  "purpose": "Issue a fresh provider-free Luna xhigh successor after preserving the consumed 56b2f2 contract and keeping retained-journal verification anchored to the already-open provider directory fd with nofollow member posture and pre/post inode identity checks; execution remains unauthorized.",
   "predecessor_contract": {
-    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json",
-    "raw_sha256": "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae",
-    "canonical_sha256": "b416b542bdbc62dc949773ecb2ff10f71769205ebf78f75e63466a70b7363dc4",
-    "task_id": 5042,
-    "status": "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review",
-    "execution_task_id": 5045,
+    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json",
+    "raw_sha256": "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a",
+    "canonical_sha256": "0ed409037e74bffe8d4a211a8ac0edfbcb112c0cc11ff8662f6344a075622b1f",
+    "task_id": 5038,
+    "status": "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review",
+    "execution_task_id": 5040,
     "attempted_modes": [
       "simple"
     ],
@@ -22,18 +22,18 @@
     ],
     "terminal_disposition": "effect_indeterminate",
     "terminal_reason": "provider_receipt_journal_invalid",
-    "response_sha256": "749af25da49ba89dda58ee9bf2b02114282241def1f5d7c2b4430e43be22edbb",
-    "response_length": 304,
+    "response_sha256": "c798d55e21204d61345cc514019dcf473e2d14a6d3d533489090f4fe2aaf6e50",
+    "response_length": 315,
     "runtime_evidence": {
-      "latency_ms": 43992,
-      "runtime_episode_sha256": "af5cf2e553b382f1a2f6ee5dc171a034680781603c2ee3c0338dc33bb8fc42fa",
-      "runtime_tree_sha256": "c231960ab57d7248e2438b12b8f1de453e57b20b1d82628e669065de10792983",
-      "runtime_receipt_sha256": "12c6e1af5349bd70c50f13d5d05b73bfbb4cf49f6aab7f843b89924ac37e0cf2",
-      "behavior_results_sha256": "8275e28fda59b9b80207350d3d000577d240385a9192f62703608f9c8589d7e0"
+      "latency_ms": 42281,
+      "runtime_episode_sha256": "9e82d5094901a2264524b0b5fd1e0c05cdd9045f37209826684f1bdb3283e1df",
+      "runtime_tree_sha256": "07f6903c6ff9831a516ff2e137389ed45db84c4b1a5adebba4f438aebd4d5be1",
+      "runtime_receipt_sha256": "d144050a97c1a4d18939e23d7c688e8063e5f68caf9936dc533272982f8a30e2",
+      "behavior_results_sha256": "108c4c0e9e514975d071df0f59530ce44379f0fa113254bf9f51a409238b9358"
     },
     "authorization_evidence": {
-      "authorization_sha256": "94cca8f14fc17660de94ad4f09214395f01b1fa049c329c029a9d15a40435a58",
-      "ak_reconciliation_sha256": "97a271cc914e9d4f9e26f5c367c790aa231ad4ab08bc5f0fbbbab91c4f97b097"
+      "authorization_sha256": "fa76cd63a9a68f131a9fdbb79b7f965596f8bf52796b3f9ae4d584991354e7d5",
+      "ak_reconciliation_sha256": "16895558f244f2e616403c036a1f383c3b490f5318c37cc9f5eebd34a34acd01"
     },
     "owner_source_identity_sha256": "05aa16facba3d6802d18e4292b49bf62889df5304d248010a2c533cc3679c3a7",
     "runtime_identity": {
@@ -51,24 +51,24 @@
         "call_ordinal": 1,
         "empirical_disposition": "not_evaluated",
         "external_effect_possible": true,
-        "journal_sha256": "735ba48b3854e955ab33af0cf113b2d68b55d7313399e1f68c0d89a1168dfaa5",
+        "journal_sha256": "bbd52ae9ffffc74ce2194edb82710ba778bd3293119aa4070ad361e38ffb31e1",
         "producer_terminal": "provider_response_completed",
         "provider_outcome_receipt": "accepted",
         "reason": "attributable_completion_not_evaluated",
         "request_acknowledged": true,
-        "reservation_id": "7c07357def5891e15935b5aa0924cd9fa55532cc8d92e088fe22e41d3ee337ea",
+        "reservation_id": "addb5918fe4115b6ba3532dcb254e360d93af5f83efc79d81baba841e1195284",
         "signature_name": "DefinePersona"
       },
       {
         "call_ordinal": 2,
         "empirical_disposition": "not_evaluated",
         "external_effect_possible": true,
-        "journal_sha256": "d7a86f4ccb79f0f86e162fa7b7e77b0941cac13bf32f0ffbba07fb52791059c3",
+        "journal_sha256": "bd8759c95e3ce6468770a5bb12cfe534a992f6904b632a6f332b25f7babed79b",
         "producer_terminal": "provider_response_completed",
         "provider_outcome_receipt": "accepted",
         "reason": "attributable_completion_not_evaluated",
         "request_acknowledged": true,
-        "reservation_id": "d6f75e6d2180ff46aa49cb900454fe91fcb3c27a6f49098985285966693e25bd",
+        "reservation_id": "e28be134a6e890681086767d56ddac223f4b867065703479cc04592ee7d9655e",
         "signature_name": "AnswerSimple"
       }
     ],
@@ -77,8 +77,8 @@
     "ledger_namespace_reuse_allowed": false,
     "unattempted_modes_execution_authority_transferred": false,
     "earlier_predecessor": {
-      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json",
-      "raw_sha256": "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a",
+      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json",
+      "raw_sha256": "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d",
       "terminal_disposition": "effect_indeterminate",
       "retry_allowed": false
     }
@@ -188,7 +188,7 @@
     "implementation_ready": true,
     "execution_authorized": false,
     "implementation_requires_later_exact_ak_task": true,
-    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5056",
+    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5042",
     "expected_contract_sha256_argument_required": true,
     "derive_expected_contract_sha256_from_contract_forbidden": true,
     "execution_authorization_schema": "soomfon-execution-authorization-v3",
@@ -197,7 +197,7 @@
     "owner_source_root_argument_required": true,
     "authorization_required_fields": [
       "later_exact_claimed_task_id_with_at_least_1800_seconds_lease",
-      "exact_repo_and_done_task_5056_dependency",
+      "exact_repo_and_done_task_5042_dependency",
       "exact_live_completion_kind_and_guardrails",
       "current_raw_contract_sha256",
       "reviewed_dspx_source_commit_tree_or_installed_payload_and_loaded_origins",
@@ -225,15 +225,12 @@
       "construct_exact_no_refresh_owner_LM_only_after_custody",
       "one_unique_no_replace_receipt_journal_per_logical_call_bound_to_current_marker_sha256",
       "verify_and_reduce_each_chain_before_progression",
-      "open_independently_positioned_verification_fd_from_authoritative_parent_fd_and_rebind_parent_inode",
-      "retain_only_closed_allowlisted_post_provider_verification_phase_and_reason_without_exception_text",
-      "provider_free_parent_child_parent_eof_cursor_dogfood_required",
       "reject_third_duplicate_out_of_order_or_async_call_before_transport",
       "stop_on_first_non_success",
       "retain_no_prompt_response_token_header_credential_raw_ak_details_or_raw_diagnostic_in_provider_evidence"
     ],
     "known_blockers": [
-      "task_5056_contract_is_execution_unauthorized",
+      "task_5042_contract_is_execution_unauthorized",
       "no_later_exact_claimed_ak_execution_task_with_complete_canonical_evidence_exists",
       "final_hardened_implementation_requires_independent_rereview",
       "execution_requires_clean_no_bytecode_reviewed_source_or_installed_payload_environment",
@@ -253,7 +250,7 @@
       "before_each_logical_call_minimum_seconds": 90,
       "call_minimum_basis": "provider_timeout_60_plus_30_seconds"
     },
-    "task_5056_can_authorize_execution": false
+    "task_5042_can_authorize_execution": false
   },
   "effect_budget": {
     "fixed_case_order": [
@@ -327,21 +324,7 @@
       "identities",
       "closed_receipt_projections"
     ],
-    "canonical_authority_revalidation": "immediately_before_each_logical_call_before_receipt_credential_or_transport_with_90_second_minimum_lease",
-    "retained_verification_directory_cursor_policy": "independent_open_file_description_from_authoritative_parent_fd",
-    "retained_verification_identity_policy": "original_parent_and_verification_parent_and_members_revalidated_before_close",
-    "closed_verification_diagnostics": {
-      "phases": [
-        "owner_source",
-        "provider_envelope",
-        "marker_hash",
-        "retained_journal"
-      ],
-      "exception_text_allowed": false,
-      "traceback_allowed": false,
-      "paths_allowed": false,
-      "raw_diagnostic_allowed": false
-    }
+    "canonical_authority_revalidation": "immediately_before_each_logical_call_before_receipt_credential_or_transport_with_90_second_minimum_lease"
   },
   "retention": {
     "predeclared_text_input_committed": true,

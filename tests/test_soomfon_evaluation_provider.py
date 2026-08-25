@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +26,7 @@ from dspx.services.soomfon_evaluation_provider import (
     validate_soomfon_provider_evidence,
     verify_retained_soomfon_journals,
 )
+from dspx.services.soomfon_evaluation_custody import marker_sha256
 
 
 @dataclass(frozen=True, slots=True)
@@ -340,13 +344,21 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
     tmp_path: Path,
 ) -> None:
     parent = _private(tmp_path / "journals")
+    marker = tmp_path / "marker.jsonl"
+    marker.write_bytes(b'{"state":"attempted_outcome_unknown"}\n')
+    marker.chmod(0o600)
+    marker_fd = os.open(marker, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        marker_digest = marker_sha256(marker_fd)
+    finally:
+        os.close(marker_fd)
     custodian = SoomfonCallCustodian(
         journal_parent=parent,
         artifact=_accepted_artifact(),
         execution_task_id=6000,
         contract_sha256="a" * 64,
         mode="simple",
-        ledger_sha256="b" * 64,
+        ledger_sha256=marker_digest,
         authority_revalidator=lambda: None,
     )
     for ordinal, signature in enumerate(("DefinePersona", "AnswerSimple"), start=1):
@@ -362,10 +374,8 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
         mode="simple",
         execution_task_id=6000,
         contract_sha256="a" * 64,
-        expected_marker_sha256="b" * 64,
+        expected_marker_sha256=marker_digest,
     )
-    import os
-
     directory_fd = os.open(
         parent,
         os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
@@ -377,8 +387,32 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
             mode="simple",
             execution_task_id=6000,
             contract_sha256="a" * 64,
-            expected_marker_sha256="b" * 64,
+            expected_marker_sha256=marker_digest,
         )
+        subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                "-c",
+                (
+                    "import os,sys; "
+                    "os.lseek(int(sys.argv[1]), (1 << 63) - 1, os.SEEK_SET)"
+                ),
+                str(directory_fd),
+            ],
+            pass_fds=(directory_fd,),
+            check=True,
+        )
+        assert os.lseek(directory_fd, 0, os.SEEK_CUR) == (1 << 63) - 1
+        verify_retained_soomfon_journals(
+            directory_fd,
+            evidence,
+            mode="simple",
+            execution_task_id=6000,
+            contract_sha256="a" * 64,
+            expected_marker_sha256=marker_digest,
+        )
+        assert os.lseek(directory_fd, 0, os.SEEK_CUR) == (1 << 63) - 1
     finally:
         os.close(directory_fd)
 
@@ -391,7 +425,7 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
             mode="simple",
             execution_task_id=6000,
             contract_sha256="a" * 64,
-            expected_marker_sha256="b" * 64,
+            expected_marker_sha256=marker_digest,
         )
     reduced_summary = {
         key: evidence[key]
@@ -409,7 +443,7 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
             mode="simple",
             execution_task_id=6000,
             contract_sha256="a" * 64,
-            expected_marker_sha256="b" * 64,
+            expected_marker_sha256=marker_digest,
         )
 
     forged = json.loads(json.dumps(evidence))
@@ -421,7 +455,7 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
             mode="simple",
             execution_task_id=6000,
             contract_sha256="a" * 64,
-            expected_marker_sha256="b" * 64,
+            expected_marker_sha256=marker_digest,
         )
 
     with pytest.raises(SoomfonProviderError):

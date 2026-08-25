@@ -1,4 +1,4 @@
-"""Closed exact schema for the AK-5042 fd-journal repair contract."""
+"""Closed exact schema for the AK-5056 verification repair contract."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ PROTECTED_DENIED_ATTRIBUTES = set(
     "parse_raw read_bytes read_text rglob save setpriority settings setxattr sys tb_frame".split()
 )
 _EXPECTED_CANONICAL_SHA256 = (
-    "b416b542bdbc62dc949773ecb2ff10f71769205ebf78f75e63466a70b7363dc4"
+    "956d3ecaba0a3bb43425ecad7cb1297d6b01b70d08bef2ffe9a4173c6ba45915"
 )
 
 
@@ -46,7 +46,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         payload.get("schema_version") != CONTRACT_SCHEMA
         or payload.get("task_id") != CONTRACT_PREPARATION_TASK_ID
         or payload.get("status")
-        != "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
+        != "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review"
     ):
         raise SoomfonEvaluationContractError("contract identity is invalid")
 
@@ -102,31 +102,31 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     completed_chains = predecessor.get("completed_receipt_chains")
     if (
         predecessor.get("archive_path")
-        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
+        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json"
         or predecessor.get("raw_sha256")
-        != "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
+        != "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
         or predecessor.get("canonical_sha256")
-        != "0ed409037e74bffe8d4a211a8ac0edfbcb112c0cc11ff8662f6344a075622b1f"
-        or predecessor.get("task_id") != 5038
+        != "b416b542bdbc62dc949773ecb2ff10f71769205ebf78f75e63466a70b7363dc4"
+        or predecessor.get("task_id") != 5042
         or predecessor.get("status")
-        != "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review"
-        or predecessor.get("execution_task_id") != 5040
+        != "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
+        or predecessor.get("execution_task_id") != 5045
         or predecessor.get("attempted_modes") != ["simple"]
         or predecessor.get("unattempted_modes") != list(EXPECTED_MODES[1:])
         or predecessor.get("terminal_disposition") != "effect_indeterminate"
         or predecessor.get("terminal_reason") != "provider_receipt_journal_invalid"
         or predecessor.get("response_sha256")
-        != "c798d55e21204d61345cc514019dcf473e2d14a6d3d533489090f4fe2aaf6e50"
-        or predecessor.get("response_length") != 315
+        != "749af25da49ba89dda58ee9bf2b02114282241def1f5d7c2b4430e43be22edbb"
+        or predecessor.get("response_length") != 304
         or predecessor.get("retry_allowed") is not False
         or predecessor.get("empirical_relabel_allowed") is not False
         or predecessor.get("ledger_namespace_reuse_allowed") is not False
         or predecessor.get("unattempted_modes_execution_authority_transferred")
         is not False
         or earlier.get("archive_path")
-        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json"
+        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
         or earlier.get("raw_sha256")
-        != "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+        != "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
         or earlier.get("terminal_disposition") != "effect_indeterminate"
         or earlier.get("retry_allowed") is not False
         or predecessor.get("runtime_identity")
@@ -160,19 +160,19 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     for value in evidence_hashes:
         _require_hash(value, "predecessor evidence hash is invalid")
     if (
-        runtime_evidence.get("latency_ms") != 42281
+        runtime_evidence.get("latency_ms") != 43992
         or runtime_evidence.get("runtime_episode_sha256")
-        != "9e82d5094901a2264524b0b5fd1e0c05cdd9045f37209826684f1bdb3283e1df"
+        != "af5cf2e553b382f1a2f6ee5dc171a034680781603c2ee3c0338dc33bb8fc42fa"
         or runtime_evidence.get("runtime_tree_sha256")
-        != "07f6903c6ff9831a516ff2e137389ed45db84c4b1a5adebba4f438aebd4d5be1"
+        != "c231960ab57d7248e2438b12b8f1de453e57b20b1d82628e669065de10792983"
         or runtime_evidence.get("runtime_receipt_sha256")
-        != "d144050a97c1a4d18939e23d7c688e8063e5f68caf9936dc533272982f8a30e2"
+        != "12c6e1af5349bd70c50f13d5d05b73bfbb4cf49f6aab7f843b89924ac37e0cf2"
         or runtime_evidence.get("behavior_results_sha256")
-        != "108c4c0e9e514975d071df0f59530ce44379f0fa113254bf9f51a409238b9358"
+        != "8275e28fda59b9b80207350d3d000577d240385a9192f62703608f9c8589d7e0"
         or authorization_evidence.get("authorization_sha256")
-        != "fa76cd63a9a68f131a9fdbb79b7f965596f8bf52796b3f9ae4d584991354e7d5"
+        != "94cca8f14fc17660de94ad4f09214395f01b1fa049c329c029a9d15a40435a58"
         or authorization_evidence.get("ak_reconciliation_sha256")
-        != "16895558f244f2e616403c036a1f383c3b490f5318c37cc9f5eebd34a34acd01"
+        != "97a271cc914e9d4f9e26f5c367c790aa231ad4ab08bc5f0fbbbab91c4f97b097"
     ):
         raise SoomfonEvaluationContractError("predecessor retained evidence is invalid")
     chain_keys = {
@@ -327,11 +327,16 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     if not isinstance(executor, Mapping) or (
         executor.get("implementation_ready") is not True
         or executor.get("execution_authorized") is not False
-        or executor.get("task_5042_can_authorize_execution") is not False
+        or executor.get("task_5056_can_authorize_execution") is not False
         or executor.get("implementation_requires_later_exact_ak_task") is not True
         or executor.get("execution_authorization_artifact_required") is not True
         or executor.get("execution_authorization_sha256_argument_required") is not True
         or executor.get("child_runtime_queries_ak") is not True
+        or not {
+            "open_independently_positioned_verification_fd_from_authoritative_parent_fd_and_rebind_parent_inode",
+            "retain_only_closed_allowlisted_post_provider_verification_phase_and_reason_without_exception_text",
+            "provider_free_parent_child_parent_eof_cursor_dogfood_required",
+        }.issubset(set(executor.get("required_executor_properties", [])))
         or executor.get("execution_authorization_schema")
         != "soomfon-execution-authorization-v3"
         or executor.get("canonical_ak_runtime")
@@ -371,6 +376,11 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         raise SoomfonEvaluationContractError("effect budget is invalid")
 
     receipt = payload.get("provider_receipt_custody")
+    diagnostics = (
+        receipt.get("closed_verification_diagnostics")
+        if isinstance(receipt, Mapping)
+        else None
+    )
     if not isinstance(receipt, Mapping) or (
         receipt.get("existing_accepted_v11_owner_identity_unchanged") is not True
         or receipt.get("verify_owner_source_before_marker") is not True
@@ -380,6 +390,23 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         != "immediately_before_each_logical_call_before_receipt_credential_or_transport_with_90_second_minimum_lease"
         or receipt.get("logical_request_mode") != "sync"
         or receipt.get("missing_open_poisoned_indeterminate_chain_terminal") is not True
+        or receipt.get("retained_verification_directory_cursor_policy")
+        != "independent_open_file_description_from_authoritative_parent_fd"
+        or receipt.get("retained_verification_identity_policy")
+        != "original_parent_and_verification_parent_and_members_revalidated_before_close"
+        or diagnostics
+        != {
+            "phases": [
+                "owner_source",
+                "provider_envelope",
+                "marker_hash",
+                "retained_journal",
+            ],
+            "exception_text_allowed": False,
+            "traceback_allowed": False,
+            "paths_allowed": False,
+            "raw_diagnostic_allowed": False,
+        }
     ):
         raise SoomfonEvaluationContractError("provider receipt custody is invalid")
 

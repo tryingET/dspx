@@ -22,6 +22,9 @@ from dspx.services.provider_outcome_receipt_journal import (
     ReceiptJournal,
     load_verified_journal,
 )
+from dspx.services.provider_outcome_receipt_journal_fd import (
+    load_verified_journal_fd,
+)
 from dspx.services.soomfon_evaluation_contract import CONTRACT_PREPARATION_TASK_ID
 from dspx.services.provider_outcome_receipt_reducer import (
     reduce_verified_chain,
@@ -59,6 +62,20 @@ _MODE_SIGNATURES: dict[str, tuple[str, str]] = {
     "bloom": ("DefinePersona", "TeachWithBloom"),
 }
 _SHA256_RE = __import__("re").compile(r"^[0-9a-f]{64}$")
+_CLOSED_RETAINED_JOURNAL_REASONS = frozenset(
+    {
+        "journal_parent_fd_invalid",
+        "journal_parent_posture_drift",
+        "retained_journal_read_failed",
+        "retained_journal_member_name_drift",
+        "retained_journal_member_posture_drift",
+        "retained_journal_acceptance_drift",
+        "retained_journal_count_drift",
+        "retained_journal_binding_drift",
+        "retained_journal_member_identity_drift",
+        "retained_journal_parent_identity_drift",
+    }
+)
 T = TypeVar("T")
 
 
@@ -108,36 +125,50 @@ def _private_directory(path: Path) -> Path:
 
 def _fd_private_directory_members(
     directory_fd: int,
-) -> tuple[list[tuple[Path, os.stat_result]], os.stat_result]:
+) -> tuple[int, list[tuple[Path, os.stat_result]], os.stat_result, os.stat_result]:
+    """Open an independently positioned fd for stable member verification."""
+
     if isinstance(directory_fd, bool) or not isinstance(directory_fd, int):
         _reject("journal_parent_fd_invalid")
+    verification_fd = -1
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
     try:
         parent_info = os.fstat(directory_fd)
-        names = sorted(os.listdir(directory_fd))
+        verification_fd = os.open(".", flags, dir_fd=directory_fd)
+        verification_info = os.fstat(verification_fd)
+        names = sorted(os.listdir(verification_fd))
     except OSError as exc:
+        if verification_fd >= 0:
+            os.close(verification_fd)
         raise SoomfonProviderError("retained_journal_read_failed") from exc
     if (
         not stat.S_ISDIR(parent_info.st_mode)
         or parent_info.st_uid != os.geteuid()
         or stat.S_IMODE(parent_info.st_mode) != 0o700
+        or not _same_inode(parent_info, verification_info)
     ):
+        os.close(verification_fd)
         _reject("journal_parent_posture_drift")
     members: list[tuple[Path, os.stat_result]] = []
-    for name in names:
-        if not name or name in {".", ".."} or "/" in name:
-            _reject("retained_journal_member_name_drift")
-        try:
-            info = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
-        except OSError as exc:
-            raise SoomfonProviderError("retained_journal_read_failed") from exc
-        if (
-            not stat.S_ISDIR(info.st_mode)
-            or info.st_uid != os.geteuid()
-            or stat.S_IMODE(info.st_mode) != 0o700
-        ):
-            _reject("retained_journal_member_posture_drift")
-        members.append((Path(f"/proc/self/fd/{directory_fd}") / name, info))
-    return members, parent_info
+    try:
+        for name in names:
+            if not name or name in {".", ".."} or "/" in name:
+                _reject("retained_journal_member_name_drift")
+            try:
+                info = os.stat(name, dir_fd=verification_fd, follow_symlinks=False)
+            except OSError as exc:
+                raise SoomfonProviderError("retained_journal_read_failed") from exc
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or info.st_uid != os.geteuid()
+                or stat.S_IMODE(info.st_mode) != 0o700
+            ):
+                _reject("retained_journal_member_posture_drift")
+            members.append((Path(f"/proc/self/fd/{verification_fd}") / name, info))
+    except BaseException:
+        os.close(verification_fd)
+        raise
+    return verification_fd, members, parent_info, verification_info
 
 
 def _same_inode(left: os.stat_result, right: os.stat_result) -> bool:
@@ -146,12 +177,83 @@ def _same_inode(left: os.stat_result, right: os.stat_result) -> bool:
         left.st_ino,
         left.st_mode,
         left.st_uid,
+        left.st_nlink,
+        left.st_size,
+        left.st_mtime_ns,
+        left.st_ctime_ns,
     ) == (
         right.st_dev,
         right.st_ino,
         right.st_mode,
         right.st_uid,
+        right.st_nlink,
+        right.st_size,
+        right.st_mtime_ns,
+        right.st_ctime_ns,
     )
+
+
+def _revalidate_fd_directory_members(
+    directory_fd: int, expected: list[tuple[Path, os.stat_result]]
+) -> None:
+    recheck_fd = -1
+    try:
+        recheck_fd, observed, _parent, _verification = _fd_private_directory_members(
+            directory_fd
+        )
+        if [path.name for path, _info in observed] != [
+            path.name for path, _info in expected
+        ] or any(
+            not _same_inode(expected_info, observed_info)
+            for (_expected_path, expected_info), (_observed_path, observed_info) in zip(
+                expected, observed, strict=True
+            )
+        ):
+            _reject("retained_journal_member_identity_drift")
+    finally:
+        if recheck_fd >= 0:
+            os.close(recheck_fd)
+
+
+def closed_retained_journal_reason(exc: BaseException) -> str:
+    """Reduce retained-verification failures to a non-sensitive closed reason."""
+
+    if (
+        isinstance(exc, SoomfonProviderError)
+        and exc.reason in _CLOSED_RETAINED_JOURNAL_REASONS
+    ):
+        return exc.reason
+    return "retained_journal_verification_failed"
+
+
+def _load_fd_anchored_journal(
+    parent_fd: int, name: str, expected_info: os.stat_result
+) -> VerifiedJournal:
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    journal_fd = -1
+    try:
+        lexical_before = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        journal_fd = os.open(name, flags, dir_fd=parent_fd)
+        opened_before = os.fstat(journal_fd)
+        if not _same_inode(expected_info, lexical_before) or not _same_inode(
+            lexical_before, opened_before
+        ):
+            _reject("retained_journal_member_identity_drift")
+        journal = load_verified_journal_fd(journal_fd)
+        opened_after = os.fstat(journal_fd)
+        lexical_after = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if not _same_inode(opened_before, opened_after) or not _same_inode(
+            opened_after, lexical_after
+        ):
+            _reject("retained_journal_member_identity_drift")
+        return journal
+    except SoomfonProviderError:
+        raise
+    except OSError as exc:
+        raise SoomfonProviderError("retained_journal_read_failed") from exc
+    finally:
+        if journal_fd >= 0:
+            os.close(journal_fd)
 
 
 def _journal_projection_digest(journal: VerifiedJournal) -> str:
@@ -401,13 +503,20 @@ def verify_retained_soomfon_journals(
     ):
         _reject("retained_journal_acceptance_drift")
     parent_fd: int | None = None
+    verification_fd: int | None = None
     initial_parent_info: os.stat_result | None = None
+    initial_verification_info: os.stat_result | None = None
     initial_member_info: list[os.stat_result] = []
     if isinstance(journal_parent, bool):
         _reject("journal_parent_fd_invalid")
     if isinstance(journal_parent, int):
         parent_fd = journal_parent
-        anchored_members, initial_parent_info = _fd_private_directory_members(parent_fd)
+        (
+            verification_fd,
+            anchored_members,
+            initial_parent_info,
+            initial_verification_info,
+        ) = _fd_private_directory_members(parent_fd)
         members = [path for path, _info in anchored_members]
         initial_member_info = [info for _path, info in anchored_members]
     else:
@@ -416,55 +525,69 @@ def verify_retained_soomfon_journals(
             members = sorted(parent.iterdir(), key=lambda item: item.name)
         except OSError as exc:
             raise SoomfonProviderError("retained_journal_read_failed") from exc
-    if len(members) != 2:
-        _reject("retained_journal_count_drift")
-    source_identity = expected_owner_source_identity()
-    dependency_identity = expected_owner_dependency_identity()
-    for ordinal, (path, record) in enumerate(
-        zip(members, validated["call_records"], strict=True), start=1
-    ):
-        journal = load_verified_journal(path)
-        chain = verify_receipt_chain(journal)
-        reduced = reduce_verified_chain(chain)
-        reservation = journal.reservation
-        if (
-            path.name != f"{ordinal:02d}-{reservation.logical_request_id}"
-            or journal.artifact_verification != "accepted_exact"
-            or reservation.consumer_task_id != execution_task_id
-            or reservation.contract_sha256 != contract_sha256
-            or reservation.ledger_sha256 != expected_marker_sha256
-            or reservation.case_id != mode
-            or reservation.mode != "sync"
-            or reservation.requested_route != REQUESTED_ROUTE
-            or reservation.resolved_route != RESOLVED_ROUTE
-            or reservation.endpoint_origin_sha256 != ENDPOINT_ORIGIN_SHA256
-            or reservation.source_identity != source_identity
-            or reservation.dependency_identity != dependency_identity
-            or record["call_ordinal"] != ordinal
-            or record["signature_name"] != _MODE_SIGNATURES[mode][ordinal - 1]
-            or record["reservation_id"] != reservation.reservation_id
-            or record["journal_sha256"] != _journal_projection_digest(journal)
-            or reduced.terminal != "provider_response_completed"
-            or reduced.request_acknowledged is not True
-            or reduced.external_effect_possible is not True
+    try:
+        if len(members) != 2:
+            _reject("retained_journal_count_drift")
+        source_identity = expected_owner_source_identity()
+        dependency_identity = expected_owner_dependency_identity()
+        for ordinal, (path, record) in enumerate(
+            zip(members, validated["call_records"], strict=True), start=1
         ):
-            _reject("retained_journal_binding_drift")
-        if parent_fd is not None:
+            journal = (
+                _load_fd_anchored_journal(
+                    verification_fd,
+                    path.name,
+                    initial_member_info[ordinal - 1],
+                )
+                if verification_fd is not None
+                else load_verified_journal(path)
+            )
+            chain = verify_receipt_chain(journal)
+            reduced = reduce_verified_chain(chain)
+            reservation = journal.reservation
+            if (
+                path.name != f"{ordinal:02d}-{reservation.logical_request_id}"
+                or journal.artifact_verification != "accepted_exact"
+                or reservation.consumer_task_id != execution_task_id
+                or reservation.contract_sha256 != contract_sha256
+                or reservation.ledger_sha256 != expected_marker_sha256
+                or reservation.case_id != mode
+                or reservation.mode != "sync"
+                or reservation.requested_route != REQUESTED_ROUTE
+                or reservation.resolved_route != RESOLVED_ROUTE
+                or reservation.endpoint_origin_sha256 != ENDPOINT_ORIGIN_SHA256
+                or reservation.source_identity != source_identity
+                or reservation.dependency_identity != dependency_identity
+                or record["call_ordinal"] != ordinal
+                or record["signature_name"] != _MODE_SIGNATURES[mode][ordinal - 1]
+                or record["reservation_id"] != reservation.reservation_id
+                or record["journal_sha256"] != _journal_projection_digest(journal)
+                or reduced.terminal != "provider_response_completed"
+                or reduced.request_acknowledged is not True
+                or reduced.external_effect_possible is not True
+            ):
+                _reject("retained_journal_binding_drift")
+        if parent_fd is not None and verification_fd is not None:
+            _revalidate_fd_directory_members(
+                verification_fd,
+                list(zip(members, initial_member_info, strict=True)),
+            )
             try:
-                current = os.stat(path.name, dir_fd=parent_fd, follow_symlinks=False)
+                final_parent_info = os.fstat(parent_fd)
+                final_verification_info = os.fstat(verification_fd)
             except OSError as exc:
                 raise SoomfonProviderError("retained_journal_read_failed") from exc
-            if not _same_inode(initial_member_info[ordinal - 1], current):
-                _reject("retained_journal_member_identity_drift")
-    if parent_fd is not None:
-        try:
-            final_parent_info = os.fstat(parent_fd)
-        except OSError as exc:
-            raise SoomfonProviderError("retained_journal_read_failed") from exc
-        if initial_parent_info is None or not _same_inode(
-            initial_parent_info, final_parent_info
-        ):
-            _reject("retained_journal_parent_identity_drift")
+            if (
+                initial_parent_info is None
+                or initial_verification_info is None
+                or not _same_inode(initial_parent_info, final_parent_info)
+                or not _same_inode(initial_verification_info, final_verification_info)
+                or not _same_inode(final_parent_info, final_verification_info)
+            ):
+                _reject("retained_journal_parent_identity_drift")
+    finally:
+        if verification_fd is not None:
+            os.close(verification_fd)
 
 
 def validate_soomfon_provider_evidence(

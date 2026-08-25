@@ -94,9 +94,9 @@ CONTRACT_RELATIVE_PATH = Path(
     "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json"
 )
 CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v3"
-CONTRACT_PREPARATION_TASK_ID = 5042
+CONTRACT_PREPARATION_TASK_ID = 5056
 REVIEWED_CONTRACT_SHA256 = (
-    "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
+    "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
 )
 EXPECTED_MODES = (
     "simple",

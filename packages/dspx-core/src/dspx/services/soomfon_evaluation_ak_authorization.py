@@ -253,7 +253,7 @@ def _common_evidence_details(
     effect_budget: Mapping[str, Any],
 ) -> dict[str, object]:
     return {
-        "schema_version": "soomfon-ak5042-authorization-evidence-v3",
+        "schema_version": "soomfon-ak5056-authorization-evidence-v3",
         "preparation_task_id": CONTRACT_PREPARATION_TASK_ID,
         "contract_sha256": contract_sha256,
         "dspx_artifact": dict(dspx_artifact),
