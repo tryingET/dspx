@@ -364,6 +364,35 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
         contract_sha256="a" * 64,
         expected_marker_sha256="b" * 64,
     )
+    import os
+
+    directory_fd = os.open(
+        parent,
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        verify_retained_soomfon_journals(
+            directory_fd,
+            evidence,
+            mode="simple",
+            execution_task_id=6000,
+            contract_sha256="a" * 64,
+            expected_marker_sha256="b" * 64,
+        )
+    finally:
+        os.close(directory_fd)
+
+    linked_parent = tmp_path / "linked-journals"
+    linked_parent.symlink_to(parent, target_is_directory=True)
+    with pytest.raises(SoomfonProviderError):
+        verify_retained_soomfon_journals(
+            linked_parent,
+            evidence,
+            mode="simple",
+            execution_task_id=6000,
+            contract_sha256="a" * 64,
+            expected_marker_sha256="b" * 64,
+        )
     reduced_summary = {
         key: evidence[key]
         for key in (

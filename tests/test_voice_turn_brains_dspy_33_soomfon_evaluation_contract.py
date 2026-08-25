@@ -19,17 +19,21 @@ CONTRACT_PATH = (
 )
 PREDECESSOR = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
 )
 EARLIER = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json"
 )
 EARLIEST = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json"
 )
 OLDER = (
+    REPO_ROOT
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b.json"
+)
+ANCIENT = (
     REPO_ROOT
     / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json"
 )
@@ -48,11 +52,12 @@ EXPECTED_MODES = (
     "bloom",
 )
 RESEARCH_MODES = {"researched", "deep-research"}
-CURRENT_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
-PREDECESSOR_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
-EARLIER_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
-EARLIEST_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
-OLDER_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
+CURRENT_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
+PREDECESSOR_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
+EARLIER_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+EARLIEST_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
+OLDER_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+ANCIENT_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
 ORIGINAL_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
@@ -76,7 +81,15 @@ def _hash_json(value: object) -> str:
 
 
 def _copy_contract_chain(root: Path) -> None:
-    for source in (CONTRACT_PATH, PREDECESSOR, EARLIER, EARLIEST, OLDER, ORIGINAL):
+    for source in (
+        CONTRACT_PATH,
+        PREDECESSOR,
+        EARLIER,
+        EARLIEST,
+        OLDER,
+        ANCIENT,
+        ORIGINAL,
+    ):
         target = root / source.relative_to(REPO_ROOT)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(source.read_bytes())
@@ -110,6 +123,7 @@ def test_production_loader_reaches_complete_predecessor_chain(
         EARLIER.resolve(),
         EARLIEST.resolve(),
         OLDER.resolve(),
+        ANCIENT.resolve(),
         ORIGINAL.resolve(),
     } <= observed
 
@@ -272,13 +286,13 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
         contract["schema_version"]
         == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
     )
-    assert contract["task_id"] == 5038
+    assert contract["task_id"] == 5042
     assert (
         contract["status"]
-        == "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review"
+        == "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
     )
     assert contract["executor_contract"]["execution_authorized"] is False
-    assert contract["executor_contract"]["task_5038_can_authorize_execution"] is False
+    assert contract["executor_contract"]["task_5042_can_authorize_execution"] is False
     assert (
         contract["executor_contract"]["implementation_requires_later_exact_ak_task"]
         is True
@@ -297,21 +311,25 @@ def test_predecessors_are_byte_exact_and_namespaces_are_immutable() -> None:
     assert _sha256(EARLIER) == EARLIER_SHA256
     assert _sha256(EARLIEST) == EARLIEST_SHA256
     assert _sha256(OLDER) == OLDER_SHA256
+    assert _sha256(ANCIENT) == ANCIENT_SHA256
     assert _sha256(ORIGINAL) == ORIGINAL_SHA256
 
     archived = _load(PREDECESSOR)
-    assert archived["task_id"] == 5033
-    assert archived["status"] == "luna_xhigh_execution_unauthorized_pending_review"
-    assert predecessor["task_id"] == 5033
-    assert predecessor["execution_task_id"] == 5035
+    assert archived["task_id"] == 5038
+    assert (
+        archived["status"]
+        == "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review"
+    )
+    assert predecessor["task_id"] == 5038
+    assert predecessor["execution_task_id"] == 5040
     assert predecessor["attempted_modes"] == ["simple"]
     assert predecessor["unattempted_modes"] == list(EXPECTED_MODES[1:])
     assert predecessor["terminal_disposition"] == "effect_indeterminate"
-    assert predecessor["terminal_reason"] == "runtime_receipt_invalid"
+    assert predecessor["terminal_reason"] == "provider_receipt_journal_invalid"
     assert predecessor["response_sha256"] == (
-        "da0ef16db1293c5de87f8af9abc6940291eb894bcca68d688d2cb601b3bd954a"
+        "c798d55e21204d61345cc514019dcf473e2d14a6d3d533489090f4fe2aaf6e50"
     )
-    assert predecessor["response_length"] == 306
+    assert predecessor["response_length"] == 315
     assert len(predecessor["completed_receipt_chains"]) == 2
     assert all(
         row["provider_outcome_receipt"] == "accepted"

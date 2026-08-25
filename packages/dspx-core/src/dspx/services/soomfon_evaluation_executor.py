@@ -173,7 +173,7 @@ def _evaluate_case(
                     "validated provider evidence envelope is missing"
                 )
             verify_retained_soomfon_journals(
-                Path(f"/proc/self/fd/{provider_journal_fd}"),
+                provider_journal_fd,
                 full_provider_evidence,
                 mode=str(case["mode"]),
                 execution_task_id=execution_task_id,

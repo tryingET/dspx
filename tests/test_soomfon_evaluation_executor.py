@@ -40,7 +40,7 @@ from dspx.services.soomfon_evaluation_custody import SoomfonCustodyError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
+CONTRACT_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
 
 
 @pytest.fixture(autouse=True)
@@ -635,6 +635,7 @@ def test_parent_verifies_exact_full_provider_evidence_envelope(
     raw, raw_fd = custody.ensure_private_tree(tmp_path / "raw")
     os.close(raw_fd)
     (raw / "runtime").mkdir(mode=0o700)
+    _, journal_fd = custody.ensure_private_tree(tmp_path / "journals")
     monkeypatch.setattr(executor, "_run_child", lambda **_: (0, 4))
     monkeypatch.setattr(executor, "fsync_private_tree", lambda *_: None)
     monkeypatch.setattr(
@@ -660,8 +661,9 @@ def test_parent_verifies_exact_full_provider_evidence_envelope(
     monkeypatch.setattr(provider_service, "verify_soomfon_owner_source", lambda *_: {})
 
     def capture_full_envelope(
-        _journal_parent: Path, evidence: object, **_: object
+        received_journal_parent: Path | int, evidence: object, **_: object
     ) -> None:
+        assert received_journal_parent == journal_fd
         provider_service.validate_soomfon_provider_evidence(
             cast(dict[str, Any], evidence), mode="simple"
         )
@@ -679,7 +681,7 @@ def test_parent_verifies_exact_full_provider_evidence_envelope(
         marker_fd=-1,
         ledger_fd=-1,
         lock_fd=-1,
-        provider_journal_fd=-1,
+        provider_journal_fd=journal_fd,
         execution_task_id=6000,
         authorization_sha256="f" * 64,
         ak_reconciliation_sha256="e" * 64,
@@ -687,6 +689,8 @@ def test_parent_verifies_exact_full_provider_evidence_envelope(
         authorization_path=Path("fixture-authorization.json"),
         repo_root=REPO_ROOT,
     )
+
+    os.close(journal_fd)
 
     assert state == "succeeded"
     assert received == [full_evidence]

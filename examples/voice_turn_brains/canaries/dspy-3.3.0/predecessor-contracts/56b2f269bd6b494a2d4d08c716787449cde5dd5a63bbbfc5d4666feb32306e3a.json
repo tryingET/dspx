@@ -1,15 +1,15 @@
 {
   "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v3",
-  "task_id": 5042,
-  "status": "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review",
-  "purpose": "Issue a fresh provider-free Luna xhigh successor after preserving the consumed 56b2f2 contract and keeping retained-journal verification anchored to the already-open provider directory fd with nofollow member posture and pre/post inode identity checks; execution remains unauthorized.",
+  "task_id": 5038,
+  "status": "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review",
+  "purpose": "Issue a fresh provider-free Luna xhigh successor after preserving the consumed cea459 contract and repairing the generic runtime-receipt validator to use the centralized exact Soomfon identity; execution remains unauthorized.",
   "predecessor_contract": {
-    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json",
-    "raw_sha256": "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a",
-    "canonical_sha256": "0ed409037e74bffe8d4a211a8ac0edfbcb112c0cc11ff8662f6344a075622b1f",
-    "task_id": 5038,
-    "status": "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review",
-    "execution_task_id": 5040,
+    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json",
+    "raw_sha256": "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d",
+    "canonical_sha256": "241e47972c1b8ddc8b499c7fa1320a698ee0fe504eb40537cf91bcb90b53dedc",
+    "task_id": 5033,
+    "status": "luna_xhigh_execution_unauthorized_pending_review",
+    "execution_task_id": 5035,
     "attempted_modes": [
       "simple"
     ],
@@ -21,19 +21,19 @@
       "bloom"
     ],
     "terminal_disposition": "effect_indeterminate",
-    "terminal_reason": "provider_receipt_journal_invalid",
-    "response_sha256": "c798d55e21204d61345cc514019dcf473e2d14a6d3d533489090f4fe2aaf6e50",
-    "response_length": 315,
+    "terminal_reason": "runtime_receipt_invalid",
+    "response_sha256": "da0ef16db1293c5de87f8af9abc6940291eb894bcca68d688d2cb601b3bd954a",
+    "response_length": 306,
     "runtime_evidence": {
-      "latency_ms": 42281,
-      "runtime_episode_sha256": "9e82d5094901a2264524b0b5fd1e0c05cdd9045f37209826684f1bdb3283e1df",
-      "runtime_tree_sha256": "07f6903c6ff9831a516ff2e137389ed45db84c4b1a5adebba4f438aebd4d5be1",
-      "runtime_receipt_sha256": "d144050a97c1a4d18939e23d7c688e8063e5f68caf9936dc533272982f8a30e2",
-      "behavior_results_sha256": "108c4c0e9e514975d071df0f59530ce44379f0fa113254bf9f51a409238b9358"
+      "latency_ms": 39932,
+      "runtime_episode_sha256": "fcdc63481e78487ad80121580476faf66ce98c142230a93134420ab0d3fcd302",
+      "runtime_tree_sha256": "d83f8cc12e08f6c7a737e2f555a49446256a04e831b5409b2f3005b288619a40",
+      "runtime_receipt_sha256": "85f8c3be80352f72b022403a5c2c610bbedb1cdf741272b9d1b8f2de56c13ca0",
+      "behavior_results_sha256": "2aa2bc156e31c5755fe431df81e99c99663669891a0b172811e670a514059a2f"
     },
     "authorization_evidence": {
-      "authorization_sha256": "fa76cd63a9a68f131a9fdbb79b7f965596f8bf52796b3f9ae4d584991354e7d5",
-      "ak_reconciliation_sha256": "16895558f244f2e616403c036a1f383c3b490f5318c37cc9f5eebd34a34acd01"
+      "authorization_sha256": "60eccd7a39e0c85a72f3701cf0cef7f625323055f75d627ef0061fed7f917c3b",
+      "ak_reconciliation_sha256": "7c2a31c3e91aeab21543c7009282178483501ea1af67d7da67bd0364d5b4af8b"
     },
     "owner_source_identity_sha256": "05aa16facba3d6802d18e4292b49bf62889df5304d248010a2c533cc3679c3a7",
     "runtime_identity": {
@@ -51,24 +51,24 @@
         "call_ordinal": 1,
         "empirical_disposition": "not_evaluated",
         "external_effect_possible": true,
-        "journal_sha256": "bbd52ae9ffffc74ce2194edb82710ba778bd3293119aa4070ad361e38ffb31e1",
+        "journal_sha256": "d5497f4c853e31cdfbb54ac018668bbd4b1dc3c6f8b9636007b4513c7ab46895",
         "producer_terminal": "provider_response_completed",
         "provider_outcome_receipt": "accepted",
         "reason": "attributable_completion_not_evaluated",
         "request_acknowledged": true,
-        "reservation_id": "addb5918fe4115b6ba3532dcb254e360d93af5f83efc79d81baba841e1195284",
+        "reservation_id": "d7b4a633d6496562c7fbc206a46ffdd62904fccf4e75085a8637d267e72d1729",
         "signature_name": "DefinePersona"
       },
       {
         "call_ordinal": 2,
         "empirical_disposition": "not_evaluated",
         "external_effect_possible": true,
-        "journal_sha256": "bd8759c95e3ce6468770a5bb12cfe534a992f6904b632a6f332b25f7babed79b",
+        "journal_sha256": "523eb4a60e52ad92493c97b97143c1db52bd97d4fe9f9a71758da4e49b7d96d1",
         "producer_terminal": "provider_response_completed",
         "provider_outcome_receipt": "accepted",
         "reason": "attributable_completion_not_evaluated",
         "request_acknowledged": true,
-        "reservation_id": "e28be134a6e890681086767d56ddac223f4b867065703479cc04592ee7d9655e",
+        "reservation_id": "376e0284e548da72e54419d2ea3f1258d9ecd0599afe544c32c6b61f12024f99",
         "signature_name": "AnswerSimple"
       }
     ],
@@ -77,14 +77,14 @@
     "ledger_namespace_reuse_allowed": false,
     "unattempted_modes_execution_authority_transferred": false,
     "earlier_predecessor": {
-      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json",
-      "raw_sha256": "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d",
-      "terminal_disposition": "effect_indeterminate",
+      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json",
+      "raw_sha256": "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207",
+      "terminal_disposition": "execution_unattempted",
       "retry_allowed": false
     }
   },
   "source_state": {
-    "dspx_base_commit": "03b65ec3e3f638815a7e5d98b9e68df038503d08",
+    "dspx_base_commit": "742e0f71154d6c2ebaeff72a2b095cf477c263e3",
     "workstation_reconciliation_commit": "65c594a36acc357788b138bea6574163c69fe7b5",
     "local_ai_control_plane_commit": "ec8bcfb4a253b1b5bc5d340a310694e1a98bab3b",
     "installed_binding_config": "examples/voice_turn_brains/ai-control-brains.json",
@@ -188,7 +188,7 @@
     "implementation_ready": true,
     "execution_authorized": false,
     "implementation_requires_later_exact_ak_task": true,
-    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5042",
+    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5038",
     "expected_contract_sha256_argument_required": true,
     "derive_expected_contract_sha256_from_contract_forbidden": true,
     "execution_authorization_schema": "soomfon-execution-authorization-v3",
@@ -197,7 +197,7 @@
     "owner_source_root_argument_required": true,
     "authorization_required_fields": [
       "later_exact_claimed_task_id_with_at_least_1800_seconds_lease",
-      "exact_repo_and_done_task_5042_dependency",
+      "exact_repo_and_done_task_5038_dependency",
       "exact_live_completion_kind_and_guardrails",
       "current_raw_contract_sha256",
       "reviewed_dspx_source_commit_tree_or_installed_payload_and_loaded_origins",
@@ -230,7 +230,7 @@
       "retain_no_prompt_response_token_header_credential_raw_ak_details_or_raw_diagnostic_in_provider_evidence"
     ],
     "known_blockers": [
-      "task_5042_contract_is_execution_unauthorized",
+      "task_5038_contract_is_execution_unauthorized",
       "no_later_exact_claimed_ak_execution_task_with_complete_canonical_evidence_exists",
       "final_hardened_implementation_requires_independent_rereview",
       "execution_requires_clean_no_bytecode_reviewed_source_or_installed_payload_environment",
@@ -250,7 +250,7 @@
       "before_each_logical_call_minimum_seconds": 90,
       "call_minimum_basis": "provider_timeout_60_plus_30_seconds"
     },
-    "task_5042_can_authorize_execution": false
+    "task_5038_can_authorize_execution": false
   },
   "effect_budget": {
     "fixed_case_order": [

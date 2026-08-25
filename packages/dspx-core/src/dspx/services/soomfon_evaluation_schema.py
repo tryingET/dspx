@@ -1,4 +1,4 @@
-"""Closed exact schema for the AK-5038 Luna runtime-receipt repair contract."""
+"""Closed exact schema for the AK-5042 fd-journal repair contract."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ PROTECTED_DENIED_ATTRIBUTES = set(
     "parse_raw read_bytes read_text rglob save setpriority settings setxattr sys tb_frame".split()
 )
 _EXPECTED_CANONICAL_SHA256 = (
-    "0ed409037e74bffe8d4a211a8ac0edfbcb112c0cc11ff8662f6344a075622b1f"
+    "b416b542bdbc62dc949773ecb2ff10f71769205ebf78f75e63466a70b7363dc4"
 )
 
 
@@ -46,7 +46,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
         payload.get("schema_version") != CONTRACT_SCHEMA
         or payload.get("task_id") != CONTRACT_PREPARATION_TASK_ID
         or payload.get("status")
-        != "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review"
+        != "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
     ):
         raise SoomfonEvaluationContractError("contract identity is invalid")
 
@@ -102,32 +102,32 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     completed_chains = predecessor.get("completed_receipt_chains")
     if (
         predecessor.get("archive_path")
-        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json"
+        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
         or predecessor.get("raw_sha256")
-        != "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+        != "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
         or predecessor.get("canonical_sha256")
-        != "241e47972c1b8ddc8b499c7fa1320a698ee0fe504eb40537cf91bcb90b53dedc"
-        or predecessor.get("task_id") != 5033
+        != "0ed409037e74bffe8d4a211a8ac0edfbcb112c0cc11ff8662f6344a075622b1f"
+        or predecessor.get("task_id") != 5038
         or predecessor.get("status")
-        != "luna_xhigh_execution_unauthorized_pending_review"
-        or predecessor.get("execution_task_id") != 5035
+        != "luna_xhigh_runtime_receipt_repair_execution_unauthorized_pending_review"
+        or predecessor.get("execution_task_id") != 5040
         or predecessor.get("attempted_modes") != ["simple"]
         or predecessor.get("unattempted_modes") != list(EXPECTED_MODES[1:])
         or predecessor.get("terminal_disposition") != "effect_indeterminate"
-        or predecessor.get("terminal_reason") != "runtime_receipt_invalid"
+        or predecessor.get("terminal_reason") != "provider_receipt_journal_invalid"
         or predecessor.get("response_sha256")
-        != "da0ef16db1293c5de87f8af9abc6940291eb894bcca68d688d2cb601b3bd954a"
-        or predecessor.get("response_length") != 306
+        != "c798d55e21204d61345cc514019dcf473e2d14a6d3d533489090f4fe2aaf6e50"
+        or predecessor.get("response_length") != 315
         or predecessor.get("retry_allowed") is not False
         or predecessor.get("empirical_relabel_allowed") is not False
         or predecessor.get("ledger_namespace_reuse_allowed") is not False
         or predecessor.get("unattempted_modes_execution_authority_transferred")
         is not False
         or earlier.get("archive_path")
-        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json"
+        != "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json"
         or earlier.get("raw_sha256")
-        != "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
-        or earlier.get("terminal_disposition") != "execution_unattempted"
+        != "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+        or earlier.get("terminal_disposition") != "effect_indeterminate"
         or earlier.get("retry_allowed") is not False
         or predecessor.get("runtime_identity")
         != {
@@ -160,19 +160,19 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     for value in evidence_hashes:
         _require_hash(value, "predecessor evidence hash is invalid")
     if (
-        runtime_evidence.get("latency_ms") != 39932
+        runtime_evidence.get("latency_ms") != 42281
         or runtime_evidence.get("runtime_episode_sha256")
-        != "fcdc63481e78487ad80121580476faf66ce98c142230a93134420ab0d3fcd302"
+        != "9e82d5094901a2264524b0b5fd1e0c05cdd9045f37209826684f1bdb3283e1df"
         or runtime_evidence.get("runtime_tree_sha256")
-        != "d83f8cc12e08f6c7a737e2f555a49446256a04e831b5409b2f3005b288619a40"
+        != "07f6903c6ff9831a516ff2e137389ed45db84c4b1a5adebba4f438aebd4d5be1"
         or runtime_evidence.get("runtime_receipt_sha256")
-        != "85f8c3be80352f72b022403a5c2c610bbedb1cdf741272b9d1b8f2de56c13ca0"
+        != "d144050a97c1a4d18939e23d7c688e8063e5f68caf9936dc533272982f8a30e2"
         or runtime_evidence.get("behavior_results_sha256")
-        != "2aa2bc156e31c5755fe431df81e99c99663669891a0b172811e670a514059a2f"
+        != "108c4c0e9e514975d071df0f59530ce44379f0fa113254bf9f51a409238b9358"
         or authorization_evidence.get("authorization_sha256")
-        != "60eccd7a39e0c85a72f3701cf0cef7f625323055f75d627ef0061fed7f917c3b"
+        != "fa76cd63a9a68f131a9fdbb79b7f965596f8bf52796b3f9ae4d584991354e7d5"
         or authorization_evidence.get("ak_reconciliation_sha256")
-        != "7c2a31c3e91aeab21543c7009282178483501ea1af67d7da67bd0364d5b4af8b"
+        != "16895558f244f2e616403c036a1f383c3b490f5318c37cc9f5eebd34a34acd01"
     ):
         raise SoomfonEvaluationContractError("predecessor retained evidence is invalid")
     chain_keys = {
@@ -327,7 +327,7 @@ def validate_soomfon_contract(contract: Mapping[str, Any]) -> None:
     if not isinstance(executor, Mapping) or (
         executor.get("implementation_ready") is not True
         or executor.get("execution_authorized") is not False
-        or executor.get("task_5038_can_authorize_execution") is not False
+        or executor.get("task_5042_can_authorize_execution") is not False
         or executor.get("implementation_requires_later_exact_ak_task") is not True
         or executor.get("execution_authorization_artifact_required") is not True
         or executor.get("execution_authorization_sha256_argument_required") is not True

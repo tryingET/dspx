@@ -35,7 +35,7 @@ from test_soomfon_evaluation_executor import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
+CONTRACT_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
 
 
 @pytest.fixture(autouse=True)
@@ -1087,6 +1087,7 @@ def test_degraded_runtime_cannot_be_classified_succeeded(
     raw, raw_fd = custody.ensure_private_tree(tmp_path / "raw")
     os.close(raw_fd)
     monkeypatch.setattr(executor, "_run_child", lambda **_: (0, 4))
+    _, journal_fd = custody.ensure_private_tree(tmp_path / "journals")
     (raw / "runtime").mkdir(mode=0o700)
     monkeypatch.setattr(
         executor, "private_runtime_tree_sha256_path", lambda _: "d" * 64
@@ -1119,7 +1120,7 @@ def test_degraded_runtime_cannot_be_classified_succeeded(
         marker_fd=-1,
         ledger_fd=-1,
         lock_fd=-1,
-        provider_journal_fd=-1,
+        provider_journal_fd=journal_fd,
         execution_task_id=6000,
         authorization_sha256="f" * 64,
         ak_reconciliation_sha256="e" * 64,
@@ -1127,6 +1128,7 @@ def test_degraded_runtime_cannot_be_classified_succeeded(
         authorization_path=Path("fixture-authorization.json"),
         repo_root=REPO_ROOT,
     )
+    os.close(journal_fd)
     assert state == "effect_indeterminate"
     assert cast(dict[str, object], details["provider"])["reason"] == (
         "runtime_execution_not_successful"

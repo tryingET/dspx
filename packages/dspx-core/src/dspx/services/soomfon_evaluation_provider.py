@@ -106,6 +106,54 @@ def _private_directory(path: Path) -> Path:
     return resolved
 
 
+def _fd_private_directory_members(
+    directory_fd: int,
+) -> tuple[list[tuple[Path, os.stat_result]], os.stat_result]:
+    if isinstance(directory_fd, bool) or not isinstance(directory_fd, int):
+        _reject("journal_parent_fd_invalid")
+    try:
+        parent_info = os.fstat(directory_fd)
+        names = sorted(os.listdir(directory_fd))
+    except OSError as exc:
+        raise SoomfonProviderError("retained_journal_read_failed") from exc
+    if (
+        not stat.S_ISDIR(parent_info.st_mode)
+        or parent_info.st_uid != os.geteuid()
+        or stat.S_IMODE(parent_info.st_mode) != 0o700
+    ):
+        _reject("journal_parent_posture_drift")
+    members: list[tuple[Path, os.stat_result]] = []
+    for name in names:
+        if not name or name in {".", ".."} or "/" in name:
+            _reject("retained_journal_member_name_drift")
+        try:
+            info = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+        except OSError as exc:
+            raise SoomfonProviderError("retained_journal_read_failed") from exc
+        if (
+            not stat.S_ISDIR(info.st_mode)
+            or info.st_uid != os.geteuid()
+            or stat.S_IMODE(info.st_mode) != 0o700
+        ):
+            _reject("retained_journal_member_posture_drift")
+        members.append((Path(f"/proc/self/fd/{directory_fd}") / name, info))
+    return members, parent_info
+
+
+def _same_inode(left: os.stat_result, right: os.stat_result) -> bool:
+    return (
+        left.st_dev,
+        left.st_ino,
+        left.st_mode,
+        left.st_uid,
+    ) == (
+        right.st_dev,
+        right.st_ino,
+        right.st_mode,
+        right.st_uid,
+    )
+
+
 def _journal_projection_digest(journal: VerifiedJournal) -> str:
     return sha256(
         canonical_json(
@@ -338,7 +386,7 @@ class SoomfonCallCustodian:
 
 
 def verify_retained_soomfon_journals(
-    journal_parent: Path,
+    journal_parent: Path | int,
     evidence: Mapping[str, Any],
     *,
     mode: str,
@@ -352,11 +400,22 @@ def verify_retained_soomfon_journals(
         or validated["logical_call_total"] != 2
     ):
         _reject("retained_journal_acceptance_drift")
-    parent = _private_directory(journal_parent)
-    try:
-        members = sorted(parent.iterdir(), key=lambda item: item.name)
-    except OSError as exc:
-        raise SoomfonProviderError("retained_journal_read_failed") from exc
+    parent_fd: int | None = None
+    initial_parent_info: os.stat_result | None = None
+    initial_member_info: list[os.stat_result] = []
+    if isinstance(journal_parent, bool):
+        _reject("journal_parent_fd_invalid")
+    if isinstance(journal_parent, int):
+        parent_fd = journal_parent
+        anchored_members, initial_parent_info = _fd_private_directory_members(parent_fd)
+        members = [path for path, _info in anchored_members]
+        initial_member_info = [info for _path, info in anchored_members]
+    else:
+        parent = _private_directory(journal_parent)
+        try:
+            members = sorted(parent.iterdir(), key=lambda item: item.name)
+        except OSError as exc:
+            raise SoomfonProviderError("retained_journal_read_failed") from exc
     if len(members) != 2:
         _reject("retained_journal_count_drift")
     source_identity = expected_owner_source_identity()
@@ -390,6 +449,22 @@ def verify_retained_soomfon_journals(
             or reduced.external_effect_possible is not True
         ):
             _reject("retained_journal_binding_drift")
+        if parent_fd is not None:
+            try:
+                current = os.stat(path.name, dir_fd=parent_fd, follow_symlinks=False)
+            except OSError as exc:
+                raise SoomfonProviderError("retained_journal_read_failed") from exc
+            if not _same_inode(initial_member_info[ordinal - 1], current):
+                _reject("retained_journal_member_identity_drift")
+    if parent_fd is not None:
+        try:
+            final_parent_info = os.fstat(parent_fd)
+        except OSError as exc:
+            raise SoomfonProviderError("retained_journal_read_failed") from exc
+        if initial_parent_info is None or not _same_inode(
+            initial_parent_info, final_parent_info
+        ):
+            _reject("retained_journal_parent_identity_drift")
 
 
 def validate_soomfon_provider_evidence(
