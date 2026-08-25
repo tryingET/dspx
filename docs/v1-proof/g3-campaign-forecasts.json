@@ -1,0 +1,1272 @@
+{
+ "P-holdingco-fam-gpt-01": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T10:14:45+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-033"
+ },
+ "P-holdingco-fam-gpt-02": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:17:53+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-031"
+ },
+ "P-holdingco-fam-gpt-03": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T10:20:46+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-030"
+ },
+ "P-holdingco-fam-gpt-04": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:26:43+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-049"
+ },
+ "P-holdingco-fam-gpt-05": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 3,
+  "recorded_at": "2026-08-25T11:03:29+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-048"
+ },
+ "P-holdingco-fam-gpt-06": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T11:06:33+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-053"
+ },
+ "P-holdingco-fam-gpt-07": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:12:46+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-051"
+ },
+ "P-holdingco-fam-gpt-08": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T11:17:54+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-036"
+ },
+ "P-holdingco-fam-gpt-09": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:21:22+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-045"
+ },
+ "P-holdingco-fam-gpt-10": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:24:37+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-034"
+ },
+ "P-holdingco-fam-gpt-11": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T11:27:51+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-055"
+ },
+ "P-holdingco-fam-gpt-12": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:30:45+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-039"
+ },
+ "P-holdingco-fam-gpt-13": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:33:48+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-037"
+ },
+ "P-holdingco-fam-gpt-14": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:36:36+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-046"
+ },
+ "P-holdingco-fam-gpt-15": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:40:43+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-056"
+ },
+ "P-holdingco-fam-gpt-16": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T11:44:17+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-035"
+ },
+ "P-holdingco-fam-gpt-17": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T11:46:49+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-043"
+ },
+ "P-holdingco-fam-gpt-18": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:49:24+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-042"
+ },
+ "P-holdingco-fam-gpt-19": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T11:54:36+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-044"
+ },
+ "P-holdingco-fam-gpt-20": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": null,
+  "n_recommendations": 0,
+  "recorded_at": "2026-08-25T11:59:39+00:00",
+  "stage": "confirm",
+  "status": "abstain",
+  "task_id": "fcos-054"
+ },
+ "P-holdingco-fam-gpt-21": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T12:03:09+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-050"
+ },
+ "P-holdingco-fam-gpt-22": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T12:05:44+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-041"
+ },
+ "P-holdingco-fam-gpt-23": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T12:09:20+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-038"
+ },
+ "P-holdingco-fam-gpt-24": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T12:12:47+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-029"
+ },
+ "P-holdingco-fam-gpt-25": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.94,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T12:18:52+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-040"
+ },
+ "P-holdingco-fam-gpt-26": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T12:24:24+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-047"
+ },
+ "P-holdingco-fam-gpt-27": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T12:27:20+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-052"
+ },
+ "P-holdingco-fam-gpt-28": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T12:31:32+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-032"
+ },
+ "P-holdingco-fam-grok-01": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:41:12+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-010"
+ },
+ "P-holdingco-fam-grok-02": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T15:43:51+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-016"
+ },
+ "P-holdingco-fam-grok-03": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T15:46:01+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-019"
+ },
+ "P-holdingco-fam-grok-04": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T15:49:18+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "fcos-012"
+ },
+ "P-holdingco-fam-grok-05": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:52:37+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-026"
+ },
+ "P-holdingco-fam-grok-06": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T15:54:52+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-015"
+ },
+ "P-holdingco-fam-grok-07": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:57:21+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-020"
+ },
+ "P-holdingco-fam-grok-08": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:00:40+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-023"
+ },
+ "P-holdingco-fam-grok-09": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:03:34+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-005"
+ },
+ "P-holdingco-fam-grok-10": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:06:21+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-008"
+ },
+ "P-holdingco-fam-grok-11": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:10:09+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-022"
+ },
+ "P-holdingco-fam-grok-12": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:13:12+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-017"
+ },
+ "P-holdingco-fam-grok-13": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:16:24+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-018"
+ },
+ "P-holdingco-fam-grok-14": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:19:01+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-013"
+ },
+ "P-holdingco-fam-grok-15": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.97,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:21:17+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-025"
+ },
+ "P-holdingco-fam-grok-16": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:23:33+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-002"
+ },
+ "P-holdingco-fam-grok-17": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.97,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:26:34+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-004"
+ },
+ "P-holdingco-fam-grok-18": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:28:42+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-024"
+ },
+ "P-holdingco-fam-grok-19": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:32:31+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-027"
+ },
+ "P-holdingco-fam-grok-20": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:34:23+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-007"
+ },
+ "P-holdingco-fam-grok-21": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:37:29+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-001"
+ },
+ "P-holdingco-fam-grok-22": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:40:44+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-028"
+ },
+ "P-holdingco-fam-grok-23": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:44:17+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-014"
+ },
+ "P-holdingco-fam-grok-24": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:47:17+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-011"
+ },
+ "P-holdingco-fam-grok-25": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:51:23+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-006"
+ },
+ "P-holdingco-fam-grok-26": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:54:11+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-021"
+ },
+ "P-holdingco-fam-grok-27": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T16:56:28+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-009"
+ },
+ "P-holdingco-fam-grok-28": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T16:58:41+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "fcos-003"
+ },
+ "P-softwareco-fam-gpt-01": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:29:51+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-039"
+ },
+ "P-softwareco-fam-gpt-02": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.9,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:34:43+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-052"
+ },
+ "P-softwareco-fam-gpt-03": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:39:55+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-041"
+ },
+ "P-softwareco-fam-gpt-04": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.95,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:45:07+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-044"
+ },
+ "P-softwareco-fam-gpt-05": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T12:37:42+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-040"
+ },
+ "P-softwareco-fam-gpt-06": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.95,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T12:42:48+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-056"
+ },
+ "P-softwareco-fam-gpt-07": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.78,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T12:48:11+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-030"
+ },
+ "P-softwareco-fam-gpt-08": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.87,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T12:52:32+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-055"
+ },
+ "P-softwareco-fam-gpt-09": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.93,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T12:56:36+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-050"
+ },
+ "P-softwareco-fam-gpt-10": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.9,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:01:09+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-049"
+ },
+ "P-softwareco-fam-gpt-11": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:05:28+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-034"
+ },
+ "P-softwareco-fam-gpt-12": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:09:48+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-037"
+ },
+ "P-softwareco-fam-gpt-13": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T13:15:27+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-036"
+ },
+ "P-softwareco-fam-gpt-14": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.93,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:19:53+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-038"
+ },
+ "P-softwareco-fam-gpt-15": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:24:36+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-043"
+ },
+ "P-softwareco-fam-gpt-16": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:28:37+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-029"
+ },
+ "P-softwareco-fam-gpt-17": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:32:59+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-051"
+ },
+ "P-softwareco-fam-gpt-18": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:36:44+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-045"
+ },
+ "P-softwareco-fam-gpt-19": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:40:33+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-031"
+ },
+ "P-softwareco-fam-gpt-20": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.95,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:44:52+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-053"
+ },
+ "P-softwareco-fam-gpt-21": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:49:30+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-047"
+ },
+ "P-softwareco-fam-gpt-22": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:53:09+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-035"
+ },
+ "P-softwareco-fam-gpt-23": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T13:57:26+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-042"
+ },
+ "P-softwareco-fam-gpt-24": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:02:28+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-046"
+ },
+ "P-softwareco-fam-gpt-25": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:06:36+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-048"
+ },
+ "P-softwareco-fam-gpt-26": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:11:40+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-054"
+ },
+ "P-softwareco-fam-gpt-27": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:16:22+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-033"
+ },
+ "P-softwareco-fam-gpt-28": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:20:55+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-032"
+ },
+ "P-softwareco-fam-grok-01": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:02:13+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-017"
+ },
+ "P-softwareco-fam-grok-02": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:06:22+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-014"
+ },
+ "P-softwareco-fam-grok-03": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.96,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T17:10:37+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-010"
+ },
+ "P-softwareco-fam-grok-04": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.92,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:14:19+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "piext-013"
+ },
+ "P-softwareco-fam-grok-05": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.95,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:17:36+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-028"
+ },
+ "P-softwareco-fam-grok-06": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:21:25+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-020"
+ },
+ "P-softwareco-fam-grok-07": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:25:40+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-001"
+ },
+ "P-softwareco-fam-grok-08": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:30:19+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-011"
+ },
+ "P-softwareco-fam-grok-09": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:34:14+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-002"
+ },
+ "P-softwareco-fam-grok-10": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.95,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:39:47+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-008"
+ },
+ "P-softwareco-fam-grok-11": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.94,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T17:43:46+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-015"
+ },
+ "P-softwareco-fam-grok-12": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.96,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T17:46:52+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-025"
+ },
+ "P-softwareco-fam-grok-13": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T17:50:02+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-019"
+ },
+ "P-softwareco-fam-grok-14": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.94,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T17:53:29+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-024"
+ },
+ "P-softwareco-fam-grok-15": {
+  "before_execution": true,
+  "family": "fam-grok",
+  "forecast": 0.96,
+  "n_recommendations": 3,
+  "recorded_at": "2026-08-25T17:57:50+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "piext-004"
+ },
+ "P-teachingco-fam-gpt-01": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": null,
+  "n_recommendations": 0,
+  "recorded_at": "2026-08-25T10:49:59+00:00",
+  "stage": "dev",
+  "status": "abstain",
+  "task_id": "wib-016"
+ },
+ "P-teachingco-fam-gpt-02": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:52:25+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "wib-022"
+ },
+ "P-teachingco-fam-gpt-03": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.9,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:55:51+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "mathe-019"
+ },
+ "P-teachingco-fam-gpt-04": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T10:58:49+00:00",
+  "stage": "dev",
+  "status": "advice",
+  "task_id": "wib-028"
+ },
+ "P-teachingco-fam-gpt-05": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.9,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T14:25:11+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-018"
+ },
+ "P-teachingco-fam-gpt-06": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.96,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:28:15+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-024"
+ },
+ "P-teachingco-fam-gpt-07": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T14:31:30+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-016"
+ },
+ "P-teachingco-fam-gpt-08": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:34:15+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-025"
+ },
+ "P-teachingco-fam-gpt-09": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 3,
+  "recorded_at": "2026-08-25T14:37:25+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-024"
+ },
+ "P-teachingco-fam-gpt-10": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T14:41:17+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-023"
+ },
+ "P-teachingco-fam-gpt-11": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:44:51+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-027"
+ },
+ "P-teachingco-fam-gpt-12": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:47:42+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-023"
+ },
+ "P-teachingco-fam-gpt-13": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:51:10+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-026"
+ },
+ "P-teachingco-fam-gpt-14": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T14:55:05+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-018"
+ },
+ "P-teachingco-fam-gpt-15": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 3,
+  "recorded_at": "2026-08-25T14:56:53+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-020"
+ },
+ "P-teachingco-fam-gpt-16": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.94,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T15:00:02+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-017"
+ },
+ "P-teachingco-fam-gpt-17": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 3,
+  "recorded_at": "2026-08-25T15:02:55+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-028"
+ },
+ "P-teachingco-fam-gpt-18": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.99,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:06:47+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-027"
+ },
+ "P-teachingco-fam-gpt-19": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:10:14+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-017"
+ },
+ "P-teachingco-fam-gpt-20": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:12:40+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-025"
+ },
+ "P-teachingco-fam-gpt-21": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:15:28+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-015"
+ },
+ "P-teachingco-fam-gpt-22": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.94,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T15:18:11+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-019"
+ },
+ "P-teachingco-fam-gpt-23": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:21:24+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-022"
+ },
+ "P-teachingco-fam-gpt-24": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.97,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:24:37+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-026"
+ },
+ "P-teachingco-fam-gpt-25": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.95,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:27:48+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-015"
+ },
+ "P-teachingco-fam-gpt-26": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.94,
+  "n_recommendations": 1,
+  "recorded_at": "2026-08-25T15:29:24+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-021"
+ },
+ "P-teachingco-fam-gpt-27": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:33:31+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "mathe-021"
+ },
+ "P-teachingco-fam-gpt-28": {
+  "before_execution": true,
+  "family": "fam-gpt",
+  "forecast": 0.98,
+  "n_recommendations": 2,
+  "recorded_at": "2026-08-25T15:35:52+00:00",
+  "stage": "confirm",
+  "status": "advice",
+  "task_id": "wib-020"
+ }
+}

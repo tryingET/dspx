@@ -1,0 +1,40 @@
+{
+  "completed_pairs": 127,
+  "decision_ref": 132,
+  "frozen_criterion_evaluable": false,
+  "limitations": [
+    "43/84 fam-grok pairs completed (holdingco 28, softwareco 15, teachingco 0) after an out-of-credits block and mid-resume operator stop",
+    "fam-gpt complete at 84/84",
+    "task corpus ceiling: both arms >= 0.9167 success, no discrimination possible",
+    "no PASS, no FAIL claimed; G5 must consume as operator-stopped incomplete with null-signal observation"
+  ],
+  "observed": {
+    "families": {
+      "fam-gpt": {
+        "evidence": 77,
+        "evidence_rate": 0.9167,
+        "pairs": 84,
+        "static": 77,
+        "static_rate": 0.9167
+      },
+      "fam-grok": {
+        "evidence": 43,
+        "evidence_rate": 1.0,
+        "pairs": 43,
+        "static": 43,
+        "static_rate": 1.0
+      }
+    },
+    "note": "No evaluable lift under the frozen criterion because the study did not reach the frozen N. On completed pairs the arms are indistinguishable in every family and owner group (ceiling effect); this is an observed signal, not a frozen-criterion verdict."
+  },
+  "planned_pairs": 168,
+  "protocol_manifest_sha256": "708e46f4c16095f252ad4d3bdd405008036ab2ddbb8461a7f3062465b4b85d10",
+  "receipts_file": "docs/v1-proof/g3-campaign-receipts.jsonl",
+  "receipts_sha256": "fab825b0e02b0f8ca868e86f40c2bca2fabcde2ea3a47c365170de690f7573dd",
+  "recorded_at": "2026-08-25T18:26:16.118651+00:00",
+  "schema": "engineering-core.v1.g3-campaign-results/1",
+  "stage": "g3-campaign-results",
+  "status": "operator_stopped_incomplete",
+  "stop_authority": "operator (resources; measurement complete in substance: identical arms across both completed families)",
+  "stopped_at": "2026-08-25T18:05:00+00:00"
+}

@@ -1,0 +1,1552 @@
+{
+ "forecasts": {
+  "P-holdingco-fam-gpt-01": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:15:33+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "fcos-033"
+  },
+  "P-holdingco-fam-gpt-02": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:18:41+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "fcos-031"
+  },
+  "P-holdingco-fam-gpt-03": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:25:49+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "fcos-030"
+  },
+  "P-holdingco-fam-gpt-04": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:33:03+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "fcos-049"
+  },
+  "P-softwareco-fam-gpt-01": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:36:40+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "piext-039"
+  },
+  "P-softwareco-fam-gpt-02": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:40:28+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "piext-052"
+  },
+  "P-softwareco-fam-gpt-04": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:45:52+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "piext-044"
+  },
+  "P-teachingco-fam-gpt-01": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:52:29+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "wib-016"
+  },
+  "P-teachingco-fam-gpt-02": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T09:55:54+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "wib-022"
+  },
+  "P-teachingco-fam-gpt-03": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T10:03:05+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "mathe-019"
+  },
+  "P-teachingco-fam-gpt-04": {
+   "before_execution": true,
+   "family": "fam-gpt",
+   "forecast": null,
+   "n_recommendations": 0,
+   "recorded_at": "2026-08-25T10:06:35+00:00",
+   "stage": "dev",
+   "status": "abstain",
+   "task_id": "wib-028"
+  }
+ },
+ "reason": "advice integration v1 did not carry the task (spec/title) into the advice request; the advice surface could not see the task and abstained in 11/11 pairs, so the declared evidence-advice slot was not delivered as frozen. Harness fixed to v2 (task_context + goal injected into the plan; wrapper types made explicit). All affected pairs were dev-stage; no confirm pair executed under v1.",
+ "receipts": [
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "81c58decbedff03f203cb6f1ab0593580e6ff7e58d5d6a912bd4632d158138a8",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "evidence",
+    "static"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_packages-fcos-cli-g3-facts-data-archive-.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 2525,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 78.7,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-033.\n\nCreated:\n- `packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py`\n  - Exposes `g3_state_facts()`\n- `G3_CLAIM.md`\n\nVerified module behavior, edge cases including `FileNotFoundError`, and `git diff --check`. Current facts: 18 entries, digest `bed08387`.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_packages-fcos-cli-g3-facts-data-archive-.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1704,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 70.1,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-033.\n\nCreated:\n- `packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py`\n  - Exposes `g3_state_facts()` per contract.\n- `G3_CLAIM.md`\n  - Documents implementation and verification.\n\nVerified:\n- `python3 -m py_compile ...`\n- Contract test including digest/data result and missing-file `FileNotFoundError`\n- `git diff --check`\n\nResult: `g3_state_facts contract: PASS`\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "fcos-control-board",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "holdingco",
+   "pair_id": "P-holdingco-fam-gpt-01",
+   "recorded_at": "2026-08-25T09:18:02+00:00",
+   "repo_pin": "7e23210a08e38bcd93c91967af7152ed504aacc3",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "fcos-033",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "a1d56a7e8b16571632d06313b3acd0b570555a48e3441ec7900cfa7678519dd2",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "static",
+    "evidence"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      " M packages/fcos-cli/fcos_parser.py",
+      "?? G3_CLAIM.md"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_g3-margin-packages-fcos-cli-fcos-parser-json_output_requeste.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 2039,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 187.8,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-031.\n\nChanged:\n- `packages/fcos-cli/fcos_parser.py`: added pure `g3_margin_report`.\n- `G3_CLAIM.md`: specification coverage and verification record.\n\nVerified:\n- `python3 -m py_compile packages/fcos-cli/fcos_parser.py`\n- Direct contract assertions: PASS\n- `git diff --check`: PASS\n\n`just test-core` was attempted; it had 3 existing-suite failures in owner-freshness/transition evidence tests, unrelated to this helper.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      " M packages/fcos-cli/fcos_parser.py",
+      "?? .ontology/",
+      "?? G3_CLAIM.md"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_g3-margin-packages-fcos-cli-fcos-parser-json_output_requeste.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1911,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 198.4,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-031.\n\nChanged:\n- `packages/fcos-cli/fcos_parser.py`: added `g3_margin_report`.\n- `G3_CLAIM.md`: documented clauses and verification.\n\nVerification:\n- Focused contract checks: PASS.\n- `py_compile`: PASS.\n- `just test-core` ran but has 3 unrelated replica/source-data failures; documented in claim.\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "fcos-control-board",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "holdingco",
+   "pair_id": "P-holdingco-fam-gpt-02",
+   "recorded_at": "2026-08-25T09:25:07+00:00",
+   "repo_pin": "7e23210a08e38bcd93c91967af7152ed504aacc3",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "fcos-031",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "f6777ff774a69dc9719099663a6212e425cc3441252a50abece8d4262683dc33",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "static",
+    "evidence"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      " M packages/fcos-validators/closed_evidence_resolution_validation.py",
+      "?? G3_CLAIM.md"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_g3-margin-packages-fcos-validators-closed-evidence-validate_.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 2033,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 200.1,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-030.\n\nChanged:\n- `packages/fcos-validators/closed_evidence_resolution_validation.py`\n  - Added `g3_margin_report(value: float, reference: float = 1.326) -> dict`.\n- `G3_CLAIM.md`\n  - Documents clauses, files, and verification evidence.\n\nVerification:\n- Helper contract/purity assertions: passed.\n- `py_compile`: passed.\n- `git diff --check`: passed.\n- `just test-core`: ran 522 tests; 3 unrelated replica/path-dependent failures are documented in `G3_CLAIM.md`.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      " M packages/fcos-validators/closed_evidence_resolution_validation.py",
+      "?? .ontology/",
+      "?? G3_CLAIM.md"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_g3-margin-packages-fcos-validators-closed-evidence-validate_.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1514,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 220.0,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-030.\n\nChanged:\n- `packages/fcos-validators/closed_evidence_resolution_validation.py`\n  - Added `g3_margin_report(...)` with required finite-value validation and report contract.\n- `G3_CLAIM.md`\n  - Documents changes, clause coverage, and verification.\n\nVerification:\n- Targeted contract assertions: PASS.\n- `git diff --check`: PASS.\n- `just test-core`: ran 522 tests; 3 unrelated existing-replica failures reported (documented in `G3_CLAIM.md`).\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "fcos-control-board",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "holdingco",
+   "pair_id": "P-holdingco-fam-gpt-03",
+   "recorded_at": "2026-08-25T09:32:50+00:00",
+   "repo_pin": "7e23210a08e38bcd93c91967af7152ed504aacc3",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "fcos-030",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "1ff50e107a3df3b3bcbad5203cb9444db6f1a3c8ac00d5180b50a2e8d801a43f",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "evidence",
+    "static"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_packages-fcos-cli-g3-facts-data-archive-.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1807,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 91.9,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-049.\n\nCreated:\n- `packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py`\n  - Exposes `g3_state_facts()`\n- `G3_CLAIM.md`\n\nVerified with `py_compile` and independent assertions:\n```text\n{'entries': 4, 'top_level_keys': ['events', 'owner', 'schema_version'], 'digest8': 'b7892c72'}\n```\n\nAlso verified missing-file behavior raises `FileNotFoundError`.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept_packages-fcos-cli-g3-facts-data-archive-.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1616,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-m",
+         "..."
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 84.1,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented fcos-049.\n\nCreated:\n- `packages/fcos-cli/g3_facts_data-archive-governance-kernel-governanc.py`\n  - Adds `g3_state_facts() -> dict` per contract.\n- `G3_CLAIM.md`\n  - Documents coverage and verification.\n\nVerified with contract assertions, `py_compile`, and `git diff --check`.\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "fcos-control-board",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "holdingco",
+   "pair_id": "P-holdingco-fam-gpt-04",
+   "recorded_at": "2026-08-25T09:35:59+00:00",
+   "repo_pin": "7e23210a08e38bcd93c91967af7152ed504aacc3",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "fcos-049",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "94a248b886a0a3cb332b9c1f7f2aff3ea342d668e569ba13889eb5595eda36f4",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "static",
+    "evidence"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/pi-semantic-code-intelligence/g3-threshold-a.mjs"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "accept-pi-semantic-code-intelligence-a.test.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n\u2714 contract (1.012957ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 7.994056\n"
+       }
+      },
+      "claim": {
+       "bytes": 2304,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "--check",
+         "packages/pi-semantic-code-intelligence/g3-threshold-a.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 100.9,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented piext-039.\n\nCreated:\n- `packages/pi-semantic-code-intelligence/g3-threshold-a.mjs`\n- `G3_CLAIM.md`\n\nVerified ESM behavior, all export shape, finite-value errors, empty handling, CommonJS named `require`, syntax, and whitespace checks.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/pi-semantic-code-intelligence/g3-threshold-a.mjs"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "accept-pi-semantic-code-intelligence-a.test.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n\u2714 contract (1.051445ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 8.250615\n"
+       }
+      },
+      "claim": {
+       "bytes": 2366,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "--check",
+         "packages/pi-semantic-code-intelligence/g3-threshold-a.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 85.5,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented piext-039.\n\nCreated:\n- `packages/pi-semantic-code-intelligence/g3-threshold-a.mjs`\n- `G3_CLAIM.md`\n\nVerified ESM contract, CommonJS named `require()`, error handling, empty input, custom/default thresholds, and `git diff --check`.\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "pi-extensions",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "softwareco",
+   "pair_id": "P-softwareco-fam-gpt-01",
+   "recorded_at": "2026-08-25T09:39:49+00:00",
+   "repo_pin": "a2dbccdde192b2795764bc282de503c8991b5433",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "piext-039",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "292522a51feb0faf4f20eec1dc35971702d712fcbc55f022029f2f9970545183",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "evidence",
+    "static"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/pi-autoresearch/g3-threshold-b.mjs"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "accept-pi-autoresearch-b.test.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n\u2714 contract (1.170175ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 8.554075\n"
+       }
+      },
+      "claim": {
+       "bytes": 2015,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "--check",
+         "packages/pi-autoresearch/g3-threshold-b.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 125.2,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Completed piext-052.\n\nCreated:\n- `packages/pi-autoresearch/g3-threshold-b.mjs`\n- `G3_CLAIM.md`\n\nVerified ESM behavior, CommonJS `require()` named-export interop, error handling, and whitespace checks. Package-wide `npm run check` is blocked by missing preinstalled local dependency links in the disposable replica; documented in `G3_CLAIM.md`.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/pi-autoresearch/g3-threshold-b.mjs"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "accept-pi-autoresearch-b.test.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n\u2714 contract (0.993877ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 7.762986\n"
+       }
+      },
+      "claim": {
+       "bytes": 2089,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "--check",
+         "packages/pi-autoresearch/g3-threshold-b.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 111.8,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented piext-052.\n\nCreated:\n- `packages/pi-autoresearch/g3-threshold-b.mjs`\n- `G3_CLAIM.md`\n\nVerified ESM behavior, named CommonJS `require()` access, syntax, and diff whitespace. Package gate was attempted but blocked by missing pre-existing local `file:` dependency links; details are recorded in `G3_CLAIM.md`.\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "pi-extensions",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "softwareco",
+   "pair_id": "P-softwareco-fam-gpt-02",
+   "recorded_at": "2026-08-25T09:44:27+00:00",
+   "repo_pin": "a2dbccdde192b2795764bc282de503c8991b5433",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "piext-052",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "665ba262eaf90b40a3e2dd4b6264213547921eb0299d92d6f73dc3c7d8aababd",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "static",
+    "evidence"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? packages/pi-modes/g3-threshold-b.mjs"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "accept-pi-modes-b.test.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n\u2714 contract (1.139369ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 8.795913\n"
+       }
+      },
+      "claim": {
+       "bytes": 1948,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "--check",
+         "packages/pi-modes/g3-threshold-b.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 114.3,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented piext-044.\n\nCreated:\n- `packages/pi-modes/g3-threshold-b.mjs`\n- `G3_CLAIM.md`\n\nVerified ESM behavior, CommonJS named-export `require`, invalid-value errors, empty/boundary cases, syntax, and whitespace.\n\nNote: package `npm run check` reached Node/structure validation but could not finish because this replica lacks its local Biome binary; no install was attempted.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      " M packages/pi-modes/package.json",
+      "?? G3_CLAIM.md",
+      "?? packages/pi-modes/g3-threshold-b.mjs"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "accept-pi-modes-b.test.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n\u2714 contract (1.064675ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 8.496098\n"
+       }
+      },
+      "claim": {
+       "bytes": 1878,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "node",
+         "--check",
+         "packages/pi-modes/g3-threshold-b.mjs"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": ""
+       }
+      }
+     },
+     "duration_s": 123.1,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Implemented piext-044.\n\nChanged:\n- `packages/pi-modes/g3-threshold-b.mjs`\n- `packages/pi-modes/package.json` (publish inclusion)\n- `G3_CLAIM.md`\n\nVerified ESM and CommonJS named-export behavior plus contract assertions. `git diff --check` passes. Package check is blocked only by the disposable checkout lacking local Biome.\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "pi-extensions",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "softwareco",
+   "pair_id": "P-softwareco-fam-gpt-04",
+   "recorded_at": "2026-08-25T09:49:51+00:00",
+   "repo_pin": "a2dbccdde192b2795764bc282de503c8991b5433",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "piext-044",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "2480665458cfa1e2fd8063b490e491958fe42ba6c9f19c68007aa07f79ee28da",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "evidence",
+    "static"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [],
+     "checks": {
+      "acceptance": {
+       "ok": false,
+       "result": {
+        "exit": -1,
+        "stderr_tail": "no worktree changes (arm-attributable no-output)"
+       }
+      },
+      "claim": {
+       "bytes": 0,
+       "ok": false
+      },
+      "participant_validation": {
+       "ok": false,
+       "result": {
+        "exit": -1,
+        "stderr_tail": "not run: no output"
+       }
+      }
+     },
+     "duration_s": 133.1,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Blocked by a specification conflict; no files changed.\n\nThe target directory contains **5** direct Markdown files, not 3:\n\n- `10-WiB-Stundenplanung.md`\n- `11-WiB-Material.md`\n- `8-WiB-Performanzmatrix.md`\n- `9-WiB-KillPoints.md`\n- `README.md`\n\nVerified with:\n\n```sh\nfind docs/sequenzen/jg8-lb3-betriebserkundung/stunden/02-absatz-im-betrieb \\\n  -maxdepth 1 -type f -name '*.md' | wc -l\n# 5\n```\n\nCreating a three-entry index would necessarily omit direct Markdown files and violate the coverage clause; creating a five-entry index would violate the exactly-three clause. Please clarify the intended three-file selection rule or correct the required entry count.\n"
+     },
+     "y": 0
+    },
+    "static": {
+     "changed_files": [],
+     "checks": {
+      "acceptance": {
+       "ok": false,
+       "result": {
+        "exit": -1,
+        "stderr_tail": "no worktree changes (arm-attributable no-output)"
+       }
+      },
+      "claim": {
+       "bytes": 0,
+       "ok": false
+      },
+      "participant_validation": {
+       "ok": false,
+       "result": {
+        "exit": -1,
+        "stderr_tail": "not run: no output"
+       }
+      }
+     },
+     "duration_s": 58.1,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Blocked by a specification contradiction: the pinned revision contains **5** direct Markdown files in the target directory, not 3 (confirmed by `git ls-tree` and `find`).\n\nCreating an index with exactly 3 entries would fail the required \u201ccovers the \u2026 markdown files\u201d clause; indexing all files would fail the \u201cexactly 3 entries\u201d clause. No files were changed.\n"
+     },
+     "y": 0
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "wib",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "teachingco",
+   "pair_id": "P-teachingco-fam-gpt-01",
+   "recorded_at": "2026-08-25T09:55:40+00:00",
+   "repo_pin": "316c45747560392fdab03498849652e8d7e94fcb",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "wib-016",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "0bdc7d1030900577353764f40fc073b1e6547935b7b83b604fccd7ce88fe797a",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "evidence",
+    "static"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? g3-work/"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept-summary-docs-sequenzen-jg8-lb3-betriebserkundung.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 2566,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-c",
+         "print('doc-repo structural check deferred to acceptance')"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "doc-repo structural check deferred to acceptance\n"
+       }
+      }
+     },
+     "duration_s": 122.5,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Completed wib-022.\n\nCreated:\n- `g3-work/summary-docs-sequenzen-jg8-lb3-betriebserkundung.md`\n- `G3_CLAIM.md`\n\nVerified objective requirements successfully:\n- Source: 5721 bytes, 9 H2 sections\n- Summary: required frontmatter and H2 order, 7 qualifying facts, 2 open questions\n- Coverage JSON matches source\n- Body size: 1469 characters\n\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? g3-work/"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept-summary-docs-sequenzen-jg8-lb3-betriebserkundung.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 2105,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-c",
+         "print('doc-repo structural check deferred to acceptance')"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "doc-repo structural check deferred to acceptance\n"
+       }
+      }
+     },
+     "duration_s": 157.4,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Completed wib-022.\n\nCreated:\n- `g3-work/summary-docs-sequenzen-jg8-lb3-betriebserkundung.md`\n- `G3_CLAIM.md`\n\nVerified summary structure, seven qualified facts/source references, coverage JSON (`9` sections, `5721` bytes), body length, and whitespace (`git diff --check`).\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "wib",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "teachingco",
+   "pair_id": "P-teachingco-fam-gpt-02",
+   "recorded_at": "2026-08-25T10:00:34+00:00",
+   "repo_pin": "316c45747560392fdab03498849652e8d7e94fcb",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "wib-022",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "777a41ed7a17813412eab73d0c1f70c8c9a70750e6426b98623624ab70cf6a23",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "static",
+    "evidence"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? g3-work/"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept-index-docs-sequenzen-jg8-lb6-zufallsexperiment.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1817,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-c",
+         "print('doc-repo structural check deferred to acceptance')"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "doc-repo structural check deferred to acceptance\n"
+       }
+      }
+     },
+     "duration_s": 100.9,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Completed `mathe-019`.\n\nCreated:\n- `g3-work/index-docs-sequenzen-jg8-lb6-zufallsexperiment.json`\n- `G3_CLAIM.md`\n\nVerified with a Python raw-byte/hash/heading comparison: `PASS (5 documents)`. `git diff --check` produced no output.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? g3-work/"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept-index-docs-sequenzen-jg8-lb6-zufallsexperiment.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1876,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-c",
+         "print('doc-repo structural check deferred to acceptance')"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "doc-repo structural check deferred to acceptance\n"
+       }
+      }
+     },
+     "duration_s": 93.3,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Completed mathe-019.\n\nCreated:\n- `g3-work/index-docs-sequenzen-jg8-lb6-zufallsexperiment.json`\n- `G3_CLAIM.md`\n\nVerified index schema, UTF-8 JSON parsing, five sorted direct Markdown files, SHA-256 prefixes, section counts, and H1 values.\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "mathe",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "teachingco",
+   "pair_id": "P-teachingco-fam-gpt-03",
+   "recorded_at": "2026-08-25T10:06:20+00:00",
+   "repo_pin": "ba719160dd89bae5d53f0c959719533ca4b49c2f",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "mathe-019",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  },
+  {
+   "advice": {
+    "forecast_emitted": false,
+    "forecast_storage": "g3-campaign-forecasts.json",
+    "n_recommendations": 0,
+    "request_sha256": "502c3f0cfe79b576f8ee532c7753e809a7c18d4fa65f2765bbeb6ad6a160c147",
+    "status": "abstain"
+   },
+   "arm_order": [
+    "static",
+    "evidence"
+   ],
+   "arms": {
+    "evidence": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? g3-work/"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept-summary-docs-sequenzen-jg8-lb3-betriebserkundung.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 1955,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-c",
+         "print('doc-repo structural check deferred to acceptance')"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "doc-repo structural check deferred to acceptance\n"
+       }
+      }
+     },
+     "duration_s": 77.3,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Completed wib-028.\n\nCreated:\n- `g3-work/summary-docs-sequenzen-jg8-lb3-betriebserkundung.md`\n- `G3_CLAIM.md`\n\nVerified the summary\u2019s frontmatter, section order, seven sourced facts, question count, coverage JSON (`4` sections, `3962` bytes), body limit, and confirmed the source document is unchanged.\n"
+     },
+     "y": 1
+    },
+    "static": {
+     "changed_files": [
+      "?? G3_CLAIM.md",
+      "?? g3-work/"
+     ],
+     "checks": {
+      "acceptance": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "accept-summary-docs-sequenzen-jg8-lb3-betriebserkundung.py"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "ACCEPT\n"
+       }
+      },
+      "claim": {
+       "bytes": 2899,
+       "ok": true
+      },
+      "participant_validation": {
+       "ok": true,
+       "result": {
+        "cmd": [
+         "python3",
+         "-c",
+         "print('doc-repo structural check deferred to acceptance')"
+        ],
+        "duration_s": 0.0,
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "doc-repo structural check deferred to acceptance\n"
+       }
+      }
+     },
+     "duration_s": 85.5,
+     "run": {
+      "exit": 0,
+      "stderr_tail": "",
+      "stdout_tail": "Completed wib-028.\n\nCreated:\n- `g3-work/summary-docs-sequenzen-jg8-lb3-betriebserkundung.md`\n- `G3_CLAIM.md`\n\nVerified:\n- Full specification validation passed.\n- `git diff --check` passed.\n- Source coverage matches 4 H2 sections and 3962 bytes.\n"
+     },
+     "y": 1
+    }
+   },
+   "base_model_family": "fam-gpt",
+   "baseline": "wib",
+   "model_identity": "openai-codex/gpt-5.6-terra",
+   "owner_group": "teachingco",
+   "pair_id": "P-teachingco-fam-gpt-04",
+   "recorded_at": "2026-08-25T10:09:18+00:00",
+   "repo_pin": "316c45747560392fdab03498849652e8d7e94fcb",
+   "schema": "dspx.g3-receipt/1",
+   "stage": "dev",
+   "task_id": "wib-028",
+   "verification_basis": {
+    "checks": {
+     "evidence": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ],
+     "static": [
+      "acceptance",
+      "claim",
+      "participant_validation"
+     ]
+    },
+    "masked": "verify_arm received only task + worktree",
+    "scoring_sha256": "0f0a51efbdf1d252c345393d56d0b460c64ba6a86f5c120b604a7dd7e589bcd9"
+   }
+  }
+ ],
+ "superseded_at": "2026-08-25T10:13:37+00:00"
+}
