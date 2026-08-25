@@ -35,7 +35,7 @@ from test_soomfon_evaluation_executor import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
+CONTRACT_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
 
 
 @pytest.fixture(autouse=True)

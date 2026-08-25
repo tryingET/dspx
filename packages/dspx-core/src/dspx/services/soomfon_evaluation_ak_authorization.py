@@ -38,7 +38,7 @@ _EXPECTED_OUTCOMES = [
     f"Authorize exactly one six-case Soomfon suite for contract {REVIEWED_CONTRACT_SHA256} "
     f"prepared under AK-{CONTRACT_PREPARATION_TASK_ID}",
     "Bind the exact reviewed DSPx source commit and tree or exact installed wheel payload",
-    "Bind the exact AK-4991 owner artifact, codex/gpt-5.6-sol, reasoning max, and no-refresh custody",
+    "Bind the exact AK-4991 owner artifact, codex/gpt-5.6-luna, reasoning xhigh, and no-refresh custody",
     "Limit the suite to twelve provider transports with zero retry, fallback, health probe, resume, or selective rerun",
 ]
 _EXPECTED_VALIDATION = [
@@ -253,13 +253,13 @@ def _common_evidence_details(
     effect_budget: Mapping[str, Any],
 ) -> dict[str, object]:
     return {
-        "schema_version": "soomfon-ak5028-authorization-evidence-v3",
+        "schema_version": "soomfon-ak5033-authorization-evidence-v3",
         "preparation_task_id": CONTRACT_PREPARATION_TASK_ID,
         "contract_sha256": contract_sha256,
         "dspx_artifact": dict(dspx_artifact),
         "owner_artifact": dict(owner_artifact),
-        "requested_model": "codex/gpt-5.6-sol",
-        "reasoning_effort": "max",
+        "requested_model": "codex/gpt-5.6-luna",
+        "reasoning_effort": "xhigh",
         "effect_budget": dict(effect_budget),
         "ak_runtime": {
             "path": str(AK_EXECUTABLE),

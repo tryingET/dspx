@@ -40,7 +40,7 @@ from dspx.services.soomfon_evaluation_custody import SoomfonCustodyError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
+CONTRACT_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
 
 
 @pytest.fixture(autouse=True)
@@ -153,12 +153,12 @@ def _effect_behavior(
             "metadata": {
                 "schema_version": "soomfon-dspy-lm-auth-runtime-v1",
                 "provider": "soomfon-dspy-lm-auth",
-                "model": "codex/gpt-5.6-sol",
-                "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol:max",
-                "resolved_route": "openai:gpt-5.6-sol:responses",
+                "model": "codex/gpt-5.6-luna",
+                "requested_route": "dspy-lm-auth:codex:gpt-5.6-luna:xhigh",
+                "resolved_route": "openai:gpt-5.6-luna:responses",
                 "auth_provider": "codex",
                 "credential_mode": "no-refresh",
-                "reasoning_effort": "max",
+                "reasoning_effort": "xhigh",
                 "num_retries": 0,
                 "cache": False,
                 "timeout_seconds": 60.0,

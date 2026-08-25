@@ -26,14 +26,14 @@ OWNER_CANDIDATE_WHEEL_SHA256 = (
 OWNER_CANDIDATE_INSTALLED_PAYLOAD_SHA256 = (
     "8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2"
 )
-REQUESTED_ROUTE = "dspy-lm-auth:codex:gpt-5.6-sol:max"
-RESOLVED_ROUTE = "openai:gpt-5.6-sol:responses"
-REQUESTED_MODEL = "codex/gpt-5.6-sol"
-RESOLVED_MODEL = "openai/gpt-5.6-sol"
-OBSERVED_MODEL = "gpt-5.6-sol"
+REQUESTED_ROUTE = "dspy-lm-auth:codex:gpt-5.6-luna:xhigh"
+RESOLVED_ROUTE = "openai:gpt-5.6-luna:responses"
+REQUESTED_MODEL = "codex/gpt-5.6-luna"
+RESOLVED_MODEL = "openai/gpt-5.6-luna"
+OBSERVED_MODEL = "gpt-5.6-luna"
 AUTH_PROVIDER = "codex"
 CREDENTIAL_MODE = "no-refresh"
-REASONING_EFFORT = "max"
+REASONING_EFFORT = "xhigh"
 TIMEOUT_SECONDS = 60.0
 MAX_SUITE_LOGICAL_CALLS = 12
 ENDPOINT_ORIGIN_SHA256 = (

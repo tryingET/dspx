@@ -95,7 +95,7 @@ def _private(path: Path) -> Path:
     return path
 
 
-def _completed(receipt: _Receipt, *, model: str = "gpt-5.6-sol") -> None:
+def _completed(receipt: _Receipt, *, model: str = "gpt-5.6-luna") -> None:
     response_id = hashlib.sha256(b"opaque response id").hexdigest()
     for event in (
         _Event("wrapper_request_accepted"),
@@ -375,11 +375,11 @@ def test_soomfon_json_adapter_performs_one_lm_invocation_without_fallback(
     class FakeLM(dspy.BaseLM):
         def __init__(self) -> None:
             super().__init__(
-                model="openai/gpt-5.6-sol",
+                model="openai/gpt-5.6-luna",
                 model_type="chat",
                 cache=False,
                 num_retries=0,
-                reasoning_effort="max",
+                reasoning_effort="xhigh",
                 timeout=60.0,
                 api_base="https://chatgpt.com/backend-api/codex",
             )
@@ -397,7 +397,7 @@ def test_soomfon_json_adapter_performs_one_lm_invocation_without_fallback(
                 ],
                 usage={},
                 _hidden_params={},
-                model="gpt-5.6-sol",
+                model="gpt-5.6-luna",
             )
 
     class Owner:
@@ -472,9 +472,9 @@ def test_exact_owner_lm_configuration_rejects_drift(field: str, value: object) -
     from dspx.services.soomfon_evaluation_auth_provider import _assert_exact_lm
 
     lm = SimpleNamespace(
-        original_model_string="codex/gpt-5.6-sol",
-        resolved_model_string="openai/gpt-5.6-sol",
-        model="openai/gpt-5.6-sol",
+        original_model_string="codex/gpt-5.6-luna",
+        resolved_model_string="openai/gpt-5.6-luna",
+        model="openai/gpt-5.6-luna",
         model_type="responses",
         auth_provider="codex",
         credential_mode="no-refresh",
@@ -484,7 +484,7 @@ def test_exact_owner_lm_configuration_rejects_drift(field: str, value: object) -
         cache=False,
         callbacks=[],
         kwargs={
-            "reasoning_effort": "max",
+            "reasoning_effort": "xhigh",
             "timeout": 60.0,
             "api_base": "https://chatgpt.com/backend-api/codex",
             "temperature": None,
@@ -558,9 +558,9 @@ def test_exact_owner_lm_accepts_only_real_dspy_default_kwargs() -> None:
     from dspx.services.soomfon_evaluation_auth_provider import _assert_exact_lm
 
     lm = SimpleNamespace(
-        original_model_string="codex/gpt-5.6-sol",
-        resolved_model_string="openai/gpt-5.6-sol",
-        model="openai/gpt-5.6-sol",
+        original_model_string="codex/gpt-5.6-luna",
+        resolved_model_string="openai/gpt-5.6-luna",
+        model="openai/gpt-5.6-luna",
         model_type="responses",
         auth_provider="codex",
         credential_mode="no-refresh",
@@ -570,7 +570,7 @@ def test_exact_owner_lm_accepts_only_real_dspy_default_kwargs() -> None:
         cache=False,
         callbacks=[],
         kwargs={
-            "reasoning_effort": "max",
+            "reasoning_effort": "xhigh",
             "timeout": 60.0,
             "api_base": "https://chatgpt.com/backend-api/codex",
             "temperature": None,
@@ -629,12 +629,12 @@ def denied(*args, **kwargs):
 owner.lm_module.read_existing_oauth_credential_without_refresh = denied
 __import__('socket').socket = denied
 lm = owner.lm_type(
-    'codex/gpt-5.6-sol', auth_provider='codex', credential_mode='no-refresh',
-    reasoning_effort='max', num_retries=0, cache=False, timeout=60.0,
+    'codex/gpt-5.6-luna', auth_provider='codex', credential_mode='no-refresh',
+    reasoning_effort='xhigh', num_retries=0, cache=False, timeout=60.0,
 )
 _assert_exact_lm(owner, lm)
 assert lm.kwargs == {
-    'temperature': None, 'max_tokens': None, 'reasoning_effort': 'max',
+    'temperature': None, 'max_tokens': None, 'reasoning_effort': 'xhigh',
     'timeout': 60.0, 'api_base': 'https://chatgpt.com/backend-api/codex',
 }
 print('exact-owner-boundary-ok')

@@ -19,13 +19,17 @@ CONTRACT_PATH = (
 )
 PREDECESSOR = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json"
 )
 EARLIER = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b.json"
 )
 EARLIEST = (
+    REPO_ROOT
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18.json"
+)
+ORIGINAL = (
     REPO_ROOT
     / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb.json"
 )
@@ -40,10 +44,11 @@ EXPECTED_MODES = (
     "bloom",
 )
 RESEARCH_MODES = {"researched", "deep-research"}
-CURRENT_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
-PREDECESSOR_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
-EARLIER_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
-EARLIEST_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
+CURRENT_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+PREDECESSOR_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
+EARLIER_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
+EARLIEST_SHA256 = "a8afebcd131d59f1bf6794d7a4748906af3fc2a99c7230f7a1256d78bafe2b18"
+ORIGINAL_SHA256 = "07ba8c3559d1e527bd9fe5376a7accac2f48f617e5ba1288329a9cf4362e69eb"
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -66,7 +71,7 @@ def _hash_json(value: object) -> str:
 
 
 def _copy_contract_chain(root: Path) -> None:
-    for source in (CONTRACT_PATH, PREDECESSOR, EARLIER, EARLIEST):
+    for source in (CONTRACT_PATH, PREDECESSOR, EARLIER, EARLIEST, ORIGINAL):
         target = root / source.relative_to(REPO_ROOT)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(source.read_bytes())
@@ -95,7 +100,12 @@ def test_production_loader_reaches_complete_predecessor_chain(
         repo_root=REPO_ROOT, expected_sha256=CURRENT_SHA256
     )
 
-    assert {PREDECESSOR.resolve(), EARLIER.resolve(), EARLIEST.resolve()} <= observed
+    assert {
+        PREDECESSOR.resolve(),
+        EARLIER.resolve(),
+        EARLIEST.resolve(),
+        ORIGINAL.resolve(),
+    } <= observed
 
 
 @pytest.mark.parametrize("mutation", ["missing", "tampered"])
@@ -103,11 +113,11 @@ def test_loader_rejects_missing_or_tampered_earliest_archive(
     tmp_path: Path, mutation: str
 ) -> None:
     _copy_contract_chain(tmp_path)
-    earliest = tmp_path / EARLIEST.relative_to(REPO_ROOT)
+    original = tmp_path / ORIGINAL.relative_to(REPO_ROOT)
     if mutation == "missing":
-        earliest.unlink()
+        original.unlink()
     else:
-        earliest.write_bytes(earliest.read_bytes() + b" ")
+        original.write_bytes(original.read_bytes() + b" ")
 
     with pytest.raises(contract_service.SoomfonEvaluationContractError):
         contract_service.load_hash_bound_soomfon_contract(
@@ -256,10 +266,10 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
         contract["schema_version"]
         == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
     )
-    assert contract["task_id"] == 5028
-    assert contract["status"] == "forward_repair_execution_unauthorized_pending_review"
+    assert contract["task_id"] == 5033
+    assert contract["status"] == "luna_xhigh_execution_unauthorized_pending_review"
     assert contract["executor_contract"]["execution_authorized"] is False
-    assert contract["executor_contract"]["task_5028_can_authorize_execution"] is False
+    assert contract["executor_contract"]["task_5033_can_authorize_execution"] is False
     assert (
         contract["executor_contract"]["implementation_requires_later_exact_ak_task"]
         is True
@@ -277,33 +287,31 @@ def test_predecessors_are_byte_exact_and_namespaces_are_immutable() -> None:
     assert _sha256(PREDECESSOR) == predecessor["raw_sha256"] == PREDECESSOR_SHA256
     assert _sha256(EARLIER) == EARLIER_SHA256
     assert _sha256(EARLIEST) == EARLIEST_SHA256
+    assert _sha256(ORIGINAL) == ORIGINAL_SHA256
+
     archived = _load(PREDECESSOR)
-    assert (
-        archived["schema_version"]
-        == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
-    )
-    assert archived["task_id"] == 4987
-    assert predecessor["task_id"] == 4987
-    assert predecessor["execution_task_id"] == 5027
-    assert predecessor["attempted_modes"] == ["simple"]
-    assert predecessor["unattempted_modes"] == list(EXPECTED_MODES[1:])
-    assert predecessor["terminal_disposition"] == "effect_indeterminate"
-    assert predecessor["terminal_reason"] == "provider_receipt_journal_invalid"
-    assert predecessor["response_sha256"] == (
+    assert archived["task_id"] == 5028
+    assert archived["status"] == "forward_repair_execution_unauthorized_pending_review"
+    assert predecessor["task_id"] == 5028
+    assert predecessor["superseded_execution_task_id"] == 5032
+    assert predecessor["superseded_execution_task_claimed"] is False
+    assert predecessor["attempted_modes"] == []
+    assert predecessor["unattempted_modes"] == list(EXPECTED_MODES)
+    assert predecessor["terminal_disposition"] == "execution_unattempted"
+    assert predecessor["execution_authorized"] is False
+    assert predecessor["retry_allowed"] is False
+    assert predecessor["earlier_predecessor"]["raw_sha256"] == EARLIER_SHA256
+
+    consumed = archived["predecessor_contract"]
+    assert consumed["task_id"] == 4987
+    assert consumed["execution_task_id"] == 5027
+    assert consumed["attempted_modes"] == ["simple"]
+    assert consumed["terminal_disposition"] == "effect_indeterminate"
+    assert consumed["terminal_reason"] == "provider_receipt_journal_invalid"
+    assert consumed["response_sha256"] == (
         "1ad1fd227ca1d37421d54f608ac1cc2fab5f041a53a009b117855bb548c833a3"
     )
-    assert predecessor["response_length"] == 431
-    assert len(predecessor["completed_receipt_chains"]) == 2
-    assert all(
-        row["provider_outcome_receipt"] == "accepted"
-        and row["producer_terminal"] == "provider_response_completed"
-        for row in predecessor["completed_receipt_chains"]
-    )
-    assert predecessor["retry_allowed"] is False
-    assert predecessor["empirical_relabel_allowed"] is False
-    assert predecessor["ledger_namespace_reuse_allowed"] is False
-    assert predecessor["unattempted_modes_execution_authority_transferred"] is False
-    assert predecessor["earlier_predecessor"]["raw_sha256"] == EARLIER_SHA256
+    assert consumed["response_length"] == 431
 
 
 def test_contract_binds_all_six_fresh_originals_exactly() -> None:
@@ -314,7 +322,17 @@ def test_contract_binds_all_six_fresh_originals_exactly() -> None:
     assert (
         contract["provider_owner_candidate"] == predecessor["provider_owner_candidate"]
     )
-    assert contract["runtime_target"] == predecessor["runtime_target"]
+    predecessor_runtime = dict(predecessor["runtime_target"])
+    predecessor_runtime.update(
+        {
+            "requested_route": "dspy-lm-auth:codex:gpt-5.6-luna:xhigh",
+            "resolved_route": "openai:gpt-5.6-luna:responses",
+            "requested_model": "codex/gpt-5.6-luna",
+            "resolved_model": "openai/gpt-5.6-luna",
+            "reasoning_effort": "xhigh",
+        }
+    )
+    assert contract["runtime_target"] == predecessor_runtime
     assert contract["effect_budget"] == predecessor["effect_budget"]
     assert contract["effect_budget"]["fixed_case_order"] == list(EXPECTED_MODES)
     active = _load(ACTIVE_BINDING_PATH)
@@ -379,12 +397,12 @@ def test_provider_owner_and_runtime_identity_are_exact() -> None:
         "ad5388cd6ffec977fd4a0c61f550a6a3cbf3ef22cd4098fe01be6101b19194f0"
     )
     runtime = contract["runtime_target"]
-    assert runtime["requested_route"] == "dspy-lm-auth:codex:gpt-5.6-sol:max"
-    assert runtime["resolved_route"] == "openai:gpt-5.6-sol:responses"
-    assert runtime["requested_model"] == "codex/gpt-5.6-sol"
+    assert runtime["requested_route"] == "dspy-lm-auth:codex:gpt-5.6-luna:xhigh"
+    assert runtime["resolved_route"] == "openai:gpt-5.6-luna:responses"
+    assert runtime["requested_model"] == "codex/gpt-5.6-luna"
     assert runtime["auth_provider"] == "codex"
     assert runtime["credential_mode"] == "no-refresh"
-    assert runtime["reasoning_effort"] == "max"
+    assert runtime["reasoning_effort"] == "xhigh"
     assert runtime["num_retries"] == 0
     assert runtime["cache"] is False
     assert runtime["timeout_seconds"] == 60

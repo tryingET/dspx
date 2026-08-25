@@ -1,5 +1,5 @@
 ---
-summary: "AK-5028 provider-free Soomfon forward repair; pending review and execution unauthorized."
+summary: "AK-5033 provider-free Luna xhigh Soomfon successor; pending review and execution unauthorized."
 read_when:
   - "Before considering any model-backed evaluation of the six fresh DSPy 3.3 voice originals."
   - "Before changing Soomfon evaluation custody, authorization, provider receipts, or routing."
@@ -10,24 +10,35 @@ type: "reference"
 
 ## Disposition
 
-Task AK-5028 repairs the parent post-return journal-verification seam without invoking a
-provider and issues a fresh schema-v3 contract for the same six regenerated DSPy 3.3.1
-originals. Its posture is **pending independent review, execution unauthorized**. No task 5028
-artifact authorizes a provider/model call, OAuth flow, credential inspection, physical key,
-microphone, TTS, routing, promotion, activation, release, or publication.
+Task AK-5033 retargets the reviewed provider-free execution path to
+`codex/gpt-5.6-luna` reasoning `xhigh` without invoking a provider and issues a fresh schema-v3
+contract for the same six regenerated DSPy 3.3.1 originals. Its posture is **pending independent review, execution unauthorized**.
+No task 5033 artifact authorizes a provider/model call, OAuth
+flow, credential inspection, physical key, microphone, TTS, routing, promotion, activation,
+release, or publication.
 
 The active machine contract is:
 
 `examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json`
 
 Its current raw SHA-256 is
-`0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207`.
+`cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d`.
 The digest must be supplied out-of-band; deriving the trust anchor from contract bytes is
 forbidden.
 
-## Consumed predecessor and immutable history
+## Predecessors and immutable history
 
-The formerly active contract is archived byte-for-byte at:
+The unused AK-5028 contract is archived byte-for-byte at:
+
+`examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json`
+
+Its raw SHA-256 remains
+`0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207`.
+Task #5032 was deferred before claim, credential access, model transport, or any attempted mode
+because the operator selected the Luna xhigh route. The archive remains execution unauthorized
+and is the immediate predecessor of the active contract.
+
+The earlier consumed contract remains archived byte-for-byte at:
 
 `examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b.json`
 
@@ -90,11 +101,11 @@ A later authorized runtime must match CPython 3.13.12, DSPx Core 0.2.1, DSPy/DSP
 GEPA 0.1.4, LiteLLM 1.82.1, httpx 0.28.1, and httpcore 1.0.9 with the contract-bound payloads.
 The task-local provider configuration is exactly:
 
-- requested route `dspy-lm-auth:codex:gpt-5.6-sol:max`;
-- resolved route `openai:gpt-5.6-sol:responses`;
-- external owner `dspy_lm_auth.LM`, requested model `codex/gpt-5.6-sol`;
+- requested route `dspy-lm-auth:codex:gpt-5.6-luna:xhigh`;
+- resolved route `openai:gpt-5.6-luna:responses`;
+- external owner `dspy_lm_auth.LM`, requested model `codex/gpt-5.6-luna`;
 - `auth_provider="codex"` and `credential_mode="no-refresh"`;
-- `reasoning_effort="max"`, `num_retries=0`, `cache=False`, timeout 60 seconds;
+- `reasoning_effort="xhigh"`, `num_retries=0`, `cache=False`, timeout 60 seconds;
 - DSPy 3.3.1 defaults `temperature=None` and `max_tokens=None`, with no other LM kwargs;
 - synchronous execution only, with no fallback, health probe, resume, or selective rerun;
 - parent `sys.dont_write_bytecode is True`, child `-B` plus
@@ -150,7 +161,7 @@ The JSON is an integrity/binding projection only. It is neither produced nor aut
 AK and cannot authorize itself. Before state-root creation the parent requires at least 1800
 seconds on the claim lease; immediately before every marker it repeats that minimum and the
 exact read-only canonical AK queries for the later task, live completion contract and guardrails,
-attached evidence, each named evidence record, and done dependency #5028. The child reconciles
+attached evidence, each named evidence record, and done dependency #5033. The child reconciles
 again before task-local provider import or any possible credential access. Each logical call
 reconciles once more with a 90-second minimum and requires the task, contract, evidence,
 projection, and authorization state to remain unchanged.
@@ -159,8 +170,8 @@ The two review records must carry distinct format-valid review dispatch referenc
 `ACCEPT` / `PASS` verdicts for the separately recorded security-review and provider-free-test
 runs. The operator record must bind a distinct format-valid explicit one-suite request. All
 three canonical records must be attached pass results for the exact task/repo and must bind the
-current contract, executing DSPx source or payload, #4991 owner, `codex/gpt-5.6-sol`, reasoning
-max, and exact effect budget.
+current contract, executing DSPx source or payload, #4991 owner, `codex/gpt-5.6-luna`, reasoning
+xhigh, and exact effect budget.
 
 AK is canonical storage and attachment authority under workspace policy. Current AK evidence
 uses fields such as `checked_by=cli`; this contract does **not** reinterpret them as
@@ -183,7 +194,7 @@ check types are `review:independent-security`, `test:independent-provider-free`,
 bytes to exact Git blobs at the authorized clean commit/tree. Installed mode compares origins
 and complete payload to the exact distribution/RECORD. Any package shadow, `__pycache__`,
 `.pyc`, or existing security-module `__cached__` artifact rejects. No AK mutation occurs.
-Task #5028 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5028 and depend exactly on `[5028]`.
+Task #5033 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5033 and depend exactly on `[5033]`.
 
 ## Private response behavior
 
@@ -199,8 +210,8 @@ This implementation proves no live model compatibility, answer quality, semantic
 GEPA improvement, backend locality, physical Soomfon execution, routing, promotion, activation,
 release, or publication.
 
-The next lawful move is independent review of this provider-free forward repair, followed only
-then by a separate exact claimed AK task greater than 5028, depending exactly on `[5028]`, with
+The next lawful move is independent review of this provider-free Luna xhigh successor, followed
+only then by a separate exact claimed AK task greater than 5033, depending exactly on `[5033]`, with
 canonical attached review/operator evidence and a local integrity projection for one suite.
 Only independently reviewed resulting evidence could inform a later, distinct owner binding
 decision. The active routing file must remain unchanged until that separate decision exists.
