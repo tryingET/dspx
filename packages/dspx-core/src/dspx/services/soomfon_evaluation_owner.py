@@ -1,4 +1,4 @@
-"""Exact AK-4991 provider-owner source and dependency identity."""
+"""Exact AK-5070 provider-owner source and dependency identity."""
 
 from __future__ import annotations
 
@@ -11,8 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from dspx.services.provider_outcome_receipt_contract import ProviderOutcomeConsumerError
-from dspx.services.provider_outcome_receipt_identity import (
+from dspx.services.soomfon_provider_outcome_receipt_contract import (
+    ProviderOutcomeConsumerError,
+)
+from dspx.services.soomfon_provider_outcome_receipt_identity import (
     ExpectedDependency,
     ExpectedOwnerSource,
     VerifiedOwnerArtifact,
@@ -20,12 +22,8 @@ from dspx.services.provider_outcome_receipt_identity import (
     verify_owner_source,
 )
 
-OWNER_CANDIDATE_WHEEL_SHA256 = (
-    "e1b8acaa354df4640422512a779b9486d5c4caceeb9c9ab05c4a07f1b1eb3512"
-)
-OWNER_CANDIDATE_INSTALLED_PAYLOAD_SHA256 = (
-    "8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2"
-)
+OWNER_CANDIDATE_WHEEL_SHA256: None = None
+OWNER_CANDIDATE_INSTALLED_PAYLOAD_SHA256: None = None
 REQUESTED_ROUTE = "dspy-lm-auth:codex:gpt-5.6-luna:xhigh"
 RESOLVED_ROUTE = "openai:gpt-5.6-luna:responses"
 REQUESTED_MODEL = "codex/gpt-5.6-luna"
@@ -59,11 +57,11 @@ _OWNER_MODULES: dict[str, tuple[str, str]] = {
     ),
     "outcome_receipt": (
         "src/dspy_lm_auth/outcome_receipt.py",
-        "cd46faf242a2696fe4322aaee961e2b383d944f663a08959dbcb7a143e282899",
+        "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
     ),
     "outcome_receipt_state": (
         "src/dspy_lm_auth/outcome_receipt_state.py",
-        "79d9262a3f40690a3fa4fe49721bc49d984f842fd1681039b92e6629a9adc1fa",
+        "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
     ),
     "outcome_receipt_runtime": (
         "src/dspy_lm_auth/outcome_receipt_runtime.py",
@@ -90,7 +88,7 @@ _OWNER_DEPENDENCIES: dict[str, ExpectedDependency] = {
         "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
         2532,
         "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
-        "ecd60ab285a5c0afe8353e1e2838f7560aa525715fb6747a5e0f485f9d56c71d",
+        "1830d79944869e8916526cf9fbe9adbc429dfaefbb1bf189d26caebbfed84ac6",
     ),
     "httpx": ExpectedDependency(
         "httpx",
@@ -98,7 +96,7 @@ _OWNER_DEPENDENCIES: dict[str, ExpectedDependency] = {
         "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
         24,
         "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
-        "ad5388cd6ffec977fd4a0c61f550a6a3cbf3ef22cd4098fe01be6101b19194f0",
+        "36876854dd991fdbea093ead83f852baf1d9e777126dac8e5d6b722ce0753e92",
     ),
     "httpcore": ExpectedDependency(
         "httpcore",
@@ -111,8 +109,8 @@ _OWNER_DEPENDENCIES: dict[str, ExpectedDependency] = {
 }
 
 SOOMFON_OWNER_SOURCE = ExpectedOwnerSource(
-    commit="7c51dda703f6a5d0a95aba13734294a82ea4314f",
-    tree="c303dd657146da90404618adead417e82e2dc2c0",
+    commit="4bdc3bb2e341b8ebff088828c8604ff8051b5d49",
+    tree="816c77372e5e9becd5ecc5b95d336625ceb56815",
     version="0.1.6.dev0",
     lock_sha256="0b18a1759b2507967ed8f2f4918c436e2679e406aafb061620a11954b1550c7c",
     modules=_OWNER_MODULES,
@@ -146,7 +144,7 @@ def _verify_owner_no_bytecode(source_root: Path) -> None:
 
 
 def verify_soomfon_owner_source(source_root: Path) -> dict[str, Any]:
-    """Verify the exact AK-4991 source worktree without importing it."""
+    """Verify the exact AK-5070 source worktree without importing it."""
 
     _verify_owner_no_bytecode(source_root)
     identity = verify_owner_source(source_root, SOOMFON_OWNER_SOURCE)
@@ -201,8 +199,6 @@ def owner_authorization_identity() -> dict[str, str]:
         "tree": SOOMFON_OWNER_SOURCE.tree,
         "version": SOOMFON_OWNER_SOURCE.version,
         "lock_sha256": SOOMFON_OWNER_SOURCE.lock_sha256,
-        "wheel_sha256": OWNER_CANDIDATE_WHEEL_SHA256,
-        "installed_payload_sha256": OWNER_CANDIDATE_INSTALLED_PAYLOAD_SHA256,
     }
 
 

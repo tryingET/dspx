@@ -40,7 +40,7 @@ from dspx.services.soomfon_evaluation_custody import SoomfonCustodyError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
+CONTRACT_SHA256 = "8bc157034ade33e34df33bd059910b24ae7debb06e9d4fb6aadf348ca3760555"
 
 
 @pytest.fixture(autouse=True)
@@ -109,9 +109,14 @@ def _effect_behavior(
     terminal_effect: str | None = None,
     truncated: bool = False,
     mode: str = "simple",
+    status_code: int = 400,
 ) -> dict[str, Any]:
     del terminal_effect, truncated
-    accepted = disposition == "completed_success" and dispatch_count == 1
+    accepted_success = disposition == "completed_success" and dispatch_count == 1
+    accepted_remote_error = (
+        disposition == "remote_http_error_final" and dispatch_count == 1
+    )
+    accepted = accepted_success or accepted_remote_error
     second_signatures = {
         "simple": "AnswerSimple",
         "elaborate": "AnswerElaborate",
@@ -128,16 +133,40 @@ def _effect_behavior(
         "provider_outcome_receipt": "accepted" if accepted else "rejected",
         "request_acknowledged": True if accepted else None,
         "external_effect_possible": dispatch_count == 1,
-        "producer_terminal": "provider_response_completed" if accepted else None,
-        "empirical_disposition": "not_evaluated"
-        if accepted
-        else ("effect_indeterminate" if dispatch_count else "error"),
-        "reason": "attributable_completion_not_evaluated"
-        if accepted
-        else "fixture_non_success",
+        "producer_terminal": (
+            "provider_response_completed"
+            if accepted_success
+            else "remote_http_error_final"
+            if accepted_remote_error
+            else None
+        ),
+        "status_class": (
+            2
+            if accepted_success
+            else status_code // 100
+            if accepted_remote_error
+            else None
+        ),
+        "status_code": (
+            200 if accepted_success else status_code if accepted_remote_error else None
+        ),
+        "empirical_disposition": (
+            "not_evaluated"
+            if accepted_success
+            else "error"
+            if accepted_remote_error or not dispatch_count
+            else "effect_indeterminate"
+        ),
+        "reason": (
+            "attributable_completion_not_evaluated"
+            if accepted_success
+            else "remote_http_error_final"
+            if accepted_remote_error
+            else "fixture_non_success"
+        ),
     }
     records = [record]
-    if accepted:
+    if accepted_success:
         records.append(
             {
                 **record,
@@ -218,7 +247,9 @@ def _write_mock_runtime_evidence(
     runtime_episode = (
         json.dumps(
             {
-                "execution_status": "executed",
+                "execution_status": (
+                    "error" if disposition == "remote_http_error_final" else "executed"
+                ),
                 "output_files": output_files,
                 "artifact_hashes": artifact_hashes,
             },
@@ -514,7 +545,17 @@ def test_exact_runtime_identity_matches_frozen_environment(
 def test_runtime_identity_rejects_wrong_python(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    expected = {
+        "dspx-core": "0.2.1",
+        "dspy": "3.3.1",
+        "dspy-ai": "3.3.1",
+        "gepa": "0.1.4",
+        "litellm": "1.82.1",
+        "httpx": "0.28.1",
+        "httpcore": "1.0.9",
+    }
     monkeypatch.setattr(contract_module.platform, "python_version", lambda: "3.13.11")
+    monkeypatch.setattr(contract_module, "version", lambda name: expected[name])
     with pytest.raises(SoomfonEvaluationContractError, match="does not match"):
         validate_exact_runtime_identity()
 
@@ -522,11 +563,19 @@ def test_runtime_identity_rejects_wrong_python(
 def test_runtime_identity_rejects_wrong_distribution(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    real_version = contract_module.version
+    expected = {
+        "dspx-core": "0.2.1",
+        "dspy": "3.3.1",
+        "dspy-ai": "3.3.1",
+        "gepa": "0.1.4",
+        "litellm": "1.82.1",
+        "httpx": "0.28.1",
+        "httpcore": "1.0.9",
+    }
     monkeypatch.setattr(
         contract_module,
         "version",
-        lambda name: "0.1.5" if name == "gepa" else real_version(name),
+        lambda name: "0.1.5" if name == "gepa" else expected[name],
     )
     with pytest.raises(SoomfonEvaluationContractError, match="does not match"):
         validate_exact_runtime_identity()
@@ -608,6 +657,16 @@ def test_provider_disposition_is_conservative() -> None:
     state, details = classify_provider_disposition(behavior)
     assert state == "succeeded"
     assert details["logical_call_total"] == 2
+    remote_state, remote_details = classify_provider_disposition(
+        _effect_behavior("remote_http_error_final", dispatch_count=1, status_code=400)
+    )
+    assert remote_state == "failed_provider_error"
+    assert remote_details["logical_call_total"] == 1
+    remote_record = cast(list[dict[str, object]], remote_details["call_records"])[0]
+    assert remote_record["producer_terminal"] == "remote_http_error_final"
+    assert remote_record["status_class"] == 4
+    assert remote_record["status_code"] == 400
+    assert remote_record["empirical_disposition"] == "error"
     assert (
         classify_provider_disposition(
             _effect_behavior("preflight_rejected", dispatch_count=0)
@@ -653,11 +712,21 @@ def test_parent_verifies_exact_full_provider_evidence_envelope(
             behavior_results_sha256="b" * 64,
         ),
     )
-    monkeypatch.setattr(
-        executor,
-        "runtime_evidence_hashes",
-        lambda *_: {"runtime_tree_sha256": "d" * 64},
-    )
+
+    def runtime_evidence(*_: object) -> dict[str, object]:
+        classified_state, classified_provider = executor.classify_provider_disposition(
+            behavior
+        )
+        return {
+            "runtime_episode_sha256": "a" * 64,
+            "runtime_tree_sha256": "d" * 64,
+            "runtime_receipt_sha256": "c" * 64,
+            "behavior_results_sha256": "b" * 64,
+            "provider_state": classified_state,
+            "provider": classified_provider,
+        }
+
+    monkeypatch.setattr(executor, "runtime_evidence_hashes", runtime_evidence)
     monkeypatch.setattr(executor, "marker_sha256", lambda *_: "e" * 64)
     monkeypatch.setattr(provider_service, "verify_soomfon_owner_source", lambda *_: {})
 
@@ -780,6 +849,83 @@ def test_parent_verifies_exact_full_provider_evidence_envelope(
     os.close(journal_fd)
 
 
+def test_parent_verifies_one_journal_prefix_before_accepting_provider_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from dspx.services import soomfon_evaluation_provider as provider_service
+
+    behavior = _effect_behavior(
+        "remote_http_error_final", dispatch_count=1, status_code=400
+    )
+    provider = cast(dict[str, Any], behavior["provider"])
+    full_evidence = cast(dict[str, Any], provider["effect_evidence"])
+    raw, raw_fd = custody.ensure_private_tree(tmp_path / "raw")
+    os.close(raw_fd)
+    (raw / "runtime").mkdir(mode=0o700)
+    _, journal_fd = custody.ensure_private_tree(tmp_path / "journals")
+    monkeypatch.setattr(executor, "_run_child", lambda **_: (0, 4))
+    monkeypatch.setattr(executor, "fsync_private_tree", lambda *_: None)
+    monkeypatch.setattr(
+        executor, "private_runtime_tree_sha256_path", lambda _: "d" * 64
+    )
+    monkeypatch.setattr(
+        executor,
+        "load_validated_program_runtime_episode_bundle",
+        lambda **_: SimpleNamespace(
+            runtime_episode={"execution_status": "error"},
+            behavior_results=behavior,
+            runtime_episode_sha256="a" * 64,
+            runtime_receipt_sha256="c" * 64,
+            behavior_results_sha256="b" * 64,
+        ),
+    )
+    provider_state, provider_details = classify_provider_disposition(behavior)
+    monkeypatch.setattr(
+        executor,
+        "runtime_evidence_hashes",
+        lambda *_: {
+            "runtime_episode_sha256": "a" * 64,
+            "runtime_tree_sha256": "d" * 64,
+            "runtime_receipt_sha256": "c" * 64,
+            "behavior_results_sha256": "b" * 64,
+            "provider_state": provider_state,
+            "provider": provider_details,
+        },
+    )
+    monkeypatch.setattr(executor, "marker_sha256", lambda *_: "e" * 64)
+    monkeypatch.setattr(provider_service, "verify_soomfon_owner_source", lambda *_: {})
+    received: list[object] = []
+    monkeypatch.setattr(
+        provider_service,
+        "verify_retained_soomfon_journals",
+        lambda _parent, evidence, **_kwargs: received.append(evidence),
+    )
+
+    state, details = executor._evaluate_case(
+        case={"manifest_payload": {}, "manifest_sha256": "c" * 64, "mode": "simple"},
+        staged_manifest=tmp_path / "manifest.json",
+        raw_root=raw,
+        child_environment={},
+        contract_sha256=CONTRACT_SHA256,
+        marker_fd=-1,
+        ledger_fd=-1,
+        lock_fd=-1,
+        provider_journal_fd=journal_fd,
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
+        owner_source_root=REPO_ROOT,
+        authorization_path=Path("fixture-authorization.json"),
+        repo_root=REPO_ROOT,
+    )
+    os.close(journal_fd)
+    assert state == "failed_provider_error"
+    assert received == [full_evidence]
+    assert details["provider"] == provider_details
+    assert "response_sha256" not in details
+    assert "response_length" not in details
+
+
 def test_suite_consumes_all_cases_once_without_exposing_responses(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -891,6 +1037,59 @@ def test_suite_stops_after_first_non_success(
     assert isinstance(case_results[0], dict)
     case_result = cast(dict[str, object], case_results[0])
     assert case_result["state"] == "effect_indeterminate"
+
+
+def test_suite_durably_stops_on_verified_provider_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    def fake_evaluate_case(**kwargs: Any) -> tuple[str, dict[str, object]]:
+        case = kwargs["case"]
+        calls.append(str(case["mode"]))
+        runtime_sha256, tree_sha256, behavior_sha256, receipt_sha256 = (
+            _write_mock_runtime_evidence(
+                kwargs["raw_root"],
+                disposition="remote_http_error_final",
+                dispatch_count=1,
+            )
+        )
+        state, provider = classify_provider_disposition(
+            _effect_behavior(
+                "remote_http_error_final",
+                dispatch_count=1,
+                mode=str(case["mode"]),
+                status_code=400,
+            )
+        )
+        assert state == "failed_provider_error"
+        return state, {
+            "latency_ms": 1,
+            "runtime_episode_sha256": runtime_sha256,
+            "runtime_tree_sha256": tree_sha256,
+            "runtime_receipt_sha256": receipt_sha256,
+            "behavior_results_sha256": behavior_sha256,
+            "provider": provider,
+        }
+
+    monkeypatch.setattr(executor, "_evaluate_case", fake_evaluate_case)
+    state_root = tmp_path / "state"
+    _patch_roots(monkeypatch, state_root)
+    payload = _execute_suite(
+        expected_contract_sha256=CONTRACT_SHA256,
+        environment=REQUIRED_ENVIRONMENT,
+    )
+    assert calls == ["simple"]
+    assert payload["state"] == "stopped_non_success"
+    result = cast(list[dict[str, object]], payload["case_results"])[0]
+    assert result["state"] == "failed_provider_error"
+    assert "response_sha256" not in result
+    marker = next((state_root / CONTRACT_SHA256 / "ledger").glob("*.jsonl"))
+    records = [json.loads(line) for line in marker.read_text().splitlines()]
+    assert [record["state"] for record in records] == [
+        "attempted_outcome_unknown",
+        "failed_provider_error",
+    ]
 
 
 def test_cli_exposes_no_bypass_options() -> None:

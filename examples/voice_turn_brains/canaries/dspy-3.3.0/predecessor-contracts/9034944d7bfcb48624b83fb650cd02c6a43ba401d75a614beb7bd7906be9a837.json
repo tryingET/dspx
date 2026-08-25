@@ -1,39 +1,32 @@
 {
-  "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v4",
-  "task_id": 5071,
-  "status": "luna_xhigh_remote_error_truth_repaired_execution_unauthorized_pending_review",
-  "purpose": "Archive the AK-5061 contract byte-for-byte, preserve the consumed AK-5065 namespace as effect_indeterminate, bind the exact AK-5070 owner successor, and separate exact receipt integrity, provider terminal truth, and suite progression; execution remains unauthorized.",
+  "schema_version": "soomfon-dspy-3.3-originals-evaluation-contract-v3",
+  "task_id": 5061,
+  "status": "luna_xhigh_local_cost_map_network_sealed_execution_unauthorized_pending_review",
+  "purpose": "Archive the AK-5056 successor byte-for-byte, preserve consumed AK-5045 evidence, force LiteLLM to its bundled local model-cost map before owner import, and retain closed fd-native verification; execution remains unauthorized.",
   "predecessor_contract": {
-    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837.json",
-    "raw_sha256": "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837",
-    "canonical_sha256": "9f97499f289f377d1d29bd0573c422dba933797438bcef24fe845092730bb826",
-    "task_id": 5061,
-    "status": "luna_xhigh_local_cost_map_network_sealed_execution_unauthorized_pending_review",
-    "execution_task_id": 5065,
-    "execution_disposition": "effect_indeterminate",
-    "terminal_reason": "attributable_completion_required",
-    "attempted_modes": [
-      "simple"
-    ],
-    "unattempted_modes": [
-      "elaborate",
-      "researched",
-      "deep-research",
-      "socratic",
-      "bloom"
-    ],
-    "provider_transports": "at_most_one",
+    "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json",
+    "raw_sha256": "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97",
+    "canonical_sha256": "956d3ecaba0a3bb43425ecad7cb1297d6b01b70d08bef2ffe9a4173c6ba45915",
+    "task_id": 5056,
+    "status": "luna_xhigh_closed_diagnostics_fd_cursor_repair_execution_unauthorized_pending_review",
+    "execution_task_id": 5060,
+    "execution_disposition": "pre_effect_review_rejected",
+    "terminal_reason": "unbudgeted_litellm_model_cost_map_network_attempt_before_receipt_custody",
+    "provider_transports": 0,
+    "credential_accesses": 0,
+    "raw_response_reads": 0,
+    "state_created": false,
     "retry_allowed": false,
     "ledger_namespace_reuse_allowed": false,
     "earlier_predecessor": {
-      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json",
-      "raw_sha256": "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97",
-      "terminal_disposition": null,
+      "archive_path": "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json",
+      "raw_sha256": "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae",
+      "terminal_disposition": "effect_indeterminate",
       "retry_allowed": false
     }
   },
   "source_state": {
-    "dspx_base_commit": "adbbe39759f0c1ba87fe62b343fd74d4d5389efb",
+    "dspx_base_commit": "03b65ec3e3f638815a7e5d98b9e68df038503d08",
     "workstation_reconciliation_commit": "65c594a36acc357788b138bea6574163c69fe7b5",
     "local_ai_control_plane_commit": "ec8bcfb4a253b1b5bc5d340a310694e1a98bab3b",
     "installed_binding_config": "examples/voice_turn_brains/ai-control-brains.json",
@@ -42,15 +35,15 @@
     "shadow_binding_only": true
   },
   "provider_owner_candidate": {
-    "owner_task_id": 5070,
+    "owner_task_id": 4991,
     "owner": "tryinget-dspy-lm-auth",
-    "status": "done_source_candidate",
-    "branch": "task/ak-5070-http-status-receipt",
-    "commit": "4bdc3bb2e341b8ebff088828c8604ff8051b5d49",
-    "tree": "816c77372e5e9becd5ecc5b95d336625ceb56815",
+    "status": "done_provider_candidate",
+    "branch": "task/ak-4991-soomfon-auth-candidate",
+    "commit": "7c51dda703f6a5d0a95aba13734294a82ea4314f",
+    "tree": "c303dd657146da90404618adead417e82e2dc2c0",
     "version": "0.1.6.dev0",
-    "wheel_sha256": null,
-    "installed_payload_sha256": null,
+    "wheel_sha256": "e1b8acaa354df4640422512a779b9486d5c4caceeb9c9ab05c4a07f1b1eb3512",
+    "installed_payload_sha256": "8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2",
     "lock_sha256": "0b18a1759b2507967ed8f2f4918c436e2679e406aafb061620a11954b1550c7c",
     "module_sha256": {
       "package_init": "1a4406dcf9b65ce3eb937ee65541cff3cb10ef77fa5c0f24c1e94755aeafd2ab",
@@ -58,9 +51,9 @@
       "lm": "678ee949f285847f92e246a1cc7042de4486c93617c5f24ad472defb65dec6c7",
       "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
       "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
-      "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+      "outcome_receipt": "cd46faf242a2696fe4322aaee961e2b383d944f663a08959dbcb7a143e282899",
       "outcome_receipt_runtime": "f26c675845b3f234c24a868d4a7d6cd13713b26d1ba992a6d28ff2a3b7327293",
-      "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+      "outcome_receipt_state": "79d9262a3f40690a3fa4fe49721bc49d984f842fd1681039b92e6629a9adc1fa",
       "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a"
     },
     "dependency_identity": {
@@ -76,14 +69,14 @@
         "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
         "payload_count": 2532,
         "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
-        "record_sha256": "1830d79944869e8916526cf9fbe9adbc429dfaefbb1bf189d26caebbfed84ac6"
+        "record_sha256": "ecd60ab285a5c0afe8353e1e2838f7560aa525715fb6747a5e0f485f9d56c71d"
       },
       "httpx": {
         "version": "0.28.1",
         "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
         "payload_count": 24,
         "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
-        "record_sha256": "36876854dd991fdbea093ead83f852baf1d9e777126dac8e5d6b722ce0753e92"
+        "record_sha256": "ad5388cd6ffec977fd4a0c61f550a6a3cbf3ef22cd4098fe01be6101b19194f0"
       },
       "httpcore": {
         "version": "1.0.9",
@@ -138,24 +131,21 @@
     "implementation_ready": true,
     "execution_authorized": false,
     "implementation_requires_later_exact_ak_task": true,
-    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5071",
+    "expected_contract_sha256_source": "caller_argument_reconciled_with_canonical_ak_task_contract_evidence_and_done_task_5061",
     "expected_contract_sha256_argument_required": true,
     "derive_expected_contract_sha256_from_contract_forbidden": true,
     "execution_authorization_schema": "soomfon-execution-authorization-v3",
-    "canonical_authorization_evidence_schema": "soomfon-ak5071-authorization-evidence-v4",
-    "live_completion_kind": "soomfon_ak5071_ak5070_one_suite_execution_authorization",
     "execution_authorization_artifact_required": true,
     "execution_authorization_sha256_argument_required": true,
     "owner_source_root_argument_required": true,
     "authorization_required_fields": [
       "later_exact_claimed_task_id_with_at_least_1800_seconds_lease",
-      "exact_repo_and_done_task_5071_dependency",
-      "exact_done_ak_5070_owner_task_and_artifact_identity",
-      "exact_live_completion_kind_and_guardrails_binding_ak_5070",
+      "exact_repo_and_done_task_5061_dependency",
+      "exact_live_completion_kind_and_guardrails",
       "current_raw_contract_sha256",
       "reviewed_dspx_source_commit_tree_or_installed_payload_and_loaded_origins",
       "no_security_critical_dspx_or_owner_bytecode_cache",
-      "exact_ak_5070_owner_source_commit_tree_lock_modules_and_dependencies",
+      "exact_owner_source_wheel_payload",
       "attached_passing_review_and_test_evidence_with_distinct_dispatch_references_and_verdicts",
       "attached_passing_explicit_operator_one_suite_request_reference",
       "one_suite_effect_budget",
@@ -169,7 +159,6 @@
       "validate_exact_contract_local_projection_and_canonical_ak_before_state",
       "execute_only_exact_digest_pinned_agent_kernel_binary_through_verified_open_fd",
       "bind_loaded_dspx_origins_and_source_or_record_bytes_in_parent_and_child",
-      "protect_and_hash_bind_all_soomfon_v2_receipt_modules",
       "reject_security_critical_dspx_or_owner_pycache_pyc_or_existing_module_cached_artifact",
       "require_parent_dont_write_bytecode_and_child_B_plus_PYTHONDONTWRITEBYTECODE",
       "force_litellm_bundled_local_model_cost_map_before_owner_import",
@@ -185,18 +174,14 @@
       "provider_free_parent_child_parent_eof_cursor_dogfood_required",
       "reject_third_duplicate_out_of_order_or_async_call_before_transport",
       "stop_on_first_non_success",
-      "retain_no_prompt_response_token_header_credential_raw_ak_details_or_raw_diagnostic_in_provider_evidence",
-      "preserve_verified_remote_http_error_final_with_exact_status_without_authorizing_progression",
-      "verify_retained_accepted_closed_terminal_prefix_before_classification",
-      "bind_all_runtime_hashes_and_exact_provider_projection_for_non_success_terminal"
+      "retain_no_prompt_response_token_header_credential_raw_ak_details_or_raw_diagnostic_in_provider_evidence"
     ],
     "known_blockers": [
-      "task_5071_contract_is_execution_unauthorized_and_ak_5065_namespace_is_consumed_indeterminate",
+      "task_5061_contract_is_execution_unauthorized_and_archived_44a28a7f_predecessor_had_zero_provider_effect",
       "no_later_exact_claimed_ak_execution_task_with_complete_canonical_evidence_exists",
-      "one_provider_transport_diagnostic_is_not_implemented_by_the_fixed_two_call_case_architecture",
       "final_hardened_implementation_requires_independent_rereview",
-      "execution_requires_clean_no_bytecode_reviewed_source_environment",
-      "no_live_successful_six_case_result_has_been_observed"
+      "execution_requires_clean_no_bytecode_reviewed_source_or_installed_payload_environment",
+      "no_live_six_case_result_has_been_observed"
     ],
     "canonical_ak_runtime": {
       "path": "/home/tryinget/.local/libexec/agent-kernel/c6297eccf67a3762ef01269f67e87eaa8828f127/ak-bin",
@@ -212,7 +197,7 @@
       "before_each_logical_call_minimum_seconds": 90,
       "call_minimum_basis": "provider_timeout_60_plus_30_seconds"
     },
-    "task_5071_can_authorize_execution": false
+    "task_5061_can_authorize_execution": false
   },
   "effect_budget": {
     "fixed_case_order": [
@@ -234,8 +219,7 @@
     "stop_on_first_non_success": true,
     "effect_indeterminate_is_terminal": true,
     "resume_allowed": false,
-    "fallback_allowed": false,
-    "failed_provider_error_is_terminal": true
+    "fallback_allowed": false
   },
   "attempt_ledger": {
     "implementation_required": true,
@@ -253,7 +237,6 @@
     "pre_effect_state": "attempted_outcome_unknown",
     "terminal_states": [
       "succeeded",
-      "failed_provider_error",
       "failed_no_effect_proved",
       "effect_indeterminate"
     ],
@@ -266,27 +249,14 @@
     "predecessor_namespaces_immutable": true
   },
   "provider_receipt_custody": {
-    "module_stack": {
-      "contract": "dspx.services.soomfon_provider_outcome_receipt_contract",
-      "identity": "dspx.services.soomfon_provider_outcome_receipt_identity",
-      "journal": "dspx.services.soomfon_provider_outcome_receipt_journal",
-      "journal_fd": "dspx.services.soomfon_provider_outcome_receipt_journal_fd",
-      "reducer": "dspx.services.soomfon_provider_outcome_receipt_reducer"
-    },
-    "event_schema": "AK-5070_eight_field_exact_status_v2",
-    "frozen_v11_parser_or_identity_used": false,
-    "stable_v1_primitives_reused": [
-      "ReceiptReservation",
-      "canonical_json",
-      "closed_vocabulary_and_scalar_validation"
-    ],
     "consumer_primitives": [
       "ReceiptReservation",
       "ReceiptJournal",
       "verify_receipt_chain",
       "reduce_verified_chain"
     ],
-    "expected_owner_source": "AK-5070_exact_source_candidate",
+    "existing_accepted_v11_owner_identity_unchanged": true,
+    "expected_owner_source": "AK-4991_exact_candidate",
     "verify_owner_source_before_marker": true,
     "verify_loaded_receipt_types_before_call": true,
     "revalidate_before_each_call_and_progression": true,
@@ -315,22 +285,14 @@
       "traceback_allowed": false,
       "paths_allowed": false,
       "raw_diagnostic_allowed": false
-    },
-    "accepted_owner_identity": "AK-5070_exact_source_candidate",
-    "accepted_evidence_terminals": [
-      "provider_response_completed",
-      "remote_http_error_final"
-    ],
-    "progression_authorized_terminal": "provider_response_completed",
-    "provider_error_terminal_state": "failed_provider_error",
-    "status_evidence": "paired_exact_integer_100_through_599_bound_to_status_class_and_journal_chain",
-    "retained_verification_claim_scope": "every_accepted_closed_terminal_including_one_journal_call_one_failure_prefix"
+    }
   },
   "retention": {
     "predeclared_text_input_committed": true,
     "captured_microphone_transcript_committed": false,
     "predeclared_persona_intent_committed": true,
     "observed_response_committed": false,
+    "response_sha256_required": true,
     "manifest_sha256_required": true,
     "runtime_episode_required": true,
     "receipt_integrity_required": true,
@@ -347,9 +309,7 @@
       "delete_after_scoring_and_independent_review": true,
       "crash_handling": "quarantine_private_state_for_owner_reconciliation_no_automatic_cleanup_or_rerun",
       "post_deletion_score_reproduction": "not_available_human_observation_only"
-    },
-    "response_sha256_required_for_success": true,
-    "response_sha256_required_for_provider_error": false
+    }
   },
   "rubric": {
     "classification": "single_predeclared_observation_not_representative_quality",
@@ -504,22 +464,6 @@
     "activation": false,
     "release": false,
     "publication": false,
-    "backend_locality": "external_provider_route_not_local_backend_claim",
-    "one_provider_transport_canary": false
-  },
-  "diagnostic_canary": {
-    "architecture_feasibility": "not_implemented_in_this_successor",
-    "one_provider_transport_claim": false,
-    "execution_authorized": false,
-    "standard_six_case_suite_widened": false,
-    "reason": "fixed_cases_require_two_ordered_logical_calls_and_current_authorization_custody_is_one_suite_not_one_transport",
-    "bounded_follow_up_requires": [
-      "separate_contract_schema_and_digest_namespace",
-      "separate_authorization_completion_kind_and_effect_budget_of_exactly_one",
-      "dedicated_single_signature_candidate_or_diagnostic_adapter_path",
-      "pre_effect_marker_and_one_unique_receipt_reservation",
-      "identical_owner_authority_runtime_hash_and_retained_journal_custody",
-      "no_fallback_retry_resume_or_selective_rerun"
-    ]
+    "backend_locality": "external_provider_route_not_local_backend_claim"
   }
 }

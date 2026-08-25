@@ -13,8 +13,11 @@ from typing import Any, cast
 
 import pytest
 
-from dspx.services.provider_outcome_receipt_contract import EVENT_FIELDS
-from dspx.services.provider_outcome_receipt_identity import (
+from dspx.services.provider_outcome_receipt_contract import (
+    EVENT_FIELDS as V11_EVENT_FIELDS,
+)
+from dspx.services.soomfon_provider_outcome_receipt_contract import EVENT_FIELDS_V2
+from dspx.services.soomfon_provider_outcome_receipt_identity import (
     VerifiedOwnerArtifact,
     _ARTIFACT_TOKEN,
     _fixture_owner_artifact,
@@ -34,13 +37,25 @@ class _Event:
     kind: str
     gate_ordinal: int | None = None
     status_class: int | None = None
+    status_code: int | None = None
     error_class: str | None = None
     protocol_event: str | None = None
     response_id_sha256: str | None = None
     observed_model: str | None = None
 
 
-assert tuple(_Event.__dataclass_fields__) == EVENT_FIELDS
+assert tuple(_Event.__dataclass_fields__) == EVENT_FIELDS_V2
+
+
+@dataclass(frozen=True, slots=True)
+class _LegacyEvent:
+    kind: str
+    gate_ordinal: int | None = None
+    status_class: int | None = None
+    error_class: str | None = None
+    protocol_event: str | None = None
+    response_id_sha256: str | None = None
+    observed_model: str | None = None
 
 
 @dataclass(slots=True)
@@ -80,6 +95,16 @@ def _artifact() -> VerifiedOwnerArtifact:
     )
 
 
+def _legacy_artifact() -> VerifiedOwnerArtifact:
+    current = _artifact()
+    return _fixture_owner_artifact(
+        source_identity=current.source_identity,
+        dependency_identity=current.dependency_identity,
+        event_type=_LegacyEvent,
+        receipt_type=_Receipt,
+    )
+
+
 def _accepted_artifact() -> VerifiedOwnerArtifact:
     fixture = _artifact()
     return VerifiedOwnerArtifact(
@@ -91,6 +116,65 @@ def _accepted_artifact() -> VerifiedOwnerArtifact:
         accepted=True,
         token=_ARTIFACT_TOKEN,
     )
+
+
+def test_frozen_v11_receipt_blobs_and_soomfon_v2_routing_are_disjoint() -> None:
+    from dspx.services import soomfon_evaluation_provider as provider
+    from dspx.services.program_oracle_semantic_gate4_contract_v11 import (
+        CONSUMER_MODULE_HASHES,
+    )
+
+    assert V11_EVENT_FIELDS == (
+        "kind",
+        "gate_ordinal",
+        "status_class",
+        "error_class",
+        "protocol_event",
+        "response_id_sha256",
+        "observed_model",
+    )
+    assert EVENT_FIELDS_V2 == (
+        "kind",
+        "gate_ordinal",
+        "status_class",
+        "status_code",
+        "error_class",
+        "protocol_event",
+        "response_id_sha256",
+        "observed_model",
+    )
+    service_root = (
+        Path(__file__).resolve().parents[1] / "packages/dspx-core/src/dspx/services"
+    )
+    base = "adbbe39759f0c1ba87fe62b343fd74d4d5389efb"
+    for name in (
+        "provider_outcome_receipt_contract.py",
+        "provider_outcome_receipt_identity.py",
+        "provider_outcome_receipt_reducer.py",
+    ):
+        current = (service_root / name).read_bytes()
+        blob = subprocess.run(
+            ["git", "show", f"{base}:packages/dspx-core/src/dspx/services/{name}"],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            check=True,
+        ).stdout
+        assert current == blob
+        assert hashlib.sha256(current).hexdigest() == CONSUMER_MODULE_HASHES[name]
+    assert provider.ReceiptJournal.__module__ == (
+        "dspx.services.soomfon_provider_outcome_receipt_journal"
+    )
+    assert provider.verify_receipt_chain.__module__ == (
+        "dspx.services.soomfon_provider_outcome_receipt_reducer"
+    )
+    assert set(provider.SOOMFON_V2_RECEIPT_MODULE_SHA256) == {
+        "soomfon_provider_outcome_receipt_contract",
+        "soomfon_provider_outcome_receipt_identity",
+        "soomfon_provider_outcome_receipt_journal",
+        "soomfon_provider_outcome_receipt_journal_fd",
+        "soomfon_provider_outcome_receipt_reducer",
+    }
+    provider.verify_soomfon_v2_receipt_modules()
 
 
 def _private(path: Path) -> Path:
@@ -106,7 +190,9 @@ def _completed(receipt: _Receipt, *, model: str = "gpt-5.6-luna") -> None:
         _Event("transport_gate_entered", gate_ordinal=1),
         _Event("transport_effect_pending", gate_ordinal=1),
         _Event("transport_entered", gate_ordinal=1),
-        _Event("http_response_observed", gate_ordinal=1, status_class=2),
+        _Event(
+            "http_response_observed", gate_ordinal=1, status_class=2, status_code=200
+        ),
         _Event(
             "parsed_protocol_event_observed",
             protocol_event="response.completed",
@@ -115,8 +201,32 @@ def _completed(receipt: _Receipt, *, model: str = "gpt-5.6-luna") -> None:
         _Event(
             "provider_response_completed",
             status_class=2,
+            status_code=200,
             response_id_sha256=response_id,
             observed_model=model,
+        ),
+    ):
+        receipt.sink(event)
+
+
+def _remote_error(receipt: _Receipt, *, status_code: int = 400) -> None:
+    status_class = status_code // 100
+    for event in (
+        _Event("wrapper_request_accepted"),
+        _Event("transport_gate_entered", gate_ordinal=1),
+        _Event("transport_effect_pending", gate_ordinal=1),
+        _Event("transport_entered", gate_ordinal=1),
+        _Event(
+            "http_response_observed",
+            gate_ordinal=1,
+            status_class=status_class,
+            status_code=status_code,
+        ),
+        _Event(
+            "remote_http_error_final",
+            status_class=status_class,
+            status_code=status_code,
+            error_class="remote_http_status",
         ),
     ):
         receipt.sink(event)
@@ -132,6 +242,53 @@ def _custodian(tmp_path: Path) -> SoomfonCallCustodian:
         ledger_sha256="b" * 64,
         authority_revalidator=lambda: None,
     )
+
+
+def test_soomfon_rejects_legacy_status_class_only_journal_before_progression(
+    tmp_path: Path,
+) -> None:
+    custodian = SoomfonCallCustodian(
+        journal_parent=_private(tmp_path / "legacy-journals"),
+        artifact=_legacy_artifact(),
+        execution_task_id=6000,
+        contract_sha256="a" * 64,
+        mode="simple",
+        ledger_sha256="b" * 64,
+        authority_revalidator=lambda: None,
+    )
+
+    def invoke(receipt: object) -> str:
+        typed = cast(_Receipt, receipt)
+        for event in (
+            _LegacyEvent("wrapper_request_accepted"),
+            _LegacyEvent("transport_gate_entered", gate_ordinal=1),
+            _LegacyEvent("transport_effect_pending", gate_ordinal=1),
+            _LegacyEvent("transport_entered", gate_ordinal=1),
+            _LegacyEvent("http_response_observed", gate_ordinal=1, status_class=4),
+            _LegacyEvent(
+                "remote_http_error_final",
+                status_class=4,
+                error_class="remote_http_status",
+            ),
+        ):
+            typed.sink(event)
+        raise RuntimeError("fixed local fixture failure")
+
+    with pytest.raises(SoomfonProviderError) as raised:
+        custodian.invoke(
+            signature_name="DefinePersona",
+            semantic_request_sha256="1" * 64,
+            invoke=invoke,
+        )
+    assert raised.value.reason == "receipt_chain_rejected"
+    assert custodian.evidence()["call_records"][0]["reason"] == "journal_poisoned"
+    with pytest.raises(SoomfonProviderError) as blocked:
+        custodian.invoke(
+            signature_name="SimpleAnswer",
+            semantic_request_sha256="2" * 64,
+            invoke=lambda _: "forbidden",
+        )
+    assert blocked.value.reason == "logical_call_order_drift"
 
 
 def test_exactly_two_ordered_calls_create_two_verified_journals(
@@ -167,6 +324,50 @@ def test_exactly_two_ordered_calls_create_two_verified_journals(
     )
     assert len(list((tmp_path / "journals").iterdir())) == 2
     assert "private raw response" not in json.dumps(evidence)
+
+
+def test_exact_4xx_terminal_is_accepted_evidence_and_blocks_progression(
+    tmp_path: Path,
+) -> None:
+    custodian = _custodian(tmp_path)
+    second_invocations = 0
+
+    with pytest.raises(SoomfonProviderError) as exc_info:
+        custodian.invoke(
+            signature_name="DefinePersona",
+            semantic_request_sha256="1" * 64,
+            invoke=lambda receipt: (
+                _remote_error(cast(_Receipt, receipt), status_code=400),
+                "must-not-progress",
+            )[1],
+        )
+    assert exc_info.value.reason == "provider_remote_http_error"
+    record = cast(list[dict[str, object]], custodian.evidence()["call_records"])[0]
+    assert record == {
+        **record,
+        "provider_outcome_receipt": "accepted",
+        "request_acknowledged": True,
+        "external_effect_possible": True,
+        "producer_terminal": "remote_http_error_final",
+        "status_class": 4,
+        "status_code": 400,
+        "empirical_disposition": "error",
+        "reason": "remote_http_error_final",
+    }
+
+    def forbidden_second(_: object) -> str:
+        nonlocal second_invocations
+        second_invocations += 1
+        return "forbidden"
+
+    with pytest.raises(SoomfonProviderError):
+        custodian.invoke(
+            signature_name="AnswerSimple",
+            semantic_request_sha256="2" * 64,
+            invoke=forbidden_second,
+        )
+    assert second_invocations == 0
+    assert len(list((tmp_path / "journals").iterdir())) == 1
 
 
 @pytest.mark.parametrize("signature", ["AnswerSimple", "Unknown", "DefinePersona"])
@@ -469,6 +670,58 @@ def test_retained_journals_rebind_current_marker_and_reject_stale_marker(
         )
 
 
+def test_retained_one_journal_provider_error_prefix_is_fully_bound(
+    tmp_path: Path,
+) -> None:
+    parent = _private(tmp_path / "journals")
+    marker = tmp_path / "marker.jsonl"
+    marker.write_bytes(b'{"state":"attempted_outcome_unknown"}\n')
+    marker.chmod(0o600)
+    marker_fd = os.open(marker, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        marker_digest = marker_sha256(marker_fd)
+    finally:
+        os.close(marker_fd)
+    custodian = SoomfonCallCustodian(
+        journal_parent=parent,
+        artifact=_accepted_artifact(),
+        execution_task_id=6000,
+        contract_sha256="a" * 64,
+        mode="simple",
+        ledger_sha256=marker_digest,
+        authority_revalidator=lambda: None,
+    )
+    with pytest.raises(SoomfonProviderError):
+        custodian.invoke(
+            signature_name="DefinePersona",
+            semantic_request_sha256="1" * 64,
+            invoke=lambda receipt: (
+                _remote_error(cast(_Receipt, receipt), status_code=400),
+                "private",
+            )[1],
+        )
+    evidence = custodian.evidence()
+    verify_retained_soomfon_journals(
+        parent,
+        evidence,
+        mode="simple",
+        execution_task_id=6000,
+        contract_sha256="a" * 64,
+        expected_marker_sha256=marker_digest,
+    )
+    forged = json.loads(json.dumps(evidence))
+    forged["call_records"][0]["status_code"] = 401
+    with pytest.raises(SoomfonProviderError):
+        verify_retained_soomfon_journals(
+            parent,
+            forged,
+            mode="simple",
+            execution_task_id=6000,
+            contract_sha256="a" * 64,
+            expected_marker_sha256=marker_digest,
+        )
+
+
 def test_soomfon_json_adapter_performs_one_lm_invocation_without_fallback(
     tmp_path: Path,
 ) -> None:
@@ -695,17 +948,17 @@ def test_exact_owner_lm_accepts_only_real_dspy_default_kwargs() -> None:
             _assert_exact_lm(cast(Any, owner), drift)
 
 
-def test_exact_ak4991_owner_venv_passes_loaded_boundary_without_auth_access(
+def test_exact_ak5070_owner_venv_passes_loaded_boundary_without_auth_access(
     tmp_path: Path,
 ) -> None:
     import subprocess
 
     owner_root = Path(
-        "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-ak4991-soomfon-auth"
+        "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-ak5070-http-status"
     )
     python = owner_root / ".venv/bin/python"
     if not python.is_file():
-        pytest.skip("exact AK-4991 proof venv is unavailable")
+        pytest.skip("exact AK-5070 proof venv is unavailable")
     fake_home = _private(tmp_path / "empty-home")
     clean_owner_root = tmp_path / "clean-owner-source"
     clone = subprocess.run(

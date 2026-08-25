@@ -758,10 +758,10 @@ def test_exact_accepted_owner_event_api_source_and_dependency_fixture(tmp_path):
             OutcomeReceiptEvent,
             ProviderOutcomeReceipt,
         )
-        from dspx.services.provider_outcome_receipt_contract import ReceiptReservation
-        from dspx.services.provider_outcome_receipt_identity import verify_owner_artifact
-        from dspx.services.provider_outcome_receipt_journal import ReceiptJournal
-        from dspx.services.provider_outcome_receipt_reducer import reduce_journal
+        from dspx.services.soomfon_provider_outcome_receipt_contract import ReceiptReservation
+        from dspx.services.soomfon_provider_outcome_receipt_identity import verify_owner_artifact
+        from dspx.services.soomfon_provider_outcome_receipt_journal import ReceiptJournal
+        from dspx.services.soomfon_provider_outcome_receipt_reducer import reduce_journal
 
         root = Path(sys.argv[1]).resolve(strict=True)
         out = Path(sys.argv[2])
@@ -803,7 +803,12 @@ def test_exact_accepted_owner_event_api_source_and_dependency_fixture(tmp_path):
             OutcomeReceiptEvent(kind="transport_gate_entered", gate_ordinal=1),
             OutcomeReceiptEvent(kind="transport_effect_pending", gate_ordinal=1),
             OutcomeReceiptEvent(kind="transport_entered", gate_ordinal=1),
-            OutcomeReceiptEvent(kind="http_response_observed", gate_ordinal=1, status_class=2),
+            OutcomeReceiptEvent(
+                kind="http_response_observed",
+                gate_ordinal=1,
+                status_class=2,
+                status_code=200,
+            ),
             OutcomeReceiptEvent(
                 kind="parsed_protocol_event_observed",
                 protocol_event="response.completed",
@@ -812,6 +817,7 @@ def test_exact_accepted_owner_event_api_source_and_dependency_fixture(tmp_path):
             OutcomeReceiptEvent(
                 kind="provider_response_completed",
                 status_class=2,
+                status_code=200,
                 response_id_sha256="e" * 64,
                 observed_model="gpt-5.6-sol",
             ),
@@ -864,6 +870,8 @@ def test_exact_accepted_owner_event_api_source_and_dependency_fixture(tmp_path):
     projection = result["projection"]
     assert projection["provider_outcome_receipt"] == "accepted"
     assert projection["request_acknowledged"] is True
+    assert projection["status_class"] == 2
+    assert projection["status_code"] == 200
     assert projection["empirical_disposition"] == "not_evaluated"
     assert result["receipt_bound"] is True
     assert result["second_issue_rejected"] is True

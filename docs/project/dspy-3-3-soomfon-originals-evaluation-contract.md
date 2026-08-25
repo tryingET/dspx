@@ -1,5 +1,5 @@
 ---
-summary: "AK-5061 seals LiteLLM cost-map network access; pending review and execution unauthorized."
+summary: "AK-5071 separates verified provider errors from progression; pending review and execution unauthorized."
 read_when:
   - "Before considering any model-backed evaluation of the six fresh DSPy 3.3 voice originals."
   - "Before changing Soomfon evaluation custody, authorization, provider receipts, or routing."
@@ -10,27 +10,48 @@ type: "reference"
 
 ## Disposition
 
-Task AK-5061 preserves the AK-5056 fd-native retained-journal and closed-diagnostic repair and
-forces LiteLLM to use its bundled local model-cost map before the owner package is imported.
-Provider-free review of attempted execution task #5060 found that owner import could otherwise
-make an unbudgeted remote cost-map request before per-call AK reconciliation and receipt custody.
-Task #5060 stopped before state creation with zero provider transports, credential accesses, or
-raw-response reads. The fresh schema-v3 contract remains **pending independent review, execution unauthorized**.
-No task 5061 artifact authorizes a provider/model call, OAuth flow, credential
-inspection, physical key, microphone, TTS, routing, promotion, activation, release, or
-publication. The inherited EOF-cursor dogfood, fd/inode custody, and closed non-sensitive
-verification diagnostics remain required.
+Task AK-5071 archives the AK-5061 contract byte-for-byte, integrates the exact AK-5070
+provider-owner source successor, and repairs the consumer classification that collapsed a valid
+closed HTTP error into indeterminate custody. The receipt integrity, provider terminal truth,
+empirical disposition, and suite progression axes are now separate:
+
+- a structurally valid exact-owner journal is accepted receipt evidence;
+- `remote_http_error_final` preserves `request_acknowledged=true`, exact paired status class and
+  integer status code, `external_effect_possible=true`, and empirical disposition `error`;
+- that accepted provider error becomes durable state `failed_provider_error`;
+- only `provider_response_completed` can authorize the next logical call or case; and
+- missing, open, malformed, poisoned, identity-drifted, or retained-custody-invalid evidence
+  remains terminal `effect_indeterminate`.
+
+The fresh schema-v4 contract remains **pending independent review, execution unauthorized**.
+No AK-5071 artifact authorizes a provider/model call, one-provider-transport diagnostic canary,
+OAuth flow, credential inspection, physical key, microphone, TTS, routing, promotion,
+activation, release, or publication. The inherited EOF-cursor dogfood, fd/inode custody, local
+LiteLLM cost-map seal, zero retry/fallback posture, and closed non-sensitive diagnostics remain
+required.
 
 The active machine contract is:
 
 `examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json`
 
 Its current raw SHA-256 is
-`9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837`.
+`8bc157034ade33e34df33bd059910b24ae7debb06e9d4fb6aadf348ca3760555`.
 The digest must be supplied out-of-band; deriving the trust anchor from contract bytes is
 forbidden.
 
 ## Predecessors and immutable history
+
+The immediate AK-5061 contract is archived byte-for-byte at:
+
+`examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837.json`
+
+Its raw SHA-256 remains
+`9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837`.
+Execution task #5065 consumed only `simple` and stopped on logical call 1. The then-current
+consumer reported `attributable_completion_required`; the AK result therefore remains
+`effect_indeterminate`, with at most one provider transport, and cannot be retroactively
+relabelled from the new source-only owner schema. No retry, resume, selective rerun, namespace
+reuse, or authority transfer to the five unattempted modes is allowed.
 
 The immediate AK-5056 successor is archived byte-for-byte at:
 
@@ -139,20 +160,23 @@ artifacts must remain unchanged.
 
 ## Exact provider-owner candidate
 
-The contract binds provider-owner task #4991 result:
+The contract binds provider-owner task #5070 result:
 
-- commit `7c51dda703f6a5d0a95aba13734294a82ea4314f`;
-- tree `c303dd657146da90404618adead417e82e2dc2c0`;
+- commit `4bdc3bb2e341b8ebff088828c8604ff8051b5d49`;
+- tree `816c77372e5e9becd5ecc5b95d336625ceb56815`;
 - version `tryinget-dspy-lm-auth==0.1.6.dev0`;
-- wheel SHA-256 `e1b8acaa354df4640422512a779b9486d5c4caceeb9c9ab05c4a07f1b1eb3512`;
-- installed payload SHA-256 `8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2`;
 - lock SHA-256 `0b18a1759b2507967ed8f2f4918c436e2679e406aafb061620a11954b1550c7c`;
-- exact owner module hashes and exact DSPy/LiteLLM/httpx/httpcore wheel, payload, count,
+- outcome-receipt module SHA-256
+  `dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d`;
+- outcome-receipt-state module SHA-256
+  `0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26`; and
+- exact remaining owner module hashes and DSPy/LiteLLM/httpx/httpcore lock, payload, count,
   version, and RECORD identities listed in the JSON contract.
 
-The accepted v11 owner-source shape remains unchanged. The corrected exact identity uses the
-independently observed LiteLLM 1.82.1 and httpx 0.28.1 installed `RECORD` hashes, additionally
-verifies the #4991 `auth.py` hash, and does not weaken or relabel the owner boundary.
+AK-5070 issued an exact clean source candidate, not a wheel artifact. The successor therefore
+records wheel and installed-payload identities as unavailable rather than reusing AK-4991
+hashes or inventing a local build as owner truth. Runtime selection remains exact clean-source
+only. `auth.py` remains hash-verified without reading any credential store.
 
 ## Exact runtime and route
 
@@ -204,10 +228,31 @@ canonical AK authority must still be unchanged, claimed, and leased for at least
 60-second provider timeout plus a 30-second margin. Failure occurs before receipt creation,
 credential access, or transport, so an expiry/revocation between calls cannot permit call two.
 
-Only exact attributable `provider_response_completed` receipt chains permit progression.
-Missing, open, malformed, poisoned, inflight, rejected, or indeterminate chains are terminal.
-Closed provider evidence contains only hashes, identities, and receipt projections—never prompt,
-response, token, header, credential path/content, exception text, traceback, or raw diagnostic.
+An exact attributable `provider_response_completed` receipt chain is accepted evidence and is
+the only terminal that permits progression. An exact `remote_http_error_final` chain is also
+accepted evidence, but it produces empirical `error` and durable `failed_provider_error`, stops
+the suite, and never permits progression. Exact status evidence is an integer from 100 through
+599, must be paired with status class, must satisfy `status_class == status_code // 100`, and is
+bound into each event envelope and journal hash chain. No body, message, headers, credentials,
+URL, token, or exception text is retained.
+
+The three shared contract, identity, and reducer modules are restored byte-for-byte to the
+accepted V11 Git blobs. Their seven-field `EVENT_FIELDS`, status-class-only events, constructors,
+projection payloads, and V11 source hashes remain frozen. AK-5070 exact-status evolution instead
+lives in five Soomfon-only v2 modules: contract, identity, journal, descriptor-native journal
+verification, and reducer. The v2 contract reuses only stable reservation, canonical JSON, closed
+vocabulary, and scalar-validation primitives; no Soomfon journal is parsed or identity-verified
+through a frozen V11 parser. Every v2 event has the eight-field schema, status-bearing events
+require paired class/code, and legacy journals reject before progression. All five v2 modules are
+preloaded and source- or installed-payload-hash-bound by executing-artifact verification.
+
+Before either accepted closed classification is trusted, parent verification binds the complete
+provider envelope, exact owner source and dependencies, reservation, current pre-terminal marker
+hash, call record, producer terminal, status class/code, retained member identities, and all four
+runtime hashes. This applies to a one-journal prefix when logical call 1 ends in a provider error.
+Missing, open, malformed, poisoned, inflight, rejected, identity-drifted, or custody-invalid
+chains remain terminal `effect_indeterminate`; known fields are not nulled for a valid closed
+provider error.
 
 ## Execution authorization preflight
 
@@ -221,7 +266,8 @@ The JSON is an integrity/binding projection only. It is neither produced nor aut
 AK and cannot authorize itself. Before state-root creation the parent requires at least 1800
 seconds on the claim lease; immediately before every marker it repeats that minimum and the
 exact read-only canonical AK queries for the later task, live completion contract and guardrails,
-attached evidence, each named evidence record, and done dependency #5061. The child reconciles
+attached evidence, each named evidence record, done preparation dependency #5071, and done
+provider-owner task #5070. The child reconciles
 again before task-local provider import or any possible credential access. Each logical call
 reconciles once more with a 90-second minimum and requires the task, contract, evidence,
 projection, and authorization state to remain unchanged.
@@ -230,7 +276,8 @@ The two review records must carry distinct format-valid review dispatch referenc
 `ACCEPT` / `PASS` verdicts for the separately recorded security-review and provider-free-test
 runs. The operator record must bind a distinct format-valid explicit one-suite request. All
 three canonical records must be attached pass results for the exact task/repo and must bind the
-current contract, executing DSPx source or payload, #4991 owner, `codex/gpt-5.6-luna`, reasoning
+current contract, executing DSPx source or payload, exact owner task #5070 and its source artifact,
+`codex/gpt-5.6-luna`, reasoning
 xhigh, and exact effect budget.
 
 AK is canonical storage and attachment authority under workspace policy. Current AK evidence
@@ -248,13 +295,14 @@ regular current-user-owned mode `0555`. It is opened with `O_NOFOLLOW`, hashed t
 executed as `/proc/self/fd/<n>` with `pass_fds` and no shell, and re-fstatted afterward. Output
 and time remain bounded. PATH, symlink, and parent lookup do not select AK.
 
-The live completion kind remains exactly `soomfon_one_suite_execution_authorization`; required
-check types are `review:independent-security`, `test:independent-provider-free`, and
+The live completion kind is exactly
+`soomfon_ak5071_ak5070_one_suite_execution_authorization`; canonical evidence uses
+`soomfon-ak5071-authorization-evidence-v4`. Required check types are `review:independent-security`, `test:independent-provider-free`, and
 `authorization:operator-one-suite`. Reviewed-source mode compares loaded origins and current
 bytes to exact Git blobs at the authorized clean commit/tree. Installed mode compares origins
 and complete payload to the exact distribution/RECORD. Any package shadow, `__pycache__`,
 `.pyc`, or existing security-module `__cached__` artifact rejects. No AK mutation occurs.
-Task #5061 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5061 and depend exactly on `[5061]`.
+Task #5071 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5071 and depend exactly on `[5071]`.
 
 ## Private response behavior
 
@@ -268,11 +316,26 @@ hashes, and non-authority fields.
 
 This implementation proves no live model compatibility, answer quality, semantic equivalence,
 GEPA improvement, backend locality, physical Soomfon execution, routing, promotion, activation,
-release, or publication.
+release, publication, or one-provider-transport canary result.
 
-The next lawful move is independent review of the provider-free local-cost-map network seal,
-followed only then by a separate exact claimed AK task greater than 5061, depending exactly on
-`[5061]`, with
-canonical attached review/operator evidence and a local integrity projection for one suite.
-Only independently reviewed resulting evidence could inform a later, distinct owner binding
-decision. The active routing file must remain unchanged until that separate decision exists.
+### One-provider-transport diagnostic feasibility verdict
+
+The existing architecture cannot truthfully implement the proposed diagnostic within this
+scope. Each protected case is a fixed generated program with two ordered LM signatures; the
+call custodian, finalizer, execution authorization, runtime custody, and six-case effect budget
+all bind that two-call case shape. Merely stopping after call 1 would be a failed or interrupted
+standard case, not an exact one-transport diagnostic contract. Reusing the six-case authorization
+would weaken exact-request and custody semantics, so no such claim or execution surface is
+added.
+
+A bounded follow-up needs a separate contract schema and digest namespace, a separate AK
+completion kind and authorization projection with an exact effect budget of one, a dedicated
+single-signature candidate or diagnostic adapter path, one pre-effect marker and one unique
+receipt reservation, and the same owner/authority/runtime-hash/retained-journal verification.
+It must retain zero retries, fallbacks, resume, and selective reruns and must not modify or widen
+the standard six-case suite.
+
+The next lawful move is independent review of this provider-free classification and custody
+repair. Only a later distinct owner-authorized task may implement the bounded diagnostic design
+or authorize any execution. The active routing file must remain unchanged until a separate
+decision exists.

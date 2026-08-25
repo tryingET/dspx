@@ -28,7 +28,9 @@ _REVIEW_CHECK_TYPES = (
     "test:independent-provider-free",
 )
 _OPERATOR_CHECK_TYPE = "authorization:operator-one-suite"
-_COMPLETION_KIND = "soomfon_one_suite_execution_authorization"
+OWNER_TASK_ID = 5070
+AUTHORIZATION_EVIDENCE_SCHEMA = "soomfon-ak5071-authorization-evidence-v4"
+_COMPLETION_KIND = "soomfon_ak5071_ak5070_one_suite_execution_authorization"
 _DISPATCH_RE = re.compile(r"^dispatch-[0-9]{10,20}$")
 _OPERATOR_REQUEST_RE = re.compile(
     r"^operator-request-[A-Za-z0-9][A-Za-z0-9._:-]{7,95}$"
@@ -38,7 +40,7 @@ _EXPECTED_OUTCOMES = [
     f"Authorize exactly one six-case Soomfon suite for contract {REVIEWED_CONTRACT_SHA256} "
     f"prepared under AK-{CONTRACT_PREPARATION_TASK_ID}",
     "Bind the exact reviewed DSPx source commit and tree or exact installed wheel payload",
-    "Bind the exact AK-4991 owner artifact, codex/gpt-5.6-luna, reasoning xhigh, and no-refresh custody",
+    "Bind the exact AK-5070 owner artifact, codex/gpt-5.6-luna, reasoning xhigh, and no-refresh custody",
     "Limit the suite to twelve provider transports with zero retry, fallback, health probe, resume, or selective rerun",
 ]
 _EXPECTED_VALIDATION = [
@@ -53,7 +55,7 @@ _EXPECTED_REVIEW_QUESTIONS = [
 ]
 _EXPECTED_GUARDRAILS = {
     "invariants": [
-        "The active contract, executing DSPx identity, owner artifact, model, and effect budget remain exact",
+        "The active contract, executing DSPx identity, exact AK-5070 owner artifact, model, and effect budget remain exact",
         "Every effect-capable call remains bound to the current authorization marker, receipt journal, and unchanged canonical authority",
         "The trusted effective OS user and canonical AK DB define the local authority threat boundary",
     ],
@@ -253,8 +255,9 @@ def _common_evidence_details(
     effect_budget: Mapping[str, Any],
 ) -> dict[str, object]:
     return {
-        "schema_version": "soomfon-ak5061-authorization-evidence-v3",
+        "schema_version": AUTHORIZATION_EVIDENCE_SCHEMA,
         "preparation_task_id": CONTRACT_PREPARATION_TASK_ID,
+        "owner_task_id": OWNER_TASK_ID,
         "contract_sha256": contract_sha256,
         "dspx_artifact": dict(dspx_artifact),
         "owner_artifact": dict(owner_artifact),
@@ -333,6 +336,12 @@ def reconcile_canonical_ak_authorization(
         repo=repo,
     )
     _validate_dependency(dependency)
+    owner_task = _task_from_machine(
+        runner(("task", "show", str(OWNER_TASK_ID), "--machine")),
+        task_id=OWNER_TASK_ID,
+        repo=repo,
+    )
+    _validate_dependency(owner_task)
     contract = _validate_contract(
         runner(("task", "contract", "show", str(task_id), "-F", "json")),
         task_id=task_id,
@@ -420,6 +429,7 @@ def reconcile_canonical_ak_authorization(
     normalized = {
         "task": task,
         "dependency": dependency,
+        "owner_task": owner_task,
         "contract": contract,
         "evidence": validated_evidence,
     }
@@ -430,6 +440,8 @@ def reconcile_canonical_ak_authorization(
 
 
 __all__ = [
+    "AUTHORIZATION_EVIDENCE_SCHEMA",
+    "OWNER_TASK_ID",
     "CanonicalAKAuthorization",
     "CanonicalAKAuthorizationError",
     "expected_execution_task_contract",

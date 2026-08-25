@@ -93,10 +93,10 @@ def protected_declared_call_names(tree: ast.AST) -> set[str]:
 CONTRACT_RELATIVE_PATH = Path(
     "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json"
 )
-CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v3"
-CONTRACT_PREPARATION_TASK_ID = 5061
+CONTRACT_SCHEMA = "soomfon-dspy-3.3-originals-evaluation-contract-v4"
+CONTRACT_PREPARATION_TASK_ID = 5071
 REVIEWED_CONTRACT_SHA256 = (
-    "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
+    "8bc157034ade33e34df33bd059910b24ae7debb06e9d4fb6aadf348ca3760555"
 )
 EXPECTED_MODES = (
     "simple",
@@ -143,11 +143,12 @@ _TOP_LEVEL_KEYS = {
     "cases",
     "deep_research_disposition",
     "nonclaims",
+    "diagnostic_canary",
 }
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _MAX_CONTRACT_BYTES = 256 * 1024
-_MAX_PREDECESSOR_DEPTH = 8
+_MAX_PREDECESSOR_DEPTH = 9
 
 
 class SoomfonEvaluationContractError(RuntimeError):
@@ -524,16 +525,22 @@ def classify_provider_disposition(
         "maximum_provider_transports": validated["maximum_provider_transports"],
         "call_records": records,
     }
-    if (
-        validated["artifact_verification"] == "accepted_exact"
-        and validated["logical_call_total"] == 2
-        and all(
-            row.get("provider_outcome_receipt") == "accepted"
-            and row.get("producer_terminal") == "provider_response_completed"
-            for row in records
-        )
-    ):
+    if validated["artifact_verification"] != "accepted_exact":
+        return "effect_indeterminate", details
+    completed = [
+        row.get("producer_terminal") == "provider_response_completed"
+        and row.get("provider_outcome_receipt") == "accepted"
+        for row in records
+    ]
+    if validated["logical_call_total"] == 2 and all(completed):
         return "succeeded", details
+    if (
+        validated["logical_call_total"] in {1, 2}
+        and records[-1].get("provider_outcome_receipt") == "accepted"
+        and records[-1].get("producer_terminal") == "remote_http_error_final"
+        and all(completed[:-1])
+    ):
+        return "failed_provider_error", details
     return "effect_indeterminate", details
 
 

@@ -277,7 +277,12 @@ def append_terminal(
     details: Mapping[str, object],
 ) -> None:
     marker_name = _marker_name(contract_sha256, mode)
-    if state not in {"succeeded", "failed_no_effect_proved", "effect_indeterminate"}:
+    if state not in {
+        "succeeded",
+        "failed_provider_error",
+        "failed_no_effect_proved",
+        "effect_indeterminate",
+    }:
         raise SoomfonCustodyError("terminal state is invalid")
     latency = details.get("latency_ms")
     if not isinstance(latency, int) or isinstance(latency, bool) or latency < 0:

@@ -2,31 +2,33 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import stat
+import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, NoReturn, TypeVar
 
-from dspx.services.provider_outcome_receipt_contract import (
+from dspx.services.soomfon_provider_outcome_receipt_contract import (
     ProviderOutcomeConsumerError,
     ReceiptReservation,
     VerifiedJournal,
     canonical_json,
     sha256,
 )
-from dspx.services.provider_outcome_receipt_identity import (
+from dspx.services.soomfon_provider_outcome_receipt_identity import (
     VerifiedOwnerArtifact,
 )
-from dspx.services.provider_outcome_receipt_journal import (
+from dspx.services.soomfon_provider_outcome_receipt_journal import (
     ReceiptJournal,
     load_verified_journal,
 )
-from dspx.services.provider_outcome_receipt_journal_fd import (
+from dspx.services.soomfon_provider_outcome_receipt_journal_fd import (
     load_verified_journal_fd,
 )
 from dspx.services.soomfon_evaluation_contract import CONTRACT_PREPARATION_TASK_ID
-from dspx.services.provider_outcome_receipt_reducer import (
+from dspx.services.soomfon_provider_outcome_receipt_reducer import (
     reduce_verified_chain,
     verify_receipt_chain,
 )
@@ -78,6 +80,42 @@ _CLOSED_RETAINED_JOURNAL_REASONS = frozenset(
 )
 T = TypeVar("T")
 
+SOOMFON_V2_RECEIPT_MODULE_SHA256 = {
+    "soomfon_provider_outcome_receipt_contract": "5eece0b0bee459b113a38ecdf86779aa222db47133402233b38617f6f8865b48",
+    "soomfon_provider_outcome_receipt_identity": "c4a5e7ab127491ee63e9359bbb51f30b2df77dd787d99f1d31a304281d7a445a",
+    "soomfon_provider_outcome_receipt_journal": "12c1669199cd7d9e37f852f4ee0eb62637301025d777ebeba6ecfb76492f2202",
+    "soomfon_provider_outcome_receipt_journal_fd": "38a6c30392e95d27aa89e87cb117a0c18e472f971391cd3e45a7f798ab3a208e",
+    "soomfon_provider_outcome_receipt_reducer": "b7f7c77b4466ccb18ada24b44d5a980576b24507ca89574d5881c042c5d13dc5",
+}
+
+
+def verify_soomfon_v2_receipt_modules() -> None:
+    """Bind the transitive v2 stack through this executing-identity-bound module."""
+
+    service_root = Path(__file__).resolve(strict=True).parent
+    for short_name, expected_sha256 in SOOMFON_V2_RECEIPT_MODULE_SHA256.items():
+        qualified = f"dspx.services.{short_name}"
+        module = sys.modules.get(qualified)
+        source = getattr(module, "__file__", None)
+        spec_source = getattr(getattr(module, "__spec__", None), "origin", None)
+        if not isinstance(source, str) or not isinstance(spec_source, str):
+            _reject("soomfon_v2_module_identity_drift")
+        try:
+            path = Path(source).resolve(strict=True)
+            spec_path = Path(spec_source).resolve(strict=True)
+            info = path.lstat()
+            raw = path.read_bytes()
+        except OSError:
+            _reject("soomfon_v2_module_identity_drift")
+        if (
+            path != service_root / f"{short_name}.py"
+            or spec_path != path
+            or not stat.S_ISREG(info.st_mode)
+            or path.is_symlink()
+            or hashlib.sha256(raw).hexdigest() != expected_sha256
+        ):
+            _reject("soomfon_v2_module_identity_drift")
+
 
 def logical_signature_name(signature: type[Any], *, mode: str) -> str:
     if mode not in _MODE_SIGNATURES:
@@ -104,6 +142,9 @@ def _reject(
     reason: str, message: str = "Soomfon provider custody rejected"
 ) -> NoReturn:
     raise SoomfonProviderError(reason, message)
+
+
+verify_soomfon_v2_receipt_modules()
 
 
 def _private_directory(path: Path) -> Path:
@@ -373,6 +414,8 @@ class SoomfonCallCustodian:
                 "request_acknowledged": None,
                 "external_effect_possible": effect_possible,
                 "producer_terminal": None,
+                "status_class": None,
+                "status_code": None,
                 "empirical_disposition": (
                     "effect_indeterminate" if effect_possible else "error"
                 ),
@@ -415,20 +458,47 @@ class SoomfonCallCustodian:
             invocation_error = exc
         loaded: VerifiedJournal | None = None
         chain_effect_possible = False
+        provider_error = False
         try:
             loaded = journal.load_verified()
             chain = verify_receipt_chain(loaded)
             chain_effect_possible = chain.external_effect_possible
-            reduced = reduce_verified_chain(chain)
-            if (
-                loaded.artifact_verification not in {"accepted_exact", "fixture_only"}
-                or reduced.terminal != "provider_response_completed"
-                or reduced.request_acknowledged is not True
-                or reduced.external_effect_possible is not True
-                or reduced.reason != "attributable_completion_not_evaluated"
+            if not all(
+                envelope.event.uses_status_code_field for envelope in loaded.events
             ):
                 raise ProviderOutcomeConsumerError(
-                    "attributable_completion_required",
+                    "owner_event_v2_required",
+                    effect_possible=chain.external_effect_possible,
+                )
+            reduced = reduce_verified_chain(chain)
+            if loaded.artifact_verification not in {"accepted_exact", "fixture_only"}:
+                raise ProviderOutcomeConsumerError(
+                    "owner_artifact_verification_required",
+                    effect_possible=reduced.external_effect_possible,
+                )
+            if reduced.terminal == "provider_response_completed":
+                valid_terminal = (
+                    reduced.request_acknowledged is True
+                    and reduced.external_effect_possible is True
+                    and reduced.status_class == 2
+                    and reduced.status_code is not None
+                    and reduced.reason == "attributable_completion_not_evaluated"
+                )
+            elif reduced.terminal == "remote_http_error_final":
+                provider_error = True
+                valid_terminal = (
+                    reduced.request_acknowledged is True
+                    and reduced.external_effect_possible is True
+                    and reduced.status_class in {1, 3, 4, 5}
+                    and reduced.status_code is not None
+                    and reduced.empirical_disposition == "error"
+                    and reduced.reason == "remote_http_error_final"
+                )
+            else:
+                valid_terminal = False
+            if not valid_terminal:
+                raise ProviderOutcomeConsumerError(
+                    "accepted_closed_terminal_required",
                     effect_possible=reduced.external_effect_possible,
                 )
             self._artifact.revalidate()
@@ -450,13 +520,20 @@ class SoomfonCallCustodian:
                 "reservation_id": reservation.reservation_id,
                 "journal_sha256": _journal_projection_digest(loaded),
                 "provider_outcome_receipt": "accepted",
-                "request_acknowledged": True,
-                "external_effect_possible": True,
-                "producer_terminal": "provider_response_completed",
-                "empirical_disposition": "not_evaluated",
-                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": reduced.request_acknowledged,
+                "external_effect_possible": reduced.external_effect_possible,
+                "producer_terminal": reduced.terminal,
+                "status_class": reduced.status_class,
+                "status_code": reduced.status_code,
+                "empirical_disposition": reduced.empirical_disposition,
+                "reason": reduced.reason,
             }
         )
+        if provider_error:
+            self._terminal = True
+            raise SoomfonProviderError(
+                "provider_remote_http_error", "Soomfon provider returned HTTP error"
+            ) from None
         if invocation_error is not None:
             self._terminal = True
             raise SoomfonProviderError(
@@ -497,9 +574,22 @@ def verify_retained_soomfon_journals(
     expected_marker_sha256: str,
 ) -> None:
     validated = validate_soomfon_provider_evidence(evidence, mode=mode)
-    if (
-        validated["artifact_verification"] != "accepted_exact"
-        or validated["logical_call_total"] != 2
+    records = validated["call_records"]
+    total = validated["logical_call_total"]
+    success_terminal = total == 2 and all(
+        record["producer_terminal"] == "provider_response_completed"
+        for record in records
+    )
+    provider_error_terminal = (
+        total in {1, 2}
+        and records[-1]["producer_terminal"] == "remote_http_error_final"
+        and all(
+            record["producer_terminal"] == "provider_response_completed"
+            for record in records[:-1]
+        )
+    )
+    if validated["artifact_verification"] != "accepted_exact" or not (
+        success_terminal or provider_error_terminal
     ):
         _reject("retained_journal_acceptance_drift")
     parent_fd: int | None = None
@@ -526,12 +616,12 @@ def verify_retained_soomfon_journals(
         except OSError as exc:
             raise SoomfonProviderError("retained_journal_read_failed") from exc
     try:
-        if len(members) != 2:
+        if len(members) != total:
             _reject("retained_journal_count_drift")
         source_identity = expected_owner_source_identity()
         dependency_identity = expected_owner_dependency_identity()
         for ordinal, (path, record) in enumerate(
-            zip(members, validated["call_records"], strict=True), start=1
+            zip(members, records, strict=True), start=1
         ):
             journal = (
                 _load_fd_anchored_journal(
@@ -543,8 +633,26 @@ def verify_retained_soomfon_journals(
                 else load_verified_journal(path)
             )
             chain = verify_receipt_chain(journal)
+            if not all(
+                envelope.event.uses_status_code_field for envelope in journal.events
+            ):
+                _reject("retained_journal_event_v2_drift")
             reduced = reduce_verified_chain(chain)
             reservation = journal.reservation
+            expected_record = {
+                "call_ordinal": ordinal,
+                "signature_name": _MODE_SIGNATURES[mode][ordinal - 1],
+                "reservation_id": reservation.reservation_id,
+                "journal_sha256": _journal_projection_digest(journal),
+                "provider_outcome_receipt": "accepted",
+                "request_acknowledged": reduced.request_acknowledged,
+                "external_effect_possible": reduced.external_effect_possible,
+                "producer_terminal": reduced.terminal,
+                "status_class": reduced.status_class,
+                "status_code": reduced.status_code,
+                "empirical_disposition": reduced.empirical_disposition,
+                "reason": reduced.reason,
+            }
             if (
                 path.name != f"{ordinal:02d}-{reservation.logical_request_id}"
                 or journal.artifact_verification != "accepted_exact"
@@ -558,13 +666,7 @@ def verify_retained_soomfon_journals(
                 or reservation.endpoint_origin_sha256 != ENDPOINT_ORIGIN_SHA256
                 or reservation.source_identity != source_identity
                 or reservation.dependency_identity != dependency_identity
-                or record["call_ordinal"] != ordinal
-                or record["signature_name"] != _MODE_SIGNATURES[mode][ordinal - 1]
-                or record["reservation_id"] != reservation.reservation_id
-                or record["journal_sha256"] != _journal_projection_digest(journal)
-                or reduced.terminal != "provider_response_completed"
-                or reduced.request_acknowledged is not True
-                or reduced.external_effect_possible is not True
+                or dict(record) != expected_record
             ):
                 _reject("retained_journal_binding_drift")
         if parent_fd is not None and verification_fd is not None:
@@ -635,6 +737,8 @@ def validate_soomfon_provider_evidence(
         "request_acknowledged",
         "external_effect_possible",
         "producer_terminal",
+        "status_class",
+        "status_code",
         "empirical_disposition",
         "reason",
     }
@@ -660,21 +764,46 @@ def validate_soomfon_provider_evidence(
                 or _SHA256_RE.fullmatch(value_hash) is None
             ):
                 _reject("provider_call_record_hash_drift")
+        status_class = raw.get("status_class")
+        status_code = raw.get("status_code")
+        status_valid = (
+            type(status_class) is int
+            and status_class in {1, 2, 3, 4, 5}
+            and type(status_code) is int
+            and 100 <= status_code <= 599
+            and status_class == status_code // 100
+        )
         if accepted:
-            if (
-                raw.get("request_acknowledged") is not True
-                or raw.get("external_effect_possible") is not True
-                or raw.get("producer_terminal") != "provider_response_completed"
-                or raw.get("empirical_disposition") != "not_evaluated"
-                or raw.get("reason") != "attributable_completion_not_evaluated"
-                or raw.get("reservation_id") is None
-                or raw.get("journal_sha256") is None
-            ):
-                _reject("provider_attributable_completion_drift")
+            common_valid = (
+                raw.get("request_acknowledged") is True
+                and raw.get("external_effect_possible") is True
+                and raw.get("reservation_id") is not None
+                and raw.get("journal_sha256") is not None
+                and status_valid
+            )
+            if raw.get("producer_terminal") == "provider_response_completed":
+                terminal_valid = (
+                    status_class == 2
+                    and raw.get("empirical_disposition") == "not_evaluated"
+                    and raw.get("reason") == "attributable_completion_not_evaluated"
+                )
+            elif raw.get("producer_terminal") == "remote_http_error_final":
+                terminal_valid = (
+                    status_class != 2
+                    and raw.get("empirical_disposition") == "error"
+                    and raw.get("reason") == "remote_http_error_final"
+                )
+                terminal_seen = True
+            else:
+                terminal_valid = False
+            if not common_valid or not terminal_valid:
+                _reject("provider_accepted_terminal_drift")
         else:
             if (
                 raw.get("request_acknowledged") is not None
                 or raw.get("producer_terminal") is not None
+                or status_class is not None
+                or status_code is not None
                 or raw.get("empirical_disposition")
                 not in {"error", "effect_indeterminate"}
             ):

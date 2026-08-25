@@ -130,9 +130,12 @@ def test_missing_or_forged_authorization_digest_fails_closed(
         )
 
 
-def test_task_5061_cannot_authorize_execution(tmp_path: Path) -> None:
+@pytest.mark.parametrize("task_id", [5061, 5071])
+def test_preparation_or_historical_task_cannot_authorize_execution(
+    tmp_path: Path, task_id: int
+) -> None:
     path = tmp_path / "authorization.json"
-    digest = _write(path, _artifact(task_id=5061))
+    digest = _write(path, _artifact(task_id=task_id))
     with pytest.raises(
         authorization.SoomfonExecutionAuthorizationError, match="task or repo binding"
     ):
@@ -223,7 +226,7 @@ def test_missing_authorization_refuses_before_marker_owner_import_or_state(
     with pytest.raises(authorization.SoomfonExecutionAuthorizationError):
         executor.execute_soomfon_evaluation_suite(
             expected_contract_sha256=(
-                "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
+                "8bc157034ade33e34df33bd059910b24ae7debb06e9d4fb6aadf348ca3760555"
             ),
             execution_authorization_path=None,
             expected_authorization_sha256=None,
@@ -265,7 +268,7 @@ def _machine_task(
                 "lease_expires_at": (now + timedelta(seconds=lease_seconds)).isoformat()
                 if status == "claimed"
                 else None,
-                "depends_on": [5061] if task_id != 5061 else [5056],
+                "depends_on": [5071] if task_id not in {5070, 5071} else [],
                 "evidence": None,
                 "result": None,
                 "created_at": now.isoformat(),
@@ -293,8 +296,9 @@ def _canonical_runner(
     operator = payload["operator_authorization"]
     operator_id = operator["evidence_id"]
     common = {
-        "schema_version": "soomfon-ak5061-authorization-evidence-v3",
-        "preparation_task_id": 5061,
+        "schema_version": "soomfon-ak5071-authorization-evidence-v4",
+        "preparation_task_id": 5071,
+        "owner_task_id": 5070,
         "contract_sha256": payload["contract_sha256"],
         "dspx_artifact": payload["dspx_artifact"],
         "owner_artifact": payload["owner_artifact"],
@@ -362,8 +366,10 @@ def _canonical_runner(
             return _machine_task(
                 task_id=task_id, status=task_status, lease_seconds=lease_seconds
             )
-        if arguments == ("task", "show", "5061", "--machine"):
-            return _machine_task(task_id=5061, status="done", completed=True)
+        if arguments == ("task", "show", "5071", "--machine"):
+            return _machine_task(task_id=5071, status="done", completed=True)
+        if arguments == ("task", "show", "5070", "--machine"):
+            return _machine_task(task_id=5070, status="done", completed=True)
         if arguments[:3] == ("task", "contract", "show"):
             return contract
         if arguments[:2] == ("evidence", "task"):
@@ -404,7 +410,7 @@ def test_canonical_ak_reconciliation_rejects_self_hashed_self_assertion(
         )
 
 
-@pytest.mark.parametrize("depends_on", [[], [5056], [5061, 5056]])
+@pytest.mark.parametrize("depends_on", [[], [5056], [5061], [5071, 5070]])
 def test_canonical_ak_requires_exact_preparation_dependency(
     depends_on: list[int],
 ) -> None:
@@ -442,10 +448,51 @@ def test_live_completion_contract_binds_current_hash_and_preparation_task() -> N
 
     contract = ak_authorization.expected_execution_task_contract()
     outcomes = cast(list[str], contract["required_outcomes"])
+    assert contract["completion_kind"] == (
+        "soomfon_ak5071_ak5070_one_suite_execution_authorization"
+    )
     assert outcomes[0] == (
         "Authorize exactly one six-case Soomfon suite for contract "
-        "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837 prepared under AK-5061"
+        "8bc157034ade33e34df33bd059910b24ae7debb06e9d4fb6aadf348ca3760555 prepared under AK-5071"
     )
+    assert outcomes[2] == (
+        "Bind the exact AK-5070 owner artifact, codex/gpt-5.6-luna, reasoning xhigh, and no-refresh custody"
+    )
+    guardrails = ak_authorization.expected_execution_task_guardrails()
+    assert guardrails["invariants"][0] == (
+        "The active contract, executing DSPx identity, exact AK-5070 owner artifact, model, and effect budget remain exact"
+    )
+
+
+def test_canonical_ak_reconciliation_requires_done_owner_task_5070() -> None:
+    import copy
+    from dspx.services import soomfon_evaluation_ak_authorization as ak_authorization
+
+    payload = _artifact()
+    valid = _canonical_runner(payload)
+
+    def owner_not_done(arguments: tuple[str, ...]) -> object:
+        value = valid(arguments)
+        if arguments == ("task", "show", "5070", "--machine"):
+            value = copy.deepcopy(value)
+            value["payload"]["task"]["status"] = "queued"
+            value["payload"]["task"]["completed_at"] = None
+        return value
+
+    with pytest.raises(ak_authorization.CanonicalAKAuthorizationError):
+        ak_authorization.reconcile_canonical_ak_authorization(
+            task_id=6000,
+            repo=str(REPO),
+            contract_sha256=CONTRACT_SHA256,
+            dspx_artifact=payload["dspx_artifact"],
+            owner_artifact=payload["owner_artifact"],
+            review_references=tuple(payload["independent_reviews"]),
+            operator_evidence_id=91003,
+            operator_request_id=payload["operator_authorization"]["request_id"],
+            effect_budget=payload["effect_budget"],
+            minimum_lease_seconds=1800,
+            runner=owner_not_done,
+        )
 
 
 def test_canonical_ak_reconciliation_binds_task_contract_and_all_evidence() -> None:

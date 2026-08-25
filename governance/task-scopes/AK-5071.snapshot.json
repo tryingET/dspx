@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-25T11:40:37.994600547+00:00",
+  "task_id": 5071,
+  "entity_version": 5,
+  "commit_sha": "adbbe39759f0c1ba87fe62b343fd74d4d5389efb",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/dspy-3-3-soomfon-originals-evaluation-contract.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/*.json",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json",
+      "governance/task-scopes/AK-5071.snapshot.json",
+      "packages/dspx-core/src/dspx/services/provider_outcome_receipt_contract.py",
+      "packages/dspx-core/src/dspx/services/provider_outcome_receipt_identity.py",
+      "packages/dspx-core/src/dspx/services/provider_outcome_receipt_reducer.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_ak_authorization.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_contract.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_custody.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_executor.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_ledger.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_owner.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_provider.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_schema.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_contract.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_identity.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_journal.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_journal_fd.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_reducer.py",
+      "tests/test_dspy_lm_auth_lm.py",
+      "tests/test_provider_outcome_receipt_consumer.py",
+      "tests/test_soomfon_evaluation_authorization.py",
+      "tests/test_soomfon_evaluation_executor.py",
+      "tests/test_soomfon_evaluation_executor_durability.py",
+      "tests/test_soomfon_evaluation_provider.py",
+      "tests/test_voice_turn_brains_dspy_33_soomfon_evaluation_contract.py"
+    ],
+    "required_paths": [
+      "docs/project/dspy-3-3-soomfon-originals-evaluation-contract.md",
+      "examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json",
+      "governance/task-scopes/AK-5071.snapshot.json",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_ak_authorization.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_contract.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_executor.py",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_provider.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_contract.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_journal.py",
+      "packages/dspx-core/src/dspx/services/soomfon_provider_outcome_receipt_reducer.py",
+      "tests/test_soomfon_evaluation_authorization.py",
+      "tests/test_soomfon_evaluation_executor.py",
+      "tests/test_soomfon_evaluation_provider.py"
+    ],
+    "forbidden_paths": [
+      "**/__pycache__/**",
+      "**/auth.json",
+      "benchmarks/g3/**",
+      "docs/v1-proof/g3-*"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

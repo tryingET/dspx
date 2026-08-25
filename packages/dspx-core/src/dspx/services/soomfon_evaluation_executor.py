@@ -145,16 +145,30 @@ def _evaluate_case(
     durable_evidence = runtime_evidence_hashes(
         ledger_fd, f"{contract_sha256}.{case['mode']}.jsonl"
     )
-    if (
-        durable_evidence is None
-        or durable_evidence.get("runtime_tree_sha256") != baseline_tree_sha256
+    expected_runtime_hashes = {
+        "runtime_episode_sha256": bundle.runtime_episode_sha256,
+        "runtime_tree_sha256": baseline_tree_sha256,
+        "runtime_receipt_sha256": bundle.runtime_receipt_sha256,
+        "behavior_results_sha256": bundle.behavior_results_sha256,
+    }
+    if durable_evidence is None or any(
+        durable_evidence.get(key) != value
+        for key, value in expected_runtime_hashes.items()
     ):
         return "effect_indeterminate", {
             "reason": "runtime_durable_evidence_invalid",
             "latency_ms": latency_ms,
         }
     state, provider_details = classify_provider_disposition(bundle.behavior_results)
-    if state == "succeeded":
+    accepted_closed_state = state in {"succeeded", "failed_provider_error"}
+    if accepted_closed_state and (
+        durable_evidence.get("provider_state") != state
+        or durable_evidence.get("provider") != provider_details
+    ):
+        state = "effect_indeterminate"
+        provider_details = {"reason": "provider_runtime_evidence_mismatch"}
+        accepted_closed_state = False
+    if accepted_closed_state:
         from dspx.services.soomfon_evaluation_provider import (
             closed_retained_journal_reason,
             verify_retained_soomfon_journals,
@@ -171,7 +185,7 @@ def _evaluate_case(
                 "verification_reason": "owner_source_verification_failed",
             }
         full_provider_evidence: Mapping[str, Any] | None = None
-        if state == "succeeded":
+        if state in {"succeeded", "failed_provider_error"}:
             provider = bundle.behavior_results.get("provider")
             if isinstance(provider, Mapping):
                 candidate_evidence = provider.get("effect_evidence")
@@ -185,7 +199,7 @@ def _evaluate_case(
                     "verification_reason": "provider_evidence_missing",
                 }
         expected_marker_sha256: str | None = None
-        if state == "succeeded":
+        if state in {"succeeded", "failed_provider_error"}:
             try:
                 expected_marker_sha256 = marker_sha256(marker_fd)
             except BaseException:
@@ -196,7 +210,7 @@ def _evaluate_case(
                     "verification_reason": "marker_hash_failed",
                 }
         if (
-            state == "succeeded"
+            state in {"succeeded", "failed_provider_error"}
             and full_provider_evidence is not None
             and expected_marker_sha256 is not None
         ):
@@ -216,34 +230,33 @@ def _evaluate_case(
                     "verification_phase": "retained_journal",
                     "verification_reason": closed_retained_journal_reason(exc),
                 }
-    if (
-        state == "succeeded"
-        and bundle.runtime_episode.get("execution_status") != "executed"
-    ):
+    runtime_status = bundle.runtime_episode.get("execution_status")
+    if state == "succeeded" and runtime_status != "executed":
         state = "effect_indeterminate"
         provider_details = {"reason": "runtime_execution_not_successful"}
-    examples = bundle.behavior_results.get("examples")
-    response: object = None
-    if (
-        isinstance(examples, list)
-        and len(examples) == 1
-        and isinstance(examples[0], dict)
-    ):
-        outputs = examples[0].get("observed_outputs")
-        if isinstance(outputs, dict):
-            response = outputs.get("response")
-    if state == "succeeded" and (not isinstance(response, str) or not response.strip()):
+    elif state == "failed_provider_error" and runtime_status != "error":
         state = "effect_indeterminate"
-        provider_details = {"reason": "response_missing_after_success"}
+        provider_details = {"reason": "provider_error_runtime_status_invalid"}
+    response: object = None
+    if state == "succeeded":
+        examples = bundle.behavior_results.get("examples")
+        if (
+            isinstance(examples, list)
+            and len(examples) == 1
+            and isinstance(examples[0], dict)
+        ):
+            outputs = examples[0].get("observed_outputs")
+            if isinstance(outputs, dict):
+                response = outputs.get("response")
+        if not isinstance(response, str) or not response.strip():
+            state = "effect_indeterminate"
+            provider_details = {"reason": "response_missing_after_success"}
     details: dict[str, object] = {
         "latency_ms": latency_ms,
-        "runtime_episode_sha256": bundle.runtime_episode_sha256,
-        "runtime_tree_sha256": durable_evidence["runtime_tree_sha256"],
-        "runtime_receipt_sha256": bundle.runtime_receipt_sha256,
-        "behavior_results_sha256": bundle.behavior_results_sha256,
+        **expected_runtime_hashes,
         "provider": provider_details,
     }
-    if isinstance(response, str):
+    if state == "succeeded" and isinstance(response, str):
         details["response_sha256"] = hashlib.sha256(response.encode()).hexdigest()
         details["response_length"] = len(response)
     return state, details

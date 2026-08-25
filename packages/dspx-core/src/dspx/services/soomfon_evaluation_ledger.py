@@ -280,6 +280,8 @@ def is_complete_terminal_marker(
         and terminal.get("mode") == mode
         and terminal.get("execution_task_id") == first.get("execution_task_id")
         and terminal.get("authorization_sha256") == first.get("authorization_sha256")
+        and terminal.get("ak_reconciliation_sha256")
+        == first.get("ak_reconciliation_sha256")
         and terminal.get("sequence") == 1
         and isinstance(latency, int)
         and not isinstance(latency, bool)
@@ -309,24 +311,70 @@ def is_complete_terminal_marker(
         isinstance(response_hash, str)
         and _SHA256_RE.fullmatch(response_hash) is not None
     )
+    record_keys = {
+        "call_ordinal",
+        "signature_name",
+        "reservation_id",
+        "journal_sha256",
+        "provider_outcome_receipt",
+        "request_acknowledged",
+        "external_effect_possible",
+        "producer_terminal",
+        "status_class",
+        "status_code",
+        "empirical_disposition",
+        "reason",
+    }
     provider_shape = (
         isinstance(provider, dict)
+        and set(provider)
+        == {
+            "mode",
+            "artifact_verification",
+            "logical_call_total",
+            "maximum_provider_transports",
+            "call_records",
+        }
         and provider.get("mode") == mode
         and provider.get("artifact_verification") == "accepted_exact"
         and type(logical_call_total) is int
-        and logical_call_total == 2
+        and logical_call_total in {1, 2}
         and provider.get("maximum_provider_transports") == 2
         and isinstance(call_records, list)
         and len(call_records) == logical_call_total
         and all(
             isinstance(item, dict)
+            and set(item) == record_keys
             and item.get("call_ordinal") == index
             and item.get("provider_outcome_receipt") == "accepted"
             and item.get("request_acknowledged") is True
             and item.get("external_effect_possible") is True
-            and item.get("producer_terminal") == "provider_response_completed"
-            and item.get("empirical_disposition") == "not_evaluated"
+            and type(item.get("status_class")) is int
+            and type(item.get("status_code")) is int
+            and 100 <= item["status_code"] <= 599
+            and item["status_class"] == item["status_code"] // 100
             for index, item in enumerate(call_records, start=1)
+        )
+    )
+    completed_shape = provider_shape and all(
+        item.get("producer_terminal") == "provider_response_completed"
+        and item.get("status_class") == 2
+        and item.get("empirical_disposition") == "not_evaluated"
+        and item.get("reason") == "attributable_completion_not_evaluated"
+        for item in call_records
+    )
+    provider_error_shape = (
+        provider_shape
+        and call_records[-1].get("producer_terminal") == "remote_http_error_final"
+        and call_records[-1].get("status_class") != 2
+        and call_records[-1].get("empirical_disposition") == "error"
+        and call_records[-1].get("reason") == "remote_http_error_final"
+        and all(
+            item.get("producer_terminal") == "provider_response_completed"
+            and item.get("status_class") == 2
+            and item.get("empirical_disposition") == "not_evaluated"
+            and item.get("reason") == "attributable_completion_not_evaluated"
+            for item in call_records[:-1]
         )
     )
     provider_evidence_valid = (
@@ -355,7 +403,26 @@ def is_complete_terminal_marker(
             and evidence_hashes.get("response_length") == details.get("response_length")
             and type(details.get("response_length")) is int
             and details["response_length"] > 0
-            and provider_shape
+            and logical_call_total == 2
+            and completed_shape
+        )
+    if state == "failed_provider_error":
+        return (
+            set(details)
+            == {
+                "latency_ms",
+                "runtime_episode_sha256",
+                "runtime_tree_sha256",
+                "runtime_receipt_sha256",
+                "behavior_results_sha256",
+                "provider",
+            }
+            and runtime_hashes_valid
+            and evidence_hashes is not None
+            and evidence_hashes.get("runtime_execution_status") == "error"
+            and evidence_hashes.get("provider_state") == "failed_provider_error"
+            and provider_evidence_valid
+            and provider_error_shape
         )
     if state == "failed_no_effect_proved":
         return False

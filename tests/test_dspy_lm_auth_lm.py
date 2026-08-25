@@ -195,10 +195,16 @@ def test_loaded_runtime_origin_hash_binding_rejects_foreign_module(monkeypatch):
 
 
 def _run(args: list[str], *, env: dict[str, str] | None = None, cwd: Path = REPO):
+    child_env = {
+        **os.environ,
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": "",
+        **(env or {}),
+    }
     return subprocess.run(
         [sys.executable, *args],
         cwd=cwd,
-        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1", **(env or {})},
+        env=child_env,
         capture_output=True,
         text=True,
         check=False,

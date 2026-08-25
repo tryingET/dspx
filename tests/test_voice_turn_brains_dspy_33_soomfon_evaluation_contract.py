@@ -19,13 +19,17 @@ CONTRACT_PATH = (
 )
 IMMEDIATE_PREDECESSOR = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837.json"
 )
 PREDECESSOR = (
     REPO_ROOT
-    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json"
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97.json"
 )
 EARLIER = (
+    REPO_ROOT
+    / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae.json"
+)
+INTERMEDIATE = (
     REPO_ROOT
     / "examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a.json"
 )
@@ -60,12 +64,13 @@ EXPECTED_MODES = (
     "bloom",
 )
 RESEARCH_MODES = {"researched", "deep-research"}
-CURRENT_SHA256 = "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
+CURRENT_SHA256 = "8bc157034ade33e34df33bd059910b24ae7debb06e9d4fb6aadf348ca3760555"
 IMMEDIATE_PREDECESSOR_SHA256 = (
-    "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
+    "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
 )
-PREDECESSOR_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
-EARLIER_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
+PREDECESSOR_SHA256 = "44a28a7fa3b0e9ebe600109f8ac36acecc1afad0335c9f186b575ad14965cb97"
+EARLIER_SHA256 = "6c3f913c2fe05eb5edfc39ee0cbea1a4ca43036bdd0e77c9ad3f37d35c0eadae"
+INTERMEDIATE_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
 EARLIEST_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
 UNATTEMPTED_SHA256 = "0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207"
 OLDER_SHA256 = "9d9d1b6ea87d3fd16e3db3e1fc97c5bbc68cc241bf67d52cf6c8b2593a1bf24b"
@@ -98,6 +103,7 @@ def _copy_contract_chain(root: Path) -> None:
         IMMEDIATE_PREDECESSOR,
         PREDECESSOR,
         EARLIER,
+        INTERMEDIATE,
         EARLIEST,
         OLDER,
         ANCIENT,
@@ -135,6 +141,7 @@ def test_production_loader_reaches_complete_predecessor_chain(
         IMMEDIATE_PREDECESSOR.resolve(),
         PREDECESSOR.resolve(),
         EARLIER.resolve(),
+        INTERMEDIATE.resolve(),
         EARLIEST.resolve(),
         OLDER.resolve(),
         ANCIENT.resolve(),
@@ -298,15 +305,15 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
     assert _sha256(CONTRACT_PATH) == CURRENT_SHA256
     assert (
         contract["schema_version"]
-        == "soomfon-dspy-3.3-originals-evaluation-contract-v3"
+        == "soomfon-dspy-3.3-originals-evaluation-contract-v4"
     )
-    assert contract["task_id"] == 5061
+    assert contract["task_id"] == 5071
     assert (
         contract["status"]
-        == "luna_xhigh_local_cost_map_network_sealed_execution_unauthorized_pending_review"
+        == "luna_xhigh_remote_error_truth_repaired_execution_unauthorized_pending_review"
     )
     assert contract["executor_contract"]["execution_authorized"] is False
-    assert contract["executor_contract"]["task_5061_can_authorize_execution"] is False
+    assert contract["executor_contract"]["task_5071_can_authorize_execution"] is False
     assert (
         contract["executor_contract"]["implementation_requires_later_exact_ak_task"]
         is True
@@ -316,6 +323,8 @@ def test_contract_is_execution_blocked_and_preserves_live_binding() -> None:
     )
     assert contract["source_state"]["shadow_binding_only"] is True
     assert contract["nonclaims"]["routing"] is False
+    assert contract["diagnostic_canary"]["one_provider_transport_claim"] is False
+    assert contract["diagnostic_canary"]["execution_authorized"] is False
 
 
 def test_predecessors_are_byte_exact_and_namespaces_are_immutable() -> None:
@@ -323,61 +332,68 @@ def test_predecessors_are_byte_exact_and_namespaces_are_immutable() -> None:
     immediate = contract["predecessor_contract"]
     assert _sha256(IMMEDIATE_PREDECESSOR) == IMMEDIATE_PREDECESSOR_SHA256
     assert immediate["raw_sha256"] == IMMEDIATE_PREDECESSOR_SHA256
-    assert immediate["execution_task_id"] == 5060
-    assert immediate["execution_disposition"] == "pre_effect_review_rejected"
-    assert immediate["provider_transports"] == 0
-    assert immediate["state_created"] is False
-    predecessor = _load(IMMEDIATE_PREDECESSOR)["predecessor_contract"]
-    assert _sha256(PREDECESSOR) == predecessor["raw_sha256"] == PREDECESSOR_SHA256
-    assert _sha256(EARLIER) == EARLIER_SHA256
+    assert immediate["execution_task_id"] == 5065
+    assert immediate["execution_disposition"] == "effect_indeterminate"
+    assert immediate["terminal_reason"] == "attributable_completion_required"
+    assert immediate["attempted_modes"] == ["simple"]
+    assert immediate["provider_transports"] == "at_most_one"
+    assert immediate["retry_allowed"] is False
+    assert immediate["ledger_namespace_reuse_allowed"] is False
+
+    predecessor_binding = _load(IMMEDIATE_PREDECESSOR)["predecessor_contract"]
+    assert (
+        _sha256(PREDECESSOR) == predecessor_binding["raw_sha256"] == PREDECESSOR_SHA256
+    )
+    assert predecessor_binding["execution_task_id"] == 5060
+    assert predecessor_binding["execution_disposition"] == "pre_effect_review_rejected"
+    assert predecessor_binding["provider_transports"] == 0
+    assert predecessor_binding["state_created"] is False
+
+    earlier_binding = _load(PREDECESSOR)["predecessor_contract"]
+    assert _sha256(EARLIER) == earlier_binding["raw_sha256"] == EARLIER_SHA256
+    assert _sha256(INTERMEDIATE) == INTERMEDIATE_SHA256
     assert _sha256(EARLIEST) == EARLIEST_SHA256
     assert _sha256(UNATTEMPTED) == UNATTEMPTED_SHA256
     assert _sha256(OLDER) == OLDER_SHA256
     assert _sha256(ANCIENT) == ANCIENT_SHA256
     assert _sha256(ORIGINAL) == ORIGINAL_SHA256
 
-    archived = _load(PREDECESSOR)
+    archived = _load(EARLIER)
     assert archived["task_id"] == 5042
     assert (
         archived["status"]
         == "luna_xhigh_fd_journal_repair_execution_unauthorized_pending_review"
     )
-    assert predecessor["task_id"] == 5042
-    assert predecessor["execution_task_id"] == 5045
-    assert predecessor["attempted_modes"] == ["simple"]
-    assert predecessor["unattempted_modes"] == list(EXPECTED_MODES[1:])
-    assert predecessor["terminal_disposition"] == "effect_indeterminate"
-    assert predecessor["terminal_reason"] == "provider_receipt_journal_invalid"
-    assert predecessor["response_sha256"] == (
+    assert earlier_binding["task_id"] == 5042
+    assert earlier_binding["execution_task_id"] == 5045
+    assert earlier_binding["attempted_modes"] == ["simple"]
+    assert earlier_binding["unattempted_modes"] == list(EXPECTED_MODES[1:])
+    assert earlier_binding["terminal_disposition"] == "effect_indeterminate"
+    assert earlier_binding["terminal_reason"] == "provider_receipt_journal_invalid"
+    assert earlier_binding["response_sha256"] == (
         "749af25da49ba89dda58ee9bf2b02114282241def1f5d7c2b4430e43be22edbb"
     )
-    assert predecessor["response_length"] == 304
-    assert len(predecessor["completed_receipt_chains"]) == 2
-    assert all(
-        row["provider_outcome_receipt"] == "accepted"
-        and row["producer_terminal"] == "provider_response_completed"
-        for row in predecessor["completed_receipt_chains"]
-    )
-    assert predecessor["retry_allowed"] is False
-    assert predecessor["empirical_relabel_allowed"] is False
-    assert predecessor["ledger_namespace_reuse_allowed"] is False
-    assert predecessor["unattempted_modes_execution_authority_transferred"] is False
-    assert predecessor["earlier_predecessor"]["raw_sha256"] == EARLIER_SHA256
+    assert earlier_binding["response_length"] == 304
+    assert len(earlier_binding["completed_receipt_chains"]) == 2
+    assert earlier_binding["retry_allowed"] is False
+    assert earlier_binding["empirical_relabel_allowed"] is False
+    assert earlier_binding["ledger_namespace_reuse_allowed"] is False
+    assert earlier_binding["unattempted_modes_execution_authority_transferred"] is False
 
 
 def test_contract_binds_all_six_fresh_originals_exactly() -> None:
     contract = _load(CONTRACT_PATH)
-    predecessor = _load(PREDECESSOR)
+    predecessor = _load(IMMEDIATE_PREDECESSOR)
     assert contract["cases"] == predecessor["cases"]
     assert contract["rubric"] == predecessor["rubric"]
     assert (
-        contract["provider_owner_candidate"] == predecessor["provider_owner_candidate"]
+        contract["provider_owner_candidate"] != predecessor["provider_owner_candidate"]
     )
-    assert contract["runtime_target"] == {
-        **predecessor["runtime_target"],
-        "litellm_local_model_cost_map": True,
+    assert contract["runtime_target"] == predecessor["runtime_target"]
+    assert contract["effect_budget"] == {
+        **predecessor["effect_budget"],
+        "failed_provider_error_is_terminal": True,
     }
-    assert contract["effect_budget"] == predecessor["effect_budget"]
     assert contract["effect_budget"]["fixed_case_order"] == list(EXPECTED_MODES)
     active = _load(ACTIVE_BINDING_PATH)
     for case in contract["cases"]:
@@ -408,17 +424,17 @@ def test_contract_binds_all_six_fresh_originals_exactly() -> None:
 def test_provider_owner_and_runtime_identity_are_exact() -> None:
     contract = _load(CONTRACT_PATH)
     owner = contract["provider_owner_candidate"]
-    assert owner["owner_task_id"] == 4991
-    assert owner["commit"] == "7c51dda703f6a5d0a95aba13734294a82ea4314f"
-    assert owner["tree"] == "c303dd657146da90404618adead417e82e2dc2c0"
+    assert owner["owner_task_id"] == 5070
+    assert owner["commit"] == "4bdc3bb2e341b8ebff088828c8604ff8051b5d49"
+    assert owner["tree"] == "816c77372e5e9becd5ecc5b95d336625ceb56815"
     assert owner["version"] == "0.1.6.dev0"
-    assert (
-        owner["wheel_sha256"]
-        == "e1b8acaa354df4640422512a779b9486d5c4caceeb9c9ab05c4a07f1b1eb3512"
+    assert owner["wheel_sha256"] is None
+    assert owner["installed_payload_sha256"] is None
+    assert owner["module_sha256"]["outcome_receipt"] == (
+        "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d"
     )
-    assert (
-        owner["installed_payload_sha256"]
-        == "8c8a2aa569df171fab35e25b02cb313ee20725901c7bec7ede0edc2364dccaf2"
+    assert owner["module_sha256"]["outcome_receipt_state"] == (
+        "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26"
     )
     assert set(owner["module_sha256"]) == {
         "package_init",
@@ -435,10 +451,10 @@ def test_provider_owner_and_runtime_identity_are_exact() -> None:
     assert owner["dependency_identity"]["dspy"]["version"] == "3.3.1"
     assert owner["dependency_identity"]["litellm"]["version"] == "1.82.1"
     assert owner["dependency_identity"]["litellm"]["record_sha256"] == (
-        "ecd60ab285a5c0afe8353e1e2838f7560aa525715fb6747a5e0f485f9d56c71d"
+        "1830d79944869e8916526cf9fbe9adbc429dfaefbb1bf189d26caebbfed84ac6"
     )
     assert owner["dependency_identity"]["httpx"]["record_sha256"] == (
-        "ad5388cd6ffec977fd4a0c61f550a6a3cbf3ef22cd4098fe01be6101b19194f0"
+        "36876854dd991fdbea093ead83f852baf1d9e777126dac8e5d6b722ce0753e92"
     )
     runtime = contract["runtime_target"]
     assert runtime["requested_route"] == "dspy-lm-auth:codex:gpt-5.6-luna:xhigh"
@@ -466,6 +482,19 @@ def test_executor_attempt_receipt_and_retention_requirements_are_explicit() -> N
         executor["execution_authorization_schema"]
         == "soomfon-execution-authorization-v3"
     )
+    assert (
+        executor["canonical_authorization_evidence_schema"]
+        == "soomfon-ak5071-authorization-evidence-v4"
+    )
+    assert executor["live_completion_kind"] == (
+        "soomfon_ak5071_ak5070_one_suite_execution_authorization"
+    )
+    assert {
+        "exact_repo_and_done_task_5071_dependency",
+        "exact_done_ak_5070_owner_task_and_artifact_identity",
+        "exact_live_completion_kind_and_guardrails_binding_ak_5070",
+        "exact_ak_5070_owner_source_commit_tree_lock_modules_and_dependencies",
+    } <= set(executor["authorization_required_fields"])
     assert executor["child_runtime_queries_ak"] is True
     assert executor["canonical_ak_runtime"] == {
         "path": "/home/tryinget/.local/libexec/agent-kernel/c6297eccf67a3762ef01269f67e87eaa8828f127/ak-bin",
@@ -489,6 +518,10 @@ def test_executor_attempt_receipt_and_retention_requirements_are_explicit() -> N
         "force_litellm_bundled_local_model_cost_map_before_owner_import"
         in executor["required_executor_properties"]
     )
+    assert (
+        "protect_and_hash_bind_all_soomfon_v2_receipt_modules"
+        in executor["required_executor_properties"]
+    )
     budget = contract["effect_budget"]
     assert budget["ordered_logical_lm_calls_per_successful_case"] == 2
     assert budget["maximum_suite_logical_lm_calls"] == 12
@@ -496,8 +529,24 @@ def test_executor_attempt_receipt_and_retention_requirements_are_explicit() -> N
     assert budget["dspx_managed_retries"] == budget["provider_configured_retries"] == 0
     assert budget["health_probes"] == budget["selective_reruns"] == 0
     assert budget["resume_allowed"] is budget["fallback_allowed"] is False
+    assert budget["failed_provider_error_is_terminal"] is True
     receipt = contract["provider_receipt_custody"]
-    assert receipt["existing_accepted_v11_owner_identity_unchanged"] is True
+    assert receipt["module_stack"] == {
+        "contract": "dspx.services.soomfon_provider_outcome_receipt_contract",
+        "identity": "dspx.services.soomfon_provider_outcome_receipt_identity",
+        "journal": "dspx.services.soomfon_provider_outcome_receipt_journal",
+        "journal_fd": "dspx.services.soomfon_provider_outcome_receipt_journal_fd",
+        "reducer": "dspx.services.soomfon_provider_outcome_receipt_reducer",
+    }
+    assert receipt["event_schema"] == "AK-5070_eight_field_exact_status_v2"
+    assert receipt["frozen_v11_parser_or_identity_used"] is False
+    assert receipt["accepted_owner_identity"] == "AK-5070_exact_source_candidate"
+    assert receipt["accepted_evidence_terminals"] == [
+        "provider_response_completed",
+        "remote_http_error_final",
+    ]
+    assert receipt["progression_authorized_terminal"] == "provider_response_completed"
+    assert receipt["provider_error_terminal_state"] == "failed_provider_error"
     assert receipt["verify_owner_source_before_marker"] is True
     assert receipt["verify_loaded_receipt_types_before_call"] is True
     assert receipt["revalidate_before_each_call_and_progression"] is True
@@ -551,6 +600,9 @@ def test_documentation_and_nonclaims_match_machine_contract() -> None:
     document = DOC_PATH.read_text(encoding="utf-8")
     for phrase in (
         "pending independent review, execution unauthorized",
+        "failed_provider_error",
+        "receipt integrity",
+        "one-provider-transport diagnostic",
         "dspy-lm-auth",
         "no-refresh",
         "exactly two",

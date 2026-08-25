@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -35,7 +36,7 @@ from test_soomfon_evaluation_executor import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "9034944d7bfcb48624b83fb650cd02c6a43ba401d75a614beb7bd7906be9a837"
+CONTRACT_SHA256 = "8bc157034ade33e34df33bd059910b24ae7debb06e9d4fb6aadf348ca3760555"
 
 
 @pytest.fixture(autouse=True)
@@ -389,6 +390,79 @@ def test_completed_marker_is_not_reconciled_indeterminate(tmp_path: Path) -> Non
         assert not (ledger / f"{name}.reconciled-indeterminate.json").exists()
     finally:
         os.close(ledger_fd)
+
+
+def test_verified_provider_error_marker_is_strongly_bound_and_complete(
+    tmp_path: Path,
+) -> None:
+    suite, suite_fd = custody.ensure_private_tree(tmp_path / "suite")
+    os.close(suite_fd)
+    ledger, ledger_fd = custody.ensure_private_tree(suite / "ledger")
+    raw, raw_fd = custody.ensure_private_tree(suite / "raw/simple")
+    os.close(raw_fd)
+    runtime_sha256, tree_sha256, behavior_sha256, receipt_sha256 = (
+        _write_mock_runtime_evidence(
+            raw, disposition="remote_http_error_final", dispatch_count=1
+        )
+    )
+    provider_state, provider = classify_provider_disposition(
+        _effect_behavior("remote_http_error_final", dispatch_count=1, status_code=400)
+    )
+    assert provider_state == "failed_provider_error"
+    marker_fd, name = custody.create_attempt_marker(
+        ledger_fd=ledger_fd,
+        contract_sha256=CONTRACT_SHA256,
+        mode="simple",
+        execution_task_id=6000,
+        authorization_sha256="f" * 64,
+        ak_reconciliation_sha256="e" * 64,
+    )
+    details = {
+        "latency_ms": 1,
+        "runtime_episode_sha256": runtime_sha256,
+        "runtime_tree_sha256": tree_sha256,
+        "runtime_receipt_sha256": receipt_sha256,
+        "behavior_results_sha256": behavior_sha256,
+        "provider": provider,
+    }
+    custody.append_terminal(
+        marker_fd=marker_fd,
+        ledger_fd=ledger_fd,
+        contract_sha256=CONTRACT_SHA256,
+        mode="simple",
+        state="failed_provider_error",
+        details=details,
+    )
+    records = soomfon_ledger.read_marker_records(marker_fd)
+    evidence = soomfon_ledger.runtime_evidence_hashes(ledger_fd, name)
+    assert soomfon_ledger.is_complete_terminal_marker(
+        records, name, evidence_hashes=evidence
+    )
+    assert records is not None
+    assert "response_sha256" not in records[1]["details"]
+
+    drifted_hash = copy.deepcopy(records)
+    drifted_hash[1]["details"]["runtime_episode_sha256"] = "0" * 64
+    assert not soomfon_ledger.is_complete_terminal_marker(
+        drifted_hash, name, evidence_hashes=evidence
+    )
+    drifted_provider = copy.deepcopy(records)
+    drifted_provider[1]["details"]["provider"]["call_records"][0]["status_code"] = 401
+    assert not soomfon_ledger.is_complete_terminal_marker(
+        drifted_provider, name, evidence_hashes=evidence
+    )
+    os.close(marker_fd)
+    with pytest.raises(custody.SoomfonCustodyError, match="already consumed"):
+        custody.create_attempt_marker(
+            ledger_fd=ledger_fd,
+            contract_sha256=CONTRACT_SHA256,
+            mode="simple",
+            execution_task_id=6000,
+            authorization_sha256="f" * 64,
+            ak_reconciliation_sha256="e" * 64,
+        )
+    assert not (ledger / f"{name}.reconciled-indeterminate.json").exists()
+    os.close(ledger_fd)
 
 
 def test_forged_success_without_exact_provider_evidence_is_reconciled(
@@ -1106,10 +1180,18 @@ def test_degraded_runtime_cannot_be_classified_succeeded(
             behavior_results_sha256="b" * 64,
         ),
     )
+    provider_state, provider_details = classify_provider_disposition(completed)
     monkeypatch.setattr(
         executor,
         "runtime_evidence_hashes",
-        lambda *_: {"runtime_tree_sha256": "d" * 64},
+        lambda *_: {
+            "runtime_episode_sha256": "a" * 64,
+            "runtime_tree_sha256": "d" * 64,
+            "runtime_receipt_sha256": "c" * 64,
+            "behavior_results_sha256": "b" * 64,
+            "provider_state": provider_state,
+            "provider": provider_details,
+        },
     )
     state, details = executor._evaluate_case(
         case={"manifest_payload": {}, "manifest_sha256": "c" * 64, "mode": "simple"},
