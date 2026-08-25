@@ -1,0 +1,19 @@
+{
+  "engineering_core": {
+    "schema_version": "1",
+    "tool": "engineering-core",
+    "lanes": ["py"],
+    "disciplines": [
+      "validation",
+      "testing",
+      "security-privacy",
+      "documentation",
+      "dependency-governance"
+    ],
+    "ref": "v1.0.0",
+    "catalog_command": "engineering-core catalog --pretty",
+    "list_disciplines_command": "engineering-core list-disciplines",
+    "list_templates_command": "engineering-core list-templates",
+    "deviations": []
+  }
+}

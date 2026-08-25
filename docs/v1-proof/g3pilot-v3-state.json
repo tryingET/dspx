@@ -1,0 +1,1446 @@
+{
+ "advice": {
+  "A1": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-25T21:26:39+00:00",
+   "request_sha256": "ab27b1557e7307c3efd659291ca5ecd4e57ff9d95aa4e9375e9d72c74d04a7b5",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Do not invent the released ref or command strings from the legacy local-path configuration; obtain them from the repository-available engineering-core CLI or task checker context before finalizing the policy.",
+      "falsification": "A doctor run confirms the selected ref is released-match and all policy checks pass.",
+      "recommendation_id": "r1",
+      "severity": "high"
+     },
+     {
+      "critique": "Avoid claiming project-specific validation commands not supported by the captured repository evidence.",
+      "falsification": "The final documentation names only commands actually run and recorded in the claim file.",
+      "recommendation_id": "r2",
+      "severity": "medium"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 286,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       },
+       {
+        "end": 298,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.89,
+      "counterevidence": [
+       "The legacy policy uses a local-path ref and tech-stack-core command model, which is incompatible with the required v1 released-match posture."
+      ],
+      "falsification": [
+       "engineering-core doctor --repo . reports a non-pass check or a pin posture other than released-match.",
+       "engineering-core scan-adoption reports unknown discipline IDs or a structural status other than adopted."
+      ],
+      "id": "r1",
+      "recommendation": "Create policy/engineering-lane.json for the py lane, using the released engineering-core reference and non-empty catalog/list commands required by the task. Include the five selected cross-language disciplines and an explicit deviations list.",
+      "unknowns": [
+       "The captured evidence does not provide the exact released-ref string or command syntax required by engineering-core 1.0.0.",
+       "No catalog output is included to independently confirm discipline validity beyond the request allowlist."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "py",
+       "documentation",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 1228,
+        "evidence_id": "e3",
+        "path": "docs/tech-stack.local.md",
+        "start": 0
+       },
+       {
+        "end": 286,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.93,
+      "counterevidence": [],
+      "falsification": [
+       "The document lacks required front-matter fields or any required content section.",
+       "The adoption scan reports incomplete documentation adoption."
+      ],
+      "id": "r2",
+      "recommendation": "Create docs/engineering.local.md with YAML front matter containing summary and read_when, then document the py lane, selected disciplines, validation evidence expected before handoff, and deliberate deviations.",
+      "unknowns": [
+       "The appropriate repository-specific validation commands are not present in the captured evidence.",
+       "No deliberate local deviations are evidenced; the section may need to state that none are currently declared."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "documentation",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 298,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       },
+       {
+        "end": 1228,
+        "evidence_id": "e3",
+        "path": "docs/tech-stack.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.96,
+      "counterevidence": [],
+      "falsification": [
+       "Either legacy file remains after migration.",
+       "Doctor does not exit 0 with all checks passing, or scan-adoption retains legacy flags."
+      ],
+      "id": "r3",
+      "recommendation": "Remove policy/stack-lane.json and docs/tech-stack.local.md only after their v1 replacements exist, then run the required doctor and scan-adoption commands and record their exact results in G3P3_CLAIM.md alongside the changed-file list.",
+      "unknowns": [
+       "The captured evidence does not include the installed CLI output or the resulting verification output."
+      ]
+     }
+    ],
+    "request_sha256": "ab27b1557e7307c3efd659291ca5ecd4e57ff9d95aa4e9375e9d72c74d04a7b5",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Migrate the Python repository from the documented legacy tech-stack surfaces to the required engineering-core v1 policy and local documentation surfaces, while preserving all unrelated files."
+   }
+  },
+  "A2": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-25T21:26:37+00:00",
+   "request_sha256": "3039b62da4532f08dc3a41dfde0fdd3608f1fc6dec471b1dfd27ebd1fc0d1811",
+   "response": {
+    "critiques": [],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "engineering-reasoning",
+       "validation",
+       "testing",
+       "security-privacy",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 712,
+        "evidence_id": "e2",
+        "path": "policy/engineering-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.93,
+      "counterevidence": [
+       "The current policy uses \"python\" as a lane and a comma-separated discipline string, both of which conflict with the stated required end state."
+      ],
+      "falsification": [
+       "If engineering-core catalog reports a released reference other than the anticipated 1.0.0 release, use the CLI-reported exact value.",
+       "If engineering-core list-disciplines rejects any listed discipline, replace it only with the CLI-confirmed default discipline IDs."
+      ],
+      "id": "r1",
+      "recommendation": "Rewrite engineering_core policy values: retain tool \"engineering-core\" and the three non-empty command fields; set lanes to [\"py\"]; make disciplines an array containing engineering-reasoning, validation, testing, security-privacy, and documentation; replace the stale ref with the exact current released-ref format reported by the local engineering-core catalog; preserve the existing deviations entry byte-for-byte in semantic content.",
+      "unknowns": [
+       "The captured evidence does not expose the local CLI's exact released-ref string.",
+       "The request calls these five disciplines the defaults, but the catalog definition itself is not included."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "py",
+       "engineering-reasoning",
+       "validation",
+       "testing",
+       "security-privacy",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 709,
+        "evidence_id": "e2",
+        "path": "policy/engineering-lane.json",
+        "start": 279
+       },
+       {
+        "end": 182,
+        "evidence_id": "e3",
+        "path": "docs/engineering.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.95,
+      "counterevidence": [
+       "The current document names lane \"python\", has no YAML front matter, and does not provide structured sections."
+      ],
+      "falsification": [
+       "If doctor or scan-adoption rejects the document structure, adjust headings/front matter to the CLI's reported expected schema.",
+       "If the policy deviation is changed unintentionally, restore its id, reason, owner, evidence, and review_date from the captured policy."
+      ],
+      "id": "r2",
+      "recommendation": "Replace docs/engineering.local.md with structured Markdown: YAML front matter containing summary and at least one read_when, followed by sections that identify lane py, list the selected disciplines, require validation evidence at handoff, and list deliberate deviation keep-local-uv-mirror. Keep the deviation description aligned with the preserved policy entry.",
+      "unknowns": [
+       "The repository's preferred wording and Markdown section convention are not captured."
+      ]
+     }
+    ],
+    "request_sha256": "3039b62da4532f08dc3a41dfde0fdd3608f1fc6dec471b1dfd27ebd1fc0d1811",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Repair the malformed policy projection and rewrite the local engineering guide without changing unrelated files; verify exact released-reference syntax and catalog defaults with the repository-provided engineering-core CLI."
+   }
+  },
+  "A3": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-25T21:36:12+00:00",
+   "request_sha256": "9fcd450f927fa0c21bfc49e7cc9318cf36e11766cb367a035c5246bbb21fdefa",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Do not infer a valid released ref or command values from the legacy local-path configuration; those values require task-local/catalog-grounded determination.",
+      "falsification": "Captured evidence explicitly supplies the released catalog reference and all required command values.",
+      "recommendation_id": "r1",
+      "severity": "high"
+     },
+     {
+      "critique": "A successful rollback receipt alone is insufficient; byte-level comparison is required because the checker validates exact restoration.",
+      "falsification": "The frozen checker contract is changed to accept semantic rather than byte-exact restoration.",
+      "recommendation_id": "r2",
+      "severity": "high"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 286,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       },
+       {
+        "end": 298,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.93,
+      "counterevidence": [],
+      "falsification": [
+       "A task checker rejects any selected discipline ID.",
+       "The decoded recorded legacy payload does not match the original legacy file bytes."
+      ],
+      "id": "r1",
+      "recommendation": "Use lane `py` and include the five required cross-language disciplines. Preserve the original legacy-policy bytes before deletion and encode all pre- and post-change payloads directly from file bytes in apply order.",
+      "unknowns": [
+       "The exact released engineering-core catalog reference is not captured.",
+       "The required catalog/list command values are not captured."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "validation",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 298,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.91,
+      "counterevidence": [],
+      "falsification": [
+       "Any original repository file differs after rollback.",
+       "Any adoption file or `.engineering-core/` directory remains.",
+       "The rollback receipt omits or reorders a required restoration/removal entry."
+      ],
+      "id": "r2",
+      "recommendation": "Treat rollback as a separate verified phase: restore both deleted legacy files byte-for-byte, remove both adoption files and any `.engineering-core/` directory, then write rollback.json with the required ordered restored entries and `journal_removed: true`. Verify final file digests against the pre-apply copies before writing the claim.",
+      "unknowns": [
+       "The original docs/tech-stack.local.md bytes are not included in the captured evidence."
+      ]
+     }
+    ],
+    "request_sha256": "9fcd450f927fa0c21bfc49e7cc9318cf36e11766cb367a035c5246bbb21fdefa",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "The evidence supports the Python lane and a byte-preserving migration/rollback record. The released catalog reference and exact required command-field values are not present in the captured evidence and must not be guessed."
+   }
+  },
+  "C1": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-25T21:49:58+00:00",
+   "request_sha256": "9f92b18ec573118be6d6d3f8412e89a1f2d06b01884be12712ab3b612716e4a1",
+   "response": {
+    "critiques": [],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "pi-ts",
+       "specification-and-dsls",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 3432,
+        "evidence_id": "e1",
+        "path": "packages/pi-context-packer/package.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.9,
+      "counterevidence": [],
+      "falsification": [
+       "A fixture containing prose that resembles summary: outside a doc-comment block is reported as having a header.",
+       "A header with summary but no read_when does not return an empty readWhen array.",
+       "Input ordering changes in the audit result."
+      ],
+      "id": "r1",
+      "recommendation": "Implement header detection by scanning complete /** ... */ blocks and selecting a block containing a summary: line; extract summary and read_when entries with narrowly scoped quoted-string regular expressions. Preserve input order and return null fields exactly where the contract distinguishes absent headers from headers without triggers.",
+      "unknowns": [
+       "The captured evidence does not show existing package parser helpers or local test conventions.",
+       "Quoted YAML escaping and multiline scalar behavior are not specified."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "testing",
+       "validation",
+       "pi-ts"
+      ],
+      "citations": [
+       {
+        "end": 3432,
+        "evidence_id": "e1",
+        "path": "packages/pi-context-packer/package.json",
+        "start": 0
+       },
+       {
+        "end": 1003,
+        "evidence_id": "e2",
+        "path": "packages/pi-context-packer/biome.jsonc",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.94,
+      "counterevidence": [],
+      "falsification": [
+       "node --check fails for either new file.",
+       "node --test on the test file has fewer than three passing tests.",
+       "Biome reports formatting or lint errors, including useTemplate violations.",
+       "The aggregation fixture set contains fewer than eight inputs."
+      ],
+      "id": "r2",
+      "recommendation": "Use node:test and node:assert/strict in at least three focused tests: parsing summary plus multiple read_when triggers, missing-header null/empty behavior, and aggregation over eight or more deterministic fixtures. Hand-format both files with 2-space indentation, double quotes, semicolons, and template literals for interpolated strings.",
+      "unknowns": [
+       "The captured evidence does not establish the exact Biome CLI invocation available in the scratch repository.",
+       "No existing test file is included to confirm naming or assertion-style conventions."
+      ]
+     }
+    ],
+    "request_sha256": "9f92b18ec573118be6d6d3f8412e89a1f2d06b01884be12712ab3b612716e4a1",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Implement the two requested ESM files as dependency-free, pure parsing and aggregation code, with built-in Node test coverage and strict Biome-compatible formatting."
+   }
+  },
+  "C2": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-25T21:57:44+00:00",
+   "request_sha256": "26ba1dc0e1524c3508817ff93ffa380aee6146ec5a029222d0dc2964cf839d72",
+   "response": {
+    "critiques": [
+     {
+      "critique": "The recommendation relies on frozen snapshots; it cannot prove parser or dry-run success until the prescribed local checks run after the two edits.",
+      "falsification": "If JSON parsing, `just --list`, or `just --dry-run g3p3-contracts-quick` fails, the recommendation's claimed conformance is false.",
+      "recommendation_id": "r1",
+      "severity": "low"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "pi-ts",
+       "specification-and-dsls",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 1686,
+        "evidence_id": "e2",
+        "path": "package.json",
+        "start": 0
+       },
+       {
+        "end": 10388,
+        "evidence_id": "e1",
+        "path": "Justfile",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.99,
+      "counterevidence": [],
+      "falsification": [
+       "Do not apply this recommendation if release:contracts:validate is absent or differs from the captured package.json evidence.",
+       "Reject the implementation if the Justfile recipe includes any command beyond the single alias invocation, changes an existing recipe, or final changes include another file."
+      ],
+      "id": "r1",
+      "recommendation": "Add only the requested root aliases: set package.json scripts.g3p3-contracts-quick to exactly \"npm run release:contracts:validate\", then add the specified Justfile comment and g3p3-contracts-quick recipe with exactly one `npm run g3p3-contracts-quick` body line. Verify with JSON parsing, `just --list`, and `just --dry-run g3p3-contracts-quick`; confirm the final change set contains only Justfile and package.json.",
+      "unknowns": [
+       "The captured evidence is pre-change, so command outcomes and the final diff cannot be established from it."
+      ]
+     }
+    ],
+    "request_sha256": "26ba1dc0e1524c3508817ff93ffa380aee6146ec5a029222d0dc2964cf839d72",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "The captured root package script and standardized Justfile support the requested thin-alias pair without new implementation logic."
+   }
+  },
+  "C3": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-25T21:56:39+00:00",
+   "request_sha256": "afe155cae7d6b528fe9a016dd2119891db8dc86514fde3c44bc7f309fbfc899b",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Direct floating-point comparison is simple and aligned with the stated float interface, but numerically near-equal remainders could produce unintuitive ordering for adversarial decimal inputs.",
+      "falsification": "Construct weights whose mathematically equal or nearly equal fractional shares differ after binary floating-point operations and show that the observed order violates the intended interpretation.",
+      "recommendation_id": "R1",
+      "severity": "low"
+     },
+     {
+      "critique": "The repository-wide quality recipes include broader formatting and type-checking surfaces, but the frozen task defines narrower required checks; expanding validation may be useful but is not necessary to satisfy this bounded task.",
+      "falsification": "Run the specified focused checks successfully while a broader unrelated repository gate fails for pre-existing reasons.",
+      "recommendation_id": "R3",
+      "severity": "low"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "specification-and-dsls"
+      ],
+      "citations": [
+       {
+        "end": 1715,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.96,
+      "counterevidence": [],
+      "falsification": [
+       "A test with equal fractional shares assigns the extra unit to a key other than the lexicographically first tied key.",
+       "Any valid input returns allocations whose keys differ from the input keys or whose values do not sum to `total`."
+      ],
+      "id": "R1",
+      "recommendation": "Implement `split_token_budget` as a pure, fully typed function using only `Mapping` from `collections.abc` and standard-library arithmetic. Validate all specified invalid inputs before allocation; compute bases and fractional remainders, then rank remainder recipients by descending fractional part and ascending key so ties are deterministic.",
+      "unknowns": [
+       "The captured evidence does not establish whether consumer keys are always mutually comparable beyond the task's stated string-key type.",
+       "Floating-point edge cases near equal fractional parts may require careful direct adherence to the requested semantics."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "testing",
+       "validation",
+       "py"
+      ],
+      "citations": [
+       {
+        "end": 517,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 367
+       },
+       {
+        "end": 2545,
+        "evidence_id": "e2",
+        "path": "Justfile",
+        "start": 2397
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.98,
+      "counterevidence": [],
+      "falsification": [
+       "The test module has fewer than three distinct tests or fewer than eight deterministic property cases.",
+       "A property case fails to assert either sum preservation or key preservation."
+      ],
+      "id": "R2",
+      "recommendation": "Create behavior tests for exact allocation, lexicographic tie-breaking, and each required invalid-input category, plus a deterministic property-style test covering at least eight varied totals and weight mappings. Assert both sum preservation and exact key preservation for every generated case.",
+      "unknowns": [
+       "The captured evidence does not show existing test naming conventions or fixture patterns.",
+       "The requested targeted command uses `python -m pytest`, while repository recipes conventionally invoke pytest through `uv run --no-sync`."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "validation",
+       "dependency-governance"
+      ],
+      "citations": [
+       {
+        "end": 517,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 367
+       },
+       {
+        "end": 1755,
+        "evidence_id": "e2",
+        "path": "Justfile",
+        "start": 1608
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.97,
+      "counterevidence": [],
+      "falsification": [
+       "The working-tree diff contains a modified or added path other than the two specified implementation and test files.",
+       "Validation requires an install, sync, or undeclared third-party test package."
+      ],
+      "id": "R3",
+      "recommendation": "Preserve the two-new-file boundary and run the frozen focused checks against only those files: Ruff check and targeted pytest. Do not introduce Hypothesis or any new dependency; pytest is already declared as a development dependency and the task explicitly constrains the environment to existing tools.",
+      "unknowns": [
+       "The captured evidence does not prove the current environment has an initialized uv environment, so command availability remains runtime-dependent."
+      ]
+     }
+    ],
+    "request_sha256": "afe155cae7d6b528fe9a016dd2119891db8dc86514fde3c44bc7f309fbfc899b",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Implement the bounded pure allocation function with deterministic ordering and focused pytest coverage; use the repository's existing pytest and Ruff toolchain without adding dependencies."
+   }
+  },
+  "C4": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-25T22:10:16+00:00",
+   "request_sha256": "7865b0435474e862a853b5948018799d605b16790f44827b0909b4eb75141a4f",
+   "response": {
+    "critiques": [
+     {
+      "critique": "The editor/save tier has no captured command guaranteed to complete instantly; `hooks-run` is a real repository command but may be more appropriate for a pre-commit preparation tier.",
+      "falsification": "Measured local execution of `just hooks-run files=\"docs/validation-tier-map.md\"` meeting the required instant budget.",
+      "recommendation_id": "r1",
+      "severity": "medium"
+     },
+     {
+      "critique": "Deferring the claim file may fail an external evaluator if it treats the claim instruction as mandatory despite the later one-file boundary.",
+      "falsification": "Evaluator or owner guidance confirming that a claim file must be created in the repository regardless of the one-file clause.",
+      "recommendation_id": "r2",
+      "severity": "high"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "validation",
+       "documentation",
+       "py"
+      ],
+      "citations": [
+       {
+        "end": 27736,
+        "evidence_id": "e1",
+        "path": "Justfile",
+        "start": 0
+       },
+       {
+        "end": 4951,
+        "evidence_id": "e2",
+        "path": "docs/engineering.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.96,
+      "counterevidence": [
+       "`just hooks-run` invokes `uvx prek`, so its observed runtime may not satisfy an instant-save expectation on every machine."
+      ],
+      "falsification": [
+       "A Justfile parse or `just --list` result showing any cited recipe is absent.",
+       "A repository-owned frozen validation-tier template requiring different command mappings or cell semantics."
+      ],
+      "id": "r1",
+      "recommendation": "Create `docs/validation-tier-map.md` in the frozen shape and map the five standard commands truthfully: `just check` \u2192 `just verify-fast`; `just test` \u2192 the local `pytest -q tests` recipe (or its documented no-tests behavior); `just build` \u2192 `uv build --all-packages`; `just ci` \u2192 `just verify-full`; and `just doctor` \u2192 tool-version plus CLI-help sanity checks. Use `just hooks-run files=\"docs/validation-tier-map.md\"`, `just task-scope-check task_id=<AK-ID> mode=working-tree`, `just verify-pre-push`, `just ci`, and `just verify-full` as real-command candidates for the six ordered tiers.",
+      "unknowns": [
+       "The exact wording expected for the tier-model Scope, Target runtime, and Required before cells is supplied by the task text rather than captured repository documentation.",
+       "The task does not identify a concrete AK task ID for the task-scope command."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "engineering-reasoning",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 27736,
+        "evidence_id": "e1",
+        "path": "Justfile",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.99,
+      "counterevidence": [],
+      "falsification": [
+       "An owner clarification explicitly permitting `G3P3_CLAIM.md` as a second new repository file.",
+       "A harness rule establishing that the claim file is generated outside the tracked working tree."
+      ],
+      "id": "r2",
+      "recommendation": "Escalate the specification conflict before producing `G3P3_CLAIM.md`: the task requires that claim file, but C4 also says exactly one new file, `docs/validation-tier-map.md`, and nothing else may change. If no owner clarification is available, preserve the explicit C4 file-change boundary and report the claim requirement as blocked rather than silently violating it.",
+      "unknowns": [
+       "Whether the claim file is expected to be external to the repository despite its stated repository-root path.",
+       "Which clause the task owner intends to take precedence."
+      ]
+     }
+    ],
+    "request_sha256": "7865b0435474e862a853b5948018799d605b16790f44827b0909b4eb75141a4f",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Author the single tier-map artifact using existing Justfile aliases and local validation-tier definitions; resolve the conflicting claim-file instruction before creating any additional file."
+   }
+  }
+ },
+ "blockers": {},
+ "budget": {
+  "executions": 20,
+  "started_at": "2026-08-25T21:26:10+00:00",
+  "stopped_reason": null
+ },
+ "budgets": {
+  "advisor_timeout_s": 420,
+  "executor_timeout_s": 1500,
+  "max_executions": 20,
+  "pilot_wall_s": 21600,
+  "verify_timeout_s": 180
+ },
+ "calibration": "PASS (10/10 reference Y=1, 10/10 stub Y=0, A1+C3 tamper detected; pre-freeze)",
+ "candidate": {
+  "branch": "proof/v1-candidate-4",
+  "built_from": "scratch detached worktree under $TMPDIR; digest verified",
+  "commit": "bc43bb972121bf6c02792bf318cb14aa974b7e17",
+  "repo": "/home/tryinget/ai-society/core/engineering-core",
+  "wheel_path": "/home/tryinget/.local/state/pi-quests/tmp/g3pilot-v3-5081/wheel/engineering_core-1.0.0-py3-none-any.whl",
+  "wheel_sha256": "94b6a2bd5d34ef82dce0f7f40e209e4d55b00c478ce8e49ecd9cd1bc5edb54f8"
+ },
+ "corpus": {
+  "design": {
+   "classes": {
+    "A": 3,
+    "B": 3,
+    "C": 4
+   },
+   "families": {
+    "fam-glm": [
+     "A2",
+     "A3",
+     "B2",
+     "C3",
+     "C4"
+    ],
+    "fam-gpt": [
+     "A1",
+     "B1",
+     "B3",
+     "C1",
+     "C2"
+    ]
+   },
+   "operator_directive_quote": "please do only 10 tasks, 5 per model",
+   "shape": "10 tasks x 1 family x 2 arms = 20 executions (operator reshape directive)"
+  },
+  "execution_order": [
+   "PL3-A1-fam-gpt",
+   "PL3-A2-fam-glm",
+   "PL3-A3-fam-glm",
+   "PL3-B1-fam-gpt",
+   "PL3-B2-fam-glm",
+   "PL3-B3-fam-gpt",
+   "PL3-C1-fam-gpt",
+   "PL3-C2-fam-gpt",
+   "PL3-C3-fam-glm",
+   "PL3-C4-fam-glm"
+  ],
+  "fixtures": {
+   "FIX_ADOPTED_REDACT_PY": [
+    "Justfile",
+    "README.md",
+    "docs/engineering.local.md",
+    "policy/engineering-lane.json",
+    "pyproject.toml",
+    "src/hello_service/__init__.py",
+    "src/hello_service/greeter.py",
+    "tests/__init__.py",
+    "tests/test_greeter.py"
+   ],
+   "FIX_DEGRADED_PY": [
+    "Justfile",
+    "README.md",
+    "docs/engineering.local.md",
+    "policy/engineering-lane.json",
+    "pyproject.toml",
+    "src/hello_service/__init__.py",
+    "src/hello_service/greeter.py",
+    "tests/__init__.py",
+    "tests/test_greeter.py"
+   ],
+   "FIX_LEGACY_PY": [
+    "Justfile",
+    "README.md",
+    "docs/tech-stack.local.md",
+    "policy/stack-lane.json",
+    "pyproject.toml",
+    "src/hello_service/__init__.py",
+    "src/hello_service/greeter.py",
+    "tests/__init__.py",
+    "tests/test_greeter.py"
+   ],
+   "FIX_TS_WEB": [
+    "README.md",
+    "package.json",
+    "src/index.js"
+   ]
+  },
+  "pairs": [
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-A1-fam-gpt",
+    "repo_identity": "fixture:FIX_LEGACY_PY",
+    "repo_key": "FIX_LEGACY_PY",
+    "repo_pin": "frozen-fixture",
+    "task": {
+     "acceptance": {
+      "fixture": "FIX_LEGACY_PY",
+      "kind": "adoption_migration",
+      "required_absent": [
+       "policy/stack-lane.json",
+       "docs/tech-stack.local.md"
+      ]
+     },
+     "convention_rationale": "Convention space a model without the guidance must guess: (1) release ref format 'v<catalog-version>' (v1.0.0, not 1.0.0/workspace-local) for released-match pin posture; (2) valid catalog id spellings 'py' + the five default cross-language discipline ids (hyphenated forms security-privacy/dependency-governance); (3) the three required catalog/list command fields; (4) legacy surfaces must be REMOVED for structural status 'adopted' (legacy-mixed otherwise); (5) both surfaces (policy JSON + structured local doc with front matter) are required \u2014 doc-only/policy-only are distinct degraded statuses.",
+     "family": "fam-gpt",
+     "new_files": [
+      "policy/engineering-lane.json",
+      "docs/engineering.local.md"
+     ],
+     "new_symbols": [],
+     "repo": "FIX_LEGACY_PY",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\n\nTASK (A1): Complete this repository's migration from the legacy tech-stack\nadoption surfaces to the v1 engineering adoption contract.\n\nCurrent state: this repository still carries the LEGACY surfaces\n`policy/stack-lane.json` and `docs/tech-stack.local.md`, and has NO v1\nadoption surfaces.\n\nRequired end state (verification is objective, deterministic, and automated;\nthe frozen checker runs the engineering-core 1.0.0 CLI against your tree):\n\n1. `policy/engineering-lane.json` exists with an `engineering_core` object that\n   has: `tool` == \"engineering-core\"; `lanes` == [\"py\"]; a release `ref` pinned\n   to the currently released catalog version in the exact released-ref format;\n   non-empty `catalog_command`, `list_disciplines_command`, and\n   `list_templates_command` fields; `disciplines` as a non-empty JSON array of\n   valid catalog discipline ids that includes the five default cross-language\n   disciplines; `deviations` as a list.\n2. `docs/engineering.local.md` exists and is structured repo-local engineering\n   documentation: YAML front matter with a `summary` and at least one\n   `read_when` trigger; the selected lane; the selected disciplines; the\n   validation-evidence expectation before handoff; and a deliberate-deviations\n   section.\n3. The legacy files `policy/stack-lane.json` and `docs/tech-stack.local.md` are\n   REMOVED.\n4. `engineering-core doctor --repo .` exits 0 with EVERY check status \"pass\"\n   and pin posture \"released-match\".\n5. `engineering-core scan-adoption --scope . --include-scope-root --format\n   json` reports completeness \"complete\" and this repository's record with\n   structural status \"adopted\", no legacy flags, no unknown-id notes.\n6. Every other repository file remains byte-identical to its current content.\n",
+     "task_class": "A",
+     "task_id": "A1",
+     "title": "Legacy -> v1 adoption migration (contract conformance)"
+    },
+    "task_class": "A",
+    "task_id": "A1"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL3-A2-fam-glm",
+    "repo_identity": "fixture:FIX_DEGRADED_PY",
+    "repo_key": "FIX_DEGRADED_PY",
+    "repo_pin": "frozen-fixture",
+    "task": {
+     "acceptance": {
+      "fixture": "FIX_DEGRADED_PY",
+      "kind": "adoption_repair",
+      "preserve_deviation": "keep-local-uv-mirror",
+      "required_absent": [
+       "policy/stack-lane.json",
+       "docs/tech-stack.local.md"
+      ]
+     },
+     "convention_rationale": "Convention space: same id/ref/command-field vocabulary as A1 plus repair semantics: disciplines must be a JSON ARRAY of catalog ids (comma string is a schema violation that blocks doctor); unknown lane id 'python' must be dropped for 'py'; the deviation ledger structure (id/reason/owner/evidence/review_date) must be preserved through repair; the local doc must be restructured (front matter + sections), not patched in place.",
+     "family": "fam-glm",
+     "new_files": [
+      "policy/engineering-lane.json",
+      "docs/engineering.local.md"
+     ],
+     "new_symbols": [],
+     "repo": "FIX_DEGRADED_PY",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\n\nTASK (A2): Repair this repository's degraded v1 engineering adoption.\n\nCurrent state: v1 adoption surfaces exist but are DEFECTIVE:\n- the policy `ref` is pinned to an old release (the catalog release current at\n  verification time is newer);\n- `engineering_core.disciplines` violates the schema (it is not a JSON array\n  of ids);\n- `engineering_core.lanes` contains an id that is not in the catalog;\n- `docs/engineering.local.md` is unstructured: no front matter, no sections.\n\nRequired end state (frozen checker runs the engineering-core 1.0.0 CLI):\n\n1. `engineering-core doctor --repo .` exits 0 with EVERY check status \"pass\"\n   and pin posture \"released-match\".\n2. `engineering-core scan-adoption --scope . --include-scope-root --format\n   json` reports completeness \"complete\" and this repository's record with\n   structural status \"adopted\", no legacy flags, no unknown-id notes.\n3. `policy/engineering-lane.json`: `tool` == \"engineering-core\"; `lanes` ==\n   [\"py\"]; `ref` == the current released catalog version in the exact\n   released-ref format; the three catalog/list command fields non-empty;\n   `disciplines` a JSON array of valid catalog discipline ids that includes\n   the five default cross-language disciplines.\n4. The existing structured deviation entry (id `keep-local-uv-mirror` with its\n   reason, owner, evidence, review_date) is PRESERVED unchanged in\n   `engineering_core.deviations`.\n5. `docs/engineering.local.md` is rewritten to structured form: YAML front\n   matter with `summary` and at least one `read_when`; selected lane; selected\n   disciplines; validation-evidence expectation; a deliberate-deviations\n   section that lists the preserved deviation by its id.\n6. The legacy tech-stack files remain ABSENT; every other repository file\n   remains byte-identical.\n",
+     "task_class": "A",
+     "task_id": "A2",
+     "title": "Degraded adoption repair (doctor + scanner conformance)"
+    },
+    "task_class": "A",
+    "task_id": "A2"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL3-A3-fam-glm",
+    "repo_identity": "fixture:FIX_LEGACY_PY",
+    "repo_key": "FIX_LEGACY_PY",
+    "repo_pin": "frozen-fixture",
+    "task": {
+     "acceptance": {
+      "fixture": "FIX_LEGACY_PY",
+      "kind": "adoption_rollback",
+      "required_absent": [
+       "policy/engineering-lane.json",
+       "docs/engineering.local.md",
+       ".engineering-core"
+      ],
+      "restore_exact": true
+     },
+     "convention_rationale": "Convention space: the adoption transaction/journal semantics \u2014 apply records per-file before/after digests+bytes for creates AND legacy deletes; rollback restores exact pre-adoption bytes and removes the journal (.engineering-core/); the created adoption files must satisfy the full v1 contract even though they are then rolled back; restored/removed action vocabulary in the rollback receipt.",
+     "family": "fam-glm",
+     "new_files": [
+      ".g3p3-transaction/apply.json",
+      ".g3p3-transaction/rollback.json"
+     ],
+     "new_symbols": [],
+     "repo": "FIX_LEGACY_PY",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\n\nTASK (A3): Execute the full adoption->rollback lifecycle on this legacy\nrepository BY HAND (the engineering-core CLI is not available to you) and prove\nit with a transaction record.\n\nPhase 1 (apply): author the v1 adoption contract for this repository \u2014\ncreate `policy/engineering-lane.json` (engineering_core with tool\n\"engineering-core\", lanes [\"py\"], ref = current released catalog version in the\nexact released-ref format, the three catalog/list command fields non-empty,\ndisciplines = a JSON array of valid catalog discipline ids including the five\ndefault cross-language disciplines, deviations a list) and\n`docs/engineering.local.md` (YAML front matter with summary and read_when;\nselected lane and disciplines; validation-evidence expectation;\ndeliberate-deviations section), and REMOVE the legacy files\n`policy/stack-lane.json` and `docs/tech-stack.local.md`.\n\nPhase 2 (rollback): restore the repository to its EXACT pre-adoption bytes\n(legacy files restored byte-for-byte, adoption files deleted) and leave no\nadoption journal (no `.engineering-core/` directory).\n\nFinal tree requirements (frozen checker verifies digests):\n- every original repository file byte-identical to its current content;\n- `policy/engineering-lane.json`, `docs/engineering.local.md`, and\n  `.engineering-core/` all ABSENT.\n\nTransaction record (the proof that both phases really ran), directory\n`.g3p3-transaction/`:\n\n`apply.json` \u2014 the applied adoption plan:\n  {\"mode\": \"migrate\", \"repo\": \"<abs repo path>\", \"lanes\": [\"py\"],\n   \"disciplines\": [<the discipline ids you selected>],\n   \"changes\": [ four entries in apply order, each an object with keys\n     path, action, before_sha256, after_sha256, before_b64, after_b64\n     (sha256 = hex digest of the bytes; b64 = base64 of the bytes; null when\n     absent):\n     - policy/engineering-lane.json: action \"create\", before_* null,\n       after_* = your created file's bytes;\n     - docs/engineering.local.md: action \"create\", before_* null,\n       after_* = your created file's bytes;\n     - policy/stack-lane.json: action \"delete\", before_* = the file's\n       ORIGINAL bytes, after_* null;\n     - docs/tech-stack.local.md: action \"delete\", before_* = the file's\n       ORIGINAL bytes, after_* null ],\n   \"safe_to_apply\": true, \"applied\": true}\n\n`rollback.json` \u2014 the rollback receipt:\n  {\"command\": \"rollback\", \"repo\": \"<abs repo path>\", \"status\": \"rolled_back\",\n   \"restored\": [{\"path\": \"policy/stack-lane.json\", \"action\": \"restored\"},\n                {\"path\": \"docs/tech-stack.local.md\", \"action\": \"restored\"},\n                {\"path\": \"policy/engineering-lane.json\", \"action\": \"removed\"},\n                {\"path\": \"docs/engineering.local.md\", \"action\": \"removed\"}],\n   \"journal_removed\": true}\n\nThe checker decodes apply.json's base64 payloads and validates that the\ncreated adoption files satisfied the v1 contract and that the recorded legacy\nbefore-bytes equal the repository's original bytes.\n",
+     "task_class": "A",
+     "task_id": "A3",
+     "title": "Adoption apply -> rollback lifecycle with byte-exact restore"
+    },
+    "task_class": "A",
+    "task_id": "A3"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-B1-fam-gpt",
+    "repo_identity": "fixture:FIX_LEGACY_PY",
+    "repo_key": "FIX_LEGACY_PY",
+    "repo_pin": "frozen-fixture",
+    "task": {
+     "acceptance": {
+      "fixture": "FIX_LEGACY_PY",
+      "kind": "advise_response"
+     },
+     "convention_rationale": "Convention space: response envelope binding (request digest, prompt identity provenance, citation spans within captured evidence) plus the SELECTION vocabulary: the plan compiler selects lane 'py' from pyproject.toml plus exactly the five default cross-language disciplines \u2014 id spellings are catalog vocabulary, not guessable English.",
+     "family": "fam-gpt",
+     "new_files": [
+      "g3p3-advice-response.json"
+     ],
+     "new_symbols": [],
+     "repo": "FIX_LEGACY_PY",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\n\nTASK (B1): Produce the advisory response the engineering advisor surface\nexpects for this repository.\n\nThe `engineering-advice-request-v1` JSON below was compiled for THIS repository\nby `engineering-core advise` (digest-verified evidence, fixed budgets). The\nrequest's compiled plan section is withheld from you (it is the answer key);\neverything you need to bind a response is included: the request digest, the\ncaptured evidence items (id, path, span), the allowed catalog id vocabulary,\nand the prompt identity.\n\nProduce ONE new file `g3p3-advice-response.json` in the repository root: a\nvalid `engineering-advice-response-v1` bound to this request. Do not modify any\nexisting repository file.\n\nEnvelope contract (mechanical):\n- top-level keys EXACTLY: schema, request_sha256, provenance, status, summary,\n  recommendations, critiques, patch_proposals\n- schema: \"engineering-advice-response-v1\"; request_sha256: the request digest\n  given below (copied exactly)\n- provenance: object with keys EXACTLY provider, model, model_version, adapter,\n  adapter_version, prompt_id, prompt_version (all non-empty strings; prompt_id\n  and prompt_version must equal the request's prompt identity given below)\n- status: \"advice\" (this task requires substantive advice; \"abstain\"/\"unknown\"\n  would fail the substance requirements)\n- summary: non-empty bounded text\n- recommendations: array of 2..20 objects, each with keys EXACTLY id,\n  catalog_ids, recommendation, confidence, unknowns, counterevidence,\n  falsification, citations, competes_with\n  - id: unique non-empty string; confidence: number in [0,1];\n    catalog_ids: array of ids drawn ONLY from the allowed vocabulary below;\n    recommendation/summary-like fields: non-empty text; unknowns,\n    counterevidence, falsification, competes_with: arrays of strings\n    (competes_with may only reference other recommendation ids you defined)\n  - citations: array of objects with keys EXACTLY evidence_id, path, start,\n    end \u2014 evidence_id and path must match one captured evidence item below,\n    with integer spans 0 <= start < end <= that item's span end\n- critiques: array of 0..20 objects with keys EXACTLY recommendation_id,\n  critique, severity, falsification \u2014 recommendation_id must reference one of\n    your recommendation ids; severity one of \"low\", \"medium\", \"high\"\n- patch_proposals: [] (exactly empty in this task)\n- all text fields bounded (<= 16000 bytes each)\n\nSubstance requirements (also checked):\n- status == \"advice\" and at least 2 recommendations\n- the UNION of catalog_ids across all recommendations EQUALS the set of lane\n  and discipline ids the product's plan compiler selects (as requested\n  selections) for this repository state \u2014 derive it from the repository, not\n  from guesswork: which lane(s) the repository's manifests select (including\n  any frontend addendum lane a frontend dependency triggers), plus the five\n  default cross-language disciplines, or \u2014 when a v1 adoption policy is\n  present \u2014 the selections that policy declares\n- every recommendation carries at least one valid citation into the captured\n  evidence (citing the file that justifies the recommendation)\n- at least one critique referencing an existing recommendation id\n\nNOTE on spans: citations are validated against the request's captured evidence\nrepresentations. If a captured file was redacted during capture, valid spans\nare bounds on the REDACTED representation, and the redacted placeholders are\nwhat the advisor may quote.\n\nACCEPTANCE REQUEST MATERIALS:\n{request_materials}\n",
+     "task_class": "B",
+     "task_id": "B1",
+     "title": "Advise response for a plain legacy py repo (inference-selected ids)"
+    },
+    "task_class": "B",
+    "task_id": "B1"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL3-B2-fam-glm",
+    "repo_identity": "fixture:FIX_TS_WEB",
+    "repo_key": "FIX_TS_WEB",
+    "repo_pin": "frozen-fixture",
+    "task": {
+     "acceptance": {
+      "fixture": "FIX_TS_WEB",
+      "kind": "advise_response"
+     },
+     "convention_rationale": "Convention space: manifest->lane inference ('ts' from package.json) PLUS the frontend addendum rule: a react dependency adds lane 'ts-frontend' (and it is never used alone), still with the five default disciplines. Without the lane-selection rules the union-of-catalog-ids equality cannot be derived.",
+     "family": "fam-glm",
+     "new_files": [
+      "g3p3-advice-response.json"
+     ],
+     "new_symbols": [],
+     "repo": "FIX_TS_WEB",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\n\nTASK (B2): Produce the advisory response the engineering advisor surface\nexpects for this repository.\n\nThe `engineering-advice-request-v1` JSON below was compiled for THIS repository\nby `engineering-core advise` (digest-verified evidence, fixed budgets). The\nrequest's compiled plan section is withheld from you (it is the answer key);\neverything you need to bind a response is included: the request digest, the\ncaptured evidence items (id, path, span), the allowed catalog id vocabulary,\nand the prompt identity.\n\nProduce ONE new file `g3p3-advice-response.json` in the repository root: a\nvalid `engineering-advice-response-v1` bound to this request. Do not modify any\nexisting repository file.\n\nEnvelope contract (mechanical):\n- top-level keys EXACTLY: schema, request_sha256, provenance, status, summary,\n  recommendations, critiques, patch_proposals\n- schema: \"engineering-advice-response-v1\"; request_sha256: the request digest\n  given below (copied exactly)\n- provenance: object with keys EXACTLY provider, model, model_version, adapter,\n  adapter_version, prompt_id, prompt_version (all non-empty strings; prompt_id\n  and prompt_version must equal the request's prompt identity given below)\n- status: \"advice\" (this task requires substantive advice; \"abstain\"/\"unknown\"\n  would fail the substance requirements)\n- summary: non-empty bounded text\n- recommendations: array of 2..20 objects, each with keys EXACTLY id,\n  catalog_ids, recommendation, confidence, unknowns, counterevidence,\n  falsification, citations, competes_with\n  - id: unique non-empty string; confidence: number in [0,1];\n    catalog_ids: array of ids drawn ONLY from the allowed vocabulary below;\n    recommendation/summary-like fields: non-empty text; unknowns,\n    counterevidence, falsification, competes_with: arrays of strings\n    (competes_with may only reference other recommendation ids you defined)\n  - citations: array of objects with keys EXACTLY evidence_id, path, start,\n    end \u2014 evidence_id and path must match one captured evidence item below,\n    with integer spans 0 <= start < end <= that item's span end\n- critiques: array of 0..20 objects with keys EXACTLY recommendation_id,\n  critique, severity, falsification \u2014 recommendation_id must reference one of\n    your recommendation ids; severity one of \"low\", \"medium\", \"high\"\n- patch_proposals: [] (exactly empty in this task)\n- all text fields bounded (<= 16000 bytes each)\n\nSubstance requirements (also checked):\n- status == \"advice\" and at least 2 recommendations\n- the UNION of catalog_ids across all recommendations EQUALS the set of lane\n  and discipline ids the product's plan compiler selects (as requested\n  selections) for this repository state \u2014 derive it from the repository, not\n  from guesswork: which lane(s) the repository's manifests select (including\n  any frontend addendum lane a frontend dependency triggers), plus the five\n  default cross-language disciplines, or \u2014 when a v1 adoption policy is\n  present \u2014 the selections that policy declares\n- every recommendation carries at least one valid citation into the captured\n  evidence (citing the file that justifies the recommendation)\n- at least one critique referencing an existing recommendation id\n\nNOTE on spans: citations are validated against the request's captured evidence\nrepresentations. If a captured file was redacted during capture, valid spans\nare bounds on the REDACTED representation, and the redacted placeholders are\nwhat the advisor may quote.\n\nACCEPTANCE REQUEST MATERIALS:\n{request_materials}\n",
+     "task_class": "B",
+     "task_id": "B2",
+     "title": "Advise response for a ts web-app repo (frontend addendum lane)"
+    },
+    "task_class": "B",
+    "task_id": "B2"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-B3-fam-gpt",
+    "repo_identity": "fixture:FIX_ADOPTED_REDACT_PY",
+    "repo_key": "FIX_ADOPTED_REDACT_PY",
+    "repo_pin": "frozen-fixture",
+    "task": {
+     "acceptance": {
+      "fixture": "FIX_ADOPTED_REDACT_PY",
+      "kind": "advise_response"
+     },
+     "convention_rationale": "Convention space: when a v1 policy is present the plan selections are the policy's declared lanes+disciplines (7 ids here); and citations are validated against the REDACTED evidence representation (secret token and email become placeholders), so spans computed from the on-disk file bytes fail the product validator.",
+     "family": "fam-gpt",
+     "new_files": [
+      "g3p3-advice-response.json"
+     ],
+     "new_symbols": [],
+     "repo": "FIX_ADOPTED_REDACT_PY",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\n\nTASK (B3): Produce the advisory response the engineering advisor surface\nexpects for this repository (it carries a valid v1 adoption policy).\n\nThe `engineering-advice-request-v1` JSON below was compiled for THIS repository\nby `engineering-core advise` (digest-verified evidence, fixed budgets). The\nrequest's compiled plan section is withheld from you (it is the answer key);\neverything you need to bind a response is included: the request digest, the\ncaptured evidence items (id, path, span), the allowed catalog id vocabulary,\nand the prompt identity.\n\nProduce ONE new file `g3p3-advice-response.json` in the repository root: a\nvalid `engineering-advice-response-v1` bound to this request. Do not modify any\nexisting repository file.\n\nEnvelope contract (mechanical):\n- top-level keys EXACTLY: schema, request_sha256, provenance, status, summary,\n  recommendations, critiques, patch_proposals\n- schema: \"engineering-advice-response-v1\"; request_sha256: the request digest\n  given below (copied exactly)\n- provenance: object with keys EXACTLY provider, model, model_version, adapter,\n  adapter_version, prompt_id, prompt_version (all non-empty strings; prompt_id\n  and prompt_version must equal the request's prompt identity given below)\n- status: \"advice\" (this task requires substantive advice; \"abstain\"/\"unknown\"\n  would fail the substance requirements)\n- summary: non-empty bounded text\n- recommendations: array of 2..20 objects, each with keys EXACTLY id,\n  catalog_ids, recommendation, confidence, unknowns, counterevidence,\n  falsification, citations, competes_with\n  - id: unique non-empty string; confidence: number in [0,1];\n    catalog_ids: array of ids drawn ONLY from the allowed vocabulary below;\n    recommendation/summary-like fields: non-empty text; unknowns,\n    counterevidence, falsification, competes_with: arrays of strings\n    (competes_with may only reference other recommendation ids you defined)\n  - citations: array of objects with keys EXACTLY evidence_id, path, start,\n    end \u2014 evidence_id and path must match one captured evidence item below,\n    with integer spans 0 <= start < end <= that item's span end\n- critiques: array of 0..20 objects with keys EXACTLY recommendation_id,\n  critique, severity, falsification \u2014 recommendation_id must reference one of\n    your recommendation ids; severity one of \"low\", \"medium\", \"high\"\n- patch_proposals: [] (exactly empty in this task)\n- all text fields bounded (<= 16000 bytes each)\n\nSubstance requirements (also checked):\n- status == \"advice\" and at least 2 recommendations\n- the UNION of catalog_ids across all recommendations EQUALS the set of lane\n  and discipline ids the product's plan compiler selects (as requested\n  selections) for this repository state \u2014 derive it from the repository, not\n  from guesswork: which lane(s) the repository's manifests select (including\n  any frontend addendum lane a frontend dependency triggers), plus the five\n  default cross-language disciplines, or \u2014 when a v1 adoption policy is\n  present \u2014 the selections that policy declares\n- every recommendation carries at least one valid citation into the captured\n  evidence (citing the file that justifies the recommendation)\n- at least one critique referencing an existing recommendation id\n\nNOTE on spans: citations are validated against the request's captured evidence\nrepresentations. If a captured file was redacted during capture, valid spans\nare bounds on the REDACTED representation, and the redacted placeholders are\nwhat the advisor may quote.\n\nACCEPTANCE REQUEST MATERIALS:\n{request_materials}\n",
+     "task_class": "B",
+     "task_id": "B3",
+     "title": "Advise response for an adopted repo with redacted evidence"
+    },
+    "task_class": "B",
+    "task_id": "B3"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-C1-fam-gpt",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "kind": "lane_build_ts",
+      "repo_key": "piext"
+     },
+     "convention_rationale": "Convention space: Node built-in test runner (node:test + assert/strict) as the default unit runner for this package family; doc-header comment convention (summary/read_when) on both source and test; biome as the single format+lint gate (2-space, width 100, double quotes, template literals) hand-satisfied without running it; node:-builtins-only dependency minimalism.",
+     "family": "fam-gpt",
+     "new_files": [
+      "packages/pi-context-packer/src/g3p3-header-audit.js",
+      "packages/pi-context-packer/tests/g3p3-header-audit.test.js"
+     ],
+     "new_symbols": [
+      "auditDocHeaders",
+      "summarizeHeaderAudit"
+     ],
+     "repo": "piext",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\nTASK (C1): Add a documentation-header audit module with conforming tests to\nthe `packages/pi-context-packer` package of this repository replica.\n\nRepository context: `packages/pi-context-packer` is a pi extension package\n(Node + npm, ESM). Its sources under `src/` and tests under `tests/` follow the\npackage's conventions: ESM JavaScript, `node:` builtins only, doc-header\ncomments of the form\n\n    /**\n    summary: \"One sentence.\"\n    read_when:\n      - \"Trigger condition.\"\n    */\n\nand tests written for Node's built-in test runner. The package's biome\nconfiguration (biome.jsonc) is the formatting/linting gate: 2-space indent,\nline width 100, double quotes, semicolons, recommended lint rules including\nenforced template literals where interpolation is used.\n\nCreate exactly two new files (nothing else may change):\n\n1. `packages/pi-context-packer/src/g3p3-header-audit.js` \u2014 pure ESM module,\n   `node:` builtins only, exporting:\n\n       export function auditDocHeaders(sources)\n       export function summarizeHeaderAudit(sources)\n\n   `sources` is an array of objects {file, text}. `auditDocHeaders` returns an\n   array with one entry per input, in input order: {file, hasHeader, summary,\n   readWhen} where hasHeader is true iff text contains a doc-header block (a\n   `/**` ... `*/` block whose content contains a `summary:` line), summary is\n   the quoted string after `summary:` (without quotes) or null, readWhen is an\n   array of the quoted strings after `read_when:` trigger lines (empty array if\n   none, null when hasHeader is false). `summarizeHeaderAudit` returns\n   {total, withHeader, missingHeader} computed over the same input (total =\n   number of entries; withHeader/missingHeader = counts). No filesystem or\n   network access; deterministic; no external dependencies.\n\n2. `packages/pi-context-packer/tests/g3p3-header-audit.test.js` \u2014 tests for the\n   Node built-in test runner (node:test + node:assert/strict), importing the\n   module by relative path, with a doc-header comment of its own, containing at\n   least 3 distinct tests: header parsing (summary + read_when extraction), a\n   missing-header case, and a summary/aggregation case over a set of at least 8\n   fixture inputs (deterministic, no randomness beyond a fixed seed).\n\nConstraints (checked): both files pass `node --check`; the test file passes\n`node --test` (all tests pass, at least 3); both files pass the package's biome\ncheck (format + lint) \u2014 hand-format to the settings above (you cannot run biome\nhere); each file stays within 500 lines and 50 KiB.\n",
+     "task_class": "C",
+     "task_id": "C1",
+     "title": "pi-ts lane-conformance: extension module + built-in-runner tests"
+    },
+    "task_class": "C",
+    "task_id": "C1"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-C2-fam-gpt",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "allowed_modified": [
+       "Justfile",
+       "package.json"
+      ],
+      "kind": "lane_alias_pair",
+      "repo_key": "piext"
+     },
+     "convention_rationale": "Convention space: the standardized command surface rule for this family \u2014 Justfile recipes are THIN ALIASES over package scripts (no cd, no inlined node/bash logic, no duplicated release policy in ad-hoc shell blocks); the alias-pair shape (package.json script + same-named Justfile recipe); minimal churn against the existing surface.",
+     "family": "fam-gpt",
+     "new_files": [
+      "Justfile",
+      "package.json"
+     ],
+     "new_symbols": [
+      "g3p3-contracts-quick"
+     ],
+     "repo": "piext",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\nTASK (C2): Expose a new quick contract-validation command on this repository's\nstandardized command surface as a thin alias pair, exactly per the repo's\ncommand-surface rule for this kind of repository.\n\nThe rule (as this repo family's engineering lane states it): the Justfile\nsurface standardizes operator-facing command names while each recipe stays a\nTHIN ALIAS delegating to a package script \u2014 prefer existing package scripts and\nwrappers, do not bury logic inside ad-hoc Justfile shell blocks, do not invent\nfake targets.\n\nDeliverables (exactly two changes; nothing else may change):\n\n1. In the ROOT `package.json`, add script key `g3p3-contracts-quick` whose\n   value is a thin delegation to the repository's EXISTING contract-validation\n   script `release:contracts:validate` \u2014 i.e. the value must be exactly\n   `npm run release:contracts:validate` (no new logic, no new wrapper files).\n\n2. In the ROOT `Justfile`, add a recipe that exposes the same command name as a\n   thin alias over that package script:\n\n       # G3P3 quick contract validation (thin alias over the package script)\n       g3p3-contracts-quick:\n           npm run g3p3-contracts-quick\n\n   The recipe body must be exactly the thin alias invocation (a single\n   `npm run g3p3-contracts-quick` line, optionally `@`-prefixed), must not cd,\n   must not inline node/bash logic, and must not duplicate what the package\n   script already expresses. Keep the existing `#`-comment style. Do not alter\n   any existing recipe.\n\nChecks (frozen): `just --list` still parses and lists the new recipe;\n`just --dry-run g3p3-contracts-quick` exits 0 and prints the aliased command;\npackage.json parses as JSON with the exact script value; the Justfile recipe\nbody is exactly the thin alias; no other file changes.\n",
+     "task_class": "C",
+     "task_id": "C2",
+     "title": "pi-ts lane-conformance: thin-alias command-surface pair"
+    },
+    "task_class": "C",
+    "task_id": "C2"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL3-C3-fam-glm",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "kind": "lane_build_py",
+      "repo_key": "dspx"
+     },
+     "convention_rationale": "Convention space: the Python lane tooling contract \u2014 ruff default rule set with 88-col lines as the lint gate; pytest as the runner with tests in the root tests/ layout and package sources imported via the repo's conftest path setup; the exact invocation form; and the testing discipline's property-style test (clear invariant over many generated cases) beside behavior tests, expressed without unavailable dependencies.",
+     "family": "fam-glm",
+     "new_files": [
+      "packages/dspx-core/src/dspx/g3p3_token_budget.py",
+      "tests/test_g3p3_token_budget.py"
+     ],
+     "new_symbols": [
+      "split_token_budget"
+     ],
+     "repo": "dspx",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\nTASK (C3): Add a service function with conforming tests to this Python\nmonorepo replica (soomfon-free area; add NEW files only).\n\nRepository context: Python 3.13 + uv; the dspx-core package lives at\n`packages/dspx-core/src/dspx/`; tests live in the root `tests/` directory\n(pytest, with the package sources on sys.path via the repo's conftest). The\nrepo's quality gates are ruff (lint, default rules, 88-col lines) and pytest.\nThe testing discipline for this repo family expects a property-style test\n(clear invariant over many generated cases) next to behavior tests when the\nfunction has a strong invariant. The environment has pytest and the standard\nlibrary only \u2014 do not import packages that are not present (no hypothesis; use\nplain pytest with deterministic generated cases).\n\nCreate exactly two new files (nothing else may change):\n\n1. `packages/dspx-core/src/dspx/g3p3_token_budget.py` \u2014 module docstring,\n   fully typed, exporting exactly:\n\n       def split_token_budget(total: int, weights: Mapping[str, float]) -> dict[str, int]\n\n   Semantics (must match exactly):\n   - weights maps consumer key -> non-negative float weight; total >= 0.\n   - Raise ValueError if total < 0, if weights is empty, if any weight is\n     negative, or if the weight sum is 0 (or not > 0).\n   - Allocate `total` whole units across keys by largest-remainder rounding:\n     exact share_i = total * w_i / W (W = sum of weights); base_i = floor of\n     exact share; distribute the remaining units one each to the keys with the\n     LARGEST fractional parts; ties on fractional part are broken by key in\n     ascending lexicographic order.\n   - Return {key: allocated units}; invariant: allocations sum to `total`,\n     every allocation >= 0, keys exactly the input keys.\n\n2. `tests/test_g3p3_token_budget.py` \u2014 pytest tests: at least 3 distinct\n   tests covering (a) an exact split with no remainder, (b) largest-remainder\n   distribution with a tie broken by key order, (c) the ValueError cases, and\n   (d) a property-style test asserting the sum-invariant and key-preservation\n   over at least 8 deterministic generated cases (fixed literal list or a\n   fixed-seed random.Random \u2014 no unseeded randomness).\n\nChecks (frozen): ruff check passes on both new files; the new test file passes\ntargeted pytest (`python -m pytest tests/test_g3p3_token_budget.py -q`, at\nleast 3 passed); both files within 500 lines / 50 KiB; ruff default line\nlength (88) respected.\n",
+     "task_class": "C",
+     "task_id": "C3",
+     "title": "py lane-conformance: service function + property test"
+    },
+    "task_class": "C",
+    "task_id": "C3"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL3-C4-fam-glm",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "kind": "tier_map",
+      "repo_key": "dspx"
+     },
+     "convention_rationale": "Convention space: the validation-tier-map template's exact shape \u2014 front matter, H1, owner-surface line, the six-tier table (editor/save, pre-commit, task-scope, pre-push, CI, release) with exact column set, the five-bullet standard surface in fixed order, and the evidence-rule items; plus the 'do not invent fake targets' rule (just build is intentionally absent here and must be marked n/a with a reason).",
+     "family": "fam-glm",
+     "new_files": [
+      "docs/validation-tier-map.md"
+     ],
+     "new_symbols": [],
+     "repo": "dspx",
+     "spec": "You are executing a bounded work task in a disposable scratch repository.\nWork only inside this repository working tree. No pushes, no remotes, no network\ninstalls (no npm install / pip install / uv sync / uv add). Use only what is\nalready present in the tree. Do not modify anything under .git/. Do not search\nthe wider filesystem for pre-installed tools, packages, or wheels related to\nthis task; complete it from this repository and the task materials only.\n\nDeliver a claim file at path `G3P3_CLAIM.md` in the repository root stating:\n(a) which files you changed or created, (b) how each specification clause is\nsatisfied, (c) how you verified it (commands you ran and their results). The\nclaim must mention the new file path(s) or symbol(s) you added.\nTASK (C4): Tier this repository's checks into a validation-tier-map artifact\nin the exact frozen shape this repo family's validation discipline defines.\n\nCreate exactly one new file `docs/validation-tier-map.md` (nothing else may\nchange). The artifact must follow the validation-tier-map template shape:\n\n1. YAML front matter with `summary` (one sentence) and `read_when` (at least\n   one trigger condition).\n2. H1 title `# Validation Tier Map`, then a `Repo:` line and an owner-surface\n   line naming `docs/engineering.local.md`.\n3. Section `## Commands` containing a markdown table with header row EXACTLY:\n   `| Tier | Command | Scope | Target runtime | Required before |`\n   and exactly one row for each of the six tiers, in order:\n   `editor/save`, `pre-commit`, `task-scope`, `pre-push`, `CI`, `release`\n   \u2014 each row's Command cell non-empty and mapping a REAL command of this\n   repository (a real Justfile recipe, script, or documented command); the\n   Scope/Target-runtime/Required-before cells filled per the tier model\n   (file-local+instant / staged slice+p95<10s / changed behavior+minutes /\n   repo full gate / authoritative matrix+complete / shipped artifact+strongest).\n4. Section `## Standard surface` mapping the standard commands of this\n   repository's Justfile to what they actually run here, one bullet per key in\n   this order: `just check`, `just test`, `just build`, `just ci`,\n   `just doctor` \u2014 each bullet of the form \"- `just X`: `<maps to>`\". The\n   mappings must be TRUE for this repository (reference the real recipe or\n   script each standard command maps to). If a standard target is intentionally\n   unavailable in this repository, say `n/a` and why \u2014 do not invent a fake\n   target.\n5. Section `## Evidence rule` stating the handoff evidence contract: every\n   handoff records command, scope, result, warning acceptance (if any), and\n   artifact path (if any).\n\nChecks (frozen): template-shape assertions (front matter, headings, exact\ntable header, all six tier rows in order, five standard-surface bullets in\norder, evidence-rule items) plus semantic truth: the `just check`, `just test`,\n`just build`, `just ci`, `just doctor` mappings must reference recipes/scripts\nthat actually exist in this repository's Justfile (or be marked n/a with a\nreason where genuinely absent).\n",
+     "task_class": "C",
+     "task_id": "C4",
+     "title": "validation-tier-map artifact in the discipline's frozen shape"
+    },
+    "task_class": "C",
+    "task_id": "C4"
+   }
+  ],
+  "pilot_seed": 20260826,
+  "schema": "dspx.g3pilot-v3-corpus/1"
+ },
+ "diagnostic_label": "G3 v3 CONTRACT-CONFORMANCE pilot - DIAGNOSTIC ONLY; not Gate G3, not protocol evidence, no gate claims",
+ "execution_log": [
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:32:20+00:00",
+   "duration_s": 342.8,
+   "pair_id": "PL3-A2-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:35:13+00:00",
+   "duration_s": 514.6,
+   "pair_id": "PL3-A1-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T21:35:49+00:00",
+   "duration_s": 209.0,
+   "pair_id": "PL3-A2-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T21:39:27+00:00",
+   "duration_s": 253.8,
+   "pair_id": "PL3-A1-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T21:40:40+00:00",
+   "duration_s": 268.1,
+   "pair_id": "PL3-A3-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T21:42:02+00:00",
+   "duration_s": 154.0,
+   "pair_id": "PL3-B1-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:44:07+00:00",
+   "duration_s": 125.6,
+   "pair_id": "PL3-B1-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:46:16+00:00",
+   "duration_s": 129.0,
+   "pair_id": "PL3-B3-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:46:25+00:00",
+   "duration_s": 344.9,
+   "pair_id": "PL3-A3-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T21:49:35+00:00",
+   "duration_s": 198.4,
+   "pair_id": "PL3-B3-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T21:51:03+00:00",
+   "duration_s": 278.0,
+   "pair_id": "PL3-B2-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:53:22+00:00",
+   "duration_s": 202.6,
+   "pair_id": "PL3-C1-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:56:10+00:00",
+   "duration_s": 306.5,
+   "pair_id": "PL3-B2-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T21:57:20+00:00",
+   "duration_s": 237.9,
+   "pair_id": "PL3-C1-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T21:59:04+00:00",
+   "duration_s": 79.8,
+   "pair_id": "PL3-C2-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T22:00:35+00:00",
+   "duration_s": 89.7,
+   "pair_id": "PL3-C2-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T22:01:59+00:00",
+   "duration_s": 318.7,
+   "pair_id": "PL3-C3-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T22:09:42+00:00",
+   "duration_s": 461.2,
+   "pair_id": "PL3-C3-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T22:14:28+00:00",
+   "duration_s": 251.3,
+   "pair_id": "PL3-C4-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T22:17:18+00:00",
+   "duration_s": 170.1,
+   "pair_id": "PL3-C4-fam-glm",
+   "y": 0
+  }
+ ],
+ "execution_order": [
+  "PL3-A1-fam-gpt",
+  "PL3-A2-fam-glm",
+  "PL3-A3-fam-glm",
+  "PL3-B1-fam-gpt",
+  "PL3-B2-fam-glm",
+  "PL3-B3-fam-gpt",
+  "PL3-C1-fam-gpt",
+  "PL3-C2-fam-gpt",
+  "PL3-C3-fam-glm",
+  "PL3-C4-fam-glm"
+ ],
+ "frozen_artifacts": {
+  "advice_header_sha256": "4799a8f00e4726c30231f069cb085aeb81c5cb5e1028ebe4e1c70848733ae147",
+  "advisor_wrapper_sha256": "88f50ab21cf3cdeccf1bf1c50f38ad93ba232d30d80e67a14a8e07ec89186d3e",
+  "calibrate_sha256": "32497ac6785dd2d893797ac3c42f0509ef63a5889aea9f8d7db3b33b4292004b",
+  "corpus_digest": "f465929048536586f69dabe0b57f7c1e804a9a2256966347099f729e4c4149c1",
+  "guidance_digests": {
+   "A1": "599057c6640b7e55b9b694ce0bc960b6a94208a5b1702bf70f1fa94a962acc7d",
+   "A2": "599057c6640b7e55b9b694ce0bc960b6a94208a5b1702bf70f1fa94a962acc7d",
+   "A3": "599057c6640b7e55b9b694ce0bc960b6a94208a5b1702bf70f1fa94a962acc7d",
+   "B1": "df594bdbcbb9685059858e555967895d94d13a1f876d43202fe62fb9be120a57",
+   "B2": "dc2f8446bc81cad5a09d9c94c7316385d0c1137659b0d637066d9c70b87ff1ae",
+   "B3": "df594bdbcbb9685059858e555967895d94d13a1f876d43202fe62fb9be120a57",
+   "C1": "b7577087551e47df43082c6401bce2d6ffe2bee5f44db2bbe9acfe4686c4424a",
+   "C2": "b7577087551e47df43082c6401bce2d6ffe2bee5f44db2bbe9acfe4686c4424a",
+   "C3": "a45ebf5803e6df868709601487fe183ea92bce9d48adf414f25ab84a42223280",
+   "C4": "e76c6e6b842fec14d2cf326739317a7035c40dfe5f193df5059e9253fd61d04f"
+  },
+  "guidance_header_sha256": "7685e6932d51cc9e17a0e35617d4979c47bb087027777775aeee8b0d4ade4cb8",
+  "prompt_template_sha256": "1c90c1778c7fc3b79c9a48eabddf06e0840efb125d8ca4174a7deb98b48e75a4",
+  "ref3_digests": {
+   "a1_doc.md": "876b01e5a645430f8896b17283f536982783757c09b3eab4897a25310da74169",
+   "a2_doc.md": "cc69c2c15cfc7355e2341eee8aabccd20fbcf6053438f4fb55dec24e5da6e82f",
+   "a_policy.json": "7dda7cc9a18a8b0fdd3a17e33b9f1282b0a253c97fb289eafd122355bf5e683f",
+   "c1_header_audit.js": "4cfd76208f1fe887727e23e20ceae912efd491538122ab4b938cffa935f79426",
+   "c1_header_audit.test.js": "e3f6c1555bf60d017db380f7912bd47ad44cbfce3c7701b5afea5721c4e5ca8a",
+   "c3_token_budget.py": "f318dbfa7246f2265c22ed1adb5e66a6230b23caf568df9b98100d46d777dd6e",
+   "c3_token_budget.test.py": "86d0d2b67d86505e9b3aef6b9a91c0446bb26d6208cdce86a6377f623b6e68fb",
+   "c4_tier_map.md": "523f78128eed797940f554f6507b11296a038cd7f6ee87c925d0bcb18369546b"
+  },
+  "request_digests": {
+   "B1": {
+    "materials": "6f4dfb0f6deb9e2588b025ed9f0f03ac10e0b6231114a4766241fe3713e4f4f3",
+    "request": "fad6d2ba02d19d39963a144e399a891e1c1df03febad0c70f33d4a72a612a91e"
+   },
+   "B2": {
+    "materials": "e6ff5820e559d1e5ae17dd8715f0be20fc5ff2507df8c00bf055c5a694e0e8a3",
+    "request": "e3dc1e040a2e8925daf4e2c3e27ab3873ea9f91d793d0bd6bd0149577075f808"
+   },
+   "B3": {
+    "materials": "0fa72a593ddf7725f91ce7b4d8b84b565020dd23e40930d0929058a7e045eb13",
+    "request": "868e6c959f016c9d60e9ff061a70dea5e0c28ae6198a4b5a3bd93772c37645b3"
+   }
+  },
+  "runner_sha256": "f253ee9a31b22e9eec47f751b486a53083cfb66532f7bcf9a60200e9a534aa53",
+  "scoring_sha256": "5b8a470f3c386ee3c2629760de5891021edae01be952590de80fb663776c5378",
+  "support_sha256": "412feda09aedbf427470f6c43ee83977322291b41b989efe0311991b58e07702"
+ },
+ "frozen_at": "2026-08-25T21:24:56+00:00",
+ "models": {
+  "advisor_fallback": "zai/glm-5.3:high",
+  "advisor_identity": "openai-codex/gpt-5.6-terra",
+  "advisor_scope": "class A/C evidence arms only (a class B advisor call would fabricate the deliverable)",
+  "executors": {
+   "fam-glm": "zai/glm-5.3:high",
+   "fam-gpt": "openai-codex/gpt-5.6-sol:high"
+  }
+ },
+ "operator_intent_quote": "v3 harder tasks that actually challenge the models the right way",
+ "operator_reshape_quote": "please do only 10 tasks, 5 per model",
+ "progress": {
+  "PL3-A1-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:39:27+00:00"
+  },
+  "PL3-A2-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:35:49+00:00"
+  },
+  "PL3-A3-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:46:25+00:00"
+  },
+  "PL3-B1-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:44:07+00:00"
+  },
+  "PL3-B2-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:56:10+00:00"
+  },
+  "PL3-B3-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:49:35+00:00"
+  },
+  "PL3-C1-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:57:20+00:00"
+  },
+  "PL3-C2-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T22:00:35+00:00"
+  },
+  "PL3-C3-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T22:09:42+00:00"
+  },
+  "PL3-C4-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T22:17:18+00:00"
+  }
+ },
+ "repos": {
+  "dspx": {
+   "identity": "softwareco/owned/dspx",
+   "pin": "e74309284972236b996da3cf6dc3f11c8ab3c525"
+  },
+  "piext": {
+   "identity": "softwareco/owned/pi-extensions",
+   "pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64"
+  }
+ },
+ "schema": "dspx.g3pilot-v3-state/1"
+}

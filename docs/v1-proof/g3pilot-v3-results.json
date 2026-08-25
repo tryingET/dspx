@@ -1,0 +1,471 @@
+{
+ "artifacts": {
+  "frozen_digests": {
+   "advice_header_sha256": "4799a8f00e4726c30231f069cb085aeb81c5cb5e1028ebe4e1c70848733ae147",
+   "advisor_wrapper_sha256": "88f50ab21cf3cdeccf1bf1c50f38ad93ba232d30d80e67a14a8e07ec89186d3e",
+   "calibrate_sha256": "32497ac6785dd2d893797ac3c42f0509ef63a5889aea9f8d7db3b33b4292004b",
+   "corpus_digest": "f465929048536586f69dabe0b57f7c1e804a9a2256966347099f729e4c4149c1",
+   "guidance_digests": {
+    "A1": "599057c6640b7e55b9b694ce0bc960b6a94208a5b1702bf70f1fa94a962acc7d",
+    "A2": "599057c6640b7e55b9b694ce0bc960b6a94208a5b1702bf70f1fa94a962acc7d",
+    "A3": "599057c6640b7e55b9b694ce0bc960b6a94208a5b1702bf70f1fa94a962acc7d",
+    "B1": "df594bdbcbb9685059858e555967895d94d13a1f876d43202fe62fb9be120a57",
+    "B2": "dc2f8446bc81cad5a09d9c94c7316385d0c1137659b0d637066d9c70b87ff1ae",
+    "B3": "df594bdbcbb9685059858e555967895d94d13a1f876d43202fe62fb9be120a57",
+    "C1": "b7577087551e47df43082c6401bce2d6ffe2bee5f44db2bbe9acfe4686c4424a",
+    "C2": "b7577087551e47df43082c6401bce2d6ffe2bee5f44db2bbe9acfe4686c4424a",
+    "C3": "a45ebf5803e6df868709601487fe183ea92bce9d48adf414f25ab84a42223280",
+    "C4": "e76c6e6b842fec14d2cf326739317a7035c40dfe5f193df5059e9253fd61d04f"
+   },
+   "guidance_header_sha256": "7685e6932d51cc9e17a0e35617d4979c47bb087027777775aeee8b0d4ade4cb8",
+   "prompt_template_sha256": "1c90c1778c7fc3b79c9a48eabddf06e0840efb125d8ca4174a7deb98b48e75a4",
+   "ref3_digests": {
+    "a1_doc.md": "876b01e5a645430f8896b17283f536982783757c09b3eab4897a25310da74169",
+    "a2_doc.md": "cc69c2c15cfc7355e2341eee8aabccd20fbcf6053438f4fb55dec24e5da6e82f",
+    "a_policy.json": "7dda7cc9a18a8b0fdd3a17e33b9f1282b0a253c97fb289eafd122355bf5e683f",
+    "c1_header_audit.js": "4cfd76208f1fe887727e23e20ceae912efd491538122ab4b938cffa935f79426",
+    "c1_header_audit.test.js": "e3f6c1555bf60d017db380f7912bd47ad44cbfce3c7701b5afea5721c4e5ca8a",
+    "c3_token_budget.py": "f318dbfa7246f2265c22ed1adb5e66a6230b23caf568df9b98100d46d777dd6e",
+    "c3_token_budget.test.py": "86d0d2b67d86505e9b3aef6b9a91c0446bb26d6208cdce86a6377f623b6e68fb",
+    "c4_tier_map.md": "523f78128eed797940f554f6507b11296a038cd7f6ee87c925d0bcb18369546b"
+   },
+   "request_digests": {
+    "B1": {
+     "materials": "6f4dfb0f6deb9e2588b025ed9f0f03ac10e0b6231114a4766241fe3713e4f4f3",
+     "request": "fad6d2ba02d19d39963a144e399a891e1c1df03febad0c70f33d4a72a612a91e"
+    },
+    "B2": {
+     "materials": "e6ff5820e559d1e5ae17dd8715f0be20fc5ff2507df8c00bf055c5a694e0e8a3",
+     "request": "e3dc1e040a2e8925daf4e2c3e27ab3873ea9f91d793d0bd6bd0149577075f808"
+    },
+    "B3": {
+     "materials": "0fa72a593ddf7725f91ce7b4d8b84b565020dd23e40930d0929058a7e045eb13",
+     "request": "868e6c959f016c9d60e9ff061a70dea5e0c28ae6198a4b5a3bd93772c37645b3"
+    }
+   },
+   "runner_sha256": "f253ee9a31b22e9eec47f751b486a53083cfb66532f7bcf9a60200e9a534aa53",
+   "scoring_sha256": "5b8a470f3c386ee3c2629760de5891021edae01be952590de80fb663776c5378",
+   "support_sha256": "412feda09aedbf427470f6c43ee83977322291b41b989efe0311991b58e07702"
+  },
+  "machinery": [
+   "benchmarks/g3-pilot/g3p3_corpus.py",
+   "benchmarks/g3-pilot/g3p3_scoring.py",
+   "benchmarks/g3-pilot/g3p3_support.py",
+   "benchmarks/g3-pilot/g3p3_calibrate.py",
+   "benchmarks/g3-pilot/g3p3_runner.py",
+   "benchmarks/g3-pilot/g3p3_results.py",
+   "benchmarks/g3-pilot/drive_family_v3.sh",
+   "benchmarks/g3-pilot/ref3/"
+  ],
+  "receipts": "docs/v1-proof/g3pilot-v3-receipts.jsonl",
+  "receipts_sha256": "5db9c75819f67326ab4b5ef735fcc39bd9958f1071564521b571eb9caadca771",
+  "state": "docs/v1-proof/g3pilot-v3-state.json",
+  "state_sha256": "72cde28d29b63be65fc0a649abd74c5a06aa7fcf5a921d0a890d61d7b6d82d15"
+ },
+ "blockers": {},
+ "completed_at": "2026-08-25T22:19:04+00:00",
+ "corpus_table": [
+  {
+   "acceptance_kind": "adoption_migration",
+   "convention_rationale": "Convention space a model without the guidance must guess: (1) release ref format 'v<catalog-version>' (v1.0.0, not 1.0.0/workspace-local) for released-match pin posture; (2) valid catalog id spellings 'py' + the five default cross-language discipline ids (hyphenated forms security-privacy/dependency-governance); (3) the three required catalog/list command fields; (4) legacy surfaces must be REMOVED for structural status 'adopted' (legacy-mixed otherwise); (5) both surfaces (policy JSON + structured local doc with front matter) are required \u2014 doc-only/policy-only are distinct degraded statuses.",
+   "family": "fam-gpt",
+   "model_identity": "openai-codex/gpt-5.6-sol:high",
+   "repo_identity": "fixture:FIX_LEGACY_PY",
+   "repo_pin": "frozen-fixture",
+   "task_class": "A",
+   "task_id": "A1",
+   "title": "Legacy -> v1 adoption migration (contract conformance)"
+  },
+  {
+   "acceptance_kind": "adoption_repair",
+   "convention_rationale": "Convention space: same id/ref/command-field vocabulary as A1 plus repair semantics: disciplines must be a JSON ARRAY of catalog ids (comma string is a schema violation that blocks doctor); unknown lane id 'python' must be dropped for 'py'; the deviation ledger structure (id/reason/owner/evidence/review_date) must be preserved through repair; the local doc must be restructured (front matter + sections), not patched in place.",
+   "family": "fam-glm",
+   "model_identity": "zai/glm-5.3:high",
+   "repo_identity": "fixture:FIX_DEGRADED_PY",
+   "repo_pin": "frozen-fixture",
+   "task_class": "A",
+   "task_id": "A2",
+   "title": "Degraded adoption repair (doctor + scanner conformance)"
+  },
+  {
+   "acceptance_kind": "adoption_rollback",
+   "convention_rationale": "Convention space: the adoption transaction/journal semantics \u2014 apply records per-file before/after digests+bytes for creates AND legacy deletes; rollback restores exact pre-adoption bytes and removes the journal (.engineering-core/); the created adoption files must satisfy the full v1 contract even though they are then rolled back; restored/removed action vocabulary in the rollback receipt.",
+   "family": "fam-glm",
+   "model_identity": "zai/glm-5.3:high",
+   "repo_identity": "fixture:FIX_LEGACY_PY",
+   "repo_pin": "frozen-fixture",
+   "task_class": "A",
+   "task_id": "A3",
+   "title": "Adoption apply -> rollback lifecycle with byte-exact restore"
+  },
+  {
+   "acceptance_kind": "advise_response",
+   "convention_rationale": "Convention space: response envelope binding (request digest, prompt identity provenance, citation spans within captured evidence) plus the SELECTION vocabulary: the plan compiler selects lane 'py' from pyproject.toml plus exactly the five default cross-language disciplines \u2014 id spellings are catalog vocabulary, not guessable English.",
+   "family": "fam-gpt",
+   "model_identity": "openai-codex/gpt-5.6-sol:high",
+   "repo_identity": "fixture:FIX_LEGACY_PY",
+   "repo_pin": "frozen-fixture",
+   "task_class": "B",
+   "task_id": "B1",
+   "title": "Advise response for a plain legacy py repo (inference-selected ids)"
+  },
+  {
+   "acceptance_kind": "advise_response",
+   "convention_rationale": "Convention space: manifest->lane inference ('ts' from package.json) PLUS the frontend addendum rule: a react dependency adds lane 'ts-frontend' (and it is never used alone), still with the five default disciplines. Without the lane-selection rules the union-of-catalog-ids equality cannot be derived.",
+   "family": "fam-glm",
+   "model_identity": "zai/glm-5.3:high",
+   "repo_identity": "fixture:FIX_TS_WEB",
+   "repo_pin": "frozen-fixture",
+   "task_class": "B",
+   "task_id": "B2",
+   "title": "Advise response for a ts web-app repo (frontend addendum lane)"
+  },
+  {
+   "acceptance_kind": "advise_response",
+   "convention_rationale": "Convention space: when a v1 policy is present the plan selections are the policy's declared lanes+disciplines (7 ids here); and citations are validated against the REDACTED evidence representation (secret token and email become placeholders), so spans computed from the on-disk file bytes fail the product validator.",
+   "family": "fam-gpt",
+   "model_identity": "openai-codex/gpt-5.6-sol:high",
+   "repo_identity": "fixture:FIX_ADOPTED_REDACT_PY",
+   "repo_pin": "frozen-fixture",
+   "task_class": "B",
+   "task_id": "B3",
+   "title": "Advise response for an adopted repo with redacted evidence"
+  },
+  {
+   "acceptance_kind": "lane_build_ts",
+   "convention_rationale": "Convention space: Node built-in test runner (node:test + assert/strict) as the default unit runner for this package family; doc-header comment convention (summary/read_when) on both source and test; biome as the single format+lint gate (2-space, width 100, double quotes, template literals) hand-satisfied without running it; node:-builtins-only dependency minimalism.",
+   "family": "fam-gpt",
+   "model_identity": "openai-codex/gpt-5.6-sol:high",
+   "repo_identity": "softwareco/owned/pi-extensions",
+   "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+   "task_class": "C",
+   "task_id": "C1",
+   "title": "pi-ts lane-conformance: extension module + built-in-runner tests"
+  },
+  {
+   "acceptance_kind": "lane_alias_pair",
+   "convention_rationale": "Convention space: the standardized command surface rule for this family \u2014 Justfile recipes are THIN ALIASES over package scripts (no cd, no inlined node/bash logic, no duplicated release policy in ad-hoc shell blocks); the alias-pair shape (package.json script + same-named Justfile recipe); minimal churn against the existing surface.",
+   "family": "fam-gpt",
+   "model_identity": "openai-codex/gpt-5.6-sol:high",
+   "repo_identity": "softwareco/owned/pi-extensions",
+   "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+   "task_class": "C",
+   "task_id": "C2",
+   "title": "pi-ts lane-conformance: thin-alias command-surface pair"
+  },
+  {
+   "acceptance_kind": "lane_build_py",
+   "convention_rationale": "Convention space: the Python lane tooling contract \u2014 ruff default rule set with 88-col lines as the lint gate; pytest as the runner with tests in the root tests/ layout and package sources imported via the repo's conftest path setup; the exact invocation form; and the testing discipline's property-style test (clear invariant over many generated cases) beside behavior tests, expressed without unavailable dependencies.",
+   "family": "fam-glm",
+   "model_identity": "zai/glm-5.3:high",
+   "repo_identity": "softwareco/owned/dspx",
+   "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+   "task_class": "C",
+   "task_id": "C3",
+   "title": "py lane-conformance: service function + property test"
+  },
+  {
+   "acceptance_kind": "tier_map",
+   "convention_rationale": "Convention space: the validation-tier-map template's exact shape \u2014 front matter, H1, owner-surface line, the six-tier table (editor/save, pre-commit, task-scope, pre-push, CI, release) with exact column set, the five-bullet standard surface in fixed order, and the evidence-rule items; plus the 'do not invent fake targets' rule (just build is intentionally absent here and must be marked n/a with a reason).",
+   "family": "fam-glm",
+   "model_identity": "zai/glm-5.3:high",
+   "repo_identity": "softwareco/owned/dspx",
+   "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+   "task_class": "C",
+   "task_id": "C4",
+   "title": "validation-tier-map artifact in the discipline's frozen shape"
+  }
+ ],
+ "design": {
+  "arms": {
+   "advisor_fallback": "zai/glm-5.3:high",
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "advisor_scope": "class A/C evidence arms only (a class B advisor call would fabricate the deliverable)",
+   "differ_only_by": "guidance presence",
+   "evidence": "spec + rendered candidate-4 wheel guidance (README, shipped skill, lanes/addenda, disciplines, templates, catalog) and, for classes A/C, a product-validated advisor response",
+   "static": "identical task spec, no engineering-core content"
+  },
+  "budget": {
+   "actual_executions": 20,
+   "planned_max_executions": 20,
+   "planned_wall_s": 21600,
+   "stopped_reason": null
+  },
+  "calibration": "PASS (10/10 reference Y=1, 10/10 stub Y=0, A1+C3 tamper detected; pre-freeze)",
+  "candidate": {
+   "branch": "proof/v1-candidate-4",
+   "built_from": "scratch detached worktree under $TMPDIR; digest verified",
+   "commit": "bc43bb972121bf6c02792bf318cb14aa974b7e17",
+   "repo": "/home/tryinget/ai-society/core/engineering-core",
+   "wheel_path": "/home/tryinget/.local/state/pi-quests/tmp/g3pilot-v3-5081/wheel/engineering_core-1.0.0-py3-none-any.whl",
+   "wheel_sha256": "94b6a2bd5d34ef82dce0f7f40e209e4d55b00c478ce8e49ecd9cd1bc5edb54f8"
+  },
+  "classes": {
+   "A": 3,
+   "B": 3,
+   "C": 4
+  },
+  "families": {
+   "fam-glm": [
+    "A2",
+    "A3",
+    "B2",
+    "C3",
+    "C4"
+   ],
+   "fam-gpt": [
+    "A1",
+    "B1",
+    "B3",
+    "C1",
+    "C2"
+   ]
+  },
+  "shape": "10 tasks x 1 assigned family x 2 arms = 20 executions (operator reshape)"
+ },
+ "diagnostic_label": "G3 v3 CONTRACT-CONFORMANCE pilot - DIAGNOSTIC ONLY; not Gate G3, not protocol evidence, no gate claims",
+ "discrimination_verdict": {
+  "n_split_tasks": 6,
+  "separation_observed": true,
+  "verdict": "SEPARATION OBSERVED: 6 of 10 tasks split between arms (4 evidence-only). A2 (A/fam-glm, zai/glm-5.3:high): static Y=1 vs evidence Y=0 (static-only); A1 (A/fam-gpt, openai-codex/gpt-5.6-sol:high): static Y=0 vs evidence Y=1 (evidence-only); B1 (B/fam-gpt, openai-codex/gpt-5.6-sol:high): static Y=0 vs evidence Y=1 (evidence-only); B3 (B/fam-gpt, openai-codex/gpt-5.6-sol:high): static Y=0 vs evidence Y=1 (evidence-only); B2 (B/fam-glm, zai/glm-5.3:high): static Y=1 vs evidence Y=0 (static-only); C1 (C/fam-gpt, openai-codex/gpt-5.6-sol:high): static Y=0 vs evidence Y=1 (evidence-only)"
+ },
+ "interference_check": {
+  "cleanup": "duplicate-session directory benchmarks/g3p3/ and the literal-name benchmarks/g3-pilot/$TMPDIR/ directory were removed at closeout (not in the frozen artifact set)",
+  "directive": "operator interference check (duplicate-session writes under benchmarks/g3p3/ between ~21:04-21:29Z, killed ~21:29Z)",
+  "method": "every execution-path artifact re-hashed and compared against the digests frozen in g3pilot-v3-state.json BEFORE any execution result was counted",
+  "performed_at": "2026-08-25T21:33:30+00:00",
+  "scope": [
+   "benchmarks/g3-pilot/g3p3_scoring.py (sha256)",
+   "benchmarks/g3-pilot/g3p3_support.py (sha256)",
+   "benchmarks/g3-pilot/g3p3_runner.py (sha256)",
+   "benchmarks/g3-pilot/g3p3_calibrate.py (sha256)",
+   "corpus rebuilt from disk g3p3_corpus.py (content digest f4659290...)",
+   "all 10 guidance bundles ($TMPDIR/g3pilot-v3-5081/guidance/)",
+   "all 3 advise-request bundles + materials ($TMPDIR/g3pilot-v3-5081/requests/)",
+   "all ref3 reference files"
+  ],
+  "verdict": "CLEAN - no drift. The duplicate session wrote only into the separate benchmarks/g3p3/ directory (no hyphen); the frozen execution path lives in benchmarks/g3-pilot/ and every digest matched. No execution was discarded; no re-run required."
+ },
+ "non_claims": [
+  "This is a DIAGNOSTIC PILOT, not Gate G3; it makes no gate, protocol, or promotion claims.",
+  "With one execution per arm per task (n=1 per cell), any single-task split is a signal to investigate, not a measured effect size; no statistical significance is claimed.",
+  "Conformance is measured against frozen checkers and the engineering-core 1.0.0 candidate-4 wheel / pinned repo toolchains; it is not a general capability claim about either model family.",
+  "The evidence arm differs from the static arm only by guidance presence (rendered wheel content and, for classes A/C, a product-validated advisor response); no claim is made that any specific guidance element caused an outcome.",
+  "Class B tasks received the compiled advise-request materials in the spec for both arms and no advisor model call (a call would fabricate the deliverable); recorded per receipt.",
+  "Acceptance checkers were frozen and calibrated before execution (reference Y=1, stub Y=0, tamper detection) and were never relaxed after seeing results.",
+  "Anti-contamination relied on an explicit spec constraint (no filesystem roaming for pre-installed tools); no independent sandbox verification of executor behavior is claimed."
+ ],
+ "operator_directives_applied": [
+  "reshape directive (pre-execution; docs/v1-proof/g3pilot-v3-DIRECTIVE-reshape.md, marked APPLIED on the file): 10 tasks, 5 per family, static+evidence once per task in its assigned family = 20 executions; corpus table reviewed and approved by the operator (GO) before execution",
+  "interference-check + cleanup directive: applied (see interference_check; post-run re-verification CLEAN); duplicate-session dir benchmarks/g3p3/ and the literal benchmarks/g3-pilot/$TMPDIR/ dir removed at closeout"
+ ],
+ "operator_intent_quote": "v3 harder tasks that actually challenge the models the right way",
+ "operator_reshape_quote": "please do only 10 tasks, 5 per model",
+ "progress_final": {
+  "PL3-A1-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:39:27+00:00"
+  },
+  "PL3-A2-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:35:49+00:00"
+  },
+  "PL3-A3-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:46:25+00:00"
+  },
+  "PL3-B1-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:44:07+00:00"
+  },
+  "PL3-B2-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:56:10+00:00"
+  },
+  "PL3-B3-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:49:35+00:00"
+  },
+  "PL3-C1-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T21:57:20+00:00"
+  },
+  "PL3-C2-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T22:00:35+00:00"
+  },
+  "PL3-C3-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T22:09:42+00:00"
+  },
+  "PL3-C4-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T22:17:18+00:00"
+  }
+ },
+ "recorded_at": "2026-08-25T21:26:10+00:00",
+ "results": {
+  "overall": {
+   "evidence_y_rate": 0.6,
+   "static_y_rate": 0.4,
+   "tasks": 10
+  },
+  "per_class": {
+   "A": {
+    "evidence_y_rate": 0.3333333333333333,
+    "static_y_rate": 0.3333333333333333,
+    "tasks": 3
+   },
+   "B": {
+    "evidence_y_rate": 0.6666666666666666,
+    "static_y_rate": 0.3333333333333333,
+    "tasks": 3
+   },
+   "C": {
+    "evidence_y_rate": 0.75,
+    "static_y_rate": 0.5,
+    "tasks": 4
+   }
+  },
+  "per_class_family": {
+   "A/fam-glm": {
+    "evidence_y": 0,
+    "evidence_y_rate": 0.0,
+    "static_y": 1,
+    "static_y_rate": 0.5,
+    "tasks": 2
+   },
+   "A/fam-gpt": {
+    "evidence_y": 1,
+    "evidence_y_rate": 1.0,
+    "static_y": 0,
+    "static_y_rate": 0.0,
+    "tasks": 1
+   },
+   "B/fam-glm": {
+    "evidence_y": 0,
+    "evidence_y_rate": 0.0,
+    "static_y": 1,
+    "static_y_rate": 1.0,
+    "tasks": 1
+   },
+   "B/fam-gpt": {
+    "evidence_y": 2,
+    "evidence_y_rate": 1.0,
+    "static_y": 0,
+    "static_y_rate": 0.0,
+    "tasks": 2
+   },
+   "C/fam-glm": {
+    "evidence_y": 1,
+    "evidence_y_rate": 0.5,
+    "static_y": 1,
+    "static_y_rate": 0.5,
+    "tasks": 2
+   },
+   "C/fam-gpt": {
+    "evidence_y": 2,
+    "evidence_y_rate": 1.0,
+    "static_y": 1,
+    "static_y_rate": 0.5,
+    "tasks": 2
+   }
+  },
+  "per_family": {
+   "fam-glm": {
+    "evidence_y_rate": 0.2,
+    "static_y_rate": 0.6,
+    "tasks": 5
+   },
+   "fam-gpt": {
+    "evidence_y_rate": 1.0,
+    "static_y_rate": 0.2,
+    "tasks": 5
+   }
+  },
+  "splits": [
+   {
+    "direction": "static-only",
+    "evidence_problems": [
+     "disciplines missing defaults: ['dependency-governance']"
+    ],
+    "evidence_y": 0,
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "static_problems": [],
+    "static_y": 1,
+    "task_class": "A",
+    "task_id": "A2"
+   },
+   {
+    "direction": "evidence-only",
+    "evidence_problems": [],
+    "evidence_y": 1,
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "static_problems": [
+     "doctor check advisor=fail",
+     "doctor check plan=fail",
+     "scan status: 'partial' notes=['unknown discipline(s): architecture, code-quality, security']",
+     "disciplines missing defaults: ['dependency-governance', 'security-privacy', 'validation']"
+    ],
+    "static_y": 0,
+    "task_class": "A",
+    "task_id": "A1"
+   },
+   {
+    "direction": "evidence-only",
+    "evidence_problems": [],
+    "evidence_y": 1,
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "static_problems": [
+     "catalog id union != plan requested selections: missing=['security-privacy'] extra=['engineering-reasoning']"
+    ],
+    "static_y": 0,
+    "task_class": "B",
+    "task_id": "B1"
+   },
+   {
+    "direction": "evidence-only",
+    "evidence_problems": [],
+    "evidence_y": 1,
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "static_problems": [
+     "product validator rejected the response: exit=1 advice rejected: critique.falsification must be bounded text\n"
+    ],
+    "static_y": 0,
+    "task_class": "B",
+    "task_id": "B3"
+   },
+   {
+    "direction": "static-only",
+    "evidence_problems": [
+     "product validator rejected the response: exit=1 advice rejected: critique.falsification must be bounded text\n"
+    ],
+    "evidence_y": 0,
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "static_problems": [],
+    "static_y": 1,
+    "task_class": "B",
+    "task_id": "B2"
+   },
+   {
+    "direction": "evidence-only",
+    "evidence_problems": [],
+    "evidence_y": 1,
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "static_problems": [
+     "biome check failed: Checked 2 files in 3ms. No fixes applied.\nFound 1 error.\n"
+    ],
+    "static_y": 0,
+    "task_class": "C",
+    "task_id": "C1"
+   }
+  ]
+ },
+ "schema": "dspx.g3pilot/1"
+}
