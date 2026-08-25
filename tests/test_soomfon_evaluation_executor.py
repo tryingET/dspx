@@ -40,7 +40,7 @@ from dspx.services.soomfon_evaluation_custody import SoomfonCustodyError
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONTRACT_SHA256 = "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+CONTRACT_SHA256 = "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
 
 
 @pytest.fixture(autouse=True)

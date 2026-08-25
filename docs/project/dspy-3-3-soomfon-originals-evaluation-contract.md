@@ -1,5 +1,5 @@
 ---
-summary: "AK-5033 provider-free Luna xhigh Soomfon successor; pending review and execution unauthorized."
+summary: "AK-5038 provider-free Luna runtime-receipt repair; pending review and execution unauthorized."
 read_when:
   - "Before considering any model-backed evaluation of the six fresh DSPy 3.3 voice originals."
   - "Before changing Soomfon evaluation custody, authorization, provider receipts, or routing."
@@ -10,10 +10,11 @@ type: "reference"
 
 ## Disposition
 
-Task AK-5033 retargets the reviewed provider-free execution path to
-`codex/gpt-5.6-luna` reasoning `xhigh` without invoking a provider and issues a fresh schema-v3
-contract for the same six regenerated DSPy 3.3.1 originals. Its posture is **pending independent review, execution unauthorized**.
-No task 5033 artifact authorizes a provider/model call, OAuth
+Task AK-5038 repairs generic runtime-receipt validation to consume the same centralized exact
+`codex/gpt-5.6-luna` reasoning `xhigh` identity as the Soomfon owner path, without invoking a
+provider, and issues a fresh schema-v3 contract for the same six regenerated DSPy 3.3.1
+originals. Its posture is **pending independent review, execution unauthorized**.
+No task 5038 artifact authorizes a provider/model call, OAuth
 flow, credential inspection, physical key, microphone, TTS, routing, promotion, activation,
 release, or publication.
 
@@ -22,13 +23,26 @@ The active machine contract is:
 `examples/voice_turn_brains/canaries/dspy-3.3.0/soomfon-evaluation-contract.json`
 
 Its current raw SHA-256 is
-`cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d`.
+`56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a`.
 The digest must be supplied out-of-band; deriving the trust anchor from contract bytes is
 forbidden.
 
 ## Predecessors and immutable history
 
-The unused AK-5028 contract is archived byte-for-byte at:
+The consumed Luna xhigh contract is archived byte-for-byte at:
+
+`examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d.json`
+
+Its raw SHA-256 remains
+`cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d`.
+Execution task #5035 attempted only `simple`. Two attributable provider receipt chains completed;
+only response SHA-256 `da0ef16db1293c5de87f8af9abc6940291eb894bcca68d688d2cb601b3bd954a`
+and length `306` are retained publicly. The generic runtime validator still contained obsolete
+Sol/max literals outside AK-5033 scope, so the immutable terminal disposition is
+`effect_indeterminate` with reason `runtime_receipt_invalid`. The attempt cannot be retried,
+resumed, relabeled, or transferred, and the raw response must not be read or exposed.
+
+The earlier unused AK-5028 contract is archived byte-for-byte at:
 
 `examples/voice_turn_brains/canaries/dspy-3.3.0/predecessor-contracts/0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207.json`
 
@@ -36,7 +50,7 @@ Its raw SHA-256 remains
 `0f602482f29037d1a8f0c71731872390614198998d1fda94079172052cc29207`.
 Task #5032 was deferred before claim, credential access, model transport, or any attempted mode
 because the operator selected the Luna xhigh route. The archive remains execution unauthorized
-and is the immediate predecessor of the active contract.
+and remains an immutable predecessor of the active contract.
 
 The earlier consumed contract remains archived byte-for-byte at:
 
@@ -161,7 +175,7 @@ The JSON is an integrity/binding projection only. It is neither produced nor aut
 AK and cannot authorize itself. Before state-root creation the parent requires at least 1800
 seconds on the claim lease; immediately before every marker it repeats that minimum and the
 exact read-only canonical AK queries for the later task, live completion contract and guardrails,
-attached evidence, each named evidence record, and done dependency #5033. The child reconciles
+attached evidence, each named evidence record, and done dependency #5038. The child reconciles
 again before task-local provider import or any possible credential access. Each logical call
 reconciles once more with a 90-second minimum and requires the task, contract, evidence,
 projection, and authorization state to remain unchanged.
@@ -194,7 +208,7 @@ check types are `review:independent-security`, `test:independent-provider-free`,
 bytes to exact Git blobs at the authorized clean commit/tree. Installed mode compares origins
 and complete payload to the exact distribution/RECORD. Any package shadow, `__pycache__`,
 `.pyc`, or existing security-module `__cached__` artifact rejects. No AK mutation occurs.
-Task #5033 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5033 and depend exactly on `[5033]`.
+Task #5038 cannot satisfy this execution authorization gate; a future execution task must have an ID greater than 5038 and depend exactly on `[5038]`.
 
 ## Private response behavior
 
@@ -210,8 +224,9 @@ This implementation proves no live model compatibility, answer quality, semantic
 GEPA improvement, backend locality, physical Soomfon execution, routing, promotion, activation,
 release, or publication.
 
-The next lawful move is independent review of this provider-free Luna xhigh successor, followed
-only then by a separate exact claimed AK task greater than 5033, depending exactly on `[5033]`, with
+The next lawful move is independent review of this provider-free Luna runtime-receipt repair,
+followed only then by a separate exact claimed AK task greater than 5038, depending exactly on
+`[5038]`, with
 canonical attached review/operator evidence and a local integrity projection for one suite.
 Only independently reviewed resulting evidence could inform a later, distinct owner binding
 decision. The active routing file must remain unchanged until that separate decision exists.

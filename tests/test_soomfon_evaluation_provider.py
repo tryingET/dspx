@@ -276,6 +276,51 @@ def test_provider_evidence_validator_rejects_raw_or_widened_fields(
         validate_soomfon_provider_evidence(forged, mode="simple")
 
 
+def test_program_runtime_validator_uses_centralized_luna_identity(
+    tmp_path: Path,
+) -> None:
+    from dspx.services import program_runtime_episode
+    from dspx.services.soomfon_evaluation_contract import REVIEWED_CONTRACT_SHA256
+
+    custodian = _custodian(tmp_path)
+    for ordinal, signature in enumerate(("DefinePersona", "AnswerSimple"), start=1):
+        custodian.invoke(
+            signature_name=signature,
+            semantic_request_sha256=str(ordinal) * 64,
+            invoke=lambda receipt: (_completed(cast(_Receipt, receipt)), "ok")[1],
+        )
+    provider = {
+        "status": "configured",
+        "metadata": {
+            "schema_version": "soomfon-dspy-lm-auth-runtime-v1",
+            "provider": "soomfon-dspy-lm-auth",
+            "model": "codex/gpt-5.6-luna",
+            "requested_route": "dspy-lm-auth:codex:gpt-5.6-luna:xhigh",
+            "resolved_route": "openai:gpt-5.6-luna:responses",
+            "auth_provider": "codex",
+            "credential_mode": "no-refresh",
+            "reasoning_effort": "xhigh",
+            "num_retries": 0,
+            "cache": False,
+            "timeout_seconds": 60.0,
+            "sync_only": True,
+            "fallback_allowed": False,
+            "health_probe_allowed": False,
+            "contract_sha256": REVIEWED_CONTRACT_SHA256,
+            "mode": "simple",
+            "source_identity_sha256": "c" * 64,
+            "dependency_identity_sha256": "d" * 64,
+        },
+        "effect_evidence": custodian.finalize(),
+    }
+    program_runtime_episode._validate_provider_evidence(provider)
+
+    stale = json.loads(json.dumps(provider))
+    stale["metadata"]["model"] = "codex/gpt-5.6-sol"
+    with pytest.raises(ValueError, match="runtime metadata"):
+        program_runtime_episode._validate_provider_evidence(stale)
+
+
 def test_journal_parent_must_be_private(tmp_path: Path) -> None:
     parent = tmp_path / "journals"
     parent.mkdir(mode=0o755)

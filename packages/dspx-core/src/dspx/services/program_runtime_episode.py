@@ -1434,18 +1434,28 @@ def _validate_provider_evidence(value: object) -> dict[str, Any]:
 
     metadata = _safe_mapping(evidence.get("metadata"))
     if metadata.get("schema_version") == "soomfon-dspy-lm-auth-runtime-v1":
+        from dspx.services.soomfon_evaluation_owner import (
+            AUTH_PROVIDER,
+            CREDENTIAL_MODE,
+            REASONING_EFFORT,
+            REQUESTED_MODEL,
+            REQUESTED_ROUTE,
+            RESOLVED_ROUTE,
+            TIMEOUT_SECONDS,
+        )
+
         expected = {
             "schema_version": "soomfon-dspy-lm-auth-runtime-v1",
             "provider": "soomfon-dspy-lm-auth",
-            "model": "codex/gpt-5.6-sol",
-            "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol:max",
-            "resolved_route": "openai:gpt-5.6-sol:responses",
-            "auth_provider": "codex",
-            "credential_mode": "no-refresh",
-            "reasoning_effort": "max",
+            "model": REQUESTED_MODEL,
+            "requested_route": REQUESTED_ROUTE,
+            "resolved_route": RESOLVED_ROUTE,
+            "auth_provider": AUTH_PROVIDER,
+            "credential_mode": CREDENTIAL_MODE,
+            "reasoning_effort": REASONING_EFFORT,
             "num_retries": 0,
             "cache": False,
-            "timeout_seconds": 60.0,
+            "timeout_seconds": TIMEOUT_SECONDS,
             "sync_only": True,
             "fallback_allowed": False,
             "health_probe_allowed": False,

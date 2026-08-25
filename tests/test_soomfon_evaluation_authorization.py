@@ -130,9 +130,9 @@ def test_missing_or_forged_authorization_digest_fails_closed(
         )
 
 
-def test_task_5033_cannot_authorize_execution(tmp_path: Path) -> None:
+def test_task_5038_cannot_authorize_execution(tmp_path: Path) -> None:
     path = tmp_path / "authorization.json"
-    digest = _write(path, _artifact(task_id=5033))
+    digest = _write(path, _artifact(task_id=5038))
     with pytest.raises(
         authorization.SoomfonExecutionAuthorizationError, match="task or repo binding"
     ):
@@ -223,7 +223,7 @@ def test_missing_authorization_refuses_before_marker_owner_import_or_state(
     with pytest.raises(authorization.SoomfonExecutionAuthorizationError):
         executor.execute_soomfon_evaluation_suite(
             expected_contract_sha256=(
-                "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d"
+                "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a"
             ),
             execution_authorization_path=None,
             expected_authorization_sha256=None,
@@ -265,7 +265,7 @@ def _machine_task(
                 "lease_expires_at": (now + timedelta(seconds=lease_seconds)).isoformat()
                 if status == "claimed"
                 else None,
-                "depends_on": [5033] if task_id != 5033 else [5028],
+                "depends_on": [5038] if task_id != 5038 else [5033],
                 "evidence": None,
                 "result": None,
                 "created_at": now.isoformat(),
@@ -293,8 +293,8 @@ def _canonical_runner(
     operator = payload["operator_authorization"]
     operator_id = operator["evidence_id"]
     common = {
-        "schema_version": "soomfon-ak5033-authorization-evidence-v3",
-        "preparation_task_id": 5033,
+        "schema_version": "soomfon-ak5038-authorization-evidence-v3",
+        "preparation_task_id": 5038,
         "contract_sha256": payload["contract_sha256"],
         "dspx_artifact": payload["dspx_artifact"],
         "owner_artifact": payload["owner_artifact"],
@@ -362,8 +362,8 @@ def _canonical_runner(
             return _machine_task(
                 task_id=task_id, status=task_status, lease_seconds=lease_seconds
             )
-        if arguments == ("task", "show", "5033", "--machine"):
-            return _machine_task(task_id=5033, status="done", completed=True)
+        if arguments == ("task", "show", "5038", "--machine"):
+            return _machine_task(task_id=5038, status="done", completed=True)
         if arguments[:3] == ("task", "contract", "show"):
             return contract
         if arguments[:2] == ("evidence", "task"):
@@ -404,7 +404,7 @@ def test_canonical_ak_reconciliation_rejects_self_hashed_self_assertion(
         )
 
 
-@pytest.mark.parametrize("depends_on", [[], [5028], [5033, 5028]])
+@pytest.mark.parametrize("depends_on", [[], [5033], [5038, 5033]])
 def test_canonical_ak_requires_exact_preparation_dependency(
     depends_on: list[int],
 ) -> None:
@@ -444,7 +444,7 @@ def test_live_completion_contract_binds_current_hash_and_preparation_task() -> N
     outcomes = cast(list[str], contract["required_outcomes"])
     assert outcomes[0] == (
         "Authorize exactly one six-case Soomfon suite for contract "
-        "cea459c1926e7cd765372e926a23fbcefab1cfa061024f720de76ba35d002e0d prepared under AK-5033"
+        "56b2f269bd6b494a2d4d08c716787449cde5dd5a63bbbfc5d4666feb32306e3a prepared under AK-5038"
     )
 
 
@@ -741,9 +741,9 @@ def test_pinned_ak_binary_is_hashed_and_executed_through_open_fd(
     monkeypatch.setattr(runtime.subprocess, "Popen", tracked_popen)
     result = cast(
         dict[str, Any],
-        runtime.run_ak_json(("task", "show", "5033", "--machine")),
+        runtime.run_ak_json(("task", "show", "5038", "--machine")),
     )
-    assert result["payload"]["task"]["id"] == 5033
+    assert result["payload"]["task"]["id"] == 5038
     argv = cast(tuple[str, ...], observed["argv"])
     passed = observed["pass_fds"]
     assert argv[0].startswith("/proc/self/fd/")
