@@ -1,0 +1,259 @@
+{
+ "artifacts": {
+  "frozen_digests": {
+   "advice_section_sha256": "a7083411a892ea82283bd757fe40e809bd6faa6c506ed40bde6c261344de761e",
+   "advisor_wrapper_sha256": "fc7b66ae9151757136fe8e4ee64b37355c8e9f5c70cefe4328420d913df4e9cb",
+   "corpus_digest": "58755476ed47ea5d73f9b3fa9040850ac3b6b17b043074bb279031a1cebf4188",
+   "prompt_template_sha256": "9c57fd392703b98d48343c8e0c085120e2039d9957686ec7b75da5c67238bb17",
+   "runner_sha256": "6f4d275f0f7857b972952393c9ab0c25acd78ac6ed64733d38d36da1ca9001db",
+   "scoring_sha256": "f56b3250014c02249e443a1d1a4caaacdab964adabdd398eef84dacbed783ff5"
+  },
+  "machinery": [
+   "benchmarks/g3-pilot/g3p_corpus.py",
+   "benchmarks/g3-pilot/g3p_scoring.py",
+   "benchmarks/g3-pilot/g3p_runner.py",
+   "benchmarks/g3-pilot/g3p_calibrate.py",
+   "benchmarks/g3-pilot/drive_family.sh",
+   "benchmarks/g3-pilot/ref/"
+  ],
+  "receipts": "docs/v1-proof/g3pilot-receipts.jsonl",
+  "receipts_sha256": "914815561389ca8b97f4ad6cf5243c98558d006f78ce6c17390a471aa4749f4b",
+  "state": "docs/v1-proof/g3pilot-state.json"
+ },
+ "completed_at": "2026-08-25T20:40:39+00:00",
+ "corpus": [
+  {
+   "acceptance": "python3 accept-py-01.py (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "moderate",
+   "difficulty_rationale": "Requires reading metrics.py (semantic distance normalizer, drift thresholds and labels) AND clustering.py (unit-normalized centroid convention) to produce matching distances/classes.",
+   "grounding_files": [
+    "packages/dspx-core/src/dspx/coordinates/metrics.py",
+    "packages/dspx-core/src/dspx/coordinates/clustering.py"
+   ],
+   "participant_validation": "python3 -m py_compile packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py",
+   "repo": "softwareco/owned/dspx@e74309284972",
+   "task": "PY-01",
+   "title": "Drift triage over execution records (metrics+clustering parity)"
+  },
+  {
+   "acceptance": "python3 accept-py-02.py (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "moderate-hard",
+   "difficulty_rationale": "Requires reading attractors.py (stability scorer with text-variance penalties and sentinel values; convergence rate) AND territory.py (internal variance) plus their shared centroid/distance conventions in clustering.py/metrics.py.",
+   "grounding_files": [
+    "packages/dspx-core/src/dspx/coordinates/attractors.py",
+    "packages/dspx-core/src/dspx/coordinates/territory.py",
+    "packages/dspx-core/src/dspx/coordinates/metrics.py",
+    "packages/dspx-core/src/dspx/coordinates/clustering.py"
+   ],
+   "participant_validation": "python3 -m py_compile packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py",
+   "repo": "softwareco/owned/dspx@e74309284972",
+   "task": "PY-02",
+   "title": "Stability/convergence/variance summary (attractors+territory parity)"
+  },
+  {
+   "acceptance": "python3 accept-py-03.py (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "hard",
+   "difficulty_rationale": "Requires line-by-line reproduction of simple_kmeans in clustering.py (seeded RNG call sequence, k-means++ init, tie-breaking, centroid re-normalization, empty-cluster reinit, final sort) plus the metrics.py distance/normalizer conventions.",
+   "grounding_files": [
+    "packages/dspx-core/src/dspx/coordinates/clustering.py",
+    "packages/dspx-core/src/dspx/coordinates/metrics.py"
+   ],
+   "participant_validation": "python3 -m py_compile packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py",
+   "repo": "softwareco/owned/dspx@e74309284972",
+   "task": "PY-03",
+   "title": "Deterministic k-means partition reproduction"
+  },
+  {
+   "acceptance": "python3 accept-py-04.py (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "moderate-hard",
+   "difficulty_rationale": "Requires reading territory.py (classify_region branch order, confidence formulas, danger rule) plus compute_internal_variance's centroid convention (clustering.py) and the distance normalizer (metrics.py).",
+   "grounding_files": [
+    "packages/dspx-core/src/dspx/coordinates/territory.py",
+    "packages/dspx-core/src/dspx/coordinates/clustering.py",
+    "packages/dspx-core/src/dspx/coordinates/metrics.py"
+   ],
+   "participant_validation": "python3 -m py_compile packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py",
+   "repo": "softwareco/owned/dspx@e74309284972",
+   "task": "PY-04",
+   "title": "Region classification with danger zones (territory parity)"
+  },
+  {
+   "acceptance": "python3 accept-py-05.py (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "hard",
+   "difficulty_rationale": "Composes deterministic kmeans (clustering.py) + stability/basin rules and health verdicts (attractors.py) + distance conventions (metrics.py); the flagship multi-file integration task.",
+   "grounding_files": [
+    "packages/dspx-core/src/dspx/coordinates/attractors.py",
+    "packages/dspx-core/src/dspx/coordinates/clustering.py",
+    "packages/dspx-core/src/dspx/coordinates/metrics.py"
+   ],
+   "participant_validation": "python3 -m py_compile packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py",
+   "repo": "softwareco/owned/dspx@e74309284972",
+   "task": "PY-05",
+   "title": "Attractor landscape + health report (full pipeline parity)"
+  },
+  {
+   "acceptance": "node accept-ts-01.test.mjs (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "moderate",
+   "difficulty_rationale": "Requires reading context-plan.js (seed-kind normalization and fallbacks) AND context-intake-safety.js (path/symbol safety rules, control-character definition, exact issue strings) across two files.",
+   "grounding_files": [
+    "packages/pi-context-packer/src/context-plan.js",
+    "packages/pi-context-packer/src/context-intake-safety.js"
+   ],
+   "participant_validation": "node --check packages/pi-context-packer/g3p-seed-audit.mjs",
+   "repo": "softwareco/owned/pi-extensions@e855d07799f7",
+   "task": "TS-01",
+   "title": "Context seed audit (plan kind normalization + intake safety parity)"
+  },
+  {
+   "acceptance": "node accept-ts-02.test.mjs (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "moderate-hard",
+   "difficulty_rationale": "Requires reading file-budget.js (classification rules, exclusion lists, line counting final-newline rule, budgets, containment, dedup) AND context-intake-safety.js (path safety issue strings); verifies against real files on disk.",
+   "grounding_files": [
+    "packages/pi-context-packer/src/file-budget.js",
+    "packages/pi-context-packer/src/context-intake-safety.js"
+   ],
+   "participant_validation": "node --check packages/pi-context-packer/g3p-budget-risks.mjs",
+   "repo": "softwareco/owned/pi-extensions@e855d07799f7",
+   "task": "TS-02",
+   "title": "Path-seed budget-risk scan with intake safety (disk fixtures)"
+  },
+  {
+   "acceptance": "node accept-ts-03.test.mjs (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "moderate",
+   "difficulty_rationale": "Requires reading provider-capabilities.js (capability table, SCI gate, session gate) AND session-context.js (usage field precedence and high-pressure thresholds).",
+   "grounding_files": [
+    "packages/pi-context-packer/src/provider-capabilities.js",
+    "packages/pi-context-packer/src/session-context.js"
+   ],
+   "participant_validation": "node --check packages/pi-context-packer/g3p-provider-matrix.mjs",
+   "repo": "softwareco/owned/pi-extensions@e855d07799f7",
+   "task": "TS-03",
+   "title": "Provider capability matrix (provider-capabilities + session-context parity)"
+  },
+  {
+   "acceptance": "node accept-ts-04.test.mjs (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "hard",
+   "difficulty_rationale": "Requires reading context-pack-result.js (full render template), context-intake-safety.js (inline label + fence rules) and context-plan.js (failure fallback) to reproduce the exact output string, byte for byte.",
+   "grounding_files": [
+    "packages/pi-context-packer/src/context-pack-result.js",
+    "packages/pi-context-packer/src/context-intake-safety.js",
+    "packages/pi-context-packer/src/context-plan.js",
+    "packages/pi-context-packer/src/dogfood-followup-classes.js"
+   ],
+   "participant_validation": "node --check packages/pi-context-packer/g3p-render-packet.mjs",
+   "repo": "softwareco/owned/pi-extensions@e855d07799f7",
+   "task": "TS-04",
+   "title": "Byte-identical context packet rendering"
+  },
+  {
+   "acceptance": "node accept-ts-05.test.mjs (frozen checker; must exit 0 with ACCEPT)",
+   "difficulty": "moderate-hard",
+   "difficulty_rationale": "Requires reading the 3-file source-selection-experiment suite: ranking.js (rows, arm cascades), structural.js (EVIDENCE_KIND_ORDER), utils.js (compareUtf8).",
+   "grounding_files": [
+    "packages/pi-context-packer/src/source-selection-experiment-ranking.js",
+    "packages/pi-context-packer/src/source-selection-experiment-structural.js",
+    "packages/pi-context-packer/src/source-selection-experiment-utils.js"
+   ],
+   "participant_validation": "node --check packages/pi-context-packer/g3p-rank-select.mjs",
+   "repo": "softwareco/owned/pi-extensions@e855d07799f7",
+   "task": "TS-05",
+   "title": "Source-selection ranking arm selection (experiment suite parity)"
+  }
+ ],
+ "design": {
+  "advisor_identity": "openai-codex/gpt-5.6-terra",
+  "advisor_note": "uniform across ALL pairs (campaign preference); glm-5.3 fallback unused because the preferred identity was live at pilot start (probe recorded)",
+  "arms": {
+   "evidence": "same task + engineering-core candidate-4 advice rendered via the advise surface (frozen advice slot)",
+   "static": "plain task prompt"
+  },
+  "budget": {
+   "actual_executions": 40,
+   "budget_respected": true,
+   "planned_max_executions": 40,
+   "planned_wall_s": 21600,
+   "wall_used_s": 5957.0
+  },
+  "calibration_before_execution": "all 10 frozen checkers validated: reference solution Y=1, trivial stub Y=0, grounding tamper detected (benchmarks/g3-pilot/g3p_calibrate.py, ref/ transcriptions)",
+  "candidate": {
+   "branch": "proof/v1-candidate-4",
+   "built_from": "scratch detached worktree under $TMPDIR; digest verified",
+   "commit": "bc43bb972121bf6c02792bf318cb14aa974b7e17",
+   "repo": "/home/tryinget/ai-society/core/engineering-core",
+   "wheel_sha256": "94b6a2bd5d34ef82dce0f7f40e209e4d55b00c478ce8e49ecd9cd1bc5edb54f8"
+  },
+  "execution_model": "20 pairs (10 tasks x 2 families), 2 arms each = 40 executions, interleaved (two family streams in parallel, frozen per-family order, frozen per-pair arm order)",
+  "executors": {
+   "fam-glm": "zai/glm-5.3:high",
+   "fam-gpt": "openai-codex/gpt-5.6-sol:high"
+  },
+  "harder_bar": "each task requires reading EXISTING code across >=2 files in the target repo before any correct change (multi-file composition/parity work, not single-function specs); frozen objective acceptance authored BEFORE any run; no human judgment",
+  "repos": {
+   "dspx": {
+    "identity": "softwareco/owned/dspx",
+    "pin": "e74309284972236b996da3cf6dc3f11c8ab3c525"
+   },
+   "pi-extensions": {
+    "identity": "softwareco/owned/pi-extensions",
+    "pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64"
+   }
+  },
+  "tasks": 10,
+  "verification": "masked verify_arm (task + worktree only): claim file + grounding-unchanged-vs-pin + frozen acceptance + participant validation; arm-attributable no-output is Y=0"
+ },
+ "diagnostic_label": "G3 rev2 feasibility pilot (harder tasks) - DIAGNOSTIC SCREEN ONLY. NOT Gate G3, NOT protocol evidence, NO gate claims, NO promotion authority. A yes/no screen for whether a proper G3 rev2 is worth authoring.",
+ "discrimination_readout": {
+  "answer": "NO",
+  "detail": "Zero discrimination. All 40 arms passed (Y=1): fam-gpt static 10/10 vs evidence 10/10; fam-glm static 10/10 vs evidence 10/10. No pair split; no task showed any static-vs-evidence difference; mean arm durations are also indistinguishable (fam-gpt 292s vs 274s, fam-glm 269s vs 272s). The closed campaign's ceiling effect (easy tasks, arms identical at 91.7%/91.7% gpt and 100%/100% grok) REPRODUCES at a substantially harder bar: exact reproduction of a seeded k-means (RNG call sequence, tie-breaking, centroid re-normalization), byte-identical packet rendering across 4 files, multi-module parity compositions. Both executors solved every task with or without the engineering-core advice payload.",
+  "question": "on HARDER tasks grounded in real softwareco/owned repos, do the static and evidence arms separate AT ALL?",
+  "rev2_implication": "A proper G3 rev2 at this difficulty band is NOT worth authoring: tasks requiring multi-file reading and faithful re-implementation still saturate both arms. Any rev2 that wants discrimination must change the task class (e.g., tasks the advice surface is specifically built to inform, longer-horizon or repository-wide work, or failure-prone integration work), not merely raise per-task reading difficulty. This is a pilot readout, not a gate decision.",
+  "secondary_observation": "fam-glm (zai/glm-5.3:high) matched fam-gpt (openai-codex/gpt-5.6-sol:high) exactly on this corpus (both 20/20 arms); the corpus was also at ceiling for BOTH families."
+ },
+ "non_claims": [
+  "NOT Gate G3 and NOT G3 protocol evidence",
+  "no gate claims, no pass/fail verdict on any gate criterion",
+  "no protocol authority; frozen decision-132 campaign is closed (operator_stopped_incomplete) and untouched",
+  "diagnostic screen only; n=10 tasks per family is a feasibility pilot, not an experiment with frozen stopping rules",
+  "no optional-outcome claims; all 40 planned executions ran, none blocked, none stopped early",
+  "arm outputs were disposed with their disposable scratch replicas; nothing was landed in any real repo"
+ ],
+ "operator_intent_quote": "10 tasks to see if there is any difference at all",
+ "recorded_at": "2026-08-25T19:01:22+00:00",
+ "results": {
+  "executions_total": 40,
+  "n_tasks_split": 0,
+  "per_family": {
+   "fam-glm": {
+    "evidence_rate": 1.0,
+    "evidence_y": 10,
+    "mean_duration_s": {
+     "evidence": 271.8,
+     "static": 268.5
+    },
+    "model_identity": "zai/glm-5.3:high",
+    "pairs": 10,
+    "static_rate": 1.0,
+    "static_y": 10
+   },
+   "fam-gpt": {
+    "evidence_rate": 1.0,
+    "evidence_y": 10,
+    "mean_duration_s": {
+     "evidence": 274.0,
+     "static": 292.0
+    },
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pairs": 10,
+    "static_rate": 1.0,
+    "static_y": 10
+   }
+  },
+  "stop_events": {
+   "budget_stop": null,
+   "families_blocked": []
+  },
+  "tasks_split_static_vs_evidence": []
+ },
+ "salvage_note": "All 40 arm outputs passed objective acceptance but were ephemeral (disposable replicas, deleted after masked verification); no artifact was preserved or landed. Equivalent standalone transcriptions already exist repo-side under benchmarks/g3-pilot/ref/ for owner review; no salvage candidate identified beyond those.",
+ "schema": "dspx.g3pilot/1"
+}

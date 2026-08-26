@@ -1,0 +1,1375 @@
+{
+ "advice": {},
+ "blockers": {},
+ "budget": {
+  "executions": 40,
+  "started_at": "2026-08-25T19:01:22+00:00",
+  "stopped_reason": null
+ },
+ "budgets": {
+  "advisor_timeout_s": 420,
+  "executor_timeout_s": 1500,
+  "max_executions": 40,
+  "pilot_wall_s": 21600,
+  "verify_timeout_s": 300
+ },
+ "candidate": {
+  "branch": "proof/v1-candidate-4",
+  "built_from": "scratch detached worktree under $TMPDIR; digest verified",
+  "commit": "bc43bb972121bf6c02792bf318cb14aa974b7e17",
+  "repo": "/home/tryinget/ai-society/core/engineering-core",
+  "wheel_sha256": "94b6a2bd5d34ef82dce0f7f40e209e4d55b00c478ce8e49ecd9cd1bc5edb54f8"
+ },
+ "corpus": {
+  "execution_order": [
+   "PL-PY-01-fam-gpt",
+   "PL-PY-01-fam-glm",
+   "PL-PY-02-fam-gpt",
+   "PL-PY-02-fam-glm",
+   "PL-PY-03-fam-gpt",
+   "PL-PY-03-fam-glm",
+   "PL-PY-04-fam-gpt",
+   "PL-PY-04-fam-glm",
+   "PL-PY-05-fam-gpt",
+   "PL-PY-05-fam-glm",
+   "PL-TS-01-fam-gpt",
+   "PL-TS-01-fam-glm",
+   "PL-TS-02-fam-gpt",
+   "PL-TS-02-fam-glm",
+   "PL-TS-03-fam-gpt",
+   "PL-TS-03-fam-glm",
+   "PL-TS-04-fam-gpt",
+   "PL-TS-04-fam-glm",
+   "PL-TS-05-fam-gpt",
+   "PL-TS-05-fam-glm"
+  ],
+  "pairs": [
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-PY-01-fam-gpt",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"r01\", \"vector\": [0.9, 0.1, 0.0, 0.2, 0.05, 0.0]}, {\"run_id\": \"r02\", \"vector\": [0.88, 0.12, 0.02, 0.18, 0.04, 0.01]}, {\"run_id\": \"r03\", \"vector\": [0.1, 0.9, 0.1, 0.0, 0.0, 0.2]}, {\"run_id\": \"r04\", \"vector\": [0.12, 0.88, 0.12, 0.01, 0.02, 0.18]}, {\"run_id\": \"r05\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0]}, {\"run_id\": \"r06\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01]}, {\"run_id\": \"r07\", \"vector\": [-0.7, -0.7, -0.1, 0.0, 0.0, 0.1]}, {\"run_id\": \"r08\", \"vector\": [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]}]"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py\")\nRECORDS = json.loads(sys.argv[1])\nTOL = 1e-9\n\nimport types\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nmetrics = importlib.import_module(\"dspx.coordinates.metrics\")\nclustering = importlib.import_module(\"dspx.coordinates.clustering\")\n\nclass Emb:\n    def __init__(self, rid, vec):\n        self.run_id = rid; self.vector = vec; self.dimension = len(vec)\n        self.input_text = \"\"; self.output_text = \"\"; self.config_text = \"\"\n        self.run_kind = \"run\"; self.provider = \"p\"; self.template_version = None\n\nembs = [Emb(r[\"run_id\"], r[\"vector\"]) for r in RECORDS]\ncentroid = clustering.compute_centroid(embs)\nexpected_entries = []\nfor e in embs:\n    d = metrics.semantic_distance(e.vector, centroid) / metrics.SEMANTIC_DISTANCE_NORMALIZER\n    expected_entries.append({\"run_id\": e.run_id, \"distance\": round(d, 6),\n                             \"class\": metrics.classify_drift(d)})\nexpected_severe = [x[\"run_id\"] for x in expected_entries if x[\"class\"] == \"severe\"]\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_drift_triage\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec)\nsys.modules[\"g3p_drift_triage\"] = mod\nspec.loader.exec_module(mod)\n\nout = mod.drift_triage(RECORDS)\nassert set(out) == {\"centroid\", \"entries\", \"severe\"}, sorted(out)\nassert len(out[\"centroid\"]) == len(centroid)\nfor got, want in zip(out[\"centroid\"], centroid):\n    assert abs(got - want) <= TOL, (got, want)\nassert len(out[\"entries\"]) == len(expected_entries)\nfor got, want in zip(out[\"entries\"], expected_entries):\n    assert set(got) == {\"run_id\", \"distance\", \"class\"}, sorted(got)\n    assert got[\"run_id\"] == want[\"run_id\"], (got, want)\n    assert got[\"class\"] == want[\"class\"], (got, want)\n    assert abs(got[\"distance\"] - want[\"distance\"]) <= TOL, (got, want)\nassert out[\"severe\"] == expected_severe, (out[\"severe\"], expected_severe)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-01.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py",
+     "difficulty": "moderate",
+     "difficulty_rationale": "Requires reading metrics.py (semantic distance normalizer, drift thresholds and labels) AND clustering.py (unit-normalized centroid convention) to produce matching distances/classes.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/metrics.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def drift_triage(records: list[dict]) -> dict\n\n`records` is a list of dicts with keys `run_id` (str) and `vector`\n(list[float]). Return a dict with exactly the keys \"centroid\", \"entries\",\n\"severe\":\n\n- \"centroid\": the centroid of all record vectors computed with the same\n  convention as `compute_centroid` in `clustering.py` (element-wise mean,\n  then normalized to unit length exactly as that function does; keep the\n  empty-list behavior for empty input).\n- \"entries\": one entry per input record, in input order, each a dict with\n  exactly \"run_id\", \"distance\", \"class\":\n  - \"distance\": the semantic distance between the record vector and the\n    centroid, normalized to [0, 1] exactly the way the repository normalizes\n    semantic distance for drift/outlier scoring (see the normalizer constant\n    and its usage in `metrics.py`), rounded to 6 decimal places.\n  - \"class\": the drift classification label the repository's drift classifier\n    in `metrics.py` returns for that normalized distance (use the repository's\n    exact thresholds).\n- \"severe\": the list of run_ids whose \"class\" equals the repository's most\n  severe drift category, in input order.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/metrics.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py",
+     "task_id": "PY-01",
+     "title": "Drift triage over execution records (metrics+clustering parity)"
+    },
+    "task_id": "PY-01"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-PY-01-fam-glm",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"r01\", \"vector\": [0.9, 0.1, 0.0, 0.2, 0.05, 0.0]}, {\"run_id\": \"r02\", \"vector\": [0.88, 0.12, 0.02, 0.18, 0.04, 0.01]}, {\"run_id\": \"r03\", \"vector\": [0.1, 0.9, 0.1, 0.0, 0.0, 0.2]}, {\"run_id\": \"r04\", \"vector\": [0.12, 0.88, 0.12, 0.01, 0.02, 0.18]}, {\"run_id\": \"r05\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0]}, {\"run_id\": \"r06\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01]}, {\"run_id\": \"r07\", \"vector\": [-0.7, -0.7, -0.1, 0.0, 0.0, 0.1]}, {\"run_id\": \"r08\", \"vector\": [0.0, 0.0, 0.0, 0.0, 0.0, 1.0]}]"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py\")\nRECORDS = json.loads(sys.argv[1])\nTOL = 1e-9\n\nimport types\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nmetrics = importlib.import_module(\"dspx.coordinates.metrics\")\nclustering = importlib.import_module(\"dspx.coordinates.clustering\")\n\nclass Emb:\n    def __init__(self, rid, vec):\n        self.run_id = rid; self.vector = vec; self.dimension = len(vec)\n        self.input_text = \"\"; self.output_text = \"\"; self.config_text = \"\"\n        self.run_kind = \"run\"; self.provider = \"p\"; self.template_version = None\n\nembs = [Emb(r[\"run_id\"], r[\"vector\"]) for r in RECORDS]\ncentroid = clustering.compute_centroid(embs)\nexpected_entries = []\nfor e in embs:\n    d = metrics.semantic_distance(e.vector, centroid) / metrics.SEMANTIC_DISTANCE_NORMALIZER\n    expected_entries.append({\"run_id\": e.run_id, \"distance\": round(d, 6),\n                             \"class\": metrics.classify_drift(d)})\nexpected_severe = [x[\"run_id\"] for x in expected_entries if x[\"class\"] == \"severe\"]\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_drift_triage\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec)\nsys.modules[\"g3p_drift_triage\"] = mod\nspec.loader.exec_module(mod)\n\nout = mod.drift_triage(RECORDS)\nassert set(out) == {\"centroid\", \"entries\", \"severe\"}, sorted(out)\nassert len(out[\"centroid\"]) == len(centroid)\nfor got, want in zip(out[\"centroid\"], centroid):\n    assert abs(got - want) <= TOL, (got, want)\nassert len(out[\"entries\"]) == len(expected_entries)\nfor got, want in zip(out[\"entries\"], expected_entries):\n    assert set(got) == {\"run_id\", \"distance\", \"class\"}, sorted(got)\n    assert got[\"run_id\"] == want[\"run_id\"], (got, want)\n    assert got[\"class\"] == want[\"class\"], (got, want)\n    assert abs(got[\"distance\"] - want[\"distance\"]) <= TOL, (got, want)\nassert out[\"severe\"] == expected_severe, (out[\"severe\"], expected_severe)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-01.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py",
+     "difficulty": "moderate",
+     "difficulty_rationale": "Requires reading metrics.py (semantic distance normalizer, drift thresholds and labels) AND clustering.py (unit-normalized centroid convention) to produce matching distances/classes.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/metrics.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_drift_triage.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def drift_triage(records: list[dict]) -> dict\n\n`records` is a list of dicts with keys `run_id` (str) and `vector`\n(list[float]). Return a dict with exactly the keys \"centroid\", \"entries\",\n\"severe\":\n\n- \"centroid\": the centroid of all record vectors computed with the same\n  convention as `compute_centroid` in `clustering.py` (element-wise mean,\n  then normalized to unit length exactly as that function does; keep the\n  empty-list behavior for empty input).\n- \"entries\": one entry per input record, in input order, each a dict with\n  exactly \"run_id\", \"distance\", \"class\":\n  - \"distance\": the semantic distance between the record vector and the\n    centroid, normalized to [0, 1] exactly the way the repository normalizes\n    semantic distance for drift/outlier scoring (see the normalizer constant\n    and its usage in `metrics.py`), rounded to 6 decimal places.\n  - \"class\": the drift classification label the repository's drift classifier\n    in `metrics.py` returns for that normalized distance (use the repository's\n    exact thresholds).\n- \"severe\": the list of run_ids whose \"class\" equals the repository's most\n  severe drift category, in input order.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/metrics.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py",
+     "task_id": "PY-01",
+     "title": "Drift triage over execution records (metrics+clustering parity)"
+    },
+    "task_id": "PY-01"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-PY-02-fam-gpt",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"s01\", \"vector\": [0.5, 0.5, 0.5, 0.5, 0.0, 0.0], \"input_text\": \"alpha beta gamma\", \"output_text\": \"result ok\"}, {\"run_id\": \"s02\", \"vector\": [0.52, 0.48, 0.51, 0.49, 0.01, 0.0], \"input_text\": \"alpha beta gamma delta epsilon zeta eta theta\", \"output_text\": \"result ok\"}, {\"run_id\": \"s03\", \"vector\": [0.48, 0.52, 0.49, 0.51, 0.0, 0.01], \"input_text\": \"alpha beta\", \"output_text\": \"result\"}, {\"run_id\": \"s04\", \"vector\": [0.51, 0.49, 0.5, 0.5, 0.0, 0.0], \"input_text\": \"alpha beta gamma delta\", \"output_text\": \"result ok fine\"}, {\"run_id\": \"s05\", \"vector\": [0.49, 0.51, 0.52, 0.48, 0.01, 0.01], \"input_text\": \"alpha\", \"output_text\": \"r\"}, {\"run_id\": \"s06\", \"vector\": [0.5, 0.5, 0.48, 0.52, 0.0, 0.0], \"input_text\": \"alpha beta gamma delta epsilon\", \"output_text\": \"result ok\"}]"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py\")\nRECORDS = json.loads(sys.argv[1])\nTOL = 1e-9\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nattractors = importlib.import_module(\"dspx.coordinates.attractors\")\nterritory = importlib.import_module(\"dspx.coordinates.territory\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = r.get(\"input_text\", \"\"); o.output_text = r.get(\"output_text\", \"\")\n    o.config_text = \"\"; o.run_kind = \"run\"; o.provider = \"p\"; o.template_version = None\n    return o\n\nembs = [mk(r) for r in RECORDS]\nwant = {\n    \"stability\": round(attractors.compute_stability_score(embs), 6),\n    \"convergence_rate\": round(attractors.compute_convergence_rate(embs), 6),\n    \"internal_variance\": round(territory.compute_internal_variance(embs), 6),\n    \"single_stability\": attractors.compute_stability_score(embs[:1]),\n    \"empty_variance\": territory.compute_internal_variance([]),\n}\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_stability_summary\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_stability_summary\"] = mod\nspec.loader.exec_module(mod)\nout = mod.stability_summary(RECORDS)\nassert set(out) == set(want), sorted(out)\nfor k in (\"stability\", \"convergence_rate\", \"internal_variance\"):\n    assert abs(out[k] - want[k]) <= TOL, (k, out[k], want[k])\nassert out[\"single_stability\"] == want[\"single_stability\"], (out[\"single_stability\"], want[\"single_stability\"])\nassert out[\"empty_variance\"] == want[\"empty_variance\"], (out[\"empty_variance\"], want[\"empty_variance\"])\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-02.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading attractors.py (stability scorer with text-variance penalties and sentinel values; convergence rate) AND territory.py (internal variance) plus their shared centroid/distance conventions in clustering.py/metrics.py.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/attractors.py",
+      "packages/dspx-core/src/dspx/coordinates/territory.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def stability_summary(records: list[dict]) -> dict\n\n`records` is a list of dicts with keys `run_id` (str), `vector` (list[float]),\n`input_text` (str), `output_text` (str). Return a dict with exactly the keys\n\"stability\", \"convergence_rate\", \"internal_variance\", \"single_stability\",\n\"empty_variance\":\n\n- \"stability\": the stability score the repository computes for the whole set\n  with its default options (see `compute_stability_score` in `attractors.py`),\n  rounded to 6 decimal places.\n- \"convergence_rate\": the repository's convergence rate for the set (see\n  `compute_convergence_rate` in `attractors.py`), rounded to 6 decimal places.\n- \"internal_variance\": the repository's normalized internal variance for the\n  set (see `compute_internal_variance` in `territory.py`), rounded to 6\n  decimal places.\n- \"single_stability\": the exact sentinel value the repository's stability\n  scorer returns for a set containing exactly ONE record.\n- \"empty_variance\": the exact value the repository's internal-variance\n  function returns for an EMPTY set.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/attractors.py\n- packages/dspx-core/src/dspx/coordinates/territory.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py",
+     "task_id": "PY-02",
+     "title": "Stability/convergence/variance summary (attractors+territory parity)"
+    },
+    "task_id": "PY-02"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-PY-02-fam-glm",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"s01\", \"vector\": [0.5, 0.5, 0.5, 0.5, 0.0, 0.0], \"input_text\": \"alpha beta gamma\", \"output_text\": \"result ok\"}, {\"run_id\": \"s02\", \"vector\": [0.52, 0.48, 0.51, 0.49, 0.01, 0.0], \"input_text\": \"alpha beta gamma delta epsilon zeta eta theta\", \"output_text\": \"result ok\"}, {\"run_id\": \"s03\", \"vector\": [0.48, 0.52, 0.49, 0.51, 0.0, 0.01], \"input_text\": \"alpha beta\", \"output_text\": \"result\"}, {\"run_id\": \"s04\", \"vector\": [0.51, 0.49, 0.5, 0.5, 0.0, 0.0], \"input_text\": \"alpha beta gamma delta\", \"output_text\": \"result ok fine\"}, {\"run_id\": \"s05\", \"vector\": [0.49, 0.51, 0.52, 0.48, 0.01, 0.01], \"input_text\": \"alpha\", \"output_text\": \"r\"}, {\"run_id\": \"s06\", \"vector\": [0.5, 0.5, 0.48, 0.52, 0.0, 0.0], \"input_text\": \"alpha beta gamma delta epsilon\", \"output_text\": \"result ok\"}]"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py\")\nRECORDS = json.loads(sys.argv[1])\nTOL = 1e-9\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nattractors = importlib.import_module(\"dspx.coordinates.attractors\")\nterritory = importlib.import_module(\"dspx.coordinates.territory\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = r.get(\"input_text\", \"\"); o.output_text = r.get(\"output_text\", \"\")\n    o.config_text = \"\"; o.run_kind = \"run\"; o.provider = \"p\"; o.template_version = None\n    return o\n\nembs = [mk(r) for r in RECORDS]\nwant = {\n    \"stability\": round(attractors.compute_stability_score(embs), 6),\n    \"convergence_rate\": round(attractors.compute_convergence_rate(embs), 6),\n    \"internal_variance\": round(territory.compute_internal_variance(embs), 6),\n    \"single_stability\": attractors.compute_stability_score(embs[:1]),\n    \"empty_variance\": territory.compute_internal_variance([]),\n}\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_stability_summary\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_stability_summary\"] = mod\nspec.loader.exec_module(mod)\nout = mod.stability_summary(RECORDS)\nassert set(out) == set(want), sorted(out)\nfor k in (\"stability\", \"convergence_rate\", \"internal_variance\"):\n    assert abs(out[k] - want[k]) <= TOL, (k, out[k], want[k])\nassert out[\"single_stability\"] == want[\"single_stability\"], (out[\"single_stability\"], want[\"single_stability\"])\nassert out[\"empty_variance\"] == want[\"empty_variance\"], (out[\"empty_variance\"], want[\"empty_variance\"])\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-02.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading attractors.py (stability scorer with text-variance penalties and sentinel values; convergence rate) AND territory.py (internal variance) plus their shared centroid/distance conventions in clustering.py/metrics.py.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/attractors.py",
+      "packages/dspx-core/src/dspx/coordinates/territory.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_stability_summary.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def stability_summary(records: list[dict]) -> dict\n\n`records` is a list of dicts with keys `run_id` (str), `vector` (list[float]),\n`input_text` (str), `output_text` (str). Return a dict with exactly the keys\n\"stability\", \"convergence_rate\", \"internal_variance\", \"single_stability\",\n\"empty_variance\":\n\n- \"stability\": the stability score the repository computes for the whole set\n  with its default options (see `compute_stability_score` in `attractors.py`),\n  rounded to 6 decimal places.\n- \"convergence_rate\": the repository's convergence rate for the set (see\n  `compute_convergence_rate` in `attractors.py`), rounded to 6 decimal places.\n- \"internal_variance\": the repository's normalized internal variance for the\n  set (see `compute_internal_variance` in `territory.py`), rounded to 6\n  decimal places.\n- \"single_stability\": the exact sentinel value the repository's stability\n  scorer returns for a set containing exactly ONE record.\n- \"empty_variance\": the exact value the repository's internal-variance\n  function returns for an EMPTY set.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/attractors.py\n- packages/dspx-core/src/dspx/coordinates/territory.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py",
+     "task_id": "PY-02",
+     "title": "Stability/convergence/variance summary (attractors+territory parity)"
+    },
+    "task_id": "PY-02"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-PY-03-fam-gpt",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"a1\", \"vector\": [0.9, 0.05, 0.05, 0.2, 0.05, 0.0], \"run_kind\": \"forge\", \"provider\": \"openai\"}, {\"run_id\": \"a2\", \"vector\": [0.88, 0.07, 0.04, 0.19, 0.04, 0.01], \"run_kind\": \"forge\", \"provider\": \"openai\"}, {\"run_id\": \"a3\", \"vector\": [0.91, 0.04, 0.06, 0.21, 0.06, 0.0], \"run_kind\": \"forge\", \"provider\": \"anthropic\"}, {\"run_id\": \"a4\", \"vector\": [0.89, 0.06, 0.05, 0.18, 0.05, 0.02], \"run_kind\": \"replay\", \"provider\": \"openai\"}, {\"run_id\": \"b1\", \"vector\": [0.05, 0.9, 0.1, 0.0, 0.0, 0.2], \"run_kind\": \"replay\", \"provider\": \"zai\"}, {\"run_id\": \"b2\", \"vector\": [0.07, 0.88, 0.12, 0.01, 0.02, 0.18], \"run_kind\": \"replay\", \"provider\": \"zai\"}, {\"run_id\": \"b3\", \"vector\": [0.04, 0.91, 0.09, 0.0, 0.01, 0.21], \"run_kind\": \"replay\", \"provider\": \"zai\"}, {\"run_id\": \"b4\", \"vector\": [0.06, 0.89, 0.11, 0.02, 0.0, 0.19], \"run_kind\": \"forge\", \"provider\": \"zai\"}, {\"run_id\": \"c1\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0], \"run_kind\": \"eval\", \"provider\": \"openai\"}, {\"run_id\": \"c2\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01], \"run_kind\": \"eval\", \"provider\": \"openai\"}, {\"run_id\": \"c3\", \"vector\": [0.01, 0.12, 0.94, 0.09, 0.06, 0.0], \"run_kind\": \"eval\", \"provider\": \"anthropic\"}, {\"run_id\": \"c4\", \"vector\": [0.0, 0.09, 0.96, 0.11, 0.04, 0.02], \"run_kind\": \"eval\", \"provider\": \"openai\"}]",
+       "3"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py\")\nRECORDS = json.loads(sys.argv[1])\nK = json.loads(sys.argv[2])\nTOL = 1e-9\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nclustering = importlib.import_module(\"dspx.coordinates.clustering\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = \"\"; o.output_text = \"\"; o.config_text = \"\"\n    o.run_kind = r[\"run_kind\"]; o.provider = r[\"provider\"]; o.template_version = None\n    return o\n\nembs = [mk(r) for r in RECORDS]\nclusters = clustering.simple_kmeans(embs, k=K)\nwant = {\"clusters\": [\n    {\"cluster_id\": c.cluster_id,\n     \"member_run_ids\": list(c.member_ids),\n     \"member_count\": c.member_count,\n     \"avg_internal_distance\": round(c.avg_internal_distance, 6),\n     \"dominant_run_kind\": c.dominant_run_kind,\n     \"dominant_provider\": c.dominant_provider}\n    for c in clusters]}\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_kmeans_partition\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_kmeans_partition\"] = mod\nspec.loader.exec_module(mod)\nout = mod.kmeans_partition(RECORDS, k=K)\nassert set(out) == {\"clusters\"}, sorted(out)\nassert len(out[\"clusters\"]) == len(want[\"clusters\"]), (len(out[\"clusters\"]), len(want[\"clusters\"]))\nfor got, exp in zip(out[\"clusters\"], want[\"clusters\"]):\n    assert set(got) == set(exp), sorted(got)\n    assert got[\"cluster_id\"] == exp[\"cluster_id\"], (got[\"cluster_id\"], exp[\"cluster_id\"])\n    assert got[\"member_run_ids\"] == exp[\"member_run_ids\"], (got[\"member_run_ids\"], exp[\"member_run_ids\"])\n    assert got[\"member_count\"] == exp[\"member_count\"]\n    assert abs(got[\"avg_internal_distance\"] - exp[\"avg_internal_distance\"]) <= TOL, (got, exp)\n    assert got[\"dominant_run_kind\"] == exp[\"dominant_run_kind\"], (got, exp)\n    assert got[\"dominant_provider\"] == exp[\"dominant_provider\"], (got, exp)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-03.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py",
+     "difficulty": "hard",
+     "difficulty_rationale": "Requires line-by-line reproduction of simple_kmeans in clustering.py (seeded RNG call sequence, k-means++ init, tie-breaking, centroid re-normalization, empty-cluster reinit, final sort) plus the metrics.py distance/normalizer conventions.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/clustering.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def kmeans_partition(records: list[dict], k: int = 3) -> dict\n\n`records` is a list of dicts with keys `run_id` (str), `vector` (list[float]),\n`run_kind` (str), `provider` (str). Return a dict with exactly the key\n\"clusters\": a list with one dict per non-empty final cluster, in the\nrepository's FINAL cluster order (after its post-processing sort and id\nreassignment), each dict with exactly the keys \"cluster_id\",\n\"member_run_ids\", \"member_count\", \"avg_internal_distance\",\n\"dominant_run_kind\", \"dominant_provider\":\n\n- \"cluster_id\": the reassigned id the repository gives after its final sort\n- \"member_run_ids\": the member run_ids in the repository's member ordering\n- \"member_count\": number of members\n- \"avg_internal_distance\": the cluster's average internal distance as the\n  repository computes it (its normalization included), rounded to 6 decimals\n- \"dominant_run_kind\" / \"dominant_provider\": the dominant values with the\n  repository's tie-breaking, or null when the cluster has no such values\n\nYou must reproduce the repository's deterministic k-means EXACTLY (the\nimplementation in `clustering.py`): the seeded RNG object and its exact\nsequence of calls, the k-means++-style initialization including the weighted\nchoice and the all-identical fallback, the assignment tie-breaking, the\ncentroid update convention (see `compute_centroid`), the empty-cluster\nreinitialization rule, the convergence threshold and iteration cap, the\nskipping of empty clusters, the final sort, and the id reassignment. A\ndifferent-but-similar clustering algorithm will NOT match.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/clustering.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py",
+     "task_id": "PY-03",
+     "title": "Deterministic k-means partition reproduction"
+    },
+    "task_id": "PY-03"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-PY-03-fam-glm",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"a1\", \"vector\": [0.9, 0.05, 0.05, 0.2, 0.05, 0.0], \"run_kind\": \"forge\", \"provider\": \"openai\"}, {\"run_id\": \"a2\", \"vector\": [0.88, 0.07, 0.04, 0.19, 0.04, 0.01], \"run_kind\": \"forge\", \"provider\": \"openai\"}, {\"run_id\": \"a3\", \"vector\": [0.91, 0.04, 0.06, 0.21, 0.06, 0.0], \"run_kind\": \"forge\", \"provider\": \"anthropic\"}, {\"run_id\": \"a4\", \"vector\": [0.89, 0.06, 0.05, 0.18, 0.05, 0.02], \"run_kind\": \"replay\", \"provider\": \"openai\"}, {\"run_id\": \"b1\", \"vector\": [0.05, 0.9, 0.1, 0.0, 0.0, 0.2], \"run_kind\": \"replay\", \"provider\": \"zai\"}, {\"run_id\": \"b2\", \"vector\": [0.07, 0.88, 0.12, 0.01, 0.02, 0.18], \"run_kind\": \"replay\", \"provider\": \"zai\"}, {\"run_id\": \"b3\", \"vector\": [0.04, 0.91, 0.09, 0.0, 0.01, 0.21], \"run_kind\": \"replay\", \"provider\": \"zai\"}, {\"run_id\": \"b4\", \"vector\": [0.06, 0.89, 0.11, 0.02, 0.0, 0.19], \"run_kind\": \"forge\", \"provider\": \"zai\"}, {\"run_id\": \"c1\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0], \"run_kind\": \"eval\", \"provider\": \"openai\"}, {\"run_id\": \"c2\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01], \"run_kind\": \"eval\", \"provider\": \"openai\"}, {\"run_id\": \"c3\", \"vector\": [0.01, 0.12, 0.94, 0.09, 0.06, 0.0], \"run_kind\": \"eval\", \"provider\": \"anthropic\"}, {\"run_id\": \"c4\", \"vector\": [0.0, 0.09, 0.96, 0.11, 0.04, 0.02], \"run_kind\": \"eval\", \"provider\": \"openai\"}]",
+       "3"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py\")\nRECORDS = json.loads(sys.argv[1])\nK = json.loads(sys.argv[2])\nTOL = 1e-9\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nclustering = importlib.import_module(\"dspx.coordinates.clustering\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = \"\"; o.output_text = \"\"; o.config_text = \"\"\n    o.run_kind = r[\"run_kind\"]; o.provider = r[\"provider\"]; o.template_version = None\n    return o\n\nembs = [mk(r) for r in RECORDS]\nclusters = clustering.simple_kmeans(embs, k=K)\nwant = {\"clusters\": [\n    {\"cluster_id\": c.cluster_id,\n     \"member_run_ids\": list(c.member_ids),\n     \"member_count\": c.member_count,\n     \"avg_internal_distance\": round(c.avg_internal_distance, 6),\n     \"dominant_run_kind\": c.dominant_run_kind,\n     \"dominant_provider\": c.dominant_provider}\n    for c in clusters]}\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_kmeans_partition\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_kmeans_partition\"] = mod\nspec.loader.exec_module(mod)\nout = mod.kmeans_partition(RECORDS, k=K)\nassert set(out) == {\"clusters\"}, sorted(out)\nassert len(out[\"clusters\"]) == len(want[\"clusters\"]), (len(out[\"clusters\"]), len(want[\"clusters\"]))\nfor got, exp in zip(out[\"clusters\"], want[\"clusters\"]):\n    assert set(got) == set(exp), sorted(got)\n    assert got[\"cluster_id\"] == exp[\"cluster_id\"], (got[\"cluster_id\"], exp[\"cluster_id\"])\n    assert got[\"member_run_ids\"] == exp[\"member_run_ids\"], (got[\"member_run_ids\"], exp[\"member_run_ids\"])\n    assert got[\"member_count\"] == exp[\"member_count\"]\n    assert abs(got[\"avg_internal_distance\"] - exp[\"avg_internal_distance\"]) <= TOL, (got, exp)\n    assert got[\"dominant_run_kind\"] == exp[\"dominant_run_kind\"], (got, exp)\n    assert got[\"dominant_provider\"] == exp[\"dominant_provider\"], (got, exp)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-03.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py",
+     "difficulty": "hard",
+     "difficulty_rationale": "Requires line-by-line reproduction of simple_kmeans in clustering.py (seeded RNG call sequence, k-means++ init, tie-breaking, centroid re-normalization, empty-cluster reinit, final sort) plus the metrics.py distance/normalizer conventions.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/clustering.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_kmeans_partition.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def kmeans_partition(records: list[dict], k: int = 3) -> dict\n\n`records` is a list of dicts with keys `run_id` (str), `vector` (list[float]),\n`run_kind` (str), `provider` (str). Return a dict with exactly the key\n\"clusters\": a list with one dict per non-empty final cluster, in the\nrepository's FINAL cluster order (after its post-processing sort and id\nreassignment), each dict with exactly the keys \"cluster_id\",\n\"member_run_ids\", \"member_count\", \"avg_internal_distance\",\n\"dominant_run_kind\", \"dominant_provider\":\n\n- \"cluster_id\": the reassigned id the repository gives after its final sort\n- \"member_run_ids\": the member run_ids in the repository's member ordering\n- \"member_count\": number of members\n- \"avg_internal_distance\": the cluster's average internal distance as the\n  repository computes it (its normalization included), rounded to 6 decimals\n- \"dominant_run_kind\" / \"dominant_provider\": the dominant values with the\n  repository's tie-breaking, or null when the cluster has no such values\n\nYou must reproduce the repository's deterministic k-means EXACTLY (the\nimplementation in `clustering.py`): the seeded RNG object and its exact\nsequence of calls, the k-means++-style initialization including the weighted\nchoice and the all-identical fallback, the assignment tie-breaking, the\ncentroid update convention (see `compute_centroid`), the empty-cluster\nreinitialization rule, the convergence threshold and iteration cap, the\nskipping of empty clusters, the final sort, and the id reassignment. A\ndifferent-but-similar clustering algorithm will NOT match.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/clustering.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py",
+     "task_id": "PY-03",
+     "title": "Deterministic k-means partition reproduction"
+    },
+    "task_id": "PY-03"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-PY-04-fam-gpt",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"groups\": [[{\"run_id\": \"g1a\", \"vector\": [0.9, 0.1, 0.05, 0.2, 0.05, 0.0]}, {\"run_id\": \"g1b\", \"vector\": [0.91, 0.09, 0.06, 0.19, 0.04, 0.01]}, {\"run_id\": \"g1c\", \"vector\": [0.89, 0.11, 0.04, 0.21, 0.06, 0.0]}, {\"run_id\": \"g1d\", \"vector\": [0.9, 0.1, 0.05, 0.2, 0.05, 0.01]}, {\"run_id\": \"g1e\", \"vector\": [0.92, 0.08, 0.07, 0.18, 0.03, 0.02]}], [{\"run_id\": \"g2a\", \"vector\": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2b\", \"vector\": [-1.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2c\", \"vector\": [0.0, 1.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2d\", \"vector\": [0.0, -1.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2e\", \"vector\": [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2f\", \"vector\": [0.0, 0.0, -1.0, 0.0, 0.0, 0.0]}], [{\"run_id\": \"g3a\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0]}, {\"run_id\": \"g3b\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01]}], [{\"run_id\": \"g4a\", \"vector\": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], [], [{\"run_id\": \"g6a\", \"vector\": [0.7, 0.7, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g6b\", \"vector\": [0.71, 0.69, 0.01, 0.01, 0.0, 0.0]}, {\"run_id\": \"g6b2\", \"vector\": [0.69, 0.71, 0.01, 0.0, 0.01, 0.0]}, {\"run_id\": \"g6c\", \"vector\": [0.3, 0.3, 0.6, 0.6, 0.0, 0.0]}, {\"run_id\": \"g6d\", \"vector\": [0.28, 0.32, 0.62, 0.58, 0.01, 0.0]}, {\"run_id\": \"g6e\", \"vector\": [0.31, 0.29, 0.58, 0.62, 0.0, 0.01]}]], \"danger_zones\": [{\"zone_id\": \"Z1\", \"centroid\": [0.9, 0.1, 0.05, 0.2, 0.05, 0.0], \"radius\": 0.05, \"reason\": \"known flaky region\", \"severity\": \"high\", \"dimension\": 6}, {\"zone_id\": \"Z2\", \"centroid\": [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], \"radius\": 0.1, \"reason\": \"unrelated zone\", \"severity\": \"low\", \"dimension\": 6}], \"groups_without_zones\": [1]}"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py\")\nINPUT = json.loads(sys.argv[1])\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nterritory = importlib.import_module(\"dspx.coordinates.territory\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = \"\"; o.output_text = \"\"; o.config_text = \"\"\n    o.run_kind = \"run\"; o.provider = \"p\"; o.template_version = None\n    return o\n\ndef zones(specs):\n    if specs is None:\n        return None\n    out = []\n    for z in specs:\n        o = types.SimpleNamespace()\n        o.zone_id = z[\"zone_id\"]; o.centroid = z[\"centroid\"]; o.radius = z[\"radius\"]\n        o.reason = z.get(\"reason\", \"\"); o.severity = z.get(\"severity\", \"low\")\n        o.dimension = len(z[\"centroid\"])\n        out.append(o)\n    return out\n\ngroups = [[mk(r) for r in g] for g in INPUT[\"groups\"]]\nwant_with = []\nfor g in groups:\n    t, c = territory.classify_region(g, known_danger_zones=zones(INPUT[\"danger_zones\"]))\n    want_with.append({\"type\": t.value, \"confidence\": round(c, 4)})\nno_zone_idx = set(INPUT[\"groups_without_zones\"])\nwant_without = []\nfor i in sorted(no_zone_idx):\n    t, c = territory.classify_region(groups[i])\n    want_without.append({\"type\": t.value, \"confidence\": round(c, 4)})\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_classify_groups\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_classify_groups\"] = mod\nspec.loader.exec_module(mod)\n\nout_with = mod.classify_groups(INPUT[\"groups\"], INPUT[\"danger_zones\"])\nassert len(out_with) == len(want_with), (len(out_with), len(want_with))\nfor got, exp in zip(out_with, want_with):\n    assert set(got) == {\"type\", \"confidence\"}, sorted(got)\n    assert got[\"type\"] == exp[\"type\"], (got[\"type\"], exp[\"type\"])\n    assert abs(got[\"confidence\"] - exp[\"confidence\"]) <= 1e-9, (got, exp)\nout_without = mod.classify_groups([INPUT[\"groups\"][i] for i in sorted(no_zone_idx)])\nfor got, exp in zip(out_without, want_without):\n    assert got[\"type\"] == exp[\"type\"], (got[\"type\"], exp[\"type\"])\n    assert abs(got[\"confidence\"] - exp[\"confidence\"]) <= 1e-9, (got, exp)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-04.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading territory.py (classify_region branch order, confidence formulas, danger rule) plus compute_internal_variance's centroid convention (clustering.py) and the distance normalizer (metrics.py).",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/territory.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def classify_groups(groups: list[list[dict]], danger_zones: list[dict] | None = None) -> list[dict]\n\n`groups` is a list of groups; each group is a list of dicts with keys\n`run_id` (str) and `vector` (list[float]). `danger_zones` (when given) is a\nlist of dicts with keys `centroid` (list[float]) and `radius` (float) among\nothers. Return a list with one dict per group, in input order, each with\nexactly the keys \"type\" and \"confidence\":\n\n- \"type\": the region-type NAME (the string value of the repository's region\n  type enum in `territory.py`) the repository's region classifier assigns to\n  that group.\n- \"confidence\": the classifier's confidence for that group, rounded to 4\n  decimal places.\n\nYou must reproduce the repository's region classifier EXACTLY, including: the\ninsufficient-sample branches and their distinct confidences, the internal\nvariance computation it uses (see `compute_internal_variance`, including its\ncentroid convention from `clustering.py` and the distance normalization from\n`metrics.py`), the variance thresholds, the confidence formulas for each\nband, the danger-zone rule (distance convention and comparison, and the\ndanger confidence constant), and the branch order between danger zones and\nvariance bands.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/territory.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py",
+     "task_id": "PY-04",
+     "title": "Region classification with danger zones (territory parity)"
+    },
+    "task_id": "PY-04"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-PY-04-fam-glm",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"groups\": [[{\"run_id\": \"g1a\", \"vector\": [0.9, 0.1, 0.05, 0.2, 0.05, 0.0]}, {\"run_id\": \"g1b\", \"vector\": [0.91, 0.09, 0.06, 0.19, 0.04, 0.01]}, {\"run_id\": \"g1c\", \"vector\": [0.89, 0.11, 0.04, 0.21, 0.06, 0.0]}, {\"run_id\": \"g1d\", \"vector\": [0.9, 0.1, 0.05, 0.2, 0.05, 0.01]}, {\"run_id\": \"g1e\", \"vector\": [0.92, 0.08, 0.07, 0.18, 0.03, 0.02]}], [{\"run_id\": \"g2a\", \"vector\": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2b\", \"vector\": [-1.0, 0.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2c\", \"vector\": [0.0, 1.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2d\", \"vector\": [0.0, -1.0, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2e\", \"vector\": [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g2f\", \"vector\": [0.0, 0.0, -1.0, 0.0, 0.0, 0.0]}], [{\"run_id\": \"g3a\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0]}, {\"run_id\": \"g3b\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01]}], [{\"run_id\": \"g4a\", \"vector\": [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]}], [], [{\"run_id\": \"g6a\", \"vector\": [0.7, 0.7, 0.0, 0.0, 0.0, 0.0]}, {\"run_id\": \"g6b\", \"vector\": [0.71, 0.69, 0.01, 0.01, 0.0, 0.0]}, {\"run_id\": \"g6b2\", \"vector\": [0.69, 0.71, 0.01, 0.0, 0.01, 0.0]}, {\"run_id\": \"g6c\", \"vector\": [0.3, 0.3, 0.6, 0.6, 0.0, 0.0]}, {\"run_id\": \"g6d\", \"vector\": [0.28, 0.32, 0.62, 0.58, 0.01, 0.0]}, {\"run_id\": \"g6e\", \"vector\": [0.31, 0.29, 0.58, 0.62, 0.0, 0.01]}]], \"danger_zones\": [{\"zone_id\": \"Z1\", \"centroid\": [0.9, 0.1, 0.05, 0.2, 0.05, 0.0], \"radius\": 0.05, \"reason\": \"known flaky region\", \"severity\": \"high\", \"dimension\": 6}, {\"zone_id\": \"Z2\", \"centroid\": [0.0, 0.0, 0.0, 0.0, 1.0, 0.0], \"radius\": 0.1, \"reason\": \"unrelated zone\", \"severity\": \"low\", \"dimension\": 6}], \"groups_without_zones\": [1]}"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py\")\nINPUT = json.loads(sys.argv[1])\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nterritory = importlib.import_module(\"dspx.coordinates.territory\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = \"\"; o.output_text = \"\"; o.config_text = \"\"\n    o.run_kind = \"run\"; o.provider = \"p\"; o.template_version = None\n    return o\n\ndef zones(specs):\n    if specs is None:\n        return None\n    out = []\n    for z in specs:\n        o = types.SimpleNamespace()\n        o.zone_id = z[\"zone_id\"]; o.centroid = z[\"centroid\"]; o.radius = z[\"radius\"]\n        o.reason = z.get(\"reason\", \"\"); o.severity = z.get(\"severity\", \"low\")\n        o.dimension = len(z[\"centroid\"])\n        out.append(o)\n    return out\n\ngroups = [[mk(r) for r in g] for g in INPUT[\"groups\"]]\nwant_with = []\nfor g in groups:\n    t, c = territory.classify_region(g, known_danger_zones=zones(INPUT[\"danger_zones\"]))\n    want_with.append({\"type\": t.value, \"confidence\": round(c, 4)})\nno_zone_idx = set(INPUT[\"groups_without_zones\"])\nwant_without = []\nfor i in sorted(no_zone_idx):\n    t, c = territory.classify_region(groups[i])\n    want_without.append({\"type\": t.value, \"confidence\": round(c, 4)})\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_classify_groups\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_classify_groups\"] = mod\nspec.loader.exec_module(mod)\n\nout_with = mod.classify_groups(INPUT[\"groups\"], INPUT[\"danger_zones\"])\nassert len(out_with) == len(want_with), (len(out_with), len(want_with))\nfor got, exp in zip(out_with, want_with):\n    assert set(got) == {\"type\", \"confidence\"}, sorted(got)\n    assert got[\"type\"] == exp[\"type\"], (got[\"type\"], exp[\"type\"])\n    assert abs(got[\"confidence\"] - exp[\"confidence\"]) <= 1e-9, (got, exp)\nout_without = mod.classify_groups([INPUT[\"groups\"][i] for i in sorted(no_zone_idx)])\nfor got, exp in zip(out_without, want_without):\n    assert got[\"type\"] == exp[\"type\"], (got[\"type\"], exp[\"type\"])\n    assert abs(got[\"confidence\"] - exp[\"confidence\"]) <= 1e-9, (got, exp)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-04.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading territory.py (classify_region branch order, confidence formulas, danger rule) plus compute_internal_variance's centroid convention (clustering.py) and the distance normalizer (metrics.py).",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/territory.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_classify_groups.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def classify_groups(groups: list[list[dict]], danger_zones: list[dict] | None = None) -> list[dict]\n\n`groups` is a list of groups; each group is a list of dicts with keys\n`run_id` (str) and `vector` (list[float]). `danger_zones` (when given) is a\nlist of dicts with keys `centroid` (list[float]) and `radius` (float) among\nothers. Return a list with one dict per group, in input order, each with\nexactly the keys \"type\" and \"confidence\":\n\n- \"type\": the region-type NAME (the string value of the repository's region\n  type enum in `territory.py`) the repository's region classifier assigns to\n  that group.\n- \"confidence\": the classifier's confidence for that group, rounded to 4\n  decimal places.\n\nYou must reproduce the repository's region classifier EXACTLY, including: the\ninsufficient-sample branches and their distinct confidences, the internal\nvariance computation it uses (see `compute_internal_variance`, including its\ncentroid convention from `clustering.py` and the distance normalization from\n`metrics.py`), the variance thresholds, the confidence formulas for each\nband, the danger-zone rule (distance convention and comparison, and the\ndanger confidence constant), and the branch order between danger zones and\nvariance bands.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/territory.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py",
+     "task_id": "PY-04",
+     "title": "Region classification with danger zones (territory parity)"
+    },
+    "task_id": "PY-04"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-PY-05-fam-gpt",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"a1\", \"vector\": [0.9, 0.05, 0.05, 0.2, 0.05, 0.0], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma\", \"output_text\": \"result ok\"}, {\"run_id\": \"a2\", \"vector\": [0.88, 0.07, 0.04, 0.19, 0.04, 0.01], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma delta epsilon\", \"output_text\": \"result ok\"}, {\"run_id\": \"a3\", \"vector\": [0.91, 0.04, 0.06, 0.21, 0.06, 0.0], \"run_kind\": \"forge\", \"provider\": \"anthropic\", \"input_text\": \"alpha beta\", \"output_text\": \"result\"}, {\"run_id\": \"a4\", \"vector\": [0.89, 0.06, 0.05, 0.18, 0.05, 0.02], \"run_kind\": \"replay\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma delta\", \"output_text\": \"result ok fine\"}, {\"run_id\": \"a5\", \"vector\": [0.9, 0.05, 0.05, 0.2, 0.04, 0.01], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha\", \"output_text\": \"r\"}, {\"run_id\": \"a6\", \"vector\": [0.92, 0.04, 0.05, 0.19, 0.05, 0.0], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma delta epsilon zeta\", \"output_text\": \"result ok\"}, {\"run_id\": \"b1\", \"vector\": [0.05, 0.9, 0.1, 0.0, 0.0, 0.2], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x\", \"output_text\": \"y\"}, {\"run_id\": \"b2\", \"vector\": [0.07, 0.88, 0.12, 0.01, 0.02, 0.18], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x y z w v u\", \"output_text\": \"y2\"}, {\"run_id\": \"b3\", \"vector\": [0.04, 0.91, 0.09, 0.0, 0.01, 0.21], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x y\", \"output_text\": \"y3\"}, {\"run_id\": \"b4\", \"vector\": [0.06, 0.89, 0.11, 0.02, 0.0, 0.19], \"run_kind\": \"forge\", \"provider\": \"zai\", \"input_text\": \"x y z\", \"output_text\": \"y4\"}, {\"run_id\": \"b5\", \"vector\": [0.05, 0.91, 0.1, 0.01, 0.01, 0.2], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x y z w\", \"output_text\": \"y5\"}, {\"run_id\": \"c1\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0], \"run_kind\": \"eval\", \"provider\": \"openai\", \"input_text\": \"p\", \"output_text\": \"q\"}, {\"run_id\": \"c2\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01], \"run_kind\": \"eval\", \"provider\": \"openai\", \"input_text\": \"p q\", \"output_text\": \"q2\"}, {\"run_id\": \"c3\", \"vector\": [0.01, 0.12, 0.94, 0.09, 0.06, 0.0], \"run_kind\": \"eval\", \"provider\": \"anthropic\", \"input_text\": \"p q r\", \"output_text\": \"q3\"}]",
+       "3"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py\")\nRECORDS = json.loads(sys.argv[1])\nK = json.loads(sys.argv[2])\nTOL = 1e-9\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nattractors = importlib.import_module(\"dspx.coordinates.attractors\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = r.get(\"input_text\", \"\"); o.output_text = r.get(\"output_text\", \"\")\n    o.config_text = \"\"; o.run_kind = r[\"run_kind\"]; o.provider = r[\"provider\"]\n    o.template_version = None\n    return o\n\nembs = [mk(r) for r in RECORDS]\nindex = types.SimpleNamespace(list_all=lambda limit=10000: embs)\nreport = attractors.find_attractors(index, k=K)\nhealth = attractors.compute_attractor_health(report)\n\n# membership: recompute the same deterministic clustering and join by centroid\nclusters = attractors.simple_kmeans(embs, k=K, seed=42)\ncluster_by_centroid = {tuple(round(x, 9) for x in c.centroid): c for c in clusters}\nwant_attractors = []\nfor a in report.attractors:\n    cl = cluster_by_centroid[tuple(round(x, 9) for x in a.centroid)]\n    want_attractors.append({\"attractor_id\": a.attractor_id,\n                            \"member_run_ids\": list(cl.member_ids),\n                            \"member_count\": a.member_count,\n                            \"stability_score\": round(a.stability_score, 4),\n                            \"basin_radius\": round(a.basin_radius, 4),\n                            \"dominant_run_kind\": a.dominant_run_kind,\n                            \"dominant_provider\": a.dominant_provider})\n\ndef r6(x):\n    return round(x, 6) if isinstance(x, float) else x\n\nwant = {\n    \"attractors\": want_attractors,\n    \"total_embeddings\": report.total_embeddings,\n    \"avg_stability\": round(report.avg_stability, 4),\n    \"strong_attractor_count\": report.strong_attractor_count,\n    \"coverage\": round(report.coverage, 4),\n    \"health\": {k: (r6(v) if not isinstance(v, list) else v) for k, v in health.items()},\n}\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_attractor_landscape\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_attractor_landscape\"] = mod\nspec.loader.exec_module(mod)\nout = mod.attractor_landscape(RECORDS, k=K)\nassert set(out) == set(want), sorted(out)\nassert len(out[\"attractors\"]) == len(want[\"attractors\"]), (len(out[\"attractors\"]), len(want[\"attractors\"]))\nfor got, exp in zip(out[\"attractors\"], want[\"attractors\"]):\n    assert set(got) == set(exp), sorted(got)\n    assert got[\"attractor_id\"] == exp[\"attractor_id\"], (got, exp)\n    assert got[\"member_run_ids\"] == exp[\"member_run_ids\"], (got[\"member_run_ids\"], exp[\"member_run_ids\"])\n    assert got[\"member_count\"] == exp[\"member_count\"], (got, exp)\n    assert abs(got[\"stability_score\"] - exp[\"stability_score\"]) <= TOL, (got, exp)\n    assert abs(got[\"basin_radius\"] - exp[\"basin_radius\"]) <= TOL, (got, exp)\n    assert got[\"dominant_run_kind\"] == exp[\"dominant_run_kind\"], (got, exp)\n    assert got[\"dominant_provider\"] == exp[\"dominant_provider\"], (got, exp)\nassert out[\"total_embeddings\"] == want[\"total_embeddings\"]\nassert out[\"strong_attractor_count\"] == want[\"strong_attractor_count\"]\nassert abs(out[\"avg_stability\"] - want[\"avg_stability\"]) <= TOL, (out[\"avg_stability\"], want[\"avg_stability\"])\nassert abs(out[\"coverage\"] - want[\"coverage\"]) <= TOL, (out[\"coverage\"], want[\"coverage\"])\nassert set(out[\"health\"]) == set(want[\"health\"]), (sorted(out[\"health\"]), sorted(want[\"health\"]))\nfor k in want[\"health\"]:\n    gv, ev = out[\"health\"][k], want[\"health\"][k]\n    if isinstance(ev, list):\n        assert gv == ev, (k, gv, ev)\n    elif isinstance(ev, float):\n        assert abs(gv - ev) <= TOL, (k, gv, ev)\n    else:\n        assert gv == ev, (k, gv, ev)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-05.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py",
+     "difficulty": "hard",
+     "difficulty_rationale": "Composes deterministic kmeans (clustering.py) + stability/basin rules and health verdicts (attractors.py) + distance conventions (metrics.py); the flagship multi-file integration task.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/attractors.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def attractor_landscape(records: list[dict], k: int = 3,\n                            min_stability: float = 0.5, min_samples: int = 5) -> dict\n\n`records` is a list of dicts with keys `run_id` (str), `vector` (list[float]),\n`run_kind` (str), `provider` (str), `input_text` (str), `output_text` (str).\nReturn a dict with exactly the keys \"attractors\", \"total_embeddings\",\n\"avg_stability\", \"strong_attractor_count\", \"coverage\", \"health\":\n\n- \"attractors\": the detected attractors in the repository's final order and\n  id assignment (see `find_attractors` in `attractors.py`), each a dict with\n  exactly \"attractor_id\", \"member_run_ids\" (the repository's member\n  ordering), \"member_count\", \"stability_score\" (rounded 4), \"basin_radius\"\n  (rounded 4), \"dominant_run_kind\", \"dominant_provider\" (null when absent).\n- \"total_embeddings\", \"strong_attractor_count\": integers as the repository\n  computes them.\n- \"avg_stability\", \"coverage\": rounded to 4 decimal places, as the repository\n  computes them.\n- \"health\": exactly the dict the repository's attractor-health function\n  returns for this landscape (same keys, same values; round any float values\n  to 6 decimal places).\n\nYou must reproduce the repository's attractor pipeline EXACTLY: its default\nminimum-samples constant, its deterministic clustering (see `clustering.py`),\nits stability and convergence scoring (see `attractors.py`), its\nminimum-stability and minimum-samples filters, its basin-radius rule, its\nfinal sort and id reassignment, its report statistics including the coverage\nestimate, and its health verdict thresholds and recommendation rules.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/attractors.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py",
+     "task_id": "PY-05",
+     "title": "Attractor landscape + health report (full pipeline parity)"
+    },
+    "task_id": "PY-05"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-PY-05-fam-glm",
+    "repo_identity": "softwareco/owned/dspx",
+    "repo_key": "dspx",
+    "repo_pin": "e74309284972236b996da3cf6dc3f11c8ab3c525",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"run_id\": \"a1\", \"vector\": [0.9, 0.05, 0.05, 0.2, 0.05, 0.0], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma\", \"output_text\": \"result ok\"}, {\"run_id\": \"a2\", \"vector\": [0.88, 0.07, 0.04, 0.19, 0.04, 0.01], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma delta epsilon\", \"output_text\": \"result ok\"}, {\"run_id\": \"a3\", \"vector\": [0.91, 0.04, 0.06, 0.21, 0.06, 0.0], \"run_kind\": \"forge\", \"provider\": \"anthropic\", \"input_text\": \"alpha beta\", \"output_text\": \"result\"}, {\"run_id\": \"a4\", \"vector\": [0.89, 0.06, 0.05, 0.18, 0.05, 0.02], \"run_kind\": \"replay\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma delta\", \"output_text\": \"result ok fine\"}, {\"run_id\": \"a5\", \"vector\": [0.9, 0.05, 0.05, 0.2, 0.04, 0.01], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha\", \"output_text\": \"r\"}, {\"run_id\": \"a6\", \"vector\": [0.92, 0.04, 0.05, 0.19, 0.05, 0.0], \"run_kind\": \"forge\", \"provider\": \"openai\", \"input_text\": \"alpha beta gamma delta epsilon zeta\", \"output_text\": \"result ok\"}, {\"run_id\": \"b1\", \"vector\": [0.05, 0.9, 0.1, 0.0, 0.0, 0.2], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x\", \"output_text\": \"y\"}, {\"run_id\": \"b2\", \"vector\": [0.07, 0.88, 0.12, 0.01, 0.02, 0.18], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x y z w v u\", \"output_text\": \"y2\"}, {\"run_id\": \"b3\", \"vector\": [0.04, 0.91, 0.09, 0.0, 0.01, 0.21], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x y\", \"output_text\": \"y3\"}, {\"run_id\": \"b4\", \"vector\": [0.06, 0.89, 0.11, 0.02, 0.0, 0.19], \"run_kind\": \"forge\", \"provider\": \"zai\", \"input_text\": \"x y z\", \"output_text\": \"y4\"}, {\"run_id\": \"b5\", \"vector\": [0.05, 0.91, 0.1, 0.01, 0.01, 0.2], \"run_kind\": \"replay\", \"provider\": \"zai\", \"input_text\": \"x y z w\", \"output_text\": \"y5\"}, {\"run_id\": \"c1\", \"vector\": [0.0, 0.1, 0.95, 0.1, 0.05, 0.0], \"run_kind\": \"eval\", \"provider\": \"openai\", \"input_text\": \"p\", \"output_text\": \"q\"}, {\"run_id\": \"c2\", \"vector\": [0.02, 0.08, 0.9, 0.12, 0.03, 0.01], \"run_kind\": \"eval\", \"provider\": \"openai\", \"input_text\": \"p q\", \"output_text\": \"q2\"}, {\"run_id\": \"c3\", \"vector\": [0.01, 0.12, 0.94, 0.09, 0.06, 0.0], \"run_kind\": \"eval\", \"provider\": \"anthropic\", \"input_text\": \"p q r\", \"output_text\": \"q3\"}]",
+       "3"
+      ],
+      "file_content": "\nimport importlib.util, json, pathlib, sys, types\n\nBASE = pathlib.Path(\"packages/dspx-core/src/dspx\")\nDELIVERABLE = pathlib.Path(\"packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py\")\nRECORDS = json.loads(sys.argv[1])\nK = json.loads(sys.argv[2])\nTOL = 1e-9\n\npkg = types.ModuleType(\"dspx\"); pkg.__path__ = [str(BASE)]; sys.modules[\"dspx\"] = pkg\ncoord = types.ModuleType(\"dspx.coordinates\"); coord.__path__ = [str(BASE / \"coordinates\")]\nsys.modules[\"dspx.coordinates\"] = coord\nattractors = importlib.import_module(\"dspx.coordinates.attractors\")\n\ndef mk(r):\n    o = types.SimpleNamespace()\n    o.run_id = r[\"run_id\"]; o.vector = r[\"vector\"]; o.dimension = len(r[\"vector\"])\n    o.input_text = r.get(\"input_text\", \"\"); o.output_text = r.get(\"output_text\", \"\")\n    o.config_text = \"\"; o.run_kind = r[\"run_kind\"]; o.provider = r[\"provider\"]\n    o.template_version = None\n    return o\n\nembs = [mk(r) for r in RECORDS]\nindex = types.SimpleNamespace(list_all=lambda limit=10000: embs)\nreport = attractors.find_attractors(index, k=K)\nhealth = attractors.compute_attractor_health(report)\n\n# membership: recompute the same deterministic clustering and join by centroid\nclusters = attractors.simple_kmeans(embs, k=K, seed=42)\ncluster_by_centroid = {tuple(round(x, 9) for x in c.centroid): c for c in clusters}\nwant_attractors = []\nfor a in report.attractors:\n    cl = cluster_by_centroid[tuple(round(x, 9) for x in a.centroid)]\n    want_attractors.append({\"attractor_id\": a.attractor_id,\n                            \"member_run_ids\": list(cl.member_ids),\n                            \"member_count\": a.member_count,\n                            \"stability_score\": round(a.stability_score, 4),\n                            \"basin_radius\": round(a.basin_radius, 4),\n                            \"dominant_run_kind\": a.dominant_run_kind,\n                            \"dominant_provider\": a.dominant_provider})\n\ndef r6(x):\n    return round(x, 6) if isinstance(x, float) else x\n\nwant = {\n    \"attractors\": want_attractors,\n    \"total_embeddings\": report.total_embeddings,\n    \"avg_stability\": round(report.avg_stability, 4),\n    \"strong_attractor_count\": report.strong_attractor_count,\n    \"coverage\": round(report.coverage, 4),\n    \"health\": {k: (r6(v) if not isinstance(v, list) else v) for k, v in health.items()},\n}\n\nassert DELIVERABLE.exists(), \"deliverable missing\"\nspec = importlib.util.spec_from_file_location(\"g3p_attractor_landscape\", DELIVERABLE)\nmod = importlib.util.module_from_spec(spec); sys.modules[\"g3p_attractor_landscape\"] = mod\nspec.loader.exec_module(mod)\nout = mod.attractor_landscape(RECORDS, k=K)\nassert set(out) == set(want), sorted(out)\nassert len(out[\"attractors\"]) == len(want[\"attractors\"]), (len(out[\"attractors\"]), len(want[\"attractors\"]))\nfor got, exp in zip(out[\"attractors\"], want[\"attractors\"]):\n    assert set(got) == set(exp), sorted(got)\n    assert got[\"attractor_id\"] == exp[\"attractor_id\"], (got, exp)\n    assert got[\"member_run_ids\"] == exp[\"member_run_ids\"], (got[\"member_run_ids\"], exp[\"member_run_ids\"])\n    assert got[\"member_count\"] == exp[\"member_count\"], (got, exp)\n    assert abs(got[\"stability_score\"] - exp[\"stability_score\"]) <= TOL, (got, exp)\n    assert abs(got[\"basin_radius\"] - exp[\"basin_radius\"]) <= TOL, (got, exp)\n    assert got[\"dominant_run_kind\"] == exp[\"dominant_run_kind\"], (got, exp)\n    assert got[\"dominant_provider\"] == exp[\"dominant_provider\"], (got, exp)\nassert out[\"total_embeddings\"] == want[\"total_embeddings\"]\nassert out[\"strong_attractor_count\"] == want[\"strong_attractor_count\"]\nassert abs(out[\"avg_stability\"] - want[\"avg_stability\"]) <= TOL, (out[\"avg_stability\"], want[\"avg_stability\"])\nassert abs(out[\"coverage\"] - want[\"coverage\"]) <= TOL, (out[\"coverage\"], want[\"coverage\"])\nassert set(out[\"health\"]) == set(want[\"health\"]), (sorted(out[\"health\"]), sorted(want[\"health\"]))\nfor k in want[\"health\"]:\n    gv, ev = out[\"health\"][k], want[\"health\"][k]\n    if isinstance(ev, list):\n        assert gv == ev, (k, gv, ev)\n    elif isinstance(ev, float):\n        assert abs(gv - ev) <= TOL, (k, gv, ev)\n    else:\n        assert gv == ev, (k, gv, ev)\nprint(\"ACCEPT\")\n",
+      "file_name": "accept-py-05.py",
+      "run_dir": ".",
+      "runner": "python3"
+     },
+     "deliverable": "packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py",
+     "difficulty": "hard",
+     "difficulty_rationale": "Composes deterministic kmeans (clustering.py) + stability/basin rules and health verdicts (attractors.py) + distance conventions (metrics.py); the flagship multi-file integration task.",
+     "grounding": [
+      "packages/dspx-core/src/dspx/coordinates/attractors.py",
+      "packages/dspx-core/src/dspx/coordinates/clustering.py",
+      "packages/dspx-core/src/dspx/coordinates/metrics.py"
+     ],
+     "new_files": [
+      "packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "python3",
+      "-m",
+      "py_compile",
+      "packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py"
+     ],
+     "repo_key": "dspx",
+     "spec": "You are working in a disposable replica of softwareco/owned/dspx at pinned\nrevision e74309284972236b996da3cf6dc3f11c8ab3c525. The semantic-coordinates subsystem lives under\n`packages/dspx-core/src/dspx/coordinates/` (real modules: metrics.py,\nclustering.py, attractors.py, territory.py). Read those existing files FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nnormalization, tie-breaking, ordering). Do not guess semantics from names.\n\nCreate ONE new standalone module `packages/dspx-core/src/dspx/coordinates/g3p_attractor_landscape.py`:\n- pure Python 3, standard library only\n- no imports from the dspx package or any third-party package\n- no module-level side effects, no file or network access\n- it will be loaded standalone (importlib, no package context); relative\n  imports would fail, so use none\nIt must define exactly one public function:\n\n    def attractor_landscape(records: list[dict], k: int = 3,\n                            min_stability: float = 0.5, min_samples: int = 5) -> dict\n\n`records` is a list of dicts with keys `run_id` (str), `vector` (list[float]),\n`run_kind` (str), `provider` (str), `input_text` (str), `output_text` (str).\nReturn a dict with exactly the keys \"attractors\", \"total_embeddings\",\n\"avg_stability\", \"strong_attractor_count\", \"coverage\", \"health\":\n\n- \"attractors\": the detected attractors in the repository's final order and\n  id assignment (see `find_attractors` in `attractors.py`), each a dict with\n  exactly \"attractor_id\", \"member_run_ids\" (the repository's member\n  ordering), \"member_count\", \"stability_score\" (rounded 4), \"basin_radius\"\n  (rounded 4), \"dominant_run_kind\", \"dominant_provider\" (null when absent).\n- \"total_embeddings\", \"strong_attractor_count\": integers as the repository\n  computes them.\n- \"avg_stability\", \"coverage\": rounded to 4 decimal places, as the repository\n  computes them.\n- \"health\": exactly the dict the repository's attractor-health function\n  returns for this landscape (same keys, same values; round any float values\n  to 6 decimal places).\n\nYou must reproduce the repository's attractor pipeline EXACTLY: its default\nminimum-samples constant, its deterministic clustering (see `clustering.py`),\nits stability and convergence scoring (see `attractors.py`), its\nminimum-stability and minimum-samples filters, its basin-radius rule, its\nfinal sort and id reassignment, its report statistics including the coverage\nestimate, and its health verdict thresholds and recommendation rules.\n\nFiles that define the semantics you must match:\n- packages/dspx-core/src/dspx/coordinates/attractors.py\n- packages/dspx-core/src/dspx/coordinates/clustering.py\n- packages/dspx-core/src/dspx/coordinates/metrics.py",
+     "task_id": "PY-05",
+     "title": "Attractor landscape + health report (full pipeline parity)"
+    },
+    "task_id": "PY-05"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-TS-01-fam-gpt",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"kind\": \"path\", \"value\": \"src/app/main.ts\"}, {\"kind\": \"path\", \"value\": \" src/leading.ts\"}, {\"kind\": \"path\", \"value\": \"https://example.com/x\"}, {\"kind\": \"path\", \"value\": \"/abs/path.ts\"}, {\"kind\": \"path\", \"value\": \"~/home/x.ts\"}, {\"kind\": \"path\", \"value\": \"a\\\\b\\\\c.ts\"}, {\"kind\": \"path\", \"value\": \"a/../b.ts\"}, {\"kind\": \"path\", \"value\": \".hidden/x.ts\"}, {\"kind\": \"path\", \"value\": \"__pycache__/mod.py\"}, {\"kind\": \"path\", \"value\": \"node_modules/pkg/index.js\"}, {\"kind\": \"path\", \"value\": \"dist/bundle.js\"}, {\"kind\": \"path\", \"value\": \"\"}, {\"kind\": \"path\", \"value\": \"ok\\u0001ctrl.ts\"}, {\"kind\": \"symbol\", \"value\": \"buildContextPlan\"}, {\"kind\": \"symbol\", \"value\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}, {\"kind\": \"symbol\", \"value\": \"bad\\u007fsymbol\"}, {\"kind\": \"symbol\", \"value\": \"  \"}, {\"kind\": \"Path\", \"value\": \"src/x.ts\"}, {\"kind\": 42, \"value\": \"src/y.ts\"}, {\"kind\": \"free_text\", \"value\": \"anything goes /abs ~x  ok\"}, {\"kind\": \"ak\", \"value\": \"ak://task/5080\"}]"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { normalizeContextPlanSeedKind } = await import(\"./src/context-plan.js\");\nconst { repoRelativePathSafetyIssue, symbolSeedSafetyIssue } = await import(\"./src/context-intake-safety.js\");\nconst mod = await import(\"./g3p-seed-audit.mjs\");\nconst SEEDS = JSON.parse(process.argv[2] ?? \"[]\");\n\ntest(\"parity\", () => {\n  const out = mod.auditSeeds(SEEDS);\n  assert.ok(Array.isArray(out) && out.length === SEEDS.length, \"shape\");\n  for (let i = 0; i < SEEDS.length; i += 1) {\n    const kind = normalizeContextPlanSeedKind(SEEDS[i].kind);\n    let issue = null;\n    if (kind === \"path\") issue = repoRelativePathSafetyIssue(SEEDS[i].value) ?? null;\n    if (kind === \"symbol\") issue = symbolSeedSafetyIssue(SEEDS[i].value) ?? null;\n    const got = out[i];\n    assert.deepEqual(Object.keys(got).sort(), [\"issue\", \"normalizedKind\"], `entry ${i} keys`);\n    assert.equal(got.normalizedKind, kind, `entry ${i} kind`);\n    assert.equal(got.issue, issue, `entry ${i} issue`);\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-01.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-seed-audit.mjs",
+     "difficulty": "moderate",
+     "difficulty_rationale": "Requires reading context-plan.js (seed-kind normalization and fallbacks) AND context-intake-safety.js (path/symbol safety rules, control-character definition, exact issue strings) across two files.",
+     "grounding": [
+      "packages/pi-context-packer/src/context-plan.js",
+      "packages/pi-context-packer/src/context-intake-safety.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-seed-audit.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-seed-audit.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-seed-audit.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function auditSeeds(seeds)\n\n`seeds` is an array of objects `{ kind, value }` (kind may be any JSON value,\nvalue a string or other). Return an array with exactly one entry per input\nseed, in input order, each entry an object with exactly the keys\n`normalizedKind` and `issue`:\n\n- `normalizedKind`: the seed kind normalized with the same convention as\n  `normalizeContextPlanSeedKind` in `src/context-plan.js` (including the\n  non-string fallback and the unknown-kind fallback).\n- `issue`: for a normalized kind of `path`, the exact issue string produced\n  by the repository's repo-relative path safety check (or null when the seed\n  is safe); for `symbol`, the exact issue string of the repository's symbol\n  seed safety check (or null); for every other normalized kind, null. Use the\n  default labels of those checks.\n\nMatch the repository checks EXACTLY, including: control-character detection\n(which code points count), the URI/drive-prefix rule, absolute/home-relative\nrules, the backslash rule, current/parent directory traversal, hidden and\ninternal directory parts, generated/vendor directory parts, the empty-value\nrule, the symbol length limit, and whitespace handling.\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/context-plan.js\n- packages/pi-context-packer/src/context-intake-safety.js",
+     "task_id": "TS-01",
+     "title": "Context seed audit (plan kind normalization + intake safety parity)"
+    },
+    "task_id": "TS-01"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-TS-01-fam-glm",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"kind\": \"path\", \"value\": \"src/app/main.ts\"}, {\"kind\": \"path\", \"value\": \" src/leading.ts\"}, {\"kind\": \"path\", \"value\": \"https://example.com/x\"}, {\"kind\": \"path\", \"value\": \"/abs/path.ts\"}, {\"kind\": \"path\", \"value\": \"~/home/x.ts\"}, {\"kind\": \"path\", \"value\": \"a\\\\b\\\\c.ts\"}, {\"kind\": \"path\", \"value\": \"a/../b.ts\"}, {\"kind\": \"path\", \"value\": \".hidden/x.ts\"}, {\"kind\": \"path\", \"value\": \"__pycache__/mod.py\"}, {\"kind\": \"path\", \"value\": \"node_modules/pkg/index.js\"}, {\"kind\": \"path\", \"value\": \"dist/bundle.js\"}, {\"kind\": \"path\", \"value\": \"\"}, {\"kind\": \"path\", \"value\": \"ok\\u0001ctrl.ts\"}, {\"kind\": \"symbol\", \"value\": \"buildContextPlan\"}, {\"kind\": \"symbol\", \"value\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}, {\"kind\": \"symbol\", \"value\": \"bad\\u007fsymbol\"}, {\"kind\": \"symbol\", \"value\": \"  \"}, {\"kind\": \"Path\", \"value\": \"src/x.ts\"}, {\"kind\": 42, \"value\": \"src/y.ts\"}, {\"kind\": \"free_text\", \"value\": \"anything goes /abs ~x  ok\"}, {\"kind\": \"ak\", \"value\": \"ak://task/5080\"}]"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { normalizeContextPlanSeedKind } = await import(\"./src/context-plan.js\");\nconst { repoRelativePathSafetyIssue, symbolSeedSafetyIssue } = await import(\"./src/context-intake-safety.js\");\nconst mod = await import(\"./g3p-seed-audit.mjs\");\nconst SEEDS = JSON.parse(process.argv[2] ?? \"[]\");\n\ntest(\"parity\", () => {\n  const out = mod.auditSeeds(SEEDS);\n  assert.ok(Array.isArray(out) && out.length === SEEDS.length, \"shape\");\n  for (let i = 0; i < SEEDS.length; i += 1) {\n    const kind = normalizeContextPlanSeedKind(SEEDS[i].kind);\n    let issue = null;\n    if (kind === \"path\") issue = repoRelativePathSafetyIssue(SEEDS[i].value) ?? null;\n    if (kind === \"symbol\") issue = symbolSeedSafetyIssue(SEEDS[i].value) ?? null;\n    const got = out[i];\n    assert.deepEqual(Object.keys(got).sort(), [\"issue\", \"normalizedKind\"], `entry ${i} keys`);\n    assert.equal(got.normalizedKind, kind, `entry ${i} kind`);\n    assert.equal(got.issue, issue, `entry ${i} issue`);\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-01.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-seed-audit.mjs",
+     "difficulty": "moderate",
+     "difficulty_rationale": "Requires reading context-plan.js (seed-kind normalization and fallbacks) AND context-intake-safety.js (path/symbol safety rules, control-character definition, exact issue strings) across two files.",
+     "grounding": [
+      "packages/pi-context-packer/src/context-plan.js",
+      "packages/pi-context-packer/src/context-intake-safety.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-seed-audit.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-seed-audit.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-seed-audit.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function auditSeeds(seeds)\n\n`seeds` is an array of objects `{ kind, value }` (kind may be any JSON value,\nvalue a string or other). Return an array with exactly one entry per input\nseed, in input order, each entry an object with exactly the keys\n`normalizedKind` and `issue`:\n\n- `normalizedKind`: the seed kind normalized with the same convention as\n  `normalizeContextPlanSeedKind` in `src/context-plan.js` (including the\n  non-string fallback and the unknown-kind fallback).\n- `issue`: for a normalized kind of `path`, the exact issue string produced\n  by the repository's repo-relative path safety check (or null when the seed\n  is safe); for `symbol`, the exact issue string of the repository's symbol\n  seed safety check (or null); for every other normalized kind, null. Use the\n  default labels of those checks.\n\nMatch the repository checks EXACTLY, including: control-character detection\n(which code points count), the URI/drive-prefix rule, absolute/home-relative\nrules, the backslash rule, current/parent directory traversal, hidden and\ninternal directory parts, generated/vendor directory parts, the empty-value\nrule, the symbol length limit, and whitespace handling.\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/context-plan.js\n- packages/pi-context-packer/src/context-intake-safety.js",
+     "task_id": "TS-01",
+     "title": "Context seed audit (plan kind normalization + intake safety parity)"
+    },
+    "task_id": "TS-01"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-TS-02-fam-gpt",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"seeds\": [{\"kind\": \"path\", \"value\": \"g3p-fixtures/big-code.ts\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/big.md\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/sub/big.test.js\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/node_modules/skip.js\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/app.min.js\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/link.md\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/missing.ts\"}, {\"kind\": \"path\", \"value\": \"../outside.ts\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/big-code.ts\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/data.json\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/fine.ts\"}, {\"kind\": \"path\", \"value\": \"/abs/no-final-newline.md\"}, {\"kind\": \"symbol\", \"value\": \"not-a-path\"}, {\"kind\": \"path\", \"value\": 42}]}"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nimport path from \"node:path\";\nimport { mkdirSync, rmSync, symlinkSync, writeFileSync } from \"node:fs\";\nconst { fileBudgetRisksForPathSeeds } = await import(\"./src/file-budget.js\");\nconst { repoRelativePathSafetyIssue } = await import(\"./src/context-intake-safety.js\");\nconst mod = await import(\"./g3p-budget-risks.mjs\");\nconst INPUT = JSON.parse(process.argv[2] ?? \"{}\");\nconst root = process.cwd();\n\nrmSync(path.join(root, \"g3p-fixtures\"), { recursive: true, force: true });\nmkdirSync(path.join(root, \"g3p-fixtures/sub\"), { recursive: true });\nmkdirSync(path.join(root, \"g3p-fixtures/node_modules\"), { recursive: true });\nwriteFileSync(path.join(root, \"g3p-fixtures/big-code.ts\"), \"x\\n\".repeat(600));\nwriteFileSync(path.join(root, \"g3p-fixtures/big.md\"), \"m\".repeat(61 * 1024));\nwriteFileSync(path.join(root, \"g3p-fixtures/sub/big.test.js\"), \"t\\n\".repeat(1100));\nwriteFileSync(path.join(root, \"g3p-fixtures/node_modules/skip.js\"), \"n\".repeat(10));\nwriteFileSync(path.join(root, \"g3p-fixtures/app.min.js\"), \"a\".repeat(10));\nwriteFileSync(path.join(root, \"g3p-fixtures/data.json\"), \"{}\");\nwriteFileSync(path.join(root, \"g3p-fixtures/fine.ts\"), \"ok();\\n\");\nwriteFileSync(path.join(root, \"abs-no-final-newline.md\"), \"z\".repeat(61 * 1024));\nwriteFileSync(path.join(root, \"g3p-fixtures/target.txt\"), \"hello\");\nsymlinkSync(path.join(root, \"g3p-fixtures/target.txt\"), path.join(root, \"g3p-fixtures/link.md\"));\n\nconst wantRisks = fileBudgetRisksForPathSeeds({ seeds: INPUT.seeds, cwd: root, repoRoot: root });\nconst wantUnsafe = INPUT.seeds\n  .filter((s) => s?.kind === \"path\" && typeof s.value === \"string\")\n  .map((s) => ({ value: s.value, issue: repoRelativePathSafetyIssue(s.value) }))\n  .filter((s) => s.issue !== undefined);\n\ntest(\"parity\", () => {\n  const got = mod.budgetRisks(INPUT.seeds, root);\n  assert.deepEqual(Object.keys(got).sort(), [\"risks\", \"unsafeSeeds\"], \"top keys\");\n  assert.ok(Array.isArray(got.risks) && Array.isArray(got.unsafeSeeds), \"arrays\");\n  assert.equal(got.risks.length, wantRisks.length, JSON.stringify({ got: got.risks, want: wantRisks }, null, 1));\n  for (let i = 0; i < wantRisks.length; i += 1) {\n    assert.deepEqual(Object.keys(got.risks[i]).sort(), [\"bytes\", \"kind\", \"lines\", \"maxBytes\", \"maxLines\", \"path\"], \"keys\");\n    assert.deepEqual(got.risks[i], wantRisks[i], `risk entry ${i}`);\n  }\n  assert.equal(got.unsafeSeeds.length, wantUnsafe.length, JSON.stringify({ got: got.unsafeSeeds, want: wantUnsafe }, null, 1));\n  for (let i = 0; i < wantUnsafe.length; i += 1) {\n    assert.deepEqual(Object.keys(got.unsafeSeeds[i]).sort(), [\"issue\", \"value\"], \"keys\");\n    assert.deepEqual(got.unsafeSeeds[i], wantUnsafe[i], `unsafe entry ${i}`);\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-02.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-budget-risks.mjs",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading file-budget.js (classification rules, exclusion lists, line counting final-newline rule, budgets, containment, dedup) AND context-intake-safety.js (path safety issue strings); verifies against real files on disk.",
+     "grounding": [
+      "packages/pi-context-packer/src/file-budget.js",
+      "packages/pi-context-packer/src/context-intake-safety.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-budget-risks.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-budget-risks.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-budget-risks.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function budgetRisks(seeds, root)\n\nReturn an object with exactly the keys `risks` and `unsafeSeeds`.\n\n`risks`: reproduce the semantics of the repository's path-seed file-budget\nrisk analysis (`fileBudgetRisksForPathSeeds` in `src/file-budget.js`):\n- consider only seeds whose kind is exactly `path` with a string value\n- resolve each value against `root` exactly as the repository does; skip\n  values that resolve outside `root` (containment rule included)\n- de-duplicate by the same key the repository uses (first occurrence wins)\n- classify each remaining path with the repository's file-budget kind rules\n  (excluded directories, excluded suffixes, markdown extensions, code\n  extensions, test-file patterns) \u2014 unclassified paths produce no risk entry\n- skip symbolic links and non-regular/missing files exactly as the repository\n  does\n- count lines with the repository's line-counting semantics (pay attention to\n  the final-newline rule), read byte sizes, and apply the repository's\n  per-kind line/byte budgets\n- each risk entry is an object with exactly the keys `path`, `kind`,\n  `lines`, `bytes`, `maxLines`, `maxBytes` and the repository's value\n  conventions (including path normalization); keep the repository's order\n\n`unsafeSeeds`: for every seed with kind exactly `path` and a string value\n(in input order, duplicates included), the entries for which the\nrepository's repo-relative path safety check (`repoRelativePathSafetyIssue`\nin `src/context-intake-safety.js`) reports an issue, each an object with\nexactly the keys `value` and `issue` (the exact issue string).\n\nThe caller will create fixture files under `root/g3p-fixtures/` (and one\nroot-level file) before calling you; read them from disk like the repository\ndoes.\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/file-budget.js\n- packages/pi-context-packer/src/context-intake-safety.js",
+     "task_id": "TS-02",
+     "title": "Path-seed budget-risk scan with intake safety (disk fixtures)"
+    },
+    "task_id": "TS-02"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-TS-02-fam-glm",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"seeds\": [{\"kind\": \"path\", \"value\": \"g3p-fixtures/big-code.ts\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/big.md\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/sub/big.test.js\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/node_modules/skip.js\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/app.min.js\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/link.md\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/missing.ts\"}, {\"kind\": \"path\", \"value\": \"../outside.ts\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/big-code.ts\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/data.json\"}, {\"kind\": \"path\", \"value\": \"g3p-fixtures/fine.ts\"}, {\"kind\": \"path\", \"value\": \"/abs/no-final-newline.md\"}, {\"kind\": \"symbol\", \"value\": \"not-a-path\"}, {\"kind\": \"path\", \"value\": 42}]}"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nimport path from \"node:path\";\nimport { mkdirSync, rmSync, symlinkSync, writeFileSync } from \"node:fs\";\nconst { fileBudgetRisksForPathSeeds } = await import(\"./src/file-budget.js\");\nconst { repoRelativePathSafetyIssue } = await import(\"./src/context-intake-safety.js\");\nconst mod = await import(\"./g3p-budget-risks.mjs\");\nconst INPUT = JSON.parse(process.argv[2] ?? \"{}\");\nconst root = process.cwd();\n\nrmSync(path.join(root, \"g3p-fixtures\"), { recursive: true, force: true });\nmkdirSync(path.join(root, \"g3p-fixtures/sub\"), { recursive: true });\nmkdirSync(path.join(root, \"g3p-fixtures/node_modules\"), { recursive: true });\nwriteFileSync(path.join(root, \"g3p-fixtures/big-code.ts\"), \"x\\n\".repeat(600));\nwriteFileSync(path.join(root, \"g3p-fixtures/big.md\"), \"m\".repeat(61 * 1024));\nwriteFileSync(path.join(root, \"g3p-fixtures/sub/big.test.js\"), \"t\\n\".repeat(1100));\nwriteFileSync(path.join(root, \"g3p-fixtures/node_modules/skip.js\"), \"n\".repeat(10));\nwriteFileSync(path.join(root, \"g3p-fixtures/app.min.js\"), \"a\".repeat(10));\nwriteFileSync(path.join(root, \"g3p-fixtures/data.json\"), \"{}\");\nwriteFileSync(path.join(root, \"g3p-fixtures/fine.ts\"), \"ok();\\n\");\nwriteFileSync(path.join(root, \"abs-no-final-newline.md\"), \"z\".repeat(61 * 1024));\nwriteFileSync(path.join(root, \"g3p-fixtures/target.txt\"), \"hello\");\nsymlinkSync(path.join(root, \"g3p-fixtures/target.txt\"), path.join(root, \"g3p-fixtures/link.md\"));\n\nconst wantRisks = fileBudgetRisksForPathSeeds({ seeds: INPUT.seeds, cwd: root, repoRoot: root });\nconst wantUnsafe = INPUT.seeds\n  .filter((s) => s?.kind === \"path\" && typeof s.value === \"string\")\n  .map((s) => ({ value: s.value, issue: repoRelativePathSafetyIssue(s.value) }))\n  .filter((s) => s.issue !== undefined);\n\ntest(\"parity\", () => {\n  const got = mod.budgetRisks(INPUT.seeds, root);\n  assert.deepEqual(Object.keys(got).sort(), [\"risks\", \"unsafeSeeds\"], \"top keys\");\n  assert.ok(Array.isArray(got.risks) && Array.isArray(got.unsafeSeeds), \"arrays\");\n  assert.equal(got.risks.length, wantRisks.length, JSON.stringify({ got: got.risks, want: wantRisks }, null, 1));\n  for (let i = 0; i < wantRisks.length; i += 1) {\n    assert.deepEqual(Object.keys(got.risks[i]).sort(), [\"bytes\", \"kind\", \"lines\", \"maxBytes\", \"maxLines\", \"path\"], \"keys\");\n    assert.deepEqual(got.risks[i], wantRisks[i], `risk entry ${i}`);\n  }\n  assert.equal(got.unsafeSeeds.length, wantUnsafe.length, JSON.stringify({ got: got.unsafeSeeds, want: wantUnsafe }, null, 1));\n  for (let i = 0; i < wantUnsafe.length; i += 1) {\n    assert.deepEqual(Object.keys(got.unsafeSeeds[i]).sort(), [\"issue\", \"value\"], \"keys\");\n    assert.deepEqual(got.unsafeSeeds[i], wantUnsafe[i], `unsafe entry ${i}`);\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-02.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-budget-risks.mjs",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading file-budget.js (classification rules, exclusion lists, line counting final-newline rule, budgets, containment, dedup) AND context-intake-safety.js (path safety issue strings); verifies against real files on disk.",
+     "grounding": [
+      "packages/pi-context-packer/src/file-budget.js",
+      "packages/pi-context-packer/src/context-intake-safety.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-budget-risks.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-budget-risks.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-budget-risks.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function budgetRisks(seeds, root)\n\nReturn an object with exactly the keys `risks` and `unsafeSeeds`.\n\n`risks`: reproduce the semantics of the repository's path-seed file-budget\nrisk analysis (`fileBudgetRisksForPathSeeds` in `src/file-budget.js`):\n- consider only seeds whose kind is exactly `path` with a string value\n- resolve each value against `root` exactly as the repository does; skip\n  values that resolve outside `root` (containment rule included)\n- de-duplicate by the same key the repository uses (first occurrence wins)\n- classify each remaining path with the repository's file-budget kind rules\n  (excluded directories, excluded suffixes, markdown extensions, code\n  extensions, test-file patterns) \u2014 unclassified paths produce no risk entry\n- skip symbolic links and non-regular/missing files exactly as the repository\n  does\n- count lines with the repository's line-counting semantics (pay attention to\n  the final-newline rule), read byte sizes, and apply the repository's\n  per-kind line/byte budgets\n- each risk entry is an object with exactly the keys `path`, `kind`,\n  `lines`, `bytes`, `maxLines`, `maxBytes` and the repository's value\n  conventions (including path normalization); keep the repository's order\n\n`unsafeSeeds`: for every seed with kind exactly `path` and a string value\n(in input order, duplicates included), the entries for which the\nrepository's repo-relative path safety check (`repoRelativePathSafetyIssue`\nin `src/context-intake-safety.js`) reports an issue, each an object with\nexactly the keys `value` and `issue` (the exact issue string).\n\nThe caller will create fixture files under `root/g3p-fixtures/` (and one\nroot-level file) before calling you; read them from disk like the repository\ndoes.\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/file-budget.js\n- packages/pi-context-packer/src/context-intake-safety.js",
+     "task_id": "TS-02",
+     "title": "Path-seed budget-risk scan with intake safety (disk fixtures)"
+    },
+    "task_id": "TS-02"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-TS-03-fam-gpt",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"providers\": [\"agents\", \"git\", \"docs\", \"session\", \"sci\", \"prompt_vault\", \"ak\", \"fcos\", \"nope\"], \"cases\": [{\"env\": {}, \"planContext\": {}}, {\"env\": {\"sciReadOnlySafe\": true}, \"planContext\": {}}, {\"env\": {\"sciReadOnlySafe\": true, \"contextUsage\": {\"tokens\": 900000, \"windowTokens\": 1000000}}, \"planContext\": {\"reason\": \"provider required by caller\"}}, {\"env\": {\"sciReadOnlySafe\": false, \"contextUsage\": {\"inputTokens\": 130000, \"limitTokens\": 1000000}}, \"planContext\": {}}, {\"env\": {\"sciReadOnlySafe\": true, \"contextUsage\": {\"totalTokens\": 500, \"contextWindow\": 1000}}, \"planContext\": {\"reason\": \"other\"}}, {\"env\": {\"sciReadOnlySafe\": true, \"contextUsage\": {\"usedTokens\": 400000, \"maxTokens\": 500000}}, \"planContext\": {}}]}"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { contextPackProviderCapability } = await import(\"./src/provider-capabilities.js\");\nconst mod = await import(\"./g3p-provider-matrix.mjs\");\nconst INPUT = JSON.parse(process.argv[2] ?? \"{}\");\n\ntest(\"parity\", () => {\n  for (const c of INPUT.cases) {\n    const got = mod.providerMatrix(INPUT.providers, c.env, c.planContext);\n    assert.ok(Array.isArray(got) && got.length === INPUT.providers.length, \"shape\");\n    INPUT.providers.forEach((p, i) => {\n      const want = contextPackProviderCapability(p, c.env, c.planContext);\n      assert.deepEqual(Object.keys(got[i]).sort(), [\"adapterStatus\", \"executionStatus\", \"provider\"], \"keys\");\n      assert.equal(got[i].provider, p);\n      assert.equal(got[i].adapterStatus, want.adapterStatus, `${p} adapterStatus`);\n      assert.equal(got[i].executionStatus, want.executionStatus, `${p} executionStatus`);\n    });\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-03.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-provider-matrix.mjs",
+     "difficulty": "moderate",
+     "difficulty_rationale": "Requires reading provider-capabilities.js (capability table, SCI gate, session gate) AND session-context.js (usage field precedence and high-pressure thresholds).",
+     "grounding": [
+      "packages/pi-context-packer/src/provider-capabilities.js",
+      "packages/pi-context-packer/src/session-context.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-provider-matrix.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-provider-matrix.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-provider-matrix.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function providerMatrix(providers, env, planContext)\n\nFor each provider name in `providers` (array of strings) return an object,\nin input order, with exactly the keys `provider`, `adapterStatus`,\n`executionStatus` \u2014 the capability values the repository's provider\ncapability classifier returns for that provider under the given `env` and\n`planContext`. Unknown providers follow the repository's unknown-provider\nconvention. You must reproduce the repository's gating rules exactly,\nincluding: the safety gate for the SCI provider, the session-provider\neligibility rule (the caller-reason condition and the context-pressure\ncondition computed with the repository's session context usage\nnormalization: which usage fields are read, in which precedence, and the\nnumeric thresholds that make pressure \"high\").\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/provider-capabilities.js\n- packages/pi-context-packer/src/session-context.js",
+     "task_id": "TS-03",
+     "title": "Provider capability matrix (provider-capabilities + session-context parity)"
+    },
+    "task_id": "TS-03"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-TS-03-fam-glm",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"providers\": [\"agents\", \"git\", \"docs\", \"session\", \"sci\", \"prompt_vault\", \"ak\", \"fcos\", \"nope\"], \"cases\": [{\"env\": {}, \"planContext\": {}}, {\"env\": {\"sciReadOnlySafe\": true}, \"planContext\": {}}, {\"env\": {\"sciReadOnlySafe\": true, \"contextUsage\": {\"tokens\": 900000, \"windowTokens\": 1000000}}, \"planContext\": {\"reason\": \"provider required by caller\"}}, {\"env\": {\"sciReadOnlySafe\": false, \"contextUsage\": {\"inputTokens\": 130000, \"limitTokens\": 1000000}}, \"planContext\": {}}, {\"env\": {\"sciReadOnlySafe\": true, \"contextUsage\": {\"totalTokens\": 500, \"contextWindow\": 1000}}, \"planContext\": {\"reason\": \"other\"}}, {\"env\": {\"sciReadOnlySafe\": true, \"contextUsage\": {\"usedTokens\": 400000, \"maxTokens\": 500000}}, \"planContext\": {}}]}"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { contextPackProviderCapability } = await import(\"./src/provider-capabilities.js\");\nconst mod = await import(\"./g3p-provider-matrix.mjs\");\nconst INPUT = JSON.parse(process.argv[2] ?? \"{}\");\n\ntest(\"parity\", () => {\n  for (const c of INPUT.cases) {\n    const got = mod.providerMatrix(INPUT.providers, c.env, c.planContext);\n    assert.ok(Array.isArray(got) && got.length === INPUT.providers.length, \"shape\");\n    INPUT.providers.forEach((p, i) => {\n      const want = contextPackProviderCapability(p, c.env, c.planContext);\n      assert.deepEqual(Object.keys(got[i]).sort(), [\"adapterStatus\", \"executionStatus\", \"provider\"], \"keys\");\n      assert.equal(got[i].provider, p);\n      assert.equal(got[i].adapterStatus, want.adapterStatus, `${p} adapterStatus`);\n      assert.equal(got[i].executionStatus, want.executionStatus, `${p} executionStatus`);\n    });\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-03.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-provider-matrix.mjs",
+     "difficulty": "moderate",
+     "difficulty_rationale": "Requires reading provider-capabilities.js (capability table, SCI gate, session gate) AND session-context.js (usage field precedence and high-pressure thresholds).",
+     "grounding": [
+      "packages/pi-context-packer/src/provider-capabilities.js",
+      "packages/pi-context-packer/src/session-context.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-provider-matrix.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-provider-matrix.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-provider-matrix.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function providerMatrix(providers, env, planContext)\n\nFor each provider name in `providers` (array of strings) return an object,\nin input order, with exactly the keys `provider`, `adapterStatus`,\n`executionStatus` \u2014 the capability values the repository's provider\ncapability classifier returns for that provider under the given `env` and\n`planContext`. Unknown providers follow the repository's unknown-provider\nconvention. You must reproduce the repository's gating rules exactly,\nincluding: the safety gate for the SCI provider, the session-provider\neligibility rule (the caller-reason condition and the context-pressure\ncondition computed with the repository's session context usage\nnormalization: which usage fields are read, in which precedence, and the\nnumeric thresholds that make pressure \"high\").\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/provider-capabilities.js\n- packages/pi-context-packer/src/session-context.js",
+     "task_id": "TS-03",
+     "title": "Provider capability matrix (provider-capabilities + session-context parity)"
+    },
+    "task_id": "TS-03"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-TS-04-fam-gpt",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"ok\": true, \"packet\": {\"objective\": \"Explain <context> pressure and `budgets`\", \"sections\": [{\"title\": \"Repo docs\", \"provider\": \"docs\", \"authority\": \"docs are data\", \"items\": [{\"id\": \"docs/readme\", \"kind\": \"markdown\", \"contentMode\": \"text\", \"content\": \"# Hello\\\\n\\\\nSome `code` and ``double`` and ```triple``` fences\\\\n\", \"rationale\": \"primary doc\", \"provenance\": {\"path\": \"README.md\"}}, {\"id\": \"we\\u0001rd\\\\tid\", \"kind\": \"text\", \"contentMode\": \"text\", \"content\": \"plain\", \"rationale\": \"\", \"provenance\": {\"command\": \"git status --short\"}}], \"estimatedTokens\": 42}, {\"title\": \"Git\", \"provider\": \"git\", \"authority\": \"read-only\", \"items\": [], \"estimatedTokens\": 0}], \"omissions\": [{\"provider\": \"sci\", \"reason\": \"safety gate\", \"detail\": \"\"}, {\"provider\": \"session\", \"reason\": \"not eligible\", \"detail\": \"caller did not require it\"}], \"ownerSurfaceRecommendations\": [{\"surface\": \"Prompt Vault\", \"nextAction\": \"retrieve template\", \"nonAuthorization\": \"read-only\"}], \"totals\": {\"candidatesSelected\": 2, \"estimatedTokens\": 42, \"bytes\": 1234}, \"measurementReceipt\": {\"estimatedToolCallsAvoided\": 7, \"packetUtilityRecommendation\": {\"status\": \"useful\", \"reason\": \"bounded read surface\", \"nextAction\": \"proceed\", \"nonAuthorization\": \"advisory only\"}, \"dogfoodFollowupReceipt\": {\"status\": \"pending\", \"expectedLowLevelCallsAvoided\": 4, \"nonAuthorization\": \"record-only\"}}, \"dogfoodObservationTemplate\": {\"activityType\": \"implementation\"}, \"nonAuthorizations\": [\"does not mutate files\", \"does not authorize owner-surface movement\"]}}, {\"ok\": false, \"plan\": {\"ok\": false, \"errors\": [\"objective missing\", \"seeds exceed limit\"]}}, {\"ok\": true, \"packet\": {\"objective\": \"Empty\", \"sections\": [], \"omissions\": [], \"totals\": {\"candidatesSelected\": 0, \"estimatedTokens\": 0, \"bytes\": 0}, \"measurementReceipt\": {\"estimatedToolCallsAvoided\": 0, \"packetUtilityRecommendation\": null, \"dogfoodFollowupReceipt\": null}, \"nonAuthorizations\": []}}]"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { formatContextPacket } = await import(\"./src/context-pack-result.js\");\nconst mod = await import(\"./g3p-render-packet.mjs\");\nconst CASES = JSON.parse(process.argv[2] ?? \"[]\");\n\ntest(\"parity\", () => {\n  for (const c of CASES) {\n    const want = formatContextPacket(c);\n    const got = mod.renderPacket(c);\n    assert.equal(typeof got, \"string\", \"string result\");\n    assert.ok(got.length > 0, \"non-empty\");\n    assert.equal(got, want, \"byte-identical render\");\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-04.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-render-packet.mjs",
+     "difficulty": "hard",
+     "difficulty_rationale": "Requires reading context-pack-result.js (full render template), context-intake-safety.js (inline label + fence rules) and context-plan.js (failure fallback) to reproduce the exact output string, byte for byte.",
+     "grounding": [
+      "packages/pi-context-packer/src/context-pack-result.js",
+      "packages/pi-context-packer/src/context-intake-safety.js",
+      "packages/pi-context-packer/src/context-plan.js",
+      "packages/pi-context-packer/src/dogfood-followup-classes.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-render-packet.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-render-packet.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-render-packet.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function renderPacket(result)\n\n`result` is an object shaped like a context-packet result (fields: `ok`,\n`packet`, or `plan`). Return a STRING that is byte-for-byte identical to what\nthe repository's packet renderer (`formatContextPacket` in\n`src/context-pack-result.js`) returns for the same input \u2014 including the\nnot-ok fallback path (which delegates to the context-plan formatter in\n`src/context-plan.js`; reproduce its failure line for a failed plan\nexactly).\n\nReproduce the rendering EXACTLY, including: heading and meta lines, optional\nprovenance lines and their presence rules, inline-label sanitization\n(control characters, angle brackets, whitespace collapsing, fallbacks,\ntruncation with the exact ellipsis character), markdown fence construction\n(fence length rule over content and label, the label comment line),\nomission lines with their fallbacks, owner-surface recommendation lines,\ntotals lines, the fixed scaffolding lines, the packet-utility and\ndogfood-follow-up sections with their null handling, and the dogfood\nobservation template block (exact JSON formatting).\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/context-pack-result.js\n- packages/pi-context-packer/src/context-intake-safety.js\n- packages/pi-context-packer/src/context-plan.js\n- packages/pi-context-packer/src/dogfood-followup-classes.js",
+     "task_id": "TS-04",
+     "title": "Byte-identical context packet rendering"
+    },
+    "task_id": "TS-04"
+   },
+   {
+    "arm_order": [
+     "static",
+     "evidence"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-TS-04-fam-glm",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "[{\"ok\": true, \"packet\": {\"objective\": \"Explain <context> pressure and `budgets`\", \"sections\": [{\"title\": \"Repo docs\", \"provider\": \"docs\", \"authority\": \"docs are data\", \"items\": [{\"id\": \"docs/readme\", \"kind\": \"markdown\", \"contentMode\": \"text\", \"content\": \"# Hello\\\\n\\\\nSome `code` and ``double`` and ```triple``` fences\\\\n\", \"rationale\": \"primary doc\", \"provenance\": {\"path\": \"README.md\"}}, {\"id\": \"we\\u0001rd\\\\tid\", \"kind\": \"text\", \"contentMode\": \"text\", \"content\": \"plain\", \"rationale\": \"\", \"provenance\": {\"command\": \"git status --short\"}}], \"estimatedTokens\": 42}, {\"title\": \"Git\", \"provider\": \"git\", \"authority\": \"read-only\", \"items\": [], \"estimatedTokens\": 0}], \"omissions\": [{\"provider\": \"sci\", \"reason\": \"safety gate\", \"detail\": \"\"}, {\"provider\": \"session\", \"reason\": \"not eligible\", \"detail\": \"caller did not require it\"}], \"ownerSurfaceRecommendations\": [{\"surface\": \"Prompt Vault\", \"nextAction\": \"retrieve template\", \"nonAuthorization\": \"read-only\"}], \"totals\": {\"candidatesSelected\": 2, \"estimatedTokens\": 42, \"bytes\": 1234}, \"measurementReceipt\": {\"estimatedToolCallsAvoided\": 7, \"packetUtilityRecommendation\": {\"status\": \"useful\", \"reason\": \"bounded read surface\", \"nextAction\": \"proceed\", \"nonAuthorization\": \"advisory only\"}, \"dogfoodFollowupReceipt\": {\"status\": \"pending\", \"expectedLowLevelCallsAvoided\": 4, \"nonAuthorization\": \"record-only\"}}, \"dogfoodObservationTemplate\": {\"activityType\": \"implementation\"}, \"nonAuthorizations\": [\"does not mutate files\", \"does not authorize owner-surface movement\"]}}, {\"ok\": false, \"plan\": {\"ok\": false, \"errors\": [\"objective missing\", \"seeds exceed limit\"]}}, {\"ok\": true, \"packet\": {\"objective\": \"Empty\", \"sections\": [], \"omissions\": [], \"totals\": {\"candidatesSelected\": 0, \"estimatedTokens\": 0, \"bytes\": 0}, \"measurementReceipt\": {\"estimatedToolCallsAvoided\": 0, \"packetUtilityRecommendation\": null, \"dogfoodFollowupReceipt\": null}, \"nonAuthorizations\": []}}]"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { formatContextPacket } = await import(\"./src/context-pack-result.js\");\nconst mod = await import(\"./g3p-render-packet.mjs\");\nconst CASES = JSON.parse(process.argv[2] ?? \"[]\");\n\ntest(\"parity\", () => {\n  for (const c of CASES) {\n    const want = formatContextPacket(c);\n    const got = mod.renderPacket(c);\n    assert.equal(typeof got, \"string\", \"string result\");\n    assert.ok(got.length > 0, \"non-empty\");\n    assert.equal(got, want, \"byte-identical render\");\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-04.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-render-packet.mjs",
+     "difficulty": "hard",
+     "difficulty_rationale": "Requires reading context-pack-result.js (full render template), context-intake-safety.js (inline label + fence rules) and context-plan.js (failure fallback) to reproduce the exact output string, byte for byte.",
+     "grounding": [
+      "packages/pi-context-packer/src/context-pack-result.js",
+      "packages/pi-context-packer/src/context-intake-safety.js",
+      "packages/pi-context-packer/src/context-plan.js",
+      "packages/pi-context-packer/src/dogfood-followup-classes.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-render-packet.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-render-packet.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-render-packet.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function renderPacket(result)\n\n`result` is an object shaped like a context-packet result (fields: `ok`,\n`packet`, or `plan`). Return a STRING that is byte-for-byte identical to what\nthe repository's packet renderer (`formatContextPacket` in\n`src/context-pack-result.js`) returns for the same input \u2014 including the\nnot-ok fallback path (which delegates to the context-plan formatter in\n`src/context-plan.js`; reproduce its failure line for a failed plan\nexactly).\n\nReproduce the rendering EXACTLY, including: heading and meta lines, optional\nprovenance lines and their presence rules, inline-label sanitization\n(control characters, angle brackets, whitespace collapsing, fallbacks,\ntruncation with the exact ellipsis character), markdown fence construction\n(fence length rule over content and label, the label comment line),\nomission lines with their fallbacks, owner-surface recommendation lines,\ntotals lines, the fixed scaffolding lines, the packet-utility and\ndogfood-follow-up sections with their null handling, and the dogfood\nobservation template block (exact JSON formatting).\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/context-pack-result.js\n- packages/pi-context-packer/src/context-intake-safety.js\n- packages/pi-context-packer/src/context-plan.js\n- packages/pi-context-packer/src/dogfood-followup-classes.js",
+     "task_id": "TS-04",
+     "title": "Byte-identical context packet rendering"
+    },
+    "task_id": "TS-04"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL-TS-05-fam-gpt",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"caseDefinition\": {\"question\": \"change the focused test behavior and its docs for the adapter\"}, \"repository\": {\"records\": [{\"path\": \"src/adapter/core.ts\", \"metadataStatus\": \"present\", \"summary\": \"adapter behavior and change handling\", \"readWhen\": [\"changing adapter behavior\"]}, {\"path\": \"src/adapter/core.test.ts\", \"metadataStatus\": \"present\", \"summary\": \"tests for adapter change behavior\", \"readWhen\": [\"changing focused tests\"]}, {\"path\": \"docs/adapter.md\", \"metadataStatus\": \"present\", \"summary\": \"adapter docs overview\", \"readWhen\": [\"docs\"]}, {\"path\": \"src/other/thing.ts\", \"metadataStatus\": \"present\", \"summary\": \"unrelated the and for its with filler\", \"readWhen\": [\"other\"]}, {\"path\": \"src/adapter/util.ts\", \"metadataStatus\": \"missing\", \"summary\": \"adapter test change focused behavior\", \"readWhen\": [\"adapter tests\"]}, {\"path\": \"src/zeta.ts\", \"metadataStatus\": \"present\", \"summary\": \"\", \"readWhen\": []}]}, \"structural\": [{\"path\": \"src/adapter/core.ts\", \"directCount\": 3, \"relatedCount\": 1, \"kindCounts\": {\"definition\": 2, \"reference\": 1, \"match\": 0, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"src/adapter/core.test.ts\", \"directCount\": 3, \"relatedCount\": 2, \"kindCounts\": {\"definition\": 1, \"reference\": 2, \"match\": 1, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"docs/adapter.md\", \"directCount\": 1, \"relatedCount\": 0, \"kindCounts\": {\"definition\": 0, \"reference\": 0, \"match\": 1, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"src/other/thing.ts\", \"directCount\": 1, \"relatedCount\": 3, \"kindCounts\": {\"definition\": 0, \"reference\": 1, \"match\": 0, \"graph_node\": 1, \"graph_edge\": 1}}, {\"path\": \"src/adapter/util.ts\", \"directCount\": 0, \"relatedCount\": 0, \"kindCounts\": {\"definition\": 0, \"reference\": 0, \"match\": 0, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"src/zeta.ts\", \"directCount\": 0, \"relatedCount\": 1, \"kindCounts\": {\"definition\": 1, \"reference\": 0, \"match\": 0, \"graph_node\": 0, \"graph_edge\": 0}}], \"arms\": [\"source_list\", \"structural\", \"fusion\", \"baseline\"], \"maxItemsList\": [3, 5]}"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { buildRankingRows, selectArm } = await import(\"./src/source-selection-experiment-ranking.js\");\nconst mod = await import(\"./g3p-rank-select.mjs\");\nconst INPUT = JSON.parse(process.argv[2] ?? \"{}\");\n\nconst stats = new Map(INPUT.structural.map((s) => [s.path, s]));\nconst structuralEvidence = { stats };\n\ntest(\"parity\", () => {\n  const rows = buildRankingRows(INPUT.caseDefinition, INPUT.repository, structuralEvidence);\n  for (const arm of INPUT.arms) {\n    for (const maxItems of INPUT.maxItemsList) {\n      const want = selectArm(rows, arm, maxItems);\n      const got = mod.rankAndSelect(INPUT.caseDefinition, INPUT.repository, structuralEvidence, arm, maxItems);\n      assert.ok(Array.isArray(got), \"array\");\n      assert.deepEqual(got, want, `arm=${arm} maxItems=${maxItems}`);\n    }\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-05.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-rank-select.mjs",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading the 3-file source-selection-experiment suite: ranking.js (rows, arm cascades), structural.js (EVIDENCE_KIND_ORDER), utils.js (compareUtf8).",
+     "grounding": [
+      "packages/pi-context-packer/src/source-selection-experiment-ranking.js",
+      "packages/pi-context-packer/src/source-selection-experiment-structural.js",
+      "packages/pi-context-packer/src/source-selection-experiment-utils.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-rank-select.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-rank-select.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-rank-select.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function rankAndSelect(caseDefinition, repository, structuralEvidence, arm, maxItems)\n\nReproduce the repository's source-selection experiment ranking and arm\nselection EXACTLY (see `src/source-selection-experiment-ranking.js` and the\nhelpers it uses from `src/source-selection-experiment-structural.js` and\n`src/source-selection-experiment-utils.js`):\n\n- build the ranking rows with the repository's token extraction from the\n  case question (lowercasing, the word pattern, the minimum token length,\n  the stop-word set, the deterministic token ordering), the path score\n  (including its multiplier), the metadata score (including the\n  metadata-status rule and which record fields feed it), and the structural\n  counts taken from `structuralEvidence.stats` (a Map keyed by record path)\n- apply the repository's arm-specific comparator cascade exactly\n  (structural ordering with its kind tie-break order, the score sums, the\n  metadata tie-break, the path-score tie-break, the final deterministic\n  path comparison), including which arms use which blocks\n- return the selected paths for the given `arm` and `maxItems` in the\n  repository's order\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/source-selection-experiment-ranking.js\n- packages/pi-context-packer/src/source-selection-experiment-structural.js\n- packages/pi-context-packer/src/source-selection-experiment-utils.js",
+     "task_id": "TS-05",
+     "title": "Source-selection ranking arm selection (experiment suite parity)"
+    },
+    "task_id": "TS-05"
+   },
+   {
+    "arm_order": [
+     "evidence",
+     "static"
+    ],
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "pair_id": "PL-TS-05-fam-glm",
+    "repo_identity": "softwareco/owned/pi-extensions",
+    "repo_key": "piext",
+    "repo_pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64",
+    "task": {
+     "acceptance": {
+      "checker_input": [
+       "{\"caseDefinition\": {\"question\": \"change the focused test behavior and its docs for the adapter\"}, \"repository\": {\"records\": [{\"path\": \"src/adapter/core.ts\", \"metadataStatus\": \"present\", \"summary\": \"adapter behavior and change handling\", \"readWhen\": [\"changing adapter behavior\"]}, {\"path\": \"src/adapter/core.test.ts\", \"metadataStatus\": \"present\", \"summary\": \"tests for adapter change behavior\", \"readWhen\": [\"changing focused tests\"]}, {\"path\": \"docs/adapter.md\", \"metadataStatus\": \"present\", \"summary\": \"adapter docs overview\", \"readWhen\": [\"docs\"]}, {\"path\": \"src/other/thing.ts\", \"metadataStatus\": \"present\", \"summary\": \"unrelated the and for its with filler\", \"readWhen\": [\"other\"]}, {\"path\": \"src/adapter/util.ts\", \"metadataStatus\": \"missing\", \"summary\": \"adapter test change focused behavior\", \"readWhen\": [\"adapter tests\"]}, {\"path\": \"src/zeta.ts\", \"metadataStatus\": \"present\", \"summary\": \"\", \"readWhen\": []}]}, \"structural\": [{\"path\": \"src/adapter/core.ts\", \"directCount\": 3, \"relatedCount\": 1, \"kindCounts\": {\"definition\": 2, \"reference\": 1, \"match\": 0, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"src/adapter/core.test.ts\", \"directCount\": 3, \"relatedCount\": 2, \"kindCounts\": {\"definition\": 1, \"reference\": 2, \"match\": 1, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"docs/adapter.md\", \"directCount\": 1, \"relatedCount\": 0, \"kindCounts\": {\"definition\": 0, \"reference\": 0, \"match\": 1, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"src/other/thing.ts\", \"directCount\": 1, \"relatedCount\": 3, \"kindCounts\": {\"definition\": 0, \"reference\": 1, \"match\": 0, \"graph_node\": 1, \"graph_edge\": 1}}, {\"path\": \"src/adapter/util.ts\", \"directCount\": 0, \"relatedCount\": 0, \"kindCounts\": {\"definition\": 0, \"reference\": 0, \"match\": 0, \"graph_node\": 0, \"graph_edge\": 0}}, {\"path\": \"src/zeta.ts\", \"directCount\": 0, \"relatedCount\": 1, \"kindCounts\": {\"definition\": 1, \"reference\": 0, \"match\": 0, \"graph_node\": 0, \"graph_edge\": 0}}], \"arms\": [\"source_list\", \"structural\", \"fusion\", \"baseline\"], \"maxItemsList\": [3, 5]}"
+      ],
+      "file_content": "\nimport assert from \"node:assert/strict\";\nimport test from \"node:test\";\nconst { buildRankingRows, selectArm } = await import(\"./src/source-selection-experiment-ranking.js\");\nconst mod = await import(\"./g3p-rank-select.mjs\");\nconst INPUT = JSON.parse(process.argv[2] ?? \"{}\");\n\nconst stats = new Map(INPUT.structural.map((s) => [s.path, s]));\nconst structuralEvidence = { stats };\n\ntest(\"parity\", () => {\n  const rows = buildRankingRows(INPUT.caseDefinition, INPUT.repository, structuralEvidence);\n  for (const arm of INPUT.arms) {\n    for (const maxItems of INPUT.maxItemsList) {\n      const want = selectArm(rows, arm, maxItems);\n      const got = mod.rankAndSelect(INPUT.caseDefinition, INPUT.repository, structuralEvidence, arm, maxItems);\n      assert.ok(Array.isArray(got), \"array\");\n      assert.deepEqual(got, want, `arm=${arm} maxItems=${maxItems}`);\n    }\n  }\n  console.log(\"ACCEPT\");\n});\n",
+      "file_name": "accept-ts-05.test.mjs",
+      "run_dir": "packages/pi-context-packer",
+      "runner": "node"
+     },
+     "deliverable": "packages/pi-context-packer/g3p-rank-select.mjs",
+     "difficulty": "moderate-hard",
+     "difficulty_rationale": "Requires reading the 3-file source-selection-experiment suite: ranking.js (rows, arm cascades), structural.js (EVIDENCE_KIND_ORDER), utils.js (compareUtf8).",
+     "grounding": [
+      "packages/pi-context-packer/src/source-selection-experiment-ranking.js",
+      "packages/pi-context-packer/src/source-selection-experiment-structural.js",
+      "packages/pi-context-packer/src/source-selection-experiment-utils.js"
+     ],
+     "new_files": [
+      "packages/pi-context-packer/g3p-rank-select.mjs"
+     ],
+     "new_symbols": [],
+     "participant_validation": [
+      "node",
+      "--check",
+      "packages/pi-context-packer/g3p-rank-select.mjs"
+     ],
+     "repo_key": "piext",
+     "spec": "You are working in a disposable replica of softwareco/owned/pi-extensions at\npinned revision e855d07799f7984770d8a7ce25fc8ebabe1b7e64. The `packages/pi-context-packer` package contains real\nproduction modules under `src/`. Read the existing files named below FIRST:\nyour deliverable must reproduce their exact conventions (constants, thresholds,\nstring templates, ordering, tie-breaking). Do not guess semantics from names.\n\nCreate ONE new file `packages/pi-context-packer/g3p-rank-select.mjs` (ESM JavaScript, plain Node >= 20,\n`node:` builtins only, NO npm installs, no imports except node: builtins):\nIt must export exactly one named function:\n\n    export function rankAndSelect(caseDefinition, repository, structuralEvidence, arm, maxItems)\n\nReproduce the repository's source-selection experiment ranking and arm\nselection EXACTLY (see `src/source-selection-experiment-ranking.js` and the\nhelpers it uses from `src/source-selection-experiment-structural.js` and\n`src/source-selection-experiment-utils.js`):\n\n- build the ranking rows with the repository's token extraction from the\n  case question (lowercasing, the word pattern, the minimum token length,\n  the stop-word set, the deterministic token ordering), the path score\n  (including its multiplier), the metadata score (including the\n  metadata-status rule and which record fields feed it), and the structural\n  counts taken from `structuralEvidence.stats` (a Map keyed by record path)\n- apply the repository's arm-specific comparator cascade exactly\n  (structural ordering with its kind tie-break order, the score sums, the\n  metadata tie-break, the path-score tie-break, the final deterministic\n  path comparison), including which arms use which blocks\n- return the selected paths for the given `arm` and `maxItems` in the\n  repository's order\n\nFiles that define the semantics you must match:\n- packages/pi-context-packer/src/source-selection-experiment-ranking.js\n- packages/pi-context-packer/src/source-selection-experiment-structural.js\n- packages/pi-context-packer/src/source-selection-experiment-utils.js",
+     "task_id": "TS-05",
+     "title": "Source-selection ranking arm selection (experiment suite parity)"
+    },
+    "task_id": "TS-05"
+   }
+  ],
+  "pilot_seed": 20260825,
+  "schema": "dspx.g3pilot-corpus/1"
+ },
+ "diagnostic_label": "G3 rev2 feasibility pilot - DIAGNOSTIC SCREEN ONLY; not Gate G3, not protocol evidence, no gate claims",
+ "execution_log": [
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:05:04+00:00",
+   "duration_s": 190.9,
+   "pair_id": "PL-PY-01-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:05:14+00:00",
+   "duration_s": 202.1,
+   "pair_id": "PL-PY-01-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:07:57+00:00",
+   "duration_s": 162.8,
+   "pair_id": "PL-PY-01-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:10:35+00:00",
+   "duration_s": 330.6,
+   "pair_id": "PL-PY-01-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:11:36+00:00",
+   "duration_s": 180.8,
+   "pair_id": "PL-PY-02-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:15:48+00:00",
+   "duration_s": 275.9,
+   "pair_id": "PL-PY-02-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:17:04+00:00",
+   "duration_s": 327.5,
+   "pair_id": "PL-PY-02-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:20:03+00:00",
+   "duration_s": 254.1,
+   "pair_id": "PL-PY-02-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:21:08+00:00",
+   "duration_s": 217.1,
+   "pair_id": "PL-PY-03-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:26:04+00:00",
+   "duration_s": 327.4,
+   "pair_id": "PL-PY-03-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:28:14+00:00",
+   "duration_s": 424.8,
+   "pair_id": "PL-PY-03-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:31:46+00:00",
+   "duration_s": 341.9,
+   "pair_id": "PL-PY-03-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:33:49+00:00",
+   "duration_s": 308.1,
+   "pair_id": "PL-PY-04-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:35:57+00:00",
+   "duration_s": 221.9,
+   "pair_id": "PL-PY-04-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:37:44+00:00",
+   "duration_s": 233.8,
+   "pair_id": "PL-PY-04-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:42:53+00:00",
+   "duration_s": 415.0,
+   "pair_id": "PL-PY-04-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T19:49:39+00:00",
+   "duration_s": 683.8,
+   "pair_id": "PL-PY-05-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:58:28+00:00",
+   "duration_s": 906.5,
+   "pair_id": "PL-PY-05-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T19:59:43+00:00",
+   "duration_s": 602.9,
+   "pair_id": "PL-PY-05-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:02:34+00:00",
+   "duration_s": 144.5,
+   "pair_id": "PL-TS-01-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:05:56+00:00",
+   "duration_s": 446.5,
+   "pair_id": "PL-PY-05-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:06:09+00:00",
+   "duration_s": 214.2,
+   "pair_id": "PL-TS-01-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:09:08+00:00",
+   "duration_s": 164.8,
+   "pair_id": "PL-TS-01-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:12:24+00:00",
+   "duration_s": 345.7,
+   "pair_id": "PL-TS-02-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:12:25+00:00",
+   "duration_s": 196.2,
+   "pair_id": "PL-TS-01-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:17:53+00:00",
+   "duration_s": 301.3,
+   "pair_id": "PL-TS-02-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:18:33+00:00",
+   "duration_s": 368.1,
+   "pair_id": "PL-TS-02-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:19:44+00:00",
+   "duration_s": 109.6,
+   "pair_id": "PL-TS-02-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:20:55+00:00",
+   "duration_s": 118.5,
+   "pair_id": "PL-TS-03-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:22:33+00:00",
+   "duration_s": 147.2,
+   "pair_id": "PL-TS-03-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:23:12+00:00",
+   "duration_s": 135.9,
+   "pair_id": "PL-TS-03-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:24:16+00:00",
+   "duration_s": 101.6,
+   "pair_id": "PL-TS-03-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:28:21+00:00",
+   "duration_s": 216.9,
+   "pair_id": "PL-TS-04-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:28:47+00:00",
+   "duration_s": 303.4,
+   "pair_id": "PL-TS-04-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:31:48+00:00",
+   "duration_s": 206.1,
+   "pair_id": "PL-TS-04-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:34:13+00:00",
+   "duration_s": 324.4,
+   "pair_id": "PL-TS-04-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:34:22+00:00",
+   "duration_s": 124.8,
+   "pair_id": "PL-TS-05-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:36:27+00:00",
+   "duration_s": 124.0,
+   "pair_id": "PL-TS-05-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-25T20:38:54+00:00",
+   "duration_s": 257.5,
+   "pair_id": "PL-TS-05-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-25T20:40:39+00:00",
+   "duration_s": 103.9,
+   "pair_id": "PL-TS-05-fam-gpt",
+   "y": 1
+  }
+ ],
+ "execution_order": [
+  "PL-PY-01-fam-gpt",
+  "PL-PY-01-fam-glm",
+  "PL-PY-02-fam-gpt",
+  "PL-PY-02-fam-glm",
+  "PL-PY-03-fam-gpt",
+  "PL-PY-03-fam-glm",
+  "PL-PY-04-fam-gpt",
+  "PL-PY-04-fam-glm",
+  "PL-PY-05-fam-gpt",
+  "PL-PY-05-fam-glm",
+  "PL-TS-01-fam-gpt",
+  "PL-TS-01-fam-glm",
+  "PL-TS-02-fam-gpt",
+  "PL-TS-02-fam-glm",
+  "PL-TS-03-fam-gpt",
+  "PL-TS-03-fam-glm",
+  "PL-TS-04-fam-gpt",
+  "PL-TS-04-fam-glm",
+  "PL-TS-05-fam-gpt",
+  "PL-TS-05-fam-glm"
+ ],
+ "frozen_artifacts": {
+  "advice_section_sha256": "a7083411a892ea82283bd757fe40e809bd6faa6c506ed40bde6c261344de761e",
+  "advisor_wrapper_sha256": "fc7b66ae9151757136fe8e4ee64b37355c8e9f5c70cefe4328420d913df4e9cb",
+  "corpus_digest": "58755476ed47ea5d73f9b3fa9040850ac3b6b17b043074bb279031a1cebf4188",
+  "prompt_template_sha256": "9c57fd392703b98d48343c8e0c085120e2039d9957686ec7b75da5c67238bb17",
+  "runner_sha256": "6f4d275f0f7857b972952393c9ab0c25acd78ac6ed64733d38d36da1ca9001db",
+  "scoring_sha256": "f56b3250014c02249e443a1d1a4caaacdab964adabdd398eef84dacbed783ff5"
+ },
+ "frozen_at": "2026-08-25T19:01:13+00:00",
+ "models": {
+  "advisor_identity": "openai-codex/gpt-5.6-terra",
+  "advisor_note": "uniform across ALL pairs (campaign preference); glm-5.3 fallback unused because the preferred identity was live at pilot start (probe recorded)",
+  "executors": {
+   "fam-glm": "zai/glm-5.3:high",
+   "fam-gpt": "openai-codex/gpt-5.6-sol:high"
+  }
+ },
+ "operator_intent_quote": "10 tasks to see if there is any difference at all",
+ "progress": {
+  "PL-PY-01-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:10:35+00:00"
+  },
+  "PL-PY-01-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:07:57+00:00"
+  },
+  "PL-PY-02-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:20:03+00:00"
+  },
+  "PL-PY-02-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:17:04+00:00"
+  },
+  "PL-PY-03-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:31:46+00:00"
+  },
+  "PL-PY-03-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:28:14+00:00"
+  },
+  "PL-PY-04-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:42:53+00:00"
+  },
+  "PL-PY-04-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:37:44+00:00"
+  },
+  "PL-PY-05-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:05:56+00:00"
+  },
+  "PL-PY-05-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T19:59:43+00:00"
+  },
+  "PL-TS-01-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:12:25+00:00"
+  },
+  "PL-TS-01-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:06:09+00:00"
+  },
+  "PL-TS-02-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:19:44+00:00"
+  },
+  "PL-TS-02-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:18:33+00:00"
+  },
+  "PL-TS-03-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:24:16+00:00"
+  },
+  "PL-TS-03-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:23:12+00:00"
+  },
+  "PL-TS-04-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:31:48+00:00"
+  },
+  "PL-TS-04-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:34:13+00:00"
+  },
+  "PL-TS-05-fam-glm": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:36:27+00:00"
+  },
+  "PL-TS-05-fam-gpt": {
+   "status": "completed",
+   "updated_at": "2026-08-25T20:40:39+00:00"
+  }
+ },
+ "repos": {
+  "dspx": {
+   "identity": "softwareco/owned/dspx",
+   "pin": "e74309284972236b996da3cf6dc3f11c8ab3c525"
+  },
+  "piext": {
+   "identity": "softwareco/owned/pi-extensions",
+   "pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64"
+  }
+ },
+ "schema": "dspx.g3pilot-state/1"
+}
