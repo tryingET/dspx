@@ -1,15 +1,18 @@
 ---
-summary: "Successor G3 gate-campaign design: convention-space corpus at right-sized N with pre-registered criterion; DRAFT for decision-132 owner acceptance."
+summary: "Successor G3 gate-campaign design: convention-space corpus at right-sized N with pre-registered criterion; DRAFT — EC-side candidate bind + G3 reopen, then DSPx-side conditioned acceptance."
 read_when:
-  - "You are the decision-132 owner reviewing the successor instrument to the stopped 5059 campaign."
+  - "You are the engineering-core owner binding the v1 G3 candidate and reopening G3 as the successor instrument."
+  - "You are the DSPx decision owner accepting the successor empirical protocol (conditioned on the EC binding)."
   - "You are freezing or executing the successor G3 campaign."
 type: "design"
 ---
 
 # G3 SUCCESSOR CAMPAIGN DESIGN — DRAFT (owner acceptance required before freeze)
 
-**Status: DRAFT. Nothing here is frozen and nothing has executed.** Authority:
-the decision-132 owner thread accepts or rejects this instrument; per the
+**Status: DRAFT. Nothing here is frozen and nothing has executed.** Authority
+is split per the cross-session routing of 2026-08-26: the engineering-core
+owner binds the candidate and reopens G3 (EC side); DSPx accepts this
+successor protocol conditioned on that binding (DSPx side); per the
 5059 pattern, acceptance is followed by a protocol-manifest freeze and
 pre-freeze calibration before any execution. Companion inputs:
 `g3-g5-consumption-note.md`, `g3-candidate-5-rebind-decision-input.md`.
@@ -98,14 +101,27 @@ p<0.001; stop for futility if discordant asymmetry ≤ 0.5. Cost ceiling:
 
 ## 5. Governance path
 
-1. Decision-132 owner accepts/rejects **one motion with three parts** —
-   (a) the G5 consumption note, (b) the candidate-5 rebind, (c) this design
-   as amended — recording in the decision text both the v3b confound (fix +
-   wheel identity) and the construct boundary above. Acceptance is an owner
-   act; DSPx supplies inputs, not the verdict.
-2. On acceptance: freeze successor protocol manifest (corpus digests, checker
-  shas, wheel identity, criterion text) + pre-freeze calibration (reference
-  Y=1 / stub Y=0 / tamper detection, per v3b standard).
+1. **EC-side (engineering-core owner, per the #5058 rebind precedent):** the
+   candidate bind for v1 G3 (accept candidate-5 = main@cde7f14, or reject and
+   re-pin) and the reopening of G3 as the successor instrument. Carrier: AK
+   decision with `rfc_ref` into the engineering-core repo (decision-132
+   precedent; no FCOS composition needed for a two-repo bind) — routing
+   confirmed with the engineering-core session 2026-08-26. The v1-g5-readiness
+   fan-in (c981e7d) has already consumed the 5059 campaign as
+   operator-stopped incomplete/null-signal; `g3-g5-consumption-note.md` is
+   corroborating input only.
+2. **DSPx-side (conditioned protocol acceptance):** a fresh DSPx decision —
+   not a resurrection of superseded decision 137 (incident recorded, AK
+   evidence 7840) — accepting THIS successor protocol, conditioned on step 1's
+   binding, carrying both the v3b confound (fix + wheel identity) and the
+   construct boundary above into the decision text verbatim. Sequenced AFTER
+   the operator's word on step 1 per the cross-session agreement
+   (EC bind/reopen → DSPx conditioned decision → #5092 hardening → release
+   #5095).
+3. On both acceptances: freeze successor protocol manifest (corpus digests,
+  checker shas, wheel identity = the EC-bound candidate, criterion text) +
+  pre-freeze calibration (reference Y=1 / stub Y=0 / tamper detection, per
+  v3b standard).
 3. Execute under AK task (gated on 1–2), receipts in v3-shape + family +
    `run_label: successor`.
 4. Gate consumption: successor campaign is the gate-grade event; the 5059
