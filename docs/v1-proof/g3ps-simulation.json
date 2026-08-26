@@ -1,0 +1,72 @@
+{
+ "assumptions": [
+  "discordance 0.40 and evidence-only share 0.75 are v3b OBSERVABLES at n=1-per-cell",
+  "deterministic-task fraction 0.5 estimated from v3b cross-run stability (5/10 identical)",
+  "v3/v3b contains NO repeated instances; the cross-run read is wheel-confounded",
+  "these parameters are assumptions of the simulation, not measurements of the successor corpus"
+ ],
+ "criterion": "pooled exact McNemar p<0.05 + guard(d>=4 & strict e-majority) + family rule + completion",
+ "n_sim": 4000,
+ "results": {
+  "at_floor_d4": {
+   "label": "exactly-at-floor: d=4 discordant templates (N2)",
+   "rates": {
+    "INCONCLUSIVE": 0.0008,
+    "INCONCLUSIVE_INSUFFICIENT_TEMPLATE_DISPERSION": 0.001,
+    "PASS": 0.9982
+   }
+  },
+  "concentrate_1": {
+   "label": "adversarial: all signal in 1 template",
+   "rates": {
+    "INCONCLUSIVE": 0.8512,
+    "INCONCLUSIVE_INSUFFICIENT_TEMPLATE_DISPERSION": 0.1487
+   }
+  },
+  "concentrate_2": {
+   "label": "adversarial: signal in 2 templates",
+   "rates": {
+    "INCONCLUSIVE": 0.1052,
+    "INCONCLUSIVE_INSUFFICIENT_TEMPLATE_DISPERSION": 0.8948
+   }
+  },
+  "concentrate_3": {
+   "label": "adversarial: signal in 3 templates",
+   "rates": {
+    "INCONCLUSIVE": 0.0092,
+    "INCONCLUSIVE_INSUFFICIENT_TEMPLATE_DISPERSION": 0.9908
+   }
+  },
+  "design_pair_level": {
+   "label": "design point, PAIR-level calibration (all templates stochastic; pair p_d=0.40, pi=0.75)",
+   "rates": {
+    "INCONCLUSIVE": 0.2805,
+    "PASS": 0.7195
+   }
+  },
+  "design_tmpl_level": {
+   "label": "design point, TEMPLATE-level calibration (~50% deterministic templates; overall pair p_d~0.20)",
+   "rates": {
+    "INCONCLUSIVE": 0.6112,
+    "INCONCLUSIVE_INSUFFICIENT_TEMPLATE_DISPERSION": 0.0125,
+    "PASS": 0.3762
+   }
+  },
+  "null_clustered_icc": {
+   "label": "null with template-level clustering (ICC>0)",
+   "rates": {
+    "INCONCLUSIVE": 0.9855,
+    "PASS": 0.0145
+   }
+  },
+  "null_independent": {
+   "label": "null edge: empirical size (independent)",
+   "rates": {
+    "INCONCLUSIVE": 0.9855,
+    "PASS": 0.0145
+   }
+  }
+ },
+ "schema": "dspx.g3ps-joint-criterion-simulation/1",
+ "seed": 20260826
+}
