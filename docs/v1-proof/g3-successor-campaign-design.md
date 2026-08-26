@@ -22,11 +22,22 @@ convention-space task family (v3/v3b) demonstrably separates: 6/10 (v3) and
 4/10 (v3b) task-level arm splits, static/evidence rates near mid-range —
 exactly the region where paired arm comparison has power.
 
+**Construct boundary (named, not hidden):** this instrument measures
+*convention-conformance lift* — whether guidance improves success on tasks
+whose correct answers live in the convention space the candidate encodes.
+That is a **necessary, not sufficient**, proxy for engineering value; any gate
+verdict speaks to that construct, and this sentence travels into the decision
+record unchanged.
+
 ## 2. Corpus promotion rules
 
-1. **Promote the 10 v3/v3b convention-space tasks** (classes A/B/C) as the
-   core; add **2 harder variants** drawn from the harder-tasks calibration
-   line (`docs/v1-proof/g3pilot-harder-tasks.json`) → 12 tasks.
+1. **Promote the convention-space task FAMILY (templates), not the observed
+   instances.** Successor corpus = 12 tasks: the class A/B/C family templates
+   from v3/v3b plus 2 harder variants from the harder-tasks calibration line
+   (`docs/v1-proof/g3pilot-harder-tasks.json`). Frozen instances must be **new
+   derived instances** (fresh fixture materialization, difficulty re-targeted
+   per rule 2) — byte-identical reuse of observed v3/v3b task instances is
+   prohibited, so the frozen corpus is NOT the set that was observed to split.
 2. **Saturation guard:** any task whose pre-freeze reference/static pilot
    pass-rate exceeds 0.8 is replaced (difficulty re-targeted) before freeze;
    target static-arm rate ∈ **[0.4, 0.6]** per task.
@@ -38,7 +49,13 @@ exactly the region where paired arm comparison has power.
 4. **Both families run all tasks** (fam-gpt: gpt-5.6-sol:high; fam-glm:
    glm-5.3:high); arm order interleaved per pair as in v3b; arms differ only
    by guidance presence; advisor = gpt-5.6-terra uniformly for class A/C
-   evidence arms (class B: no advisor call, unchanged).
+   evidence arms (class B: no advisor call, unchanged).5. **Anti-circularity clause:** promotion and derivation decisions are
+   difficulty-based only; diagnostic arm outcomes may not be used to select,
+   drop, or weight tasks. One evidence-arm-failure hard cell (A3-style) is
+   retained by rule, not by outcome. After freeze, no task may be dropped or
+   replaced for arm asymmetry — only the pre-registered
+   infrastructure-block substitution applies.
+
 
 ## 3. Design and N (power calculation, paired binary / exact McNemar)
 
@@ -81,7 +98,11 @@ p<0.001; stop for futility if discordant asymmetry ≤ 0.5. Cost ceiling:
 
 ## 5. Governance path
 
-1. Decision-132 owner accepts/rejects this design + the rebind input.
+1. Decision-132 owner accepts/rejects **one motion with three parts** —
+   (a) the G5 consumption note, (b) the candidate-5 rebind, (c) this design
+   as amended — recording in the decision text both the v3b confound (fix +
+   wheel identity) and the construct boundary above. Acceptance is an owner
+   act; DSPx supplies inputs, not the verdict.
 2. On acceptance: freeze successor protocol manifest (corpus digests, checker
   shas, wheel identity, criterion text) + pre-freeze calibration (reference
   Y=1 / stub Y=0 / tamper detection, per v3b standard).
