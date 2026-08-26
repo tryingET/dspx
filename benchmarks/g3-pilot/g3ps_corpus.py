@@ -248,17 +248,29 @@ def fixture_piext(inst: str) -> dict[str, str]:
     fn = {"a": ("g3ps-changelog-audit", "auditChangelogEntries"),
           "b": ("g3ps-todo-audit", "auditTodoMarkers"),
           "c": ("g3ps-license-audit", "auditLicenseHeaders")}[inst]
+    tgt = {"a": ("release:contracts:validate", "node scripts/validate-contracts.js"),
+           "b": ("lint:docs", "node scripts/lint-docs.js"),
+           "c": ("typecheck:web", "tsc --noEmit")}[inst]
     pkg_json = (
         "{\n"
         "  \"name\": \"pi-context-packer\",\n"
         "  \"version\": \"1.4.0\",\n"
         "  \"type\": \"module\",\n"
-        "  \"scripts\": {\"" + fn[0] + "\": \"node src/" + fn[0] + ".js\"},\n"
+        "  \"scripts\": {\"" + tgt[0] + "\": \"" + tgt[1] + "\", \"" + fn[0] + "\": \"node src/" + fn[0] + ".js\"},\n"
         "  \"dependencies\": {}\n"
         "}\n"
     )
+    justfile = (
+        "# pi-context-packer standardized command surface\n\n"
+        "# Run the existing validation script\n"
+        "validate:\n"
+        "    npm run " + tgt[0] + "\n\n"
+        "test:\n"
+        "    node --test \"src/**/*.test.js\"\n"
+    )
     return {
         "package.json": pkg_json,
+        "Justfile": justfile,
         "biome.jsonc": (
             "{\n  \"formatter\": {\"enabled\": true, \"indentStyle\": \"space\", "
             "\"indentWidth\": 2, \"lineWidth\": 100},\n  \"javascript\": "
