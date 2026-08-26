@@ -30,10 +30,9 @@ def main() -> None:
         task = support.task_for(f"{template}-a")
         pair_id = f"PILOT-{template}-a"
         print(f"[pilot] {template}: static arm", file=sys.stderr)
-        outcome = runner.execute_arm(task, pair_id, "static",
-                                     runner.load_state()["families"]["fam-glm"]
-                                     if (runner.STATE_PATH.exists()) else "zai/glm-5.3:high",
-                                     None, None)
+        model = (runner.load_state()["families"]["fam-glm"]
+                 if runner.STATE_PATH.exists() else "zai/glm-5.3:high")
+        outcome = runner.execute_arm(task, pair_id, "static", model, None, None)
         results[template] = {
             "y": outcome["y"],
             "duration_s": outcome["duration_s"],
