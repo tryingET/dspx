@@ -1,0 +1,71 @@
+{
+ "arm": "static-only (no guidance, no advisor)",
+ "model": "zai/glm-5.3:high",
+ "results": {
+  "TA1": {
+   "duration_s": 331.6,
+   "problems": [],
+   "y": 1
+  },
+  "TA2": {
+   "duration_s": 443.6,
+   "problems": [],
+   "y": 1
+  },
+  "TA3": {
+   "duration_s": 230.6,
+   "problems": [],
+   "y": 1
+  },
+  "TB1": {
+   "duration_s": 301.9,
+   "problems": [],
+   "y": 1
+  },
+  "TB2": {
+   "duration_s": 245.0,
+   "problems": [],
+   "y": 1
+  },
+  "TB3": {
+   "duration_s": 165.1,
+   "problems": [],
+   "y": 1
+  },
+  "TC1": {
+   "duration_s": 174.8,
+   "problems": [
+    "biome check failed: Checked 2 files in 3ms. No fixes applied.\nFound 1 error.\n"
+   ],
+   "y": 0
+  },
+  "TC2": {
+   "duration_s": 48.1,
+   "problems": [],
+   "y": 1
+  },
+  "TC3": {
+   "duration_s": 147.8,
+   "problems": [],
+   "y": 1
+  },
+  "TC4": {
+   "duration_s": 81.2,
+   "problems": [],
+   "y": 1
+  },
+  "TH1": {
+   "duration_s": 495.9,
+   "problems": [],
+   "y": 1
+  },
+  "TH2": {
+   "duration_s": 334.9,
+   "problems": [
+    "[advice] catalog id union != plan requested: missing=[] extra=['dependency-governance', 'documentation', 'security-privacy', 'testing', 'validation']"
+   ],
+   "y": 0
+  }
+ },
+ "schema": "dspx.g3ps-static-pilots/1"
+}
