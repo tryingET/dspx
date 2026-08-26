@@ -1,0 +1,927 @@
+{
+ "artifacts": {
+  "directive": "docs/v1-proof/g3pilot-v3b-DIRECTIVE-2.md",
+  "frozen_digests": {
+   "advice_header_sha256": "4799a8f00e4726c30231f069cb085aeb81c5cb5e1028ebe4e1c70848733ae147",
+   "advisor_wrapper_sha256": "88f50ab21cf3cdeccf1bf1c50f38ad93ba232d30d80e67a14a8e07ec89186d3e",
+   "calibrate_sha256": "32497ac6785dd2d893797ac3c42f0509ef63a5889aea9f8d7db3b33b4292004b",
+   "corpus_digest": "10e404ac72bf40aaff7de6d3ee7a2a7225f43eabbd10bc2511accb98d9ff3e15",
+   "guidance_digests": {
+    "A1": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+    "A2": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+    "A3": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+    "B1": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+    "B2": "52011ab1887b0ee70cf53babf2cf0811a35402f602e432570a3e7eadc0113ec3",
+    "B3": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+    "C1": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+    "C2": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+    "C3": "c9170a52b3d6869a61a5a9c652ca6776f8736b33940b8baba79eb961c283706c",
+    "C4": "cc829a33b9439709edfc8d751759b77e852ae9de5021b3387c830c48efa4e0d8"
+   },
+   "guidance_header_sha256": "73b726fbb38d6d6fc12d3fd313ab755e129a6679fe646af3485e5014ce2ce5cc",
+   "prompt_template_sha256": "1c90c1778c7fc3b79c9a48eabddf06e0840efb125d8ca4174a7deb98b48e75a4",
+   "ref3b_digests": {
+    "a1_doc.md": "876b01e5a645430f8896b17283f536982783757c09b3eab4897a25310da74169",
+    "a2_doc.md": "cc69c2c15cfc7355e2341eee8aabccd20fbcf6053438f4fb55dec24e5da6e82f",
+    "a_policy.json": "ca20275402b03f9a9c113207f25f1d09f7903b65e9526f43f7f47b96d54dd74a",
+    "c1_header_audit.js": "4cfd76208f1fe887727e23e20ceae912efd491538122ab4b938cffa935f79426",
+    "c1_header_audit.test.js": "e3f6c1555bf60d017db380f7912bd47ad44cbfce3c7701b5afea5721c4e5ca8a",
+    "c3_token_budget.py": "f318dbfa7246f2265c22ed1adb5e66a6230b23caf568df9b98100d46d777dd6e",
+    "c3_token_budget.test.py": "86d0d2b67d86505e9b3aef6b9a91c0446bb26d6208cdce86a6377f623b6e68fb",
+    "c4_tier_map.md": "523f78128eed797940f554f6507b11296a038cd7f6ee87c925d0bcb18369546b"
+   },
+   "request_digests": {
+    "B1": {
+     "materials": "4bd279c50a6e9e173dacfc81311de97b3a7f4419698aa9bf6a4f0cc771f9b613",
+     "request": "d770fde3dff96ed5e059ea3a016b4b44849e44aed344e74f4d86d719628d8baa"
+    },
+    "B2": {
+     "materials": "43ac998ff7070a0c27643846d836c4504f000f76ac1c966fc0538a9f3ade64d0",
+     "request": "794af39c2e3ec8a33eb9f20c43c3b8f26ca4a76d0705e7c454d345fa9c44fa11"
+    },
+    "B3": {
+     "materials": "f81ad3b0f7abad8427d48400ae60bd9719ef16b2b3ae60e89c0ff2cd51890e4a",
+     "request": "62be7938ecbf3d1a40ee05781b75686a9487d2891188de8bc34ffceac2931669"
+    }
+   },
+   "runner_sha256": "f253ee9a31b22e9eec47f751b486a53083cfb66532f7bcf9a60200e9a534aa53",
+   "scoring_sha256": "5b8a470f3c386ee3c2629760de5891021edae01be952590de80fb663776c5378",
+   "support_sha256": "412feda09aedbf427470f6c43ee83977322291b41b989efe0311991b58e07702",
+   "v3_base_reverification": {
+    "checked_at": "2026-08-26T06:39:58+00:00",
+    "checks": {
+     "v3_corpus_digest": {
+      "match": true,
+      "now": "f465929048536586f69dabe0b57f7c1e804a9a2256966347099f729e4c4149c1",
+      "recorded": "f465929048536586f69dabe0b57f7c1e804a9a2256966347099f729e4c4149c1"
+     },
+     "v3_runner_sha256": {
+      "match": true,
+      "now": "f253ee9a31b22e9eec47f751b486a53083cfb66532f7bcf9a60200e9a534aa53",
+      "recorded": "f253ee9a31b22e9eec47f751b486a53083cfb66532f7bcf9a60200e9a534aa53"
+     },
+     "v3_scoring_sha256": {
+      "match": true,
+      "now": "5b8a470f3c386ee3c2629760de5891021edae01be952590de80fb663776c5378",
+      "recorded": "5b8a470f3c386ee3c2629760de5891021edae01be952590de80fb663776c5378"
+     },
+     "v3_support_sha256": {
+      "match": true,
+      "now": "412feda09aedbf427470f6c43ee83977322291b41b989efe0311991b58e07702",
+      "recorded": "412feda09aedbf427470f6c43ee83977322291b41b989efe0311991b58e07702"
+     }
+    },
+    "ok": true
+   },
+   "v3b_deviations": [
+    {
+     "delta": "2 executor-visible spec strings 'engineering-core 1.0.0 CLI' -> 'engineering-core 0.10.0 CLI' (A1_SPEC, A2_SPEC)",
+     "file": "benchmarks/g3-pilot/g3p3b_corpus.py",
+     "why": "operator directive #2: honest released pin for the 0.10.0 wheel; the frozen v3 spec text named the v3-grading CLI version"
+    },
+    {
+     "delta": "RELEASE_REF 'v1.0.0' -> 'v0.10.0' (constant only; checker logic unchanged)",
+     "file": "benchmarks/g3-pilot/g3p3b_scoring.py",
+     "why": "operator directive #2: the checker hardcoded a version string; the posture RULE (ref must equal the currently released catalog version + doctor released-match) is unchanged and is made honest for the 0.10.0 wheel"
+    },
+    {
+     "delta": "engineering_core.ref 'v1.0.0' -> 'v0.10.0' (reference solution copy; v3 ref3/ untouched)",
+     "file": "benchmarks/g3-pilot/ref3b/a_policy.json",
+     "why": "class-A reference policies must pin the released version of the wheel actually grading v3b so calibration Y=1 stays truthful"
+    },
+    {
+     "delta": "wheel identity main@cde7f14 (sha 921bff5e...), scratch root g3pilot-v3b-5085, state/receipt paths g3pilot-v3b-*, guidance header + README title + dist-info version strings 1.0.0 -> 0.10.0, receipts schema dspx.g3pilot-v3b-receipt/1 + run_label='v3b'",
+     "file": "benchmarks/g3-pilot/g3p3b_runner.py",
+     "why": "v3b run identity; guidance bundles re-rendered from the FIXED wheel (SKILL.md now carries the response grammar + default disciplines)"
+    },
+    {
+     "delta": "NONE (FIX_LEGACY_PY / FIX_DEGRADED_PY byte-identical to v3; FIX_DEGRADED_PY keeps its degraded ref 'v0.9.0', which remains a real past release under the 0.10.0 catalog history)",
+     "file": "class-A fixtures",
+     "why": "task difficulty must not change; only the correct repair TARGET moved to v0.10.0"
+    },
+    {
+     "delta": "NONE (keeps ref 'v1.0.0')",
+     "file": "FIX_ADOPTED_REDACT_PY (B3 fixture)",
+     "why": "B-class checkers never grade pin posture; the fixture is inert for grading and byte-stays v3 for comparability"
+    },
+    {
+     "delta": "NONE (byte-identical to v3)",
+     "file": "advisor wrapper / prompt template / advice header",
+     "why": "the fix under test is the PRODUCT advise surface (validator grammar + self-describing request), not the harness prompt"
+    }
+   ]
+  },
+  "modules": [
+   "benchmarks/g3-pilot/g3p3b_runner.py",
+   "benchmarks/g3-pilot/g3p3b_corpus.py",
+   "benchmarks/g3-pilot/g3p3b_scoring.py",
+   "benchmarks/g3-pilot/g3p3b_support.py",
+   "benchmarks/g3-pilot/g3p3b_calibrate.py"
+  ],
+  "receipts": "docs/v1-proof/g3pilot-v3b-receipts.jsonl",
+  "reference_solutions": "benchmarks/g3-pilot/ref3b/",
+  "results": "docs/v1-proof/g3pilot-v3b-results.json",
+  "state": "docs/v1-proof/g3pilot-v3b-state.json"
+ },
+ "budget_honesty": {
+  "advisor_calls": "7 advisor invocations recorded: A1, A2, A3 (pre-death), A3 (resume re-run), C1, C3, C4 - all gpt-5.6-terra, no fallback used; class B pairs make no advisor call by design",
+  "breakdown": "20 receipt-backed + 1 orphaned 07:10Z A3-evidence (discarded: session died on provider 429 before receipt; re-run cleanly) + 2 duplicate-session B1 arms (discarded with quarantined duplicate receipt, see incident) + 1 duplicate-session B2 partial evidence arm (killed mid-arm, never logged) = 24 executor invocations total.",
+  "counter_final": 20,
+  "max_executions": 20,
+  "receipt_backed_executions": 20,
+  "total_executor_invocations": 24
+ },
+ "completed_at": "2026-08-26T19:51:02+00:00",
+ "corpus_table": [
+  {
+   "evidence_y": 1,
+   "family": "fam-gpt",
+   "model": "openai-codex/gpt-5.6-sol:high",
+   "pair_id": "PL3-A1-fam-gpt",
+   "static_y": 0,
+   "task_class": "A",
+   "task_id": "A1"
+  },
+  {
+   "evidence_y": 1,
+   "family": "fam-glm",
+   "model": "zai/glm-5.3:high",
+   "pair_id": "PL3-A2-fam-glm",
+   "static_y": 1,
+   "task_class": "A",
+   "task_id": "A2"
+  },
+  {
+   "evidence_y": 0,
+   "family": "fam-glm",
+   "model": "zai/glm-5.3:high",
+   "pair_id": "PL3-A3-fam-glm",
+   "static_y": 1,
+   "task_class": "A",
+   "task_id": "A3"
+  },
+  {
+   "evidence_y": 1,
+   "family": "fam-gpt",
+   "model": "openai-codex/gpt-5.6-sol:high",
+   "pair_id": "PL3-B1-fam-gpt",
+   "static_y": 0,
+   "task_class": "B",
+   "task_id": "B1"
+  },
+  {
+   "evidence_y": 1,
+   "family": "fam-glm",
+   "model": "zai/glm-5.3:high",
+   "pair_id": "PL3-B2-fam-glm",
+   "static_y": 0,
+   "task_class": "B",
+   "task_id": "B2"
+  },
+  {
+   "evidence_y": 1,
+   "family": "fam-gpt",
+   "model": "openai-codex/gpt-5.6-sol:high",
+   "pair_id": "PL3-B3-fam-gpt",
+   "static_y": 1,
+   "task_class": "B",
+   "task_id": "B3"
+  },
+  {
+   "evidence_y": 0,
+   "family": "fam-gpt",
+   "model": "openai-codex/gpt-5.6-sol:high",
+   "pair_id": "PL3-C1-fam-gpt",
+   "static_y": 0,
+   "task_class": "C",
+   "task_id": "C1"
+  },
+  {
+   "evidence_y": 1,
+   "family": "fam-gpt",
+   "model": "openai-codex/gpt-5.6-sol:high",
+   "pair_id": "PL3-C2-fam-gpt",
+   "static_y": 1,
+   "task_class": "C",
+   "task_id": "C2"
+  },
+  {
+   "evidence_y": 1,
+   "family": "fam-glm",
+   "model": "zai/glm-5.3:high",
+   "pair_id": "PL3-C3-fam-glm",
+   "static_y": 1,
+   "task_class": "C",
+   "task_id": "C3"
+  },
+  {
+   "evidence_y": 0,
+   "family": "fam-glm",
+   "model": "zai/glm-5.3:high",
+   "pair_id": "PL3-C4-fam-glm",
+   "static_y": 0,
+   "task_class": "C",
+   "task_id": "C4"
+  }
+ ],
+ "design": {
+  "arms": {
+   "differ_only_by": "guidance presence",
+   "evidence": "spec + rendered engineering-core 0.10.0 (main@cde7f14) wheel guidance; class A/C evidence arms additionally carry a product-validated advisor response (gpt-5.6-terra)",
+   "static": "identical task spec, no engineering-core content"
+  },
+  "execution_order": [
+   "PL3-A1-fam-gpt",
+   "PL3-A2-fam-glm",
+   "PL3-A3-fam-glm",
+   "PL3-B1-fam-gpt",
+   "PL3-B2-fam-glm",
+   "PL3-B3-fam-gpt",
+   "PL3-C1-fam-gpt",
+   "PL3-C2-fam-gpt",
+   "PL3-C3-fam-glm",
+   "PL3-C4-fam-glm"
+  ],
+  "frozen_at": "2026-08-26T06:39:58+00:00",
+  "shape": "10 tasks x 1 family x 2 arms = 20 executions (operator reshape directive)"
+ },
+ "diagnostic_label": "G3 v3b CONTRACT-CONFORMANCE re-run - DIAGNOSTIC ONLY; not Gate G3, not protocol evidence, no gate claims; measures the AK-5082 fixed advise surface (uniform falsification grammar + self-describing request)",
+ "discrimination_verdict": {
+  "n_split_tasks": 4,
+  "separation_observed": true,
+  "verdict": "SEPARATION OBSERVED: 4 of 10 tasks split between arms in v3b (3 evidence-only, 1 static-only); v3 had 6 splits (4 evidence-only). A1(fam-gpt): static 0 vs evidence 1 [evidence-only]; A3(fam-glm): static 1 vs evidence 0 [static-only]; B1(fam-gpt): static 0 vs evidence 1 [evidence-only]; B2(fam-glm): static 0 vs evidence 1 [evidence-only]"
+ },
+ "frozen_inputs_appendix": {
+  "advice_header_sha256": "4799a8f00e4726c30231f069cb085aeb81c5cb5e1028ebe4e1c70848733ae147",
+  "advisor_wrapper_sha256": "88f50ab21cf3cdeccf1bf1c50f38ad93ba232d30d80e67a14a8e07ec89186d3e",
+  "all_v3b_deviations": [
+   {
+    "delta": "2 executor-visible spec strings 'engineering-core 1.0.0 CLI' -> 'engineering-core 0.10.0 CLI' (A1_SPEC, A2_SPEC)",
+    "file": "benchmarks/g3-pilot/g3p3b_corpus.py",
+    "why": "operator directive #2: honest released pin for the 0.10.0 wheel; the frozen v3 spec text named the v3-grading CLI version"
+   },
+   {
+    "delta": "RELEASE_REF 'v1.0.0' -> 'v0.10.0' (constant only; checker logic unchanged)",
+    "file": "benchmarks/g3-pilot/g3p3b_scoring.py",
+    "why": "operator directive #2: the checker hardcoded a version string; the posture RULE (ref must equal the currently released catalog version + doctor released-match) is unchanged and is made honest for the 0.10.0 wheel"
+   },
+   {
+    "delta": "engineering_core.ref 'v1.0.0' -> 'v0.10.0' (reference solution copy; v3 ref3/ untouched)",
+    "file": "benchmarks/g3-pilot/ref3b/a_policy.json",
+    "why": "class-A reference policies must pin the released version of the wheel actually grading v3b so calibration Y=1 stays truthful"
+   },
+   {
+    "delta": "wheel identity main@cde7f14 (sha 921bff5e...), scratch root g3pilot-v3b-5085, state/receipt paths g3pilot-v3b-*, guidance header + README title + dist-info version strings 1.0.0 -> 0.10.0, receipts schema dspx.g3pilot-v3b-receipt/1 + run_label='v3b'",
+    "file": "benchmarks/g3-pilot/g3p3b_runner.py",
+    "why": "v3b run identity; guidance bundles re-rendered from the FIXED wheel (SKILL.md now carries the response grammar + default disciplines)"
+   },
+   {
+    "delta": "NONE (FIX_LEGACY_PY / FIX_DEGRADED_PY byte-identical to v3; FIX_DEGRADED_PY keeps its degraded ref 'v0.9.0', which remains a real past release under the 0.10.0 catalog history)",
+    "file": "class-A fixtures",
+    "why": "task difficulty must not change; only the correct repair TARGET moved to v0.10.0"
+   },
+   {
+    "delta": "NONE (keeps ref 'v1.0.0')",
+    "file": "FIX_ADOPTED_REDACT_PY (B3 fixture)",
+    "why": "B-class checkers never grade pin posture; the fixture is inert for grading and byte-stays v3 for comparability"
+   },
+   {
+    "delta": "NONE (byte-identical to v3)",
+    "file": "advisor wrapper / prompt template / advice header",
+    "why": "the fix under test is the PRODUCT advise surface (validator grammar + self-describing request), not the harness prompt"
+   }
+  ],
+  "calibration": "PASS (pre-freeze, 0.10.0 wheel + v3b checkers: 10/10 reference Y=1, 10/10 stub Y=0, A1+C3 tamper detected; max verify 2.0s)",
+  "corpus_digest_v3_base_reverified": "f465929048536586f69dabe0b57f7c1e804a9a2256966347099f729e4c4149c1",
+  "corpus_digest_v3b": "10e404ac72bf40aaff7de6d3ee7a2a7225f43eabbd10bc2511accb98d9ff3e15",
+  "digest_reverification_at_resume": "v3b corpus digest recomputed match; v3 base modules sha-verified; wheel sha re-verified; guidance/request/ref3b digests re-verified on disk; engineering-core repo confirmed at main@cde7f142ebd07527d865eded4bbbadf9fda9409f",
+  "guidance_digests": {
+   "A1": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+   "A2": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+   "A3": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+   "B1": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+   "B2": "52011ab1887b0ee70cf53babf2cf0811a35402f602e432570a3e7eadc0113ec3",
+   "B3": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+   "C1": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+   "C2": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+   "C3": "c9170a52b3d6869a61a5a9c652ca6776f8736b33940b8baba79eb961c283706c",
+   "C4": "cc829a33b9439709edfc8d751759b77e852ae9de5021b3387c830c48efa4e0d8"
+  },
+  "guidance_header_sha256": "73b726fbb38d6d6fc12d3fd313ab755e129a6679fe646af3485e5014ce2ce5cc",
+  "pin_deltas_vs_v3": [
+   {
+    "delta": "2 executor-visible spec strings 'engineering-core 1.0.0 CLI' -> 'engineering-core 0.10.0 CLI' (A1_SPEC, A2_SPEC)",
+    "file": "benchmarks/g3-pilot/g3p3b_corpus.py",
+    "why": "operator directive #2: honest released pin for the 0.10.0 wheel; the frozen v3 spec text named the v3-grading CLI version"
+   },
+   {
+    "delta": "RELEASE_REF 'v1.0.0' -> 'v0.10.0' (constant only; checker logic unchanged)",
+    "file": "benchmarks/g3-pilot/g3p3b_scoring.py",
+    "why": "operator directive #2: the checker hardcoded a version string; the posture RULE (ref must equal the currently released catalog version + doctor released-match) is unchanged and is made honest for the 0.10.0 wheel"
+   },
+   {
+    "delta": "engineering_core.ref 'v1.0.0' -> 'v0.10.0' (reference solution copy; v3 ref3/ untouched)",
+    "file": "benchmarks/g3-pilot/ref3b/a_policy.json",
+    "why": "class-A reference policies must pin the released version of the wheel actually grading v3b so calibration Y=1 stays truthful"
+   }
+  ],
+  "prompt_template_sha256": "1c90c1778c7fc3b79c9a48eabddf06e0840efb125d8ca4174a7deb98b48e75a4",
+  "ref3b_digests": {
+   "a1_doc.md": "876b01e5a645430f8896b17283f536982783757c09b3eab4897a25310da74169",
+   "a2_doc.md": "cc69c2c15cfc7355e2341eee8aabccd20fbcf6053438f4fb55dec24e5da6e82f",
+   "a_policy.json": "ca20275402b03f9a9c113207f25f1d09f7903b65e9526f43f7f47b96d54dd74a",
+   "c1_header_audit.js": "4cfd76208f1fe887727e23e20ceae912efd491538122ab4b938cffa935f79426",
+   "c1_header_audit.test.js": "e3f6c1555bf60d017db380f7912bd47ad44cbfce3c7701b5afea5721c4e5ca8a",
+   "c3_token_budget.py": "f318dbfa7246f2265c22ed1adb5e66a6230b23caf568df9b98100d46d777dd6e",
+   "c3_token_budget.test.py": "86d0d2b67d86505e9b3aef6b9a91c0446bb26d6208cdce86a6377f623b6e68fb",
+   "c4_tier_map.md": "523f78128eed797940f554f6507b11296a038cd7f6ee87c925d0bcb18369546b"
+  },
+  "repos_pinned": {
+   "dspx": {
+    "identity": "softwareco/owned/dspx",
+    "pin": "e74309284972236b996da3cf6dc3f11c8ab3c525"
+   },
+   "piext": {
+    "identity": "softwareco/owned/pi-extensions",
+    "pin": "e855d07799f7984770d8a7ce25fc8ebabe1b7e64"
+   }
+  },
+  "request_digests": {
+   "B1": {
+    "materials": "4bd279c50a6e9e173dacfc81311de97b3a7f4419698aa9bf6a4f0cc771f9b613",
+    "request": "d770fde3dff96ed5e059ea3a016b4b44849e44aed344e74f4d86d719628d8baa"
+   },
+   "B2": {
+    "materials": "43ac998ff7070a0c27643846d836c4504f000f76ac1c966fc0538a9f3ade64d0",
+    "request": "794af39c2e3ec8a33eb9f20c43c3b8f26ca4a76d0705e7c454d345fa9c44fa11"
+   },
+   "B3": {
+    "materials": "f81ad3b0f7abad8427d48400ae60bd9719ef16b2b3ae60e89c0ff2cd51890e4a",
+    "request": "62be7938ecbf3d1a40ee05781b75686a9487d2891188de8bc34ffceac2931669"
+   }
+  },
+  "v3_frozen_base_modules_reused": {
+   "g3p3_runner.py": "f253ee9a31b22e9eec47f751b486a53083cfb66532f7bcf9a60200e9a534aa53",
+   "g3p3_scoring.py": "5b8a470f3c386ee3c2629760de5891021edae01be952590de80fb663776c5378",
+   "g3p3_support.py": "412feda09aedbf427470f6c43ee83977322291b41b989efe0311991b58e07702"
+  },
+  "v3b_module_sha256": {
+   "g3p3b_calibrate.py": "c2543d04c5d8d7eeb6376a00250fc64d0ce67337ad525d74e95fe26a1b7242cf",
+   "g3p3b_corpus.py": "0f1c6811bf088bc2df759139aa8c8b83886d9e47435880ac640812d31a6ea0bb",
+   "g3p3b_runner.py": "441f19ecf2532e8c7e3ac42d3d0f644e839f2c596ef0d4576b5d44d5f97449c3",
+   "g3p3b_scoring.py": "e03dc5aa27c1df9268d01b95b4c7b4500529845b0dce3db70653b6854933dbab",
+   "g3p3b_support.py": "5d62aa43530bc2a8494265285333ff62c12d0f51966b251477d12d4dca65dcbb"
+  },
+  "wheel_provenance": {
+   "branch": "main",
+   "built_from": "pre-built dist at pi-quests tmp ec5082wheel.ZCucu5; digest verified before use",
+   "commit": "cde7f142ebd07527d865eded4bbbadf9fda9400f",
+   "note": "engineering-core 0.10.0 on main WITH the AK-5082 advise-surface fix; deliberately NOT the frozen candidate-4 (bc43bb9) - v3b measures the FIXED advise surface; candidate rebinding is a later decision",
+   "repo": "/home/tryinget/ai-society/core/engineering-core",
+   "wheel_path": "/home/tryinget/.local/state/pi-quests/tmp/g3pilot-v3b-5085/wheel/engineering_core-0.10.0-py3-none-any.whl",
+   "wheel_sha256": "921bff5ef60ee8dea112cdaf8825e809bb484f1e518a06080e853c7e52288ab0"
+  }
+ },
+ "incidents": {
+  "duplicate_headless_session_race": {
+   "at": "2026-08-26T18:49:50+00:00",
+   "budget_reconciliation": "counter reset 10 -> 8 receipt-backed arm-executions (A1 x2, A2 x2, A3 x2, B1 x2); execution_log retains all 11 entries as history; honest total executor invocations to date: 8 receipt-backed + 1 orphaned 07:10 A3-evidence + 2 duplicate-session B1 arms + 1 duplicate-session B2 partial = 12; remaining plan: B2,B3,C1,C2,C3,C4 = 12 receipt-backed executions; final counter 8+12=20 = MAX_EXECUTIONS",
+   "detail": "A second headless pi resume session (PID 1007837, name dspx-g3pilot-v3b-5085-resume, launched 18:22:53Z by controller watcher PID 4066104 from prompt file g3v3b-resume.6XDGk9/prompt.md) executed the resume protocol in parallel with the operator-directed interactive session. It raced pair PL3-B1-fam-gpt: its evidence arm (y=0, 18:42:10) and static arm (y=0, 18:45:53) executed concurrently with the legitimate run and it appended a DUPLICATE B1 receipt (recorded_at 18:45:53, static 0 / evidence 0). It then launched PL3-B2-fam-glm at 18:45:58; that evidence arm was killed mid-flight at ~18:48:55 (arm never completed, never logged, no receipt - pair remains not-run per protocol). Resolution: duplicate session tree (watcher 4066104, pi 1007837, runner 547737/547614) terminated 18:48:53Z+; verified no g3p3b_runner processes remain.",
+   "discarded_executions": [
+    {
+     "arm": "evidence",
+     "at": "2026-08-26T18:42:10+00:00",
+     "duration_s": 201.8,
+     "pair_id": "PL3-B1-fam-gpt",
+     "y": 0
+    },
+    {
+     "arm": "static",
+     "at": "2026-08-26T18:45:53+00:00",
+     "duration_s": 222.5,
+     "pair_id": "PL3-B1-fam-gpt",
+     "y": 0
+    },
+    {
+     "arm": "evidence",
+     "at": "~2026-08-26T18:45:58Z killed ~18:48:55Z",
+     "duration_s": null,
+     "note": "killed mid-arm, never logged by runner",
+     "pair_id": "PL3-B2-fam-glm",
+     "y": null
+    }
+   ],
+   "kind": "duplicate_headless_session_race_and_resolution",
+   "quarantined_receipt": {
+    "pair_id": "PL3-B1-fam-gpt",
+    "reason": "duplicate pair receipt from the uncoordinated duplicate session; the first-completed receipt (18:43:48, static 0 / evidence 1) from the operator-directed session stands; one-receipt-per-pair invariant restored",
+    "receipt_json_verbatim": {
+     "advice": {
+      "note": "class B: no advisor call (would fabricate the deliverable)",
+      "used": false
+     },
+     "arm_order": [
+      "evidence",
+      "static"
+     ],
+     "arms": {
+      "evidence": {
+       "changed_files": [],
+       "checks": {
+        "acceptance": {
+         "ok": false,
+         "problems": [
+          "no worktree changes (arm-attributable no-output)"
+         ],
+         "tool_results": {}
+        },
+        "claim": {
+         "bytes": 0,
+         "ok": false
+        },
+        "grounding": {
+         "ok": true,
+         "problems": []
+        }
+       },
+       "duration_s": 201.8,
+       "run": {
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "Completed and verified:\n\n- `g3p3-advice-response.json`\n- `G3P3_CLAIM.md`\n\nOnly these two new files are untracked; all existing tracked files remain unchanged. The response passes comprehensive contract, citation, catalog-union, and JSON validation.\n"
+       },
+       "y": 0
+      },
+      "static": {
+       "changed_files": [],
+       "checks": {
+        "acceptance": {
+         "ok": false,
+         "problems": [
+          "no worktree changes (arm-attributable no-output)"
+         ],
+         "tool_results": {}
+        },
+        "claim": {
+         "bytes": 0,
+         "ok": false
+        },
+        "grounding": {
+         "ok": true,
+         "problems": []
+        }
+       },
+       "duration_s": 222.5,
+       "run": {
+        "exit": 0,
+        "stderr_tail": "",
+        "stdout_tail": "Created:\n\n- `g3p3-advice-response.json`\n- `G3P3_CLAIM.md`\n\nVerification passed for JSON validity, exact envelope structure, request binding, citations, critique references, and catalog union.\n"
+       },
+       "y": 0
+      }
+     },
+     "family": "fam-gpt",
+     "guidance_sha256": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+     "model_identity": "openai-codex/gpt-5.6-sol:high",
+     "pair_id": "PL3-B1-fam-gpt",
+     "recorded_at": "2026-08-26T18:45:53+00:00",
+     "repo_identity": "fixture:FIX_LEGACY_PY",
+     "repo_pin": "frozen-fixture",
+     "run_label": "v3b",
+     "schema": "dspx.g3pilot-v3b-receipt/1",
+     "task_class": "B",
+     "task_id": "B1",
+     "verification_basis": {
+      "checks": {
+       "evidence": {
+        "ok": {
+         "acceptance": false,
+         "claim": false,
+         "grounding": true
+        },
+        "y": 0
+       },
+       "static": {
+        "ok": {
+         "acceptance": false,
+         "claim": false,
+         "grounding": true
+        },
+        "y": 0
+       }
+      },
+      "corpus_digest": "10e404ac72bf40aaff7de6d3ee7a2a7225f43eabbd10bc2511accb98d9ff3e15",
+      "masked": "verify_arm received only task + worktree",
+      "scoring_sha256": "5b8a470f3c386ee3c2629760de5891021edae01be952590de80fb663776c5378"
+     }
+    },
+    "recorded_at": "2026-08-26T18:45:53+00:00"
+   }
+  },
+  "operator_visible_note": "The 2026-08-26T07:10Z provider usage-limit 429 stalled the run after 2 receipts; the window reset at 18:14:32Z. A controller watcher additionally launched a second headless resume session at 18:22:53Z that raced the operator-directed session on pair B1 (duplicate receipt quarantined; 3 duplicate/partial executions discarded) and was terminated at 18:48:53Z. Durable state, receipts, and this file reflect only the reconciled, receipt-backed run: 10 pairs x 2 arms, frozen corpus and checkers unchanged, verified before resume.",
+  "provider_429_stall_and_resume": {
+   "at": "2026-08-26T18:26:43+00:00",
+   "budget_reconciliation": "counter reset 5 -> 4 to match receipt-backed executions (4 arm-executions across 2 receipts); frozen MAX_EXECUTIONS=20 unchanged and now covers exactly the 20 planned receipt-backed arm-executions; total executor invocations across both segments will be 21 (20 receipt-backed + 1 orphaned) - recorded honestly in results",
+   "detail": "controller session died 2026-08-26T07:10Z on a provider usage-limit 429 (window reset 18:14:32Z); runner had already logged the orphaned PL3-A3-fam-glm evidence arm (y=0, no receipt, verdict discarded per resume protocol: no receipt = not run). fam-glm blocker was recorded at 07:10:35Z.",
+   "kind": "provider_usage_limit_stall_and_resume",
+   "orphaned_executions": [
+    {
+     "arm": "evidence",
+     "at": "2026-08-26T07:10:35+00:00",
+     "duration_s": 338.8,
+     "pair_id": "PL3-A3-fam-glm",
+     "y": 0
+    }
+   ],
+   "resume_segment": {
+    "deadline_iso": "2026-08-27T00:15:00+00:00",
+    "lease": "ak task 5085 re-leased under same agent dspx-g3pilot-v3b-5085 (unclaim+claim, expires 2026-08-27T00:26:11Z)",
+    "provider_probes": {
+     "openai-codex/gpt-5.6-sol:high": "OK",
+     "openai-codex/gpt-5.6-terra": "OK",
+     "zai/glm-5.3:high": "OK"
+    },
+    "resumed_at": "2026-08-26T18:26:43+00:00",
+    "wall_budget_s": 21600
+   }
+  }
+ },
+ "non_claims": [
+  "This is a DIAGNOSTIC PILOT RE-RUN (v3b), not Gate G3; it makes no gate, protocol, or promotion claims.",
+  "With one execution per arm per task (n=1 per cell), any single-task split or v3->v3b delta is a signal to investigate, not a measured effect size; no statistical significance is claimed.",
+  "Conformance is measured against frozen checkers and the engineering-core 0.10.0 wheel at main@cde7f14 (AK-5082 advise-surface fix) / pinned repo toolchains; it is not a general capability claim about either model family.",
+  "The evidence arm differs from the static arm only by guidance presence (rendered wheel content and, for classes A/C, a product-validated advisor response); no claim is made about which guidance component caused any delta.",
+  "glm recovery (A2, B2) and sol stability (B1, B3 hold; C1 regressed) are n=1 observations on frozen tasks; they do not claim the advise-surface fix caused the recovery, nor that the fix is complete.",
+  "No claim is made that the duplicate-session incident affected no measurements: its 3 discarded executions are excluded by protocol (no-receipt/not-completed), and the standing B1 receipt comes from the operator-directed session."
+ ],
+ "operator_directive_doc": "docs/v1-proof/g3pilot-v3b-DIRECTIVE-2.md",
+ "operator_intent_quote": "after the AK-5082 advise-surface fix, does glm-5.3:high's EVIDENCE-arm conformance recover on the same tasks it failed?",
+ "operator_reshape_quote": "directive #2: 5 tasks per arm-slot, BOTH families - no single-family bias in the recovery read; glm must include A2+B2; sol must include a v3 evidence-win; all classes represented per family",
+ "progress_final": {
+  "PL3-A1-fam-gpt": "completed",
+  "PL3-A2-fam-glm": "completed",
+  "PL3-A3-fam-glm": "completed",
+  "PL3-B1-fam-gpt": "completed",
+  "PL3-B2-fam-glm": "completed",
+  "PL3-B3-fam-gpt": "completed",
+  "PL3-C1-fam-gpt": "completed",
+  "PL3-C2-fam-gpt": "completed",
+  "PL3-C3-fam-glm": "completed",
+  "PL3-C4-fam-glm": "completed"
+ },
+ "recorded_at": "2026-08-26T19:53:02+00:00",
+ "recovery_verdict_glm": {
+  "glm_A2_evidence": {
+   "v3": 0,
+   "v3b": 1,
+   "verdict": "RECOVERED"
+  },
+  "glm_A3_note": "glm A3 evidence remains 0 in both v3 and v3b (A3 was not one of the v3 failure diagnostic pairs; static improved 0->1). Honest signal, n=1.",
+  "glm_B2_evidence": {
+   "v3": 0,
+   "v3b": 1,
+   "verdict": "RECOVERED"
+  },
+  "glm_family_evidence_rate": {
+   "v3": 0.2,
+   "v3b": 0.6
+  },
+  "question": "after the AK-5082 advise-surface fix, does glm-5.3:high's EVIDENCE-arm conformance recover on the same tasks it failed?",
+  "verdict": "glm evidence-arm conformance RECOVERED on both diagnostic v3-failure pairs (A2: 0->1, B2: 0->1) after the AK-5082 advise-surface fix; family evidence rate 1/5 -> 3/5. n=1 per cell; not an effect-size claim."
+ },
+ "results": {
+  "overall": {
+   "evidence_y_rate": 0.7,
+   "static_y_rate": 0.5,
+   "tasks": 10,
+   "v3_evidence_y_rate": 0.6,
+   "v3_static_y_rate": 0.4
+  },
+  "per_class": {
+   "A": {
+    "evidence_y": 2,
+    "evidence_y_rate": 0.6666666666666666,
+    "static_y": 2,
+    "static_y_rate": 0.6666666666666666,
+    "tasks": 3,
+    "v3_evidence_y_rate": 0.3333333333333333,
+    "v3_static_y_rate": 0.3333333333333333
+   },
+   "B": {
+    "evidence_y": 3,
+    "evidence_y_rate": 1.0,
+    "static_y": 1,
+    "static_y_rate": 0.3333333333333333,
+    "tasks": 3,
+    "v3_evidence_y_rate": 0.6666666666666666,
+    "v3_static_y_rate": 0.3333333333333333
+   },
+   "C": {
+    "evidence_y": 2,
+    "evidence_y_rate": 0.5,
+    "static_y": 2,
+    "static_y_rate": 0.5,
+    "tasks": 4,
+    "v3_evidence_y_rate": 0.75,
+    "v3_static_y_rate": 0.5
+   }
+  },
+  "per_family": {
+   "fam-glm": {
+    "evidence_y": 3,
+    "evidence_y_rate": 0.6,
+    "static_y": 3,
+    "static_y_rate": 0.6,
+    "tasks": 5,
+    "v3_evidence_y_rate": 0.2,
+    "v3_static_y_rate": 0.6
+   },
+   "fam-gpt": {
+    "evidence_y": 4,
+    "evidence_y_rate": 0.8,
+    "static_y": 2,
+    "static_y_rate": 0.4,
+    "tasks": 5,
+    "v3_evidence_y_rate": 1.0,
+    "v3_static_y_rate": 0.2
+   }
+  },
+  "per_task_comparison": [
+   {
+    "delta": {
+     "evidence": 0,
+     "static": 0
+    },
+    "family": "fam-gpt",
+    "model": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-A1-fam-gpt",
+    "task_id": "A1",
+    "v3": {
+     "evidence": 1,
+     "static": 0
+    },
+    "v3b": {
+     "evidence": 1,
+     "static": 0
+    }
+   },
+   {
+    "delta": {
+     "evidence": 1,
+     "static": 0
+    },
+    "family": "fam-glm",
+    "model": "zai/glm-5.3:high",
+    "pair_id": "PL3-A2-fam-glm",
+    "task_id": "A2",
+    "v3": {
+     "evidence": 0,
+     "static": 1
+    },
+    "v3b": {
+     "evidence": 1,
+     "static": 1
+    }
+   },
+   {
+    "delta": {
+     "evidence": 0,
+     "static": 1
+    },
+    "family": "fam-glm",
+    "model": "zai/glm-5.3:high",
+    "pair_id": "PL3-A3-fam-glm",
+    "task_id": "A3",
+    "v3": {
+     "evidence": 0,
+     "static": 0
+    },
+    "v3b": {
+     "evidence": 0,
+     "static": 1
+    }
+   },
+   {
+    "delta": {
+     "evidence": 0,
+     "static": 0
+    },
+    "family": "fam-gpt",
+    "model": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-B1-fam-gpt",
+    "task_id": "B1",
+    "v3": {
+     "evidence": 1,
+     "static": 0
+    },
+    "v3b": {
+     "evidence": 1,
+     "static": 0
+    }
+   },
+   {
+    "delta": {
+     "evidence": 1,
+     "static": -1
+    },
+    "family": "fam-glm",
+    "model": "zai/glm-5.3:high",
+    "pair_id": "PL3-B2-fam-glm",
+    "task_id": "B2",
+    "v3": {
+     "evidence": 0,
+     "static": 1
+    },
+    "v3b": {
+     "evidence": 1,
+     "static": 0
+    }
+   },
+   {
+    "delta": {
+     "evidence": 0,
+     "static": 1
+    },
+    "family": "fam-gpt",
+    "model": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-B3-fam-gpt",
+    "task_id": "B3",
+    "v3": {
+     "evidence": 1,
+     "static": 0
+    },
+    "v3b": {
+     "evidence": 1,
+     "static": 1
+    }
+   },
+   {
+    "delta": {
+     "evidence": -1,
+     "static": 0
+    },
+    "family": "fam-gpt",
+    "model": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-C1-fam-gpt",
+    "task_id": "C1",
+    "v3": {
+     "evidence": 1,
+     "static": 0
+    },
+    "v3b": {
+     "evidence": 0,
+     "static": 0
+    }
+   },
+   {
+    "delta": {
+     "evidence": 0,
+     "static": 0
+    },
+    "family": "fam-gpt",
+    "model": "openai-codex/gpt-5.6-sol:high",
+    "pair_id": "PL3-C2-fam-gpt",
+    "task_id": "C2",
+    "v3": {
+     "evidence": 1,
+     "static": 1
+    },
+    "v3b": {
+     "evidence": 1,
+     "static": 1
+    }
+   },
+   {
+    "delta": {
+     "evidence": 0,
+     "static": 0
+    },
+    "family": "fam-glm",
+    "model": "zai/glm-5.3:high",
+    "pair_id": "PL3-C3-fam-glm",
+    "task_id": "C3",
+    "v3": {
+     "evidence": 1,
+     "static": 1
+    },
+    "v3b": {
+     "evidence": 1,
+     "static": 1
+    }
+   },
+   {
+    "delta": {
+     "evidence": 0,
+     "static": 0
+    },
+    "family": "fam-glm",
+    "model": "zai/glm-5.3:high",
+    "pair_id": "PL3-C4-fam-glm",
+    "task_id": "C4",
+    "v3": {
+     "evidence": 0,
+     "static": 0
+    },
+    "v3b": {
+     "evidence": 0,
+     "static": 0
+    }
+   }
+  ],
+  "splits": [
+   {
+    "direction": "evidence-only",
+    "evidence_problems": [],
+    "evidence_y": 1,
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "static_problems": [
+     "doctor check advisor=fail",
+     "doctor check plan=fail",
+     "scan status: 'partial' notes=['unknown discipline(s): architecture, code-quality, security']",
+     "disciplines missing defaults: ['dependency-governance', 'security-privacy', 'validation']"
+    ],
+    "static_y": 0,
+    "task_class": "A",
+    "task_id": "A1"
+   },
+   {
+    "direction": "static-only",
+    "evidence_problems": [
+     "apply-phase policy missing list_templates_command"
+    ],
+    "evidence_y": 0,
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "static_problems": [],
+    "static_y": 1,
+    "task_class": "A",
+    "task_id": "A3"
+   },
+   {
+    "direction": "evidence-only",
+    "evidence_problems": [],
+    "evidence_y": 1,
+    "family": "fam-gpt",
+    "model_identity": "openai-codex/gpt-5.6-sol:high",
+    "static_problems": [
+     "catalog id union != plan requested selections: missing=['dependency-governance', 'security-privacy'] extra=['design-patterns', 'engineering-reasoning']"
+    ],
+    "static_y": 0,
+    "task_class": "B",
+    "task_id": "B1"
+   },
+   {
+    "direction": "evidence-only",
+    "evidence_problems": [],
+    "evidence_y": 1,
+    "family": "fam-glm",
+    "model_identity": "zai/glm-5.3:high",
+    "static_problems": [
+     "catalog id union != plan requested selections: missing=['dependency-governance', 'validation'] extra=['observability', 'performance']"
+    ],
+    "static_y": 0,
+    "task_class": "B",
+    "task_id": "B2"
+   }
+  ]
+ },
+ "run_label": "v3b",
+ "schema": "dspx.g3pilot-v3b-results/1",
+ "stability_verdict_sol": {
+  "all_v3_sol_evidence_wins": [
+   "PL3-A1-fam-gpt",
+   "PL3-B1-fam-gpt",
+   "PL3-B3-fam-gpt",
+   "PL3-C1-fam-gpt",
+   "PL3-C2-fam-gpt"
+  ],
+  "directive_targets": {
+   "B1": {
+    "held": true,
+    "v3": 1,
+    "v3b": 1
+   },
+   "B3": {
+    "held": true,
+    "v3": 1,
+    "v3b": 1
+   }
+  },
+  "held_in_v3b": [
+   "PL3-A1-fam-gpt",
+   "PL3-B1-fam-gpt",
+   "PL3-B3-fam-gpt",
+   "PL3-C2-fam-gpt"
+  ],
+  "question": "do sol (gpt-5.6-sol:high) v3 evidence-wins hold on the fixed wheel?",
+  "regressed_in_v3b": [
+   "PL3-C1-fam-gpt"
+  ],
+  "sol_family_evidence_rate": {
+   "v3": 1.0,
+   "v3b": 0.8
+  },
+  "verdict": "B1 and B3 evidence-wins HOLD (1->1, 1->1). Of sol's five v3 evidence-wins, four held in v3b (A1, B1, B3, C2); C1 regressed (1->0, both arms 0 in v3b). Family evidence rate 5/5 -> 4/5. n=1 per cell."
+ }
+}
