@@ -177,7 +177,7 @@ def _policy_doc_checks(replica: Path, preserve_deviation: str | None) -> list[st
         problems.append("tool != engineering-core")
     if ec.get("lanes") != ["py"]:
         problems.append(f"lanes {ec.get('lanes')!r} != ['py']")
-    if not str(ec.get("ref", "")).startswith(f"v") or ec.get("ref") != RELEASE_REF:
+    if not str(ec.get("ref", "")).startswith("v") or ec.get("ref") != RELEASE_REF:
         problems.append(f"ref {ec.get('ref')!r} != {RELEASE_REF} (released-ref rule)")
     for field in ("catalog_command", "list_disciplines_command", "list_templates_command"):
         if not str(ec.get(field, "")).strip():
