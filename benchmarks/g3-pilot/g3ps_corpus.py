@@ -84,7 +84,7 @@ def _legacy_overlay(legacy_doc: str, lane_note: str) -> dict[str, str]:
         "policy/stack-lane.json": (
             "{\n"
             '  "stack": {\n'
-            f'    "lane": "py",\n'
+            '    "lane": "py",\n'
             f'    "note": "{lane_note}",\n'
             '    "commands": {"lint": "python -m compileall src"}\n'
             "  }\n"
@@ -92,6 +92,20 @@ def _legacy_overlay(legacy_doc: str, lane_note: str) -> dict[str, str]:
         ),
         "docs/tech-stack.local.md": legacy_doc,
     }
+
+
+LEGACY_DOCS = {
+    "a": "---\nsummary: \"Repo-local override notes for the shared tech-stack-core lane.\"\n"
+         "read_when:\n  - \"Aligning implementation decisions with the stack baseline.\"\n"
+         "system4d:\n  container: \"Repo-local overrides only\"\n---\n\n"
+         "# Tech stack (local)\n\nThis repo inherits the shared lane baseline. See "
+         "policy/stack-lane.json for the pin. No adoption policy is present.\n",
+    "b": "---\nsummary: \"Local stack notes.\"\nread_when:\n  - \"Reconciling local workflow "
+         "differences.\"\n---\n\n# Tech stack (local)\n\nLegacy surface only; the v1 "
+         "engineering adoption contract has not been applied to this repository.\n",
+    "c": "---\nsummary: \"Stack overrides for this repo.\"\nread_when:\n  - \"Changing the "
+         "local stack pin.\"\n---\n\n# Tech stack (local)\n\nSee policy/stack-lane.json.\n",
+}
 
 
 def _v1_policy(ref: str, disciplines: list[str], deviations: list[dict] | None = None) -> str:
@@ -151,55 +165,43 @@ def fixture_legacy_py(inst: str) -> dict[str, str]:
 
 
 def fixture_degraded_py(inst: str) -> dict[str, str]:
-    """TA2 instance fixtures: v1 surfaces present but DEFECTIVE (distinct defect mixes)."""
+    """TA2/TH2 instance fixtures: v3b-DENSITY defect stacks (all four defect
+    classes present; per-instance variation in which ids/values are wrong)."""
     pkg = {"a": "pricing_service", "b": "routing_service", "c": "audit_service"}[inst]
     doc = {"a": "Pricing band helper.", "b": "Routing table helper.", "c": "Audit trail helper."}[inst]
     fx = _py_fixture(pkg, {"a": "bands", "b": "table", "c": "trail"}[inst],
                      {"a": "normalize_sku", "b": "normalize_prefix", "c": "normalize_event"}[inst], doc)
     dev = [{
         "id": "keep-local-uv-mirror",
-        "reason": "offline workstation mirror required",
-        "owner": "platform",
-        "evidence": "infra/mirror.md",
+        "reason": "CI mirrors PyPI through a local uv cache; upstream freshness gates do not apply",
+        "owner": "platform-team",
+        "evidence": ["gitlab/ci/uv-config.toml"],
         "review_date": "2026-09-30",
     }]
-    if inst == "a":
-        # defects: old ref + disciplines as comma string (schema violation)
-        policy = json.dumps({
-            "engineering_core": {
-                "tool": "engineering-core", "ref": "v0.9.0", "lanes": ["py"],
-                "catalog_command": "engineering-core catalog --pretty",
-                "list_disciplines_command": "engineering-core list-disciplines",
-                "list_templates_command": "engineering-core list-templates",
-                "disciplines": ", ".join(DEFAULT_DISCIPLINES),
-                "deviations": dev,
-            }}, indent=2) + "\n"
-    elif inst == "b":
-        # defects: old ref + unknown lane id 'python'
-        policy = json.dumps({
-            "engineering_core": {
-                "tool": "engineering-core", "ref": "v0.9.0", "lanes": ["python"],
-                "catalog_command": "engineering-core catalog --pretty",
-                "list_disciplines_command": "engineering-core list-disciplines",
-                "list_templates_command": "engineering-core list-templates",
-                "disciplines": DEFAULT_DISCIPLINES,
-                "deviations": dev,
-            }}, indent=2) + "\n"
-    else:
-        # defects: old ref + empty catalog/list command fields
-        policy = json.dumps({
-            "engineering_core": {
-                "tool": "engineering-core", "ref": "v0.9.0", "lanes": ["py"],
-                "catalog_command": "",
-                "list_disciplines_command": "",
-                "list_templates_command": "",
-                "disciplines": DEFAULT_DISCIPLINES,
-                "deviations": dev,
-            }}, indent=2) + "\n"
+    # per-instance defect variation (ALL instances carry the full stack of
+    # defect CLASSES; the wrong values differ so instances stay distinct)
+    variants = {
+        "a": {"lanes": ["py", "python"], "disciplines": "validation, testing, security-privacy, documentation"},
+        "b": {"lanes": ["py", "py3"], "disciplines": "validation;testing;documentation"},
+        "c": {"lanes": ["python"], "disciplines": "Validation, Testing, Documentation, Security"},
+    }[inst]
+    policy = json.dumps({
+        "engineering_core": {
+            "schema_version": "1",
+            "tool": "engineering-core",
+            "lanes": variants["lanes"],
+            "disciplines": variants["disciplines"],
+            "ref": "v0.9.0",
+            "catalog_command": "" if inst == "c" else "engineering-core catalog --pretty",
+            "list_disciplines_command": "",
+            "list_templates_command": "engineering-core list-templates",
+            "deviations": dev,
+        }}, indent=2) + "\n"
     fx["policy/engineering-lane.json"] = policy
     fx["docs/engineering.local.md"] = (
-        f"# Engineering (local)\n\n{doc}\n\nNo structure: lane and disciplines "
-        "are described in prose only. Deviation keep-local-uv-mirror applies.\n"
+        f"# Engineering (local)\n\n{doc}\n\nThis repo follows the shared engineering "
+        "baseline. Lane and disciplines are as inherited from the stack; see the policy "
+        "file. The mirror deviation still applies.\n"
     )
     return fx
 
@@ -366,19 +368,19 @@ the frozen checker runs the engineering-core 0.10.0 CLI against your tree):
 
 
 def spec_ta2(inst: str) -> str:
-    defect = {
-        "a": "the policy `ref` is pinned to an old release AND `engineering_core.disciplines` "
-             "violates the schema (it is not a JSON array of ids);",
-        "b": "the policy `ref` is pinned to an old release AND `engineering_core.lanes` "
-             "contains an id that is not in the catalog;",
-        "c": "the policy `ref` is pinned to an old release AND the three catalog/list "
-             "command fields are empty;",
-    }[inst]
-    return COMMON_PREAMBLE + f"""
-TASK (TA2-{inst}): Repair this repository's degraded v1 engineering adoption.
+    return COMMON_PREAMBLE + """
+TASK (TA2-{i}): Repair this repository's degraded v1 engineering adoption.
 
 Current state: v1 adoption surfaces exist but are DEFECTIVE:
-- {defect}
+- the policy `ref` is pinned to an old release (the catalog release current at
+  verification time is newer);
+- `engineering_core.disciplines` violates the schema (it is not a JSON array
+  of valid catalog ids);
+- `engineering_core.lanes` contains one or more ids that are not in the
+  catalog;
+- one or more of the catalog/list command fields are empty;
+- the existing deviation entry is structurally present but must be preserved
+  through the repair;
 - `docs/engineering.local.md` is unstructured: no front matter, no sections.
 
 Required end state (frozen checker runs the engineering-core 0.10.0 CLI):
@@ -393,8 +395,8 @@ Required end state (frozen checker runs the engineering-core 0.10.0 CLI):
    released-ref format; the three catalog/list command fields non-empty;
    `disciplines` a JSON array of valid catalog discipline ids that includes
    the five default cross-language disciplines.
-4. The existing structured deviation entry (id `keep-local-uv-mirror` with its
-   reason, owner, evidence, review_date) is PRESERVED unchanged in
+4. The existing structured deviation entry (id `keep-local-uv-mirror` with
+   its reason, owner, evidence, review_date) is PRESERVED unchanged in
    `engineering_core.deviations`.
 5. `docs/engineering.local.md` is rewritten to structured form: YAML front
    matter with `summary` and at least one `read_when`; selected lane; selected
@@ -402,7 +404,7 @@ Required end state (frozen checker runs the engineering-core 0.10.0 CLI):
    section that lists the preserved deviation by its id.
 6. The legacy tech-stack files remain ABSENT; every other repository file
    remains byte-identical.
-"""
+""".format(i=inst)
 
 
 def spec_ta3(inst: str) -> str:
@@ -785,15 +787,12 @@ semantic-truth assertions, and byte-identity of every unrelated file.
 
 
 def spec_th2(inst: str) -> str:
-    defect = {
-        "a": "disciplines is a comma string",
-        "b": "lanes contains the unknown id 'python'",
-        "c": "the three catalog/list command fields are empty",
-    }[inst]
-    return B_SPEC.format(tid=f"TH2-{inst}", request_materials="{request_materials}") + f"""
+    return B_SPEC.format(tid=f"TH2-{inst}", request_materials="{request_materials}") + """
 ADDITIONALLY (compound deliverable): this repository's
-`policy/engineering-lane.json` is DEFECTIVE ({defect}; ref pinned to an old
-release). In the SAME change, repair the policy to full v1 conformance
+`policy/engineering-lane.json` is DEFECTIVE on multiple axes (ref pinned to
+an old release; disciplines not a JSON array of valid ids; lanes containing
+unknown ids; one or more catalog/list command fields empty). In the SAME
+change, repair the policy to full v1 conformance
 (`tool` == "engineering-core"; `lanes` == ["py"]; `ref` == current released
 catalog version in the exact released-ref format; the three catalog/list
 command fields non-empty; `disciplines` a JSON array of valid ids including
