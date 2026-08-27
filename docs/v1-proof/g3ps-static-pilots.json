@@ -3,66 +3,68 @@
  "model": "zai/glm-5.3:high",
  "results": {
   "TA1": {
-   "duration_s": 331.6,
+   "duration_s": 316.0,
    "problems": [],
    "y": 1
   },
   "TA2": {
-   "duration_s": 443.6,
+   "duration_s": 290.3,
    "problems": [],
    "y": 1
   },
   "TA3": {
-   "duration_s": 230.6,
+   "duration_s": 219.7,
    "problems": [],
    "y": 1
   },
   "TB1": {
-   "duration_s": 301.9,
+   "duration_s": 254.8,
    "problems": [],
    "y": 1
   },
   "TB2": {
-   "duration_s": 245.0,
-   "problems": [],
-   "y": 1
+   "duration_s": 209.6,
+   "problems": [
+    "catalog id union != plan requested: missing=['dependency-governance', 'validation'] extra=['observability', 'performance']"
+   ],
+   "y": 0
   },
   "TB3": {
-   "duration_s": 165.1,
+   "duration_s": 149.3,
    "problems": [],
    "y": 1
   },
   "TC1": {
-   "duration_s": 174.8,
+   "duration_s": 256.4,
    "problems": [
-    "biome check failed: Checked 2 files in 3ms. No fixes applied.\nFound 1 error.\n"
+    "biome check failed: Checked 2 files in 4ms. No fixes applied.\nFound 2 errors.\n"
    ],
    "y": 0
   },
   "TC2": {
-   "duration_s": 48.1,
+   "duration_s": 38.6,
    "problems": [],
    "y": 1
   },
   "TC3": {
-   "duration_s": 147.8,
+   "duration_s": 251.3,
    "problems": [],
    "y": 1
   },
   "TC4": {
-   "duration_s": 81.2,
+   "duration_s": 155.0,
    "problems": [],
    "y": 1
   },
   "TH1": {
-   "duration_s": 495.9,
+   "duration_s": 401.5,
    "problems": [],
    "y": 1
   },
   "TH2": {
-   "duration_s": 334.9,
+   "duration_s": 347.2,
    "problems": [
-    "[advice] catalog id union != plan requested: missing=[] extra=['dependency-governance', 'documentation', 'security-privacy', 'testing', 'validation']"
+    "[advice] product validator rejected the response: exit=1 -packages/engineering_core/advisor.py\", line 273, in validate_response\n    raise AdviceError(\"response schema or request digest mismatch\")\nengineering_core.advisor.AdviceError: response schema or request digest mismatch\n"
    ],
    "y": 0
   }

@@ -1,0 +1,424 @@
+{
+ "advice": {},
+ "blockers": {},
+ "budget": {
+  "executions": 0,
+  "max_executions": 144,
+  "stopped_reason": null,
+  "window_s": 43200,
+  "window_started_at": null
+ },
+ "candidate": {
+  "commit": "cde7f142ebd07527d865eded4bbbadf9fda9409f",
+  "repo": "/home/tryinget/ai-society/core/engineering-core",
+  "wheel_sha256": "921bff5ef60ee8dea112cdaf8825e809bb484f1e518a06080e853c7e52288ab0"
+ },
+ "corpus_digest": "5e629261a398ab000b5d5ce8d2b8f23ed7a0e7a7a79c688ed5b4424b01e11c76",
+ "criterion_ref": "docs/v1-proof/g3-successor-campaign-design.md#4 (REV 3)",
+ "decision": 138,
+ "ec_binding": {
+  "commit": "145c889",
+  "task": 5096
+ },
+ "execution_log": [],
+ "extended": false,
+ "families": {
+  "fam-glm": "zai/glm-5.3:high",
+  "fam-gpt": "openai-codex/gpt-5.6-sol:high"
+ },
+ "frozen_at": "2026-08-27T00:11:56+00:00",
+ "guidance_digests": {
+  "TA1-a": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA1-b": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA1-c": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA2-a": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA2-b": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA2-c": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA3-a": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA3-b": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TA3-c": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TB1-a": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+  "TB1-b": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+  "TB1-c": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+  "TB2-a": "52011ab1887b0ee70cf53babf2cf0811a35402f602e432570a3e7eadc0113ec3",
+  "TB2-b": "52011ab1887b0ee70cf53babf2cf0811a35402f602e432570a3e7eadc0113ec3",
+  "TB2-c": "52011ab1887b0ee70cf53babf2cf0811a35402f602e432570a3e7eadc0113ec3",
+  "TB3-a": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+  "TB3-b": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+  "TB3-c": "dbe0d38cf34da0c65418e1923e3551dade882b7b8325527b50414d9692210f73",
+  "TC1-a": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+  "TC1-b": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+  "TC1-c": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+  "TC2-a": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+  "TC2-b": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+  "TC2-c": "c97f86b11a5a4fe1ca9590cb0b7ad0bd08fbf082df64a63d42b5382013bf7fdd",
+  "TC3-a": "c9170a52b3d6869a61a5a9c652ca6776f8736b33940b8baba79eb961c283706c",
+  "TC3-b": "c9170a52b3d6869a61a5a9c652ca6776f8736b33940b8baba79eb961c283706c",
+  "TC3-c": "c9170a52b3d6869a61a5a9c652ca6776f8736b33940b8baba79eb961c283706c",
+  "TC4-a": "cc829a33b9439709edfc8d751759b77e852ae9de5021b3387c830c48efa4e0d8",
+  "TC4-b": "cc829a33b9439709edfc8d751759b77e852ae9de5021b3387c830c48efa4e0d8",
+  "TC4-c": "cc829a33b9439709edfc8d751759b77e852ae9de5021b3387c830c48efa4e0d8",
+  "TH1-a": "7ac78fea5be7b8f1a2f5b5786d08453d1266085d9f5dfef2f8c68e78654c4048",
+  "TH1-b": "7ac78fea5be7b8f1a2f5b5786d08453d1266085d9f5dfef2f8c68e78654c4048",
+  "TH1-c": "7ac78fea5be7b8f1a2f5b5786d08453d1266085d9f5dfef2f8c68e78654c4048",
+  "TH2-a": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TH2-b": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088",
+  "TH2-c": "1565aa5aa3f721db18a0929340f6287ba54e6af0fbf2ff14fddf436708f8e088"
+ },
+ "incidents": [],
+ "instance_order": [
+  "TA1-a",
+  "TA2-a",
+  "TA3-a",
+  "TB1-a",
+  "TB2-a",
+  "TB3-a",
+  "TC1-a",
+  "TC2-a",
+  "TC3-a",
+  "TC4-a",
+  "TH1-a",
+  "TH2-a",
+  "TA1-b",
+  "TA2-b",
+  "TA3-b",
+  "TB1-b",
+  "TB2-b",
+  "TB3-b",
+  "TC1-b",
+  "TC2-b",
+  "TC3-b",
+  "TC4-b",
+  "TH1-b",
+  "TH2-b",
+  "TA1-c",
+  "TA2-c",
+  "TA3-c",
+  "TB1-c",
+  "TB2-c",
+  "TB3-c",
+  "TC1-c",
+  "TC2-c",
+  "TC3-c",
+  "TC4-c",
+  "TH1-c",
+  "TH2-c"
+ ],
+ "interim_done": false,
+ "module_sha256": {
+  "g3ps_calibrate.py": "8659559bf8dc9ffaceb9d02c1c8bf6fe35f9ae8ff63a11d5b72d3f76409a7c95",
+  "g3ps_corpus.py": "4976a8418140f80296fe12175abda8cfd8533282a0a719c2e2079ae811d7d36a",
+  "g3ps_run_guard.py": "8c96e9cbafe2140f612451ca8815c4ca8fa5afa8a49388c4f799943310e9b159",
+  "g3ps_runner.py": "a19a99f6eccc0012e91699079650044c09c0054ec08a5c3aa1938ceda302fa0e",
+  "g3ps_scoring.py": "7f4e40c02857991ee0be8c35194b94264566fd1438683bd2b074218b45070b81",
+  "g3ps_simulate.py": "7c300ddf71d85a5efc62dd322738b379871b4f050683cbeb1a57df782fddf5ba",
+  "g3ps_support.py": "81d873a3812594d6424c68405843c94eda403c0d0ebcd7ab57ae35331469fc8e"
+ },
+ "progress": {
+  "PL4-TA1-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA1-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA1-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA1-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA1-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA1-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA2-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA2-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA2-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA2-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA2-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA2-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA3-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA3-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA3-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA3-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA3-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TA3-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB1-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB1-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB1-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB1-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB1-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB1-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB2-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB2-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB2-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB2-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB2-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB2-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB3-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB3-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB3-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB3-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB3-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TB3-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC1-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC1-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC1-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC1-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC1-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC1-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC2-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC2-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC2-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC2-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC2-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC2-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC3-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC3-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC3-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC3-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC3-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC3-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC4-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC4-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC4-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC4-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC4-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TC4-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH1-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH1-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH1-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH1-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH1-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH1-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH2-a-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH2-a-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH2-b-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH2-b-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH2-c-fam-glm": {
+   "status": "pending",
+   "updated_at": null
+  },
+  "PL4-TH2-c-fam-gpt": {
+   "status": "pending",
+   "updated_at": null
+  }
+ },
+ "request_digests": {
+  "TB1-a": "a4bfa6acc9b7819c664deb0574d59f5bf4e33d3019c91be940c297e5258a0d0e",
+  "TB1-b": "4fc732dc31d0dffa7c7a9dcad26f377bf84364bb0e856551ed1a18614f9982fb",
+  "TB1-c": "92d2cad368abfe0bdc154d43acc3b78c9e610cdbf452d01abcd93e0b4450e50d",
+  "TB2-a": "35a7862baefee1a02f9c1135897e4a715b420b17c8125f2cf42baf5c4c85ddef",
+  "TB2-b": "d7bd3f332d0b580272be2474e382e9faf50c6619605f708259ca9d5a66d2e97d",
+  "TB2-c": "5793f0ac80abafa9217cb79edb2c5ec36f46af89c89b44a2f5cf97960a4ce34a",
+  "TB3-a": "9c89a1f1cca8d2c7a22a8580dec49afc4cda4c6540724bd1fe668781348ab737",
+  "TB3-b": "72a9b643dd0b13bc516bda141c25fff1de1d7077559544c08a34c0640b8c5970",
+  "TB3-c": "8f1c56024f39522273d1acb8ecec74934fd1e6fe0069eee389a9ce657680b9ab",
+  "TH2-a": "42ddff6d8dec773fb567d3647e4c925b0f8cb9b52e6cc6e1e05ef827ace0b9e5",
+  "TH2-b": "7626fadbbd279016b20adf448ea3cfd1dfbf3f68a85baf38dce34d93ba1de98a",
+  "TH2-c": "7f79a85666f5c56505e270208577bde21f967440b74b9ed062a2bfb724cd95b1"
+ },
+ "run_label": "successor",
+ "schema": "dspx.g3ps-state/1",
+ "simulation_ref": "docs/v1-proof/g3ps-simulation.json"
+}
