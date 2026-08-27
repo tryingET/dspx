@@ -493,8 +493,9 @@ def cmd_run(pair_id: str) -> None:
     if state["progress"].get(pair_id, {}).get("status") == "completed":
         print(f"{pair_id} already completed")
         return
-    inst_id = pair_id.split("-", 1)[1].rsplit("-", 1)[0]
-    family = pair_id.rsplit("-", 1)[1]
+    segs = pair_id.split("-")  # PL4-<template>-<inst>-fam-<family>
+    inst_id = "-".join(segs[1:-2])
+    family = "-".join(segs[-2:])
     task = support.task_for(inst_id)
     model = state["families"][family]
     if state["budget"]["stopped_reason"]:
