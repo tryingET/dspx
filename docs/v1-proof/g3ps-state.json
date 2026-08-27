@@ -1,12 +1,1102 @@
 {
- "advice": {},
+ "advice": {
+  "TA1-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T00:23:35+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Do not invent the released ref format or command strings from the legacy files; the captured evidence does not contain those v1 contract values.",
+      "falsification": "A doctor result showing released-match and all-pass validates the selected v1 values.",
+      "recommendation_id": "r1-v1-adoption",
+      "severity": "high"
+     },
+     {
+      "critique": "Compileall alone is legacy evidence and is insufficient to establish the required v1 adoption state.",
+      "falsification": "The required doctor and scan-adoption outputs provide the relevant deterministic validation.",
+      "recommendation_id": "r2-objective-verification",
+      "severity": "medium"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 131,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       },
+       {
+        "end": 132,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       },
+       {
+        "end": 72,
+        "evidence_id": "e3",
+        "path": "docs/tech-stack.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.87,
+      "counterevidence": [
+       "The legacy policy already identifies the py lane and a compileall command, but it does not establish v1 schema conformance.",
+       "The legacy documentation is too minimal to demonstrate the required v1 documentation structure."
+      ],
+      "falsification": [
+       "If engineering-core doctor rejects the selected catalog ref, commands, lane, or discipline IDs, regenerate the files from the installed released catalog contract.",
+       "If scan-adoption reports any legacy flag or non-adopted structural status, inspect the reported path and remove or correct the remaining non-v1 surface."
+      ],
+      "id": "r1-v1-adoption",
+      "recommendation": "Create policy/engineering-lane.json using the currently released engineering-core catalog's exact released ref and command values; select lane py and include dependency-governance, documentation, security-privacy, testing, and validation as disciplines. Create docs/engineering.local.md with required front matter, lane and discipline selections, validation-before-handoff expectation, and deliberate deviations. Remove both captured legacy surfaces.",
+      "unknowns": [
+       "The captured evidence does not include the released catalog version, exact released-ref syntax, or canonical command strings.",
+       "The captured evidence does not show whether additional repository-local conventions constrain the new file contents."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "validation",
+       "testing",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 132,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       },
+       {
+        "end": 72,
+        "evidence_id": "e3",
+        "path": "docs/tech-stack.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.9,
+      "counterevidence": [],
+      "falsification": [
+       "If doctor does not report every check as pass with released-match posture, do not claim completion.",
+       "If scan-adoption is not complete/adopted with no legacy flags or unknown-ID notes, do not claim the migration is complete.",
+       "If the working-tree diff includes paths other than the two additions and two removals plus G3P3_CLAIM.md, restore unrelated changes before handoff."
+      ],
+      "id": "r2-objective-verification",
+      "recommendation": "Before handoff, run the specified engineering-core doctor and scan-adoption commands and record their successful results in G3P3_CLAIM.md, along with the four changed/created/removed paths and a byte-identity check demonstrating no other file changed.",
+      "unknowns": [
+       "The captured evidence does not provide the installed CLI output format or an existing repository validation command."
+      ]
+     }
+    ],
+    "request_sha256": "39a51b240d4f0deec79899e4732f5e93272faa85f7ed1916058c33d69fd78ca2",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Migrate the Python repository from its captured legacy adoption files to the v1 engineering-core surfaces, retaining only the py lane and the five requested cross-language disciplines."
+   }
+  },
+  "TA1-b": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T04:08:51+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "The release ref and command values cannot be determined from captured evidence; substituting guessed values risks failure despite an otherwise correct migration.",
+      "falsification": "Confirm the values through the repository-available frozen engineering-core CLI and require doctor to report released-match.",
+      "recommendation_id": "r1",
+      "severity": "high"
+     },
+     {
+      "critique": "The task requires every unrelated file to remain byte-identical, so documentation cleanup must not expand into formatting or incidental repository changes.",
+      "falsification": "Compare the final changed-file set against the four intended migration and claim paths, with legacy paths counted as deletions.",
+      "recommendation_id": "r2",
+      "severity": "medium"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 133,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       },
+       {
+        "end": 130,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.9,
+      "counterevidence": [],
+      "falsification": [
+       "The frozen doctor reports a non-pass check or a pin posture other than released-match.",
+       "The adoption scan reports an unknown ID, incomplete adoption, or structural status other than adopted."
+      ],
+      "id": "r1",
+      "recommendation": "Replace the legacy policy surface with policy/engineering-lane.json selecting the py lane and the five required cross-language disciplines. Populate all required engineering_core command fields and use the exact released catalog ref format confirmed by the available engineering-core CLI; do not infer a version from the captured files.",
+      "unknowns": [
+       "The captured evidence does not state the currently released engineering-core catalog version.",
+       "The captured evidence does not establish the CLI's exact command strings or released-ref syntax."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "documentation",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 130,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       },
+       {
+        "end": 78,
+        "evidence_id": "e3",
+        "path": "docs/tech-stack.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.96,
+      "counterevidence": [],
+      "falsification": [
+       "Either legacy path remains in the tree.",
+       "The required local documentation metadata or required sections are absent.",
+       "The claim file omits changed paths, added paths or symbols, specification coverage, or command results."
+      ],
+      "id": "r2",
+      "recommendation": "Create docs/engineering.local.md as repo-local v1 documentation with YAML summary and read_when metadata, explicit py lane and selected disciplines, a pre-handoff validation-evidence expectation, and deliberate deviations. Remove both legacy files rather than retaining compatibility references, and record the bounded file changes and executed verification results in G3P3_CLAIM.md.",
+      "unknowns": [
+       "No repository-specific deviations are captured; the deviations section may need to state that none are deliberate if that is accurate.",
+       "The captured evidence does not show the frozen checker's exact output format."
+      ]
+     }
+    ],
+    "request_sha256": "f7d6b695bbea4fdc5d81a11c48643c077e18b70f0f1ffdc83c407dc592741d35",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Captured evidence confirms a Python repository with both legacy adoption surfaces present. Perform a narrowly scoped replacement with the required v1 policy and documentation surfaces, then validate the required released catalog pin and adoption status using the frozen checker."
+   }
+  },
+  "TA2-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T00:47:04+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Do not guess the release ref, fifth default discipline, or command syntax from the frozen evidence; resolve them from the locally available engineering-core 0.10.0 CLI before editing.",
+      "falsification": "A guessed value that fails doctor or scan-adoption demonstrates this recommendation was applied without the necessary local catalog verification.",
+      "recommendation_id": "repair-policy-adoption",
+      "severity": "high"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "validation",
+       "testing",
+       "security-privacy",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 132,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       },
+       {
+        "end": 718,
+        "evidence_id": "e2",
+        "path": "policy/engineering-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.93,
+      "counterevidence": [
+       "The current policy already uses the valid \"py\" lane and contains four valid-looking discipline IDs, but it also contains an unknown lane, a malformed scalar disciplines field, an old ref, and an empty command field."
+      ],
+      "falsification": [
+       "If the installed 0.10.0 catalog does not define \"py\" or any listed discipline ID, revise the policy to catalog-listed IDs only.",
+       "If doctor or scan-adoption reports any unknown ID, schema failure, empty command, or non-released-match pin posture, the repair is incomplete."
+      ],
+      "id": "repair-policy-adoption",
+      "recommendation": "Set the sole lane to \"py\"; replace the scalar disciplines value with a JSON array containing the catalog-confirmed five default cross-language discipline IDs; update ref to the exact current released-ref emitted by the installed engineering-core catalog; make all three catalog/list command fields non-empty; and preserve the keep-local-uv-mirror deviation object byte-for-byte in meaning and fields.",
+      "unknowns": [
+       "The captured evidence does not state the installed engineering-core catalog release or the identity of the fifth default cross-language discipline.",
+       "The captured evidence does not show the required non-empty list-disciplines command syntax."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "py",
+       "validation",
+       "testing",
+       "security-privacy",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 718,
+        "evidence_id": "e2",
+        "path": "policy/engineering-lane.json",
+        "start": 0
+       },
+       {
+        "end": 207,
+        "evidence_id": "e3",
+        "path": "docs/engineering.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.95,
+      "counterevidence": [
+       "The current guide mentions the shared baseline and mirror deviation, but has neither front matter nor structured sections."
+      ],
+      "falsification": [
+       "If the rewritten guide lacks required front matter, any required section, or the preserved deviation ID, the documentation requirement is unmet.",
+       "If the lane or disciplines described in the guide diverge from the repaired policy, the guide is not a reliable local projection."
+      ],
+      "id": "structure-local-guide",
+      "recommendation": "Rewrite docs/engineering.local.md with YAML front matter containing summary and at least one read_when, then explicit sections for the selected py lane, selected catalog-confirmed disciplines, validation-evidence expectations, and deliberate deviations listing keep-local-uv-mirror by ID. Keep the guide aligned with the repaired policy rather than inheriting unspecified stack values.",
+      "unknowns": [
+       "The exact fifth default cross-language discipline remains unobserved in the captured evidence."
+      ]
+     }
+    ],
+    "request_sha256": "8f793ffa819a2f3e5b2f72380a90f31b9d0172c6fa2a935e303cda0081e4eeef",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Repair the existing adoption surfaces only: normalize the policy to the released catalog and rewrite the local engineering guide into the required structured projection while preserving the existing deviation unchanged."
+   }
+  },
+  "TA2-b": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T04:26:56+00:00",
+   "response": {
+    "critiques": [],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py"
+      ],
+      "citations": [
+       {
+        "end": 695,
+        "evidence_id": "e2",
+        "path": "policy/engineering-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.9,
+      "counterevidence": [
+       "The current policy uses an invalid py3 lane and a scalar disciplines value, so retaining its current values cannot satisfy the stated end state."
+      ],
+      "falsification": [
+       "If the available engineering-core catalog identifies a different released ref, command syntax, or default-discipline set than assumed, use the CLI-reported values instead.",
+       "If doctor reports any policy or pin failure after the change, the repair is incomplete."
+      ],
+      "id": "repair-policy-from-current-catalog",
+      "recommendation": "Update policy/engineering-lane.json so tool remains engineering-core, lanes is exactly [\"py\"], ref uses the current released-ref format reported by the available engineering-core CLI, all three catalog/list command fields are non-empty, and disciplines is a JSON array containing the five default cross-language discipline IDs reported by that catalog. Preserve the existing keep-local-uv-mirror deviation object unchanged.",
+      "unknowns": [
+       "The captured evidence does not identify the current released ref string.",
+       "The captured evidence does not enumerate the five default cross-language discipline IDs or the canonical non-empty command strings."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "py",
+       "documentation",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 208,
+        "evidence_id": "e3",
+        "path": "docs/engineering.local.md",
+        "start": 0
+       },
+       {
+        "end": 695,
+        "evidence_id": "e2",
+        "path": "policy/engineering-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.94,
+      "counterevidence": [
+       "The captured document has no YAML front matter or structured sections, so a minimal wording edit would not meet the required structured form."
+      ],
+      "falsification": [
+       "If the document lacks any required front-matter field or required section, it does not satisfy the task.",
+       "If the documented disciplines differ from the repaired policy array, the documentation is inconsistent."
+      ],
+      "id": "structure-local-engineering-guide",
+      "recommendation": "Rewrite docs/engineering.local.md with YAML front matter containing summary and at least one read_when, then explicit sections for the selected py lane, selected disciplines, validation-evidence expectations, and deliberate deviations. Name keep-local-uv-mirror in the deliberate-deviations section without altering the policy deviation entry.",
+      "unknowns": [
+       "The exact selected discipline IDs must be determined from the current catalog before documenting them."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "validation",
+       "testing"
+      ],
+      "citations": [
+       {
+        "end": 695,
+        "evidence_id": "e2",
+        "path": "policy/engineering-lane.json",
+        "start": 0
+       },
+       {
+        "end": 208,
+        "evidence_id": "e3",
+        "path": "docs/engineering.local.md",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.92,
+      "counterevidence": [],
+      "falsification": [
+       "Any non-pass doctor check, non-released-match pin posture, incomplete scan result, legacy flag, unknown-id note, changed non-target file, or altered deviation field falsifies completion."
+      ],
+      "id": "verify-bounded-repair-and-preservation",
+      "recommendation": "After the two-file repair, run the required doctor and scan-adoption commands, confirm every reported check passes with released-match posture and complete/adopted structural status, and compare all non-target repository files against their pre-edit state. Confirm the preserved deviation fields remain byte-for-byte unchanged in the policy object and that legacy tech-stack files remain absent.",
+      "unknowns": [
+       "No captured command output establishes the locally available engineering-core version or its final validation result."
+      ]
+     }
+    ],
+    "request_sha256": "676ce6293588a04fc15477e000d03a90cb850691d83e6983ca77006708fb3630",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Repair the two captured adoption surfaces only, preserving the deviation verbatim; resolve the released catalog ref, command values, and default discipline IDs from the in-tree engineering-core CLI before editing."
+   }
+  },
+  "TA3-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T01:07:44+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "The required exact released reference and command-field values are not present in the bounded evidence; do not invent them without task-provided catalog material.",
+      "falsification": "The task materials or checker provide those values and they differ from the values chosen.",
+      "recommendation_id": "r1",
+      "severity": "high"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 131,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       },
+       {
+        "end": 132,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.91,
+      "counterevidence": [],
+      "falsification": [
+       "A checker rejects any selected discipline as invalid or finds that the recorded base64 does not decode to the recorded SHA-256 bytes.",
+       "The authoritative catalog requires a different default-discipline set."
+      ],
+      "id": "r1",
+      "recommendation": "Use lane `py` and include the five required cross-language disciplines: `dependency-governance`, `documentation`, `security-privacy`, `testing`, and `validation`. Before rollback, serialize both created adoption files and both original legacy files as byte-level SHA-256 and base64 values in `apply.json`, in the specified create/create/delete/delete order.",
+      "unknowns": [
+       "The captured evidence does not identify the released catalog reference or the exact required catalog/list command field names and values."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "validation",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 132,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.95,
+      "counterevidence": [],
+      "falsification": [
+       "A final digest comparison finds an original repository file changed.",
+       "Any adoption file or `.engineering-core/` directory remains after rollback.",
+       "The rollback receipt omits a required restored or removed path."
+      ],
+      "id": "r2",
+      "recommendation": "Make rollback mechanical from the transaction record: restore the two legacy files from their `before_b64` payloads, delete both adoption files, ensure `.engineering-core/` is absent, then verify original-file digests and the required final absence conditions before writing the claim file.",
+      "unknowns": [
+       "The original content of `docs/tech-stack.local.md` is not included in captured evidence and must be preserved before deletion."
+      ]
+     }
+    ],
+    "request_sha256": "0ee94188c99b15e1cd39b2a0d3b88395ed3ee979f9bc3369d8abb577e9cd57d6",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Treat the adoption as a captured four-change transaction, then reconstruct the exact legacy bytes from its recorded before-payloads and remove every adoption artifact."
+   }
+  },
+  "TA3-b": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T04:44:04+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Do not invent the released catalog ref or command-field names from inference; the captured evidence cannot verify either requirement.",
+      "falsification": "A task-materials source that provides the released ref and field schema resolves this uncertainty.",
+      "recommendation_id": "r2",
+      "severity": "high"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 130,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.96,
+      "counterevidence": [],
+      "falsification": [
+       "The recommendation is invalid if the frozen checker permits a transaction record without byte-for-byte legacy payloads, contrary to the supplied task specification.",
+       "A digest mismatch after rollback falsifies successful exact restoration."
+      ],
+      "id": "r1",
+      "recommendation": "Perform the adoption only as a transient, recorded migration: capture each legacy file's exact bytes and SHA-256 before deletion; record each created adoption file's exact bytes, base64, and SHA-256; then restore/delete in the required rollback order and retain only the transaction record and claim file.",
+      "unknowns": [
+       "The evidence does not include docs/tech-stack.local.md, so its original bytes must be captured directly during execution.",
+       "The exact released engineering-core catalog ref and required catalog/list command field names are not present in the captured evidence."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 133,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.88,
+      "counterevidence": [],
+      "falsification": [
+       "If the released catalog does not recognize one of the selected discipline IDs, the adoption contract will fail catalog validation.",
+       "If pyproject.toml is not representative of the intended repository lane, the py lane selection is falsified."
+      ],
+      "id": "r2",
+      "recommendation": "Use lane \"py\" and include the five listed cross-language discipline IDs\u2014dependency-governance, documentation, security-privacy, testing, and validation\u2014in the transient adoption contract; validate the JSON and front matter before encoding their bytes into apply.json.",
+      "unknowns": [
+       "Captured evidence establishes Python packaging but not the canonical v1 adoption schema beyond the task text.",
+       "The task requires the current released catalog ref in an exact format, but the actual ref is absent from request-bound evidence."
+      ]
+     }
+    ],
+    "request_sha256": "7a66ca33207f6ae552dcb96e7268f8038bf95f063aa2728eb0d2fe82e15681f4",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "The captured repository evidence supports the Python lane and byte-preserving migration/rollback recording. The released catalog ref and exact required command-field names are not captured, so those contract details must be obtained from the task materials before authoring the transient adoption files."
+   }
+  },
+  "TC1-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T02:18:56+00:00",
+   "response": {
+    "critiques": [],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "pi-ts",
+       "ts",
+       "documentation"
+      ],
+      "citations": [
+       {
+        "end": 241,
+        "evidence_id": "e1",
+        "path": "package.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.9,
+      "counterevidence": [],
+      "falsification": [
+       "A required fixture demonstrates that a valid changelog header permits intervening non-heading lines between the marker and heading.",
+       "A repository-owned contract requires parsing formats other than the specified comment-plus-heading shape."
+      ],
+      "id": "r1-pure-parser-contract",
+      "recommendation": "Implement the audit module without filesystem access or dependencies. Detect a header only when a `<!-- changelog -->` marker is followed by a `## ` heading line, derive the heading text or null, and collect quoted `read_when:` trigger values only within that header block. Preserve one output result per input entry and input order.",
+      "unknowns": [
+       "The captured package manifest does not establish the repository's existing changelog-header grammar beyond the bounded task specification.",
+       "The precise intended end boundary of a header block is not represented in captured repository files."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "testing",
+       "validation",
+       "pi-ts"
+      ],
+      "citations": [
+       {
+        "end": 241,
+        "evidence_id": "e1",
+        "path": "package.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.96,
+      "counterevidence": [],
+      "falsification": [
+       "`node --test g3ps-changelog-audit.test.js` fails or reports fewer than three tests.",
+       "An eight-input aggregation fixture does not prove total, withHeader, and missingHeader values."
+      ],
+      "id": "r2-built-in-runner-coverage",
+      "recommendation": "Write at least three deterministic `node:test` cases using `node:assert/strict`: a valid parsing case, a missing/degenerate case, and an aggregation case with at least eight fixture entries. Assert complete returned objects, including null versus empty-array behavior and aggregate totals, rather than only selected fields.",
+      "unknowns": [
+       "Captured evidence does not show an existing test command or test-file naming convention."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "validation",
+       "documentation",
+       "ts"
+      ],
+      "citations": [
+       {
+        "end": 178,
+        "evidence_id": "e2",
+        "path": "biome.jsonc",
+        "start": 0
+       },
+       {
+        "end": 241,
+        "evidence_id": "e1",
+        "path": "package.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.93,
+      "counterevidence": [
+       "The manifest exposes no test or Biome script, so validation must use the specified direct Node commands rather than an inferred package script."
+      ],
+      "falsification": [
+       "Either file fails `node --check`.",
+       "The test command fails, or formatting exceeds the stated contract when checked by the owning formatter gate."
+      ],
+      "id": "r3-format-and-claim-validation",
+      "recommendation": "Hand-format both files to the declared Biome contract: two-space indentation, 100-column maximum, double quotes, and semicolons. Before finalizing, run `node --check` on each file and `node --test` on the test file, then record the changed paths, clause mapping, commands, and results in the required root claim file if that file is permitted by the task authority.",
+      "unknowns": [
+       "The task's instruction to create exactly two files conflicts with its separate requirement for a root claim file; no captured evidence resolves whether the claim file is exempt from that file-count constraint.",
+       "Captured evidence does not show a Biome invocation script."
+      ]
+     }
+    ],
+    "request_sha256": "5eb9edce6465100f52558715030c44593fbe2bcf68269a7a5dcfc94eb0f45f3d",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Implement the two requested ESM files as a pure, deterministic parser plus Node built-in-runner tests; retain package conventions and explicitly validate both syntax and test execution."
+   }
+  },
+  "TC2-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T02:28:50+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Implementing the two alias edits without resolving the claim-file requirement would leave a stated deliverable unmet; creating the claim file without an exception would violate the stated change-count limit.",
+      "falsification": "Owner clarification removes the contradiction by explicitly allowing the claim file as an additional change.",
+      "recommendation_id": "r2-preserve-two-level-thin-alias",
+      "severity": "high"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "documentation",
+       "validation"
+      ],
+      "citations": [],
+      "competes_with": [],
+      "confidence": 0.99,
+      "counterevidence": [],
+      "falsification": [
+       "An owner-provided clarification explicitly permits G3P3_CLAIM.md in addition to the two specified command-surface edits."
+      ],
+      "id": "r1-resolve-claim-file-scope",
+      "recommendation": "Obtain owner clarification on whether G3P3_CLAIM.md is an explicit exception to the exactly-two-changes constraint. Do not infer that the required claim file is permitted when the task also prohibits any other file changes.",
+      "unknowns": [
+       "Whether the claim file is intended to count as a third allowed change."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "dependency-governance",
+       "testing",
+       "ts",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 178,
+        "evidence_id": "e1",
+        "path": "Justfile",
+        "start": 0
+       },
+       {
+        "end": 241,
+        "evidence_id": "e2",
+        "path": "package.json",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.98,
+      "counterevidence": [
+       "The existing validate recipe already delegates directly to release:contracts:validate, so the new command must remain a distinct alias rather than alter that recipe."
+      ],
+      "falsification": [
+       "package.json lacks release:contracts:validate.",
+       "The proposed Justfile recipe requires logic beyond a single npm run g3ps-quick-check invocation.",
+       "Frozen validation shows the new recipe does not parse or dry-run successfully."
+      ],
+      "id": "r2-preserve-two-level-thin-alias",
+      "recommendation": "After scope clarification, add only the requested package script delegating to release:contracts:validate and the Justfile recipe delegating to that new script. Verify with the frozen JSON parse, Justfile list, dry-run, exact-recipe-body, and changed-file checks; retain the existing validate recipe unchanged.",
+      "unknowns": [
+       "Whether just is available in the disposable repository environment.",
+       "Whether G3P3_CLAIM.md is permitted as an exception."
+      ]
+     }
+    ],
+    "request_sha256": "06c8ff2948459875081234273675fac30c87053b51fc29b7bf7f0a97cdf91bcf",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "The captured command surfaces support the requested two-level thin alias. The task\u2019s required claim file conflicts with its \u201cexactly two changes; nothing else may change\u201d constraint and requires owner resolution before execution."
+   }
+  },
+  "TC3-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T02:42:47+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "Floating-point fractional comparisons can expose near-tie behavior that is not specified; avoid claiming stronger numerical guarantees than the stated float-based API supports.",
+      "falsification": "A deterministic test with nearly equal floating-point fractions demonstrates an ordering inconsistent with the intended specification.",
+      "recommendation_id": "r1",
+      "severity": "medium"
+     },
+     {
+      "critique": "ValueError coverage cannot be fully prescriptive because the frozen task requests such cases without defining invalid inputs.",
+      "falsification": "Owner-provided acceptance tests require ValueError for an input class not covered by the selected validation contract.",
+      "recommendation_id": "r2",
+      "severity": "medium"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "service-api",
+       "testing"
+      ],
+      "citations": [
+       {
+        "end": 78,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.91,
+      "counterevidence": [],
+      "falsification": [
+       "A task-owned test or existing local convention requires a different invalid-input policy.",
+       "An allocation with equal fractional remainders is expected to use an ordering other than ascending lexical key order."
+      ],
+      "id": "r1",
+      "recommendation": "Define the typed function using Mapping from collections.abc; reject invalid totals or weights before allocation, compute floor bases and fractional remainders, then rank keys by (-fraction, key) before assigning the remaining seats. Keep output construction keyed exclusively from the supplied mapping.",
+      "unknowns": [
+       "The task text names ValueError cases but does not enumerate their exact invalid-input contract.",
+       "Captured repository evidence does not show existing package-export conventions."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "testing",
+       "validation",
+       "py"
+      ],
+      "citations": [
+       {
+        "end": 115,
+        "evidence_id": "e2",
+        "path": "Justfile",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.95,
+      "counterevidence": [],
+      "falsification": [
+       "Targeted pytest reports fewer than three passing tests.",
+       "ruff check reports a violation in either new file.",
+       "Any generated valid case violates the allocation invariant."
+      ],
+      "id": "r2",
+      "recommendation": "Create at least three pytest tests: a concrete largest-remainder/tie-break example, parameterized ValueError cases matching the implemented validation contract, and a deterministic corpus of at least eight valid inputs asserting exact input keys, nonnegative integer allocations, and sum equal to total. Run targeted pytest and ruff check on both new files.",
+      "unknowns": [
+       "Whether ruff is available as a direct executable rather than only through the declared Justfile.",
+       "The exact expected invalid-input cases remain unspecified."
+      ]
+     }
+    ],
+    "request_sha256": "a4b009466754c6117a105d88b7a8c60826660376e94899d85661b7fcacc5485e",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Implement the new module with deterministic largest-remainder ordering and tests that combine exact expected behavior, invalid-input coverage, and a seeded or literal property corpus. Validate with the repository\u2019s declared ruff and pytest commands."
+   }
+  },
+  "TC4-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T02:56:37+00:00",
+   "response": {
+    "critiques": [],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "validation",
+       "documentation",
+       "testing",
+       "py"
+      ],
+      "citations": [
+       {
+        "end": 115,
+        "evidence_id": "e1",
+        "path": "Justfile",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.98,
+      "counterevidence": [],
+      "falsification": [
+       "A repository-local documented command or script, not included in the captured evidence, defines a build, CI, doctor, release, or alternative validation surface.",
+       "The actual Justfile differs from the captured content."
+      ],
+      "id": "validation-tier-map-truthful-surface",
+      "recommendation": "Create the required tier-map artifact with the exact prescribed shape. Use existing `just lint`, `just check`, and `just test` commands for tier rows as appropriate; map `just check` to `ruff check .` and `just test` to `python -m pytest tests -q`. Mark `just build`, `just ci`, and `just doctor` as `n/a` with reasons that those recipes are absent from the captured Justfile. Do not claim an authoritative CI or release command exists.",
+      "unknowns": [
+       "The evidence does not establish repository-specific CI or release automation outside the Justfile.",
+       "The evidence does not establish measured runtimes for the tier target-runtime labels."
+      ]
+     }
+    ],
+    "request_sha256": "bb114d0694c4883f5efc03e4683a9719ff3b006d260102d5e2e646c88ffbd3b0",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "The captured Justfile supports a truthful tier map using check, test, and lint; build, ci, and doctor must be marked unavailable rather than invented."
+   }
+  },
+  "TH1-a": {
+   "advisor_identity": "openai-codex/gpt-5.6-terra",
+   "failure": null,
+   "recorded_at": "2026-08-27T03:21:16+00:00",
+   "response": {
+    "critiques": [
+     {
+      "critique": "The exact released reference and required command-field values are not in captured evidence; this recommendation intentionally requires resolving them from the authorized gate rather than inferring them.",
+      "falsification": "Captured authorized catalog evidence supplies different requirements than the assumed v1 migration shape.",
+      "recommendation_id": "r1",
+      "severity": "medium"
+     },
+     {
+      "critique": "Existing evidence proves target names but not their successful execution or adequacy for every tier.",
+      "falsification": "Running the mapped recipes shows failure, insufficient scope, or a mismatch with frozen tier-map assertions.",
+      "recommendation_id": "r2",
+      "severity": "medium"
+     }
+    ],
+    "patch_proposals": [],
+    "provenance": {
+     "adapter": "pi-headless",
+     "adapter_version": "pi-cli",
+     "model": "gpt-5.6-terra",
+     "model_version": "as-configured",
+     "prompt_id": "engineering-core-bounded-advisor",
+     "prompt_version": "1",
+     "provider": "openai-codex"
+    },
+    "recommendations": [
+     {
+      "catalog_ids": [
+       "py",
+       "dependency-governance",
+       "documentation",
+       "security-privacy",
+       "testing",
+       "validation"
+      ],
+      "citations": [
+       {
+        "end": 132,
+        "evidence_id": "e2",
+        "path": "policy/stack-lane.json",
+        "start": 0
+       },
+       {
+        "end": 131,
+        "evidence_id": "e1",
+        "path": "pyproject.toml",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.91,
+      "counterevidence": [],
+      "falsification": [
+       "The engineering-core 0.10.0 gate reports a released-reference mismatch, missing command field, unknown ID, incomplete scan, non-adopted structural status, or a remaining legacy flag.",
+       "The target legacy documentation file is absent or governed by a repository-specific exception."
+      ],
+      "id": "r1",
+      "recommendation": "Replace the legacy lane metadata with the required v1 engineering-lane projection and local engineering guidance, explicitly removing the captured legacy stack-lane file. Obtain the exact current released catalog reference and required non-empty catalog/list command fields from the authorized engineering-core 0.10.0 surface rather than guessing them.",
+      "unknowns": [
+       "The captured evidence does not include the released catalog version or the exact required engineering-core command-field values.",
+       "The captured evidence does not include the legacy docs/tech-stack.local.md content or existence."
+      ]
+     },
+     {
+      "catalog_ids": [
+       "documentation",
+       "testing",
+       "validation",
+       "py"
+      ],
+      "citations": [
+       {
+        "end": 103,
+        "evidence_id": "e3",
+        "path": "Justfile",
+        "start": 0
+       }
+      ],
+      "competes_with": [],
+      "confidence": 0.94,
+      "counterevidence": [],
+      "falsification": [
+       "`just check` or `just test` fails to execute in the repository environment.",
+       "A required tier-map semantic assertion requires distinct recipes or a target absent from the captured Justfile.",
+       "The final Justfile contains additional valid recipes that change the truthful mapping."
+      ],
+      "id": "r2",
+      "recommendation": "Build the validation tier map from real existing Justfile recipes only. The captured surface supports `just check` and `just test`; reuse them across applicable tiers if truthful, and mark `just build`, `just ci`, and `just doctor` as `n/a` with explicit reasons unless those recipes are added and validated as real targets. Record command, scope, result, warning acceptance, and artifact path at each handoff.",
+      "unknowns": [
+       "The evidence does not establish which runtime or handoff boundary each tier should target.",
+       "The evidence does not show whether adding missing standard recipes is allowed or necessary for the frozen semantic assertions."
+      ]
+     }
+    ],
+    "request_sha256": "84b09ec5a74258a0a1adbba853ff1f2bc9b8a6864e1625df3a156da4a302d416",
+    "schema": "engineering-advice-response-v1",
+    "status": "advice",
+    "summary": "Captured evidence confirms a Python repository with legacy lane metadata and only `check` and `test` Justfile recipes. Migration and tier-map work should preserve that truthful command surface while resolving catalog-version details from the task-authorized engineering-core gate."
+   }
+  }
+ },
  "blockers": {},
  "budget": {
-  "executions": 0,
+  "executions": 61,
   "max_executions": 144,
   "stopped_reason": null,
   "window_s": 43200,
-  "window_started_at": null
+  "window_started_at": "2026-08-27T00:13:25+00:00"
  },
  "candidate": {
   "commit": "cde7f142ebd07527d865eded4bbbadf9fda9409f",
@@ -20,7 +1110,435 @@
   "commit": "145c889",
   "task": 5096
  },
- "execution_log": [],
+ "execution_log": [
+  {
+   "arm": "static",
+   "at": "2026-08-27T00:18:32+00:00",
+   "duration_s": 278.2,
+   "pair_id": "PL4-TA1-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T00:23:01+00:00",
+   "duration_s": 268.4,
+   "pair_id": "PL4-TA1-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T00:29:33+00:00",
+   "duration_s": 358.1,
+   "pair_id": "PL4-TA1-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T00:39:18+00:00",
+   "duration_s": 584.8,
+   "pair_id": "PL4-TA1-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T00:43:49+00:00",
+   "duration_s": 238.5,
+   "pair_id": "PL4-TA2-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T00:46:33+00:00",
+   "duration_s": 164.1,
+   "pair_id": "PL4-TA2-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T00:49:26+00:00",
+   "duration_s": 142.3,
+   "pair_id": "PL4-TA2-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T00:55:26+00:00",
+   "duration_s": 359.4,
+   "pair_id": "PL4-TA2-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T01:01:42+00:00",
+   "duration_s": 346.7,
+   "pair_id": "PL4-TA3-a-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T01:07:15+00:00",
+   "duration_s": 332.9,
+   "pair_id": "PL4-TA3-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T01:11:05+00:00",
+   "duration_s": 200.2,
+   "pair_id": "PL4-TA3-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T01:20:25+00:00",
+   "duration_s": 560.6,
+   "pair_id": "PL4-TA3-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T01:24:55+00:00",
+   "duration_s": 264.7,
+   "pair_id": "PL4-TB1-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T01:29:37+00:00",
+   "duration_s": 281.6,
+   "pair_id": "PL4-TB1-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T01:33:27+00:00",
+   "duration_s": 225.6,
+   "pair_id": "PL4-TB1-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T01:36:41+00:00",
+   "duration_s": 194.0,
+   "pair_id": "PL4-TB1-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T01:42:41+00:00",
+   "duration_s": 354.1,
+   "pair_id": "PL4-TB2-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T01:47:40+00:00",
+   "duration_s": 299.7,
+   "pair_id": "PL4-TB2-a-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T01:50:34+00:00",
+   "duration_s": 168.4,
+   "pair_id": "PL4-TB2-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T01:52:58+00:00",
+   "duration_s": 143.8,
+   "pair_id": "PL4-TB2-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T01:57:22+00:00",
+   "duration_s": 259.4,
+   "pair_id": "PL4-TB3-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:02:25+00:00",
+   "duration_s": 303.3,
+   "pair_id": "PL4-TB3-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:04:59+00:00",
+   "duration_s": 148.5,
+   "pair_id": "PL4-TB3-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:06:55+00:00",
+   "duration_s": 116.4,
+   "pair_id": "PL4-TB3-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:11:15+00:00",
+   "duration_s": 227.8,
+   "pair_id": "PL4-TC1-a-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:17:56+00:00",
+   "duration_s": 401.3,
+   "pair_id": "PL4-TC1-a-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:22:29+00:00",
+   "duration_s": 212.6,
+   "pair_id": "PL4-TC1-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:25:21+00:00",
+   "duration_s": 171.3,
+   "pair_id": "PL4-TC1-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:27:17+00:00",
+   "duration_s": 91.9,
+   "pair_id": "PL4-TC2-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:28:16+00:00",
+   "duration_s": 59.4,
+   "pair_id": "PL4-TC2-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:29:51+00:00",
+   "duration_s": 60.8,
+   "pair_id": "PL4-TC2-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:31:08+00:00",
+   "duration_s": 77.1,
+   "pair_id": "PL4-TC2-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:36:16+00:00",
+   "duration_s": 281.8,
+   "pair_id": "PL4-TC3-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:42:21+00:00",
+   "duration_s": 364.5,
+   "pair_id": "PL4-TC3-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:46:20+00:00",
+   "duration_s": 212.7,
+   "pair_id": "PL4-TC3-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:49:33+00:00",
+   "duration_s": 193.0,
+   "pair_id": "PL4-TC3-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:54:25+00:00",
+   "duration_s": 264.7,
+   "pair_id": "PL4-TC4-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T02:56:12+00:00",
+   "duration_s": 106.8,
+   "pair_id": "PL4-TC4-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T02:58:04+00:00",
+   "duration_s": 87.4,
+   "pair_id": "PL4-TC4-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T03:00:21+00:00",
+   "duration_s": 136.4,
+   "pair_id": "PL4-TC4-a-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T03:09:43+00:00",
+   "duration_s": 533.7,
+   "pair_id": "PL4-TH1-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T03:20:42+00:00",
+   "duration_s": 658.9,
+   "pair_id": "PL4-TH1-a-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T03:35:04+00:00",
+   "duration_s": 827.4,
+   "pair_id": "PL4-TH1-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T03:38:17+00:00",
+   "duration_s": 193.2,
+   "pair_id": "PL4-TH1-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T03:43:57+00:00",
+   "duration_s": 335.0,
+   "pair_id": "PL4-TH2-a-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T03:52:45+00:00",
+   "duration_s": 528.2,
+   "pair_id": "PL4-TH2-a-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T03:55:31+00:00",
+   "duration_s": 160.4,
+   "pair_id": "PL4-TH2-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T03:57:56+00:00",
+   "duration_s": 145.1,
+   "pair_id": "PL4-TH2-a-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T04:02:52+00:00",
+   "duration_s": 266.6,
+   "pair_id": "PL4-TA1-b-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T04:08:17+00:00",
+   "duration_s": 324.9,
+   "pair_id": "PL4-TA1-b-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T04:12:46+00:00",
+   "duration_s": 234.4,
+   "pair_id": "PL4-TA1-b-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T04:17:05+00:00",
+   "duration_s": 258.6,
+   "pair_id": "PL4-TA1-b-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T04:23:18+00:00",
+   "duration_s": 342.3,
+   "pair_id": "PL4-TA2-b-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T04:26:22+00:00",
+   "duration_s": 183.9,
+   "pair_id": "PL4-TA2-b-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T04:29:14+00:00",
+   "duration_s": 137.9,
+   "pair_id": "PL4-TA2-b-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T04:32:35+00:00",
+   "duration_s": 200.4,
+   "pair_id": "PL4-TA2-b-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T04:39:18+00:00",
+   "duration_s": 373.5,
+   "pair_id": "PL4-TA3-b-fam-glm",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T04:43:34+00:00",
+   "duration_s": 255.8,
+   "pair_id": "PL4-TA3-b-fam-glm",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T04:50:13+00:00",
+   "duration_s": 369.1,
+   "pair_id": "PL4-TA3-b-fam-gpt",
+   "y": 1
+  },
+  {
+   "arm": "evidence",
+   "at": "2026-08-27T04:53:26+00:00",
+   "duration_s": 193.5,
+   "pair_id": "PL4-TA3-b-fam-gpt",
+   "y": 0
+  },
+  {
+   "arm": "static",
+   "at": "2026-08-27T04:57:32+00:00",
+   "duration_s": 240.5,
+   "pair_id": "PL4-TB1-b-fam-glm",
+   "y": 1
+  }
+ ],
  "extended": false,
  "families": {
   "fam-glm": "zai/glm-5.3:high",
@@ -116,20 +1634,20 @@
  },
  "progress": {
   "PL4-TA1-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T00:23:01+00:00"
   },
   "PL4-TA1-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T00:39:18+00:00"
   },
   "PL4-TA1-b-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T04:08:17+00:00"
   },
   "PL4-TA1-b-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T04:17:05+00:00"
   },
   "PL4-TA1-c-fam-glm": {
    "status": "pending",
@@ -140,20 +1658,20 @@
    "updated_at": null
   },
   "PL4-TA2-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T00:46:33+00:00"
   },
   "PL4-TA2-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T00:55:26+00:00"
   },
   "PL4-TA2-b-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T04:26:22+00:00"
   },
   "PL4-TA2-b-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T04:32:35+00:00"
   },
   "PL4-TA2-c-fam-glm": {
    "status": "pending",
@@ -164,20 +1682,20 @@
    "updated_at": null
   },
   "PL4-TA3-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T01:07:15+00:00"
   },
   "PL4-TA3-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T01:20:25+00:00"
   },
   "PL4-TA3-b-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T04:43:34+00:00"
   },
   "PL4-TA3-b-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T04:53:26+00:00"
   },
   "PL4-TA3-c-fam-glm": {
    "status": "pending",
@@ -188,12 +1706,12 @@
    "updated_at": null
   },
   "PL4-TB1-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T01:29:37+00:00"
   },
   "PL4-TB1-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T01:36:41+00:00"
   },
   "PL4-TB1-b-fam-glm": {
    "status": "pending",
@@ -212,12 +1730,12 @@
    "updated_at": null
   },
   "PL4-TB2-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T01:47:40+00:00"
   },
   "PL4-TB2-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T01:52:58+00:00"
   },
   "PL4-TB2-b-fam-glm": {
    "status": "pending",
@@ -236,12 +1754,12 @@
    "updated_at": null
   },
   "PL4-TB3-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:02:25+00:00"
   },
   "PL4-TB3-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:06:55+00:00"
   },
   "PL4-TB3-b-fam-glm": {
    "status": "pending",
@@ -260,12 +1778,12 @@
    "updated_at": null
   },
   "PL4-TC1-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:17:56+00:00"
   },
   "PL4-TC1-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:25:21+00:00"
   },
   "PL4-TC1-b-fam-glm": {
    "status": "pending",
@@ -284,12 +1802,12 @@
    "updated_at": null
   },
   "PL4-TC2-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:28:16+00:00"
   },
   "PL4-TC2-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:31:08+00:00"
   },
   "PL4-TC2-b-fam-glm": {
    "status": "pending",
@@ -308,12 +1826,12 @@
    "updated_at": null
   },
   "PL4-TC3-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:42:21+00:00"
   },
   "PL4-TC3-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:49:33+00:00"
   },
   "PL4-TC3-b-fam-glm": {
    "status": "pending",
@@ -332,12 +1850,12 @@
    "updated_at": null
   },
   "PL4-TC4-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T02:56:12+00:00"
   },
   "PL4-TC4-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T03:00:21+00:00"
   },
   "PL4-TC4-b-fam-glm": {
    "status": "pending",
@@ -356,12 +1874,12 @@
    "updated_at": null
   },
   "PL4-TH1-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T03:20:42+00:00"
   },
   "PL4-TH1-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T03:38:17+00:00"
   },
   "PL4-TH1-b-fam-glm": {
    "status": "pending",
@@ -380,12 +1898,12 @@
    "updated_at": null
   },
   "PL4-TH2-a-fam-glm": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T03:52:45+00:00"
   },
   "PL4-TH2-a-fam-gpt": {
-   "status": "pending",
-   "updated_at": null
+   "status": "completed",
+   "updated_at": "2026-08-27T03:57:56+00:00"
   },
   "PL4-TH2-b-fam-glm": {
    "status": "pending",

@@ -1,0 +1,12 @@
+{
+  "interim_look_fired": false,
+  "interim_threshold_pairs": 48,
+  "non_verdict": "STOPPED BEFORE the pre-registered interim look (30 < 48 receipt-backed pairs). No criterion verdict exists and none may be claimed. Descriptive counts only, recorded for lineage: see receipts.",
+  "pairs_completed": 30,
+  "planned_pairs": 72,
+  "receipts_sha256": "62bc267a2d7741edd0fb871b448f61e7706783a85391b219dad5c29f5df6603b",
+  "resumability": "Frozen corpus (digest 5e629261...), MC, guards, calibration, and decision 138 all remain valid lineage; resumption requires only re-entry under the same frozen design (fresh window, receipts-idempotent).",
+  "schema": "dspx.g3ps-stop/1",
+  "stop_reason": "operator_stopped (resource redirection to strategic re-evaluation)",
+  "stopped_at": "2026-08-27T04:58:12.045856+00:00"
+}
