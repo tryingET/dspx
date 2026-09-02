@@ -39,6 +39,7 @@ def _render_gepa_program_code(
     objective = str(intent.get("objective") or "")
     constraints = list(intent.get("constraints") or [])
     metric = str(intent.get("metric") or "unspecified")
+    quality_criteria = list(intent.get("quality_criteria") or [])
     loader_code = "\n".join(
         [
             "import json",
@@ -289,6 +290,7 @@ def _render_gepa_program_code(
             "        'objective': OBJECTIVE,",
             "        'constraints': list(CONSTRAINTS),",
             "        'metric': METRIC,",
+            f"        'quality_criteria': {quality_criteria!r},",
             "        'io': io_spec(),",
             "        'materialization_scope': {",
             "            'topology_materialized': True,",

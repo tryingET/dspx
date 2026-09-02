@@ -44,6 +44,16 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
     monkeypatch.setenv("DSPX_ORACLE_EMBEDDING_BACKEND", "mock")
     monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", json.dumps({"urgency": "high"}))
 
+    quality_criteria = [
+        {
+            "id": "urgent_response",
+            "output_field": "urgency",
+            "evaluator": "concept_coverage",
+            "required_concept_groups": [["high"]],
+            "forbidden_concepts": [],
+            "min_score": 1.0,
+        }
+    ]
     source_artifact = materialize_program_from_intent(
         ProgramIntent(
             name="RealGepaTicketProgram",
@@ -57,6 +67,7 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
                     "outputs": {"urgency": "high"},
                 }
             ],
+            quality_criteria=quality_criteria,
         ),
         outdir=tmp_path / "source",
     )
@@ -134,6 +145,8 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
         (candidate_root / "behavior_results.json").read_text(encoding="utf-8")
     )
     assert behavior["summary"]["status"] == "passed"
+    assert behavior["intent"]["quality_criteria"] == quality_criteria
+    assert behavior["quality_evaluation"]["status"] == "passed"
     candidate_receipt = candidate_root / "manifest.json.meta.json"
     candidate_check = check_run_receipt(candidate_receipt)
     assert candidate_check["status"] == "ok", candidate_check
@@ -180,7 +193,7 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
     )
 
     assert runtime["status"] == "ok"
-    assert runtime["steps"]["runtime_execution"]["status"] == "executed"
+    assert runtime["steps"]["runtime_execution"]["status"] == "executed_quality_passed"
     assert _tree_hash(candidate_root) == candidate_before_runtime
     runtime_receipt = runtime_root / "runtime_episode.json.meta.json"
     runtime_check = check_run_receipt(runtime_receipt)
