@@ -10,11 +10,10 @@ type: "evidence"
 
 ## Status
 
-AK task 5308 implements the credential-free source and test slice that binds the maintained
-`dspy-lm-auth` fork to the existing receipt-bound foundry GEPA comparison jury.
-
-This record does **not** claim a live provider call, successful Codex response, Misegraph recipe
-run, promotion, activation, release, or external-authority effect.
+AK task 5308 implements the fixed provider-neutral source/test slice. AK task 5322 then completed
+one full live three-juror Misegraph Espresso Brownies comparison with `gpt-5.4`, followed by the
+existing deterministic adjudicator. The jury requested more evidence and adjudication recorded
+`require_review`; neither artifact claims promotion, activation, release, or external authority.
 
 ## Boundary
 
@@ -74,8 +73,8 @@ evidence.
 
 Exact source execution also requires a bytecode-disabled process and an owner checkout without
 `__pycache__` or `.pyc` artifacts. A live operator invocation must therefore use a clean exact
-checkout and `PYTHONDONTWRITEBYTECODE=1`; this implementation pass did not clean or mutate the
-maintained fork checkout.
+checkout and `PYTHONDONTWRITEBYTECODE=1`; AK-5322 used a fresh detached clone of the pinned fork
+commit without mutating the maintained checkout.
 
 The task-local runtime is one-shot and process-serialized. A second new jury in a process where
 `dspy_lm_auth` is already loaded rejects before writing its outer attempt marker.
@@ -85,8 +84,8 @@ Python code already executing inside the DSPx process.
 
 ## CLI shape
 
-A later separately authorized live execution uses the existing command with the task-local
-provider inputs:
+A separately authorized live execution uses the existing command with the task-local provider
+inputs:
 
 The claimed execution task must have the exact title
 `Execute one receipt-bound foundry comparison jury with dspy-lm-auth Codex`; an ordinary
@@ -117,12 +116,15 @@ never retried or treated as fallback candidates.
 
 ## Misegraph and adjudication
 
-No Misegraph source was changed. Misegraph recipe metrics and graph/linter evidence can enter this
-boundary only through the already receipt-bound foundry candidate-comparison evidence. This slice
-does not claim that a concrete Misegraph recipe has yet produced such a comparison.
+No Misegraph source was changed. The AK-5322 dogfood bound the actual Espresso Brownies `.mise`
+source, canonical IR, and rendered text by SHA-256 into two program examples, produced a complete
+GEPA execution/consumption comparison, and called all three selected jurors. All provider journals
+completed successfully; the three outcomes were `request_more_evidence`.
 
-No adjudicator implementation was replaced. Successful jury evidence continues to the existing
-deterministic foundry comparison adjudicator and retains its local/non-authoritative limits.
+The existing deterministic foundry comparison adjudicator then recorded `require_review`. It did
+not rerun models, select a winner, mutate the candidate, or grant promotion/activation authority.
+The self-contained secret-free evidence projection is
+`docs/project/2026-09-02-misegraph-foundry-full-dogfood-evidence.json`.
 
 ## Credential-free verification
 
