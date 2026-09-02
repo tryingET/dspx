@@ -187,6 +187,7 @@ def _validate_result(
                 "dataset",
                 "io",
                 "gepa",
+                "gepa_version",
                 "providers",
                 "output_payload",
             }
@@ -195,6 +196,8 @@ def _validate_result(
             or not isinstance(manifest_payload.get("dataset"), Mapping)
             or not isinstance(manifest_payload.get("io"), Mapping)
             or not isinstance(manifest_payload.get("gepa"), Mapping)
+            or not isinstance(manifest_payload.get("gepa_version"), str)
+            or not manifest_payload["gepa_version"].strip()
             or not isinstance(manifest_payload.get("providers"), Mapping)
             or manifest_payload.get("output_payload")
             != _optimizer_payload_inventory(output_dir)

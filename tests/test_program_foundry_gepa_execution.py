@@ -62,6 +62,7 @@ def _completed_result(**kwargs: Any) -> dict[str, Any]:
                 "dataset": {},
                 "io": {},
                 "gepa": {},
+                "gepa_version": "0.1.1",
                 "providers": {},
                 "output_payload": {
                     "hash_algorithm": "sha256",
