@@ -100,7 +100,7 @@ PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
   --owner-source-root <exact-clean-dspy-lm-auth-root> \
   --execution-task-id <claimed-live-execution-task> \
   --execution-claimant <exact-ak-claimed-by> \
-  --codex-model gpt-5.6-sol \
+  --codex-model gpt-5.4 \
   --reasoning-effort xhigh \
   --json
 ```
@@ -108,14 +108,12 @@ PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
 The command is documented for contract shape only. AK task 5308 did not authorize or perform that
 live provider effect.
 
-The reviewed default is `gpt-5.6-sol`. A preserved one-shot dogfood under AK-5315 used
-`gpt-5.6-luna` and received a terminal HTTP 400 on the first juror; its attempt and receipt evidence
-forbid replay. That failed model assumption is not used as a fallback.
-AK-5318 then proved `gpt-5.6-sol` also returned terminal HTTP 400 when the backend forced
-Responses `json_object`; its evidence is retained at
-`docs/project/2026-09-02-foundry-codex-sol-terminal-failure-evidence.json`. The foundry adapter now
-keeps DSPy's JSON instructions and closed judgment parser but uses the Codex-compatible text
-transport format. Neither failed attempt is retried or treated as a fallback.
+The reviewed default is the catalog-backed `gpt-5.4`. Preserved one-shot dogfoods recorded three
+terminal HTTP 400 results without replay: AK-5315 used unlisted `gpt-5.6-luna`; AK-5318 used
+`gpt-5.6-sol` with `json_object`; AK-5320 used `gpt-5.6-sol` with text transport. Their durable
+secret-free evidence projections are retained in this directory. The foundry adapter keeps DSPy's
+exact JSON instructions and closed judgment parser while using text transport; failed attempts are
+never retried or treated as fallback candidates.
 
 ## Misegraph and adjudication
 

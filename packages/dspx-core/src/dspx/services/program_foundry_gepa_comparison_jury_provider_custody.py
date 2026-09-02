@@ -35,7 +35,7 @@ from dspx.services.soomfon_provider_outcome_receipt_reducer import (
 PROVIDER_NAME = "foundry-dspy-lm-auth-codex"
 AUTH_PROVIDER = "codex"
 CREDENTIAL_MODE = "no-refresh"
-DEFAULT_CODEX_MODEL = "gpt-5.6-sol"
+DEFAULT_CODEX_MODEL = "gpt-5.4"
 DEFAULT_REASONING_EFFORT = "xhigh"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 IMPLEMENTATION_TASK_ID = 5308
