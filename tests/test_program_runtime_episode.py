@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 from pathlib import Path
 
@@ -188,6 +189,42 @@ def test_program_runtime_episode_runs_existing_candidate_without_mutating_manife
     with sqlite3.connect(outdir / "oracle" / "coordinates.db") as conn:
         run_id = conn.execute("SELECT run_id FROM coordinates").fetchone()[0]
     assert run_id == f"program-oracle-evidence:{payload['runtime_episode_id']}"
+
+
+def test_program_runtime_episode_writes_through_pinned_directory_descriptor(
+    tmp_path: Path, monkeypatch
+) -> None:
+    _env(tmp_path, monkeypatch)
+    candidate = _generated_candidate(tmp_path)
+    inputs = tmp_path / "runtime-inputs.json"
+    inputs.write_text(
+        json.dumps({"inputs": {"ticket_text": "Server is down for all users"}}),
+        encoding="utf-8",
+    )
+    runtime_root = tmp_path / "descriptor-runtime"
+    runtime_root.mkdir(mode=0o700)
+    runtime_root.chmod(0o700)
+    descriptor = os.open(
+        runtime_root,
+        os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        payload = run_program_runtime_episode(
+            manifest_path=candidate / "manifest.json",
+            inputs_path=inputs,
+            outdir=Path(f"/proc/self/fd/{descriptor}"),
+            skip_oracle_index=True,
+        )
+    finally:
+        os.close(descriptor)
+
+    assert payload["status"] == "ok"
+    episode_path = runtime_root / "runtime_episode.json"
+    receipt_path = runtime_root / "runtime_episode.json.meta.json"
+    assert episode_path.is_file()
+    assert receipt_path.is_file()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["output_path"] == str(episode_path)
 
 
 def test_program_runtime_episode_round_trips_explicit_pipeline_candidate(

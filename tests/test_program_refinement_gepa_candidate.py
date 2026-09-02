@@ -629,6 +629,45 @@ def test_program_refine_materialize_and_compare_gepa_candidate_rejects_sidecars_
     assert _hash_tree(program_root) == before
 
 
+@pytest.mark.parametrize(
+    ("case", "expected"),
+    [
+        ("mismatched_inputs", "must reuse the source runtime episode inputs"),
+        ("source_overlap", "must be disjoint from candidate roots"),
+        ("preexisting_output", "must not already exist"),
+    ],
+)
+def test_gepa_runtime_comparison_rejects_unsafe_paths_before_materialization(
+    tmp_path: Path,
+    case: str,
+    expected: str,
+) -> None:
+    source_root = tmp_path / "source"
+    source_episode = tmp_path / "source-runtime" / "runtime_episode.json"
+    runtime_inputs = source_episode.parent / "runtime_inputs.json"
+    candidate_runtime = tmp_path / "candidate-runtime"
+    if case == "mismatched_inputs":
+        runtime_inputs = tmp_path / "other-runtime-inputs.json"
+    elif case == "source_overlap":
+        candidate_runtime = source_root / "runtime"
+    else:
+        candidate_runtime.mkdir()
+
+    candidate_out = tmp_path / "candidate"
+    with pytest.raises(ProgramRefinementWorkflowError, match=expected):
+        materialize_and_compare_gepa_refinement_candidate(
+            manifest_path=source_root / "manifest.json",
+            gepa_result_path=tmp_path / "gepa-result.json",
+            outdir=candidate_out,
+            comparison_out_path=tmp_path / "comparison.json",
+            runtime_inputs_path=runtime_inputs,
+            source_runtime_episode_path=source_episode,
+            candidate_runtime_outdir=candidate_runtime,
+        )
+
+    assert not candidate_out.exists()
+
+
 def test_program_promote_decide_comparison_feeds_local_plan_for_gepa_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

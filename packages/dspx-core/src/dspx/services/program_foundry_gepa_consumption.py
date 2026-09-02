@@ -135,6 +135,7 @@ def _paths(experiment_root: Path) -> dict[str, Path]:
     return {
         "attempt": experiment_root / "consumption-attempt.json",
         "candidate_root": experiment_root / "materialized-candidate",
+        "candidate_runtime_root": experiment_root / "candidate-runtime",
         "candidate_result": experiment_root / "candidate-result.json",
         "comparison": experiment_root / "candidate-comparison.json",
         "workflow": experiment_root / "materialize-and-compare-result.json",
@@ -200,6 +201,43 @@ def _validate_materialized_outputs(
         candidate_manifest_path=candidate_manifest,
         source_manifest_path=source_manifest,
     )
+    candidate_runtime_root = paths["candidate_runtime_root"]
+    created_from = comparison.get("created_from")
+    recorded_candidate_runtime_path = (
+        created_from.get("candidate_runtime_episode_path")
+        if isinstance(created_from, Mapping)
+        else None
+    )
+    recorded_source_runtime_path = (
+        created_from.get("source_runtime_episode_path")
+        if isinstance(created_from, Mapping)
+        else None
+    )
+    runtime_comparison = comparison.get("runtime_evidence_comparison")
+    runtime_evidence_bound = (
+        recorded_candidate_runtime_path is not None
+        or recorded_source_runtime_path is not None
+    )
+    expected_source_runtime_path = str(
+        paths["comparison"].parent.parent / "runtime" / "runtime_episode.json"
+    )
+    if runtime_evidence_bound:
+        if (
+            not candidate_runtime_root.is_dir()
+            or candidate_runtime_root.is_symlink()
+            or recorded_candidate_runtime_path
+            != str(candidate_runtime_root / "runtime_episode.json")
+            or recorded_source_runtime_path != expected_source_runtime_path
+            or not isinstance(runtime_comparison, Mapping)
+            or runtime_comparison.get("compared") is not True
+        ):
+            raise ProgramFoundryGepaConsumptionError(
+                "GEPA runtime evidence escaped its canonical foundry binding"
+            )
+    elif candidate_runtime_root.exists() or candidate_runtime_root.is_symlink():
+        raise ProgramFoundryGepaConsumptionError(
+            "GEPA candidate runtime output exists without comparison evidence"
+        )
     candidate_manifest_final, candidate_manifest_hash_final = _load_json_snapshot(
         candidate_manifest,
         label="GEPA candidate manifest",
@@ -478,6 +516,7 @@ def consume_successful_program_foundry_gepa_receipt(
             }
         protected_outputs = (
             paths["candidate_root"],
+            paths["candidate_runtime_root"],
             paths["candidate_result"],
             paths["comparison"],
             paths["workflow"],
@@ -533,6 +572,9 @@ def consume_successful_program_foundry_gepa_receipt(
                 outdir=paths["candidate_root"],
                 comparison_out_path=paths["comparison"],
                 gepa_candidate_result_out=paths["candidate_result"],
+                runtime_inputs_path=root / "runtime" / "runtime_inputs.json",
+                source_runtime_episode_path=root / "runtime" / "runtime_episode.json",
+                candidate_runtime_outdir=paths["candidate_runtime_root"],
             )
             workflow = write_program_refinement_workflow_result(
                 workflow,

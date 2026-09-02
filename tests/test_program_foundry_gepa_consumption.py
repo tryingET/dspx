@@ -79,9 +79,20 @@ def _install_success_stubs(
         Path(kwargs["gepa_candidate_result_out"]).write_text(
             json.dumps(candidate_result), encoding="utf-8"
         )
+        candidate_runtime_root = Path(kwargs["candidate_runtime_outdir"])
+        candidate_runtime_root.mkdir()
+        candidate_runtime_episode = candidate_runtime_root / "runtime_episode.json"
+        candidate_runtime_episode.write_text("{}", encoding="utf-8")
         comparison = {
             "schema_version": "program-refinement-candidate-comparison-v1",
             "status": "compared",
+            "created_from": {
+                "source_runtime_episode_path": str(
+                    kwargs["source_runtime_episode_path"]
+                ),
+                "candidate_runtime_episode_path": str(candidate_runtime_episode),
+            },
+            "runtime_evidence_comparison": {"compared": True},
         }
         Path(kwargs["comparison_out_path"]).write_text(
             json.dumps(comparison), encoding="utf-8"
@@ -172,6 +183,18 @@ def test_consumes_successful_execution_once_and_reuses_bound_receipt(
     assert second["reused"] is True
     assert len(calls) == 1
     assert first["effect"]["one_local_candidate_materialized"] is True
+    assert (
+        calls[0]["runtime_inputs_path"]
+        == execution["root"] / "runtime" / "runtime_inputs.json"
+    )
+    assert (
+        calls[0]["source_runtime_episode_path"]
+        == execution["root"] / "runtime" / "runtime_episode.json"
+    )
+    assert (
+        calls[0]["candidate_runtime_outdir"]
+        == execution_receipt.parent / "candidate-runtime"
+    )
     assert first["effect"]["local_comparison_recorded"] is True
     assert first["effect"]["gepa_reexecuted"] is False
     assert first["effect"]["winner_selected"] is False
@@ -185,11 +208,34 @@ def test_consumes_successful_execution_once_and_reuses_bound_receipt(
     comparison.write_text('{"status":"tampered"}', encoding="utf-8")
     with pytest.raises(
         consumption.ProgramFoundryGepaConsumptionError,
-        match="drifted|workflow binding is invalid",
+        match="drifted|workflow binding is invalid|escaped its canonical foundry binding|without comparison evidence",
     ):
         consumption.consume_successful_program_foundry_gepa_receipt(
             execution_receipt_path=execution_receipt
         )
+    assert len(calls) == 1
+
+
+def test_consumption_rejects_moved_canonical_runtime_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    execution_receipt, execution = _execution_fixture(tmp_path)
+    calls: list[dict[str, Any]] = []
+    _install_success_stubs(monkeypatch, execution, calls)
+    consumption.consume_successful_program_foundry_gepa_receipt(
+        execution_receipt_path=execution_receipt
+    )
+    canonical_runtime = execution_receipt.parent / "candidate-runtime"
+    canonical_runtime.rename(execution_receipt.parent / "moved-runtime")
+
+    with pytest.raises(
+        consumption.ProgramFoundryGepaConsumptionError,
+        match="escaped its canonical foundry binding",
+    ):
+        consumption.consume_successful_program_foundry_gepa_receipt(
+            execution_receipt_path=execution_receipt
+        )
+
     assert len(calls) == 1
 
 

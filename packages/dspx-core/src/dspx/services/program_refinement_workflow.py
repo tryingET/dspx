@@ -3,7 +3,10 @@
 #   - "Changing generate-and-compare workflows, output overlap guards, comparison summaries, or GEPA workflow validation."
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import stat
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -19,6 +22,7 @@ from dspx.services.program_refinement_gepa_candidate import (
 from dspx.services.program_refinement_gepa_candidate_contracts import (
     validate_program_refinement_gepa_candidate_result_contract,
 )
+from dspx.services.program_runtime_episode import run_program_runtime_episode
 
 PROGRAM_REFINEMENT_GENERATE_COMPARE_SCHEMA = (
     "program-refinement-generate-and-compare-result-v1"
@@ -73,6 +77,26 @@ class ProgramRefinementWorkflowError(ValueError):
 
 def _json_text(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _runtime_inputs_sha256(runtime_episode_path: Path) -> str:
+    try:
+        payload = json.loads(runtime_episode_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ProgramRefinementWorkflowError(
+            "GEPA runtime comparison requires a valid runtime episode"
+        ) from exc
+    artifacts = payload.get("artifact_hashes") if isinstance(payload, Mapping) else None
+    digest = (
+        artifacts.get("runtime_inputs_sha256")
+        if isinstance(artifacts, Mapping)
+        else None
+    )
+    if not isinstance(digest, str) or len(digest) != 64:
+        raise ProgramRefinementWorkflowError(
+            "GEPA runtime episode is missing its runtime input hash"
+        )
+    return digest
 
 
 def _is_relative_to(path: Path, root: Path) -> bool:
@@ -229,8 +253,11 @@ def materialize_and_compare_gepa_refinement_candidate(
     outdir: Path,
     comparison_out_path: Path,
     gepa_candidate_result_out: Path | None = None,
+    runtime_inputs_path: Path | None = None,
+    source_runtime_episode_path: Path | None = None,
+    candidate_runtime_outdir: Path | None = None,
 ) -> dict[str, Any]:
-    """Explicitly materialize one GEPA candidate, then compare behavior evidence."""
+    """Materialize one GEPA candidate and compare behavior plus optional runtime evidence."""
 
     manifest_path = manifest_path.expanduser().resolve()
     gepa_result_path = gepa_result_path.expanduser().resolve()
@@ -241,12 +268,64 @@ def materialize_and_compare_gepa_refinement_candidate(
         if gepa_candidate_result_out is not None
         else None
     )
+    runtime_arguments = (
+        runtime_inputs_path,
+        source_runtime_episode_path,
+        candidate_runtime_outdir,
+    )
+    if any(value is not None for value in runtime_arguments) and not all(
+        value is not None for value in runtime_arguments
+    ):
+        raise ProgramRefinementWorkflowError(
+            "GEPA runtime comparison requires runtime inputs, source episode, and candidate output together"
+        )
+    runtime_inputs_path = (
+        runtime_inputs_path.expanduser().resolve()
+        if runtime_inputs_path is not None
+        else None
+    )
+    source_runtime_episode_path = (
+        source_runtime_episode_path.expanduser().resolve()
+        if source_runtime_episode_path is not None
+        else None
+    )
+    candidate_runtime_outdir = (
+        candidate_runtime_outdir.expanduser().resolve()
+        if candidate_runtime_outdir is not None
+        else None
+    )
+    if candidate_runtime_outdir is not None:
+        assert runtime_inputs_path is not None
+        assert source_runtime_episode_path is not None
+        expected_runtime_inputs = (
+            source_runtime_episode_path.parent / "runtime_inputs.json"
+        )
+        if runtime_inputs_path != expected_runtime_inputs:
+            raise ProgramRefinementWorkflowError(
+                "GEPA candidate runtime must reuse the source runtime episode inputs"
+            )
+        if candidate_runtime_outdir.exists() or candidate_runtime_outdir.is_symlink():
+            raise ProgramRefinementWorkflowError(
+                "GEPA candidate runtime output must not already exist"
+            )
+        for protected_root in (manifest_path.parent, outdir):
+            if (
+                candidate_runtime_outdir == protected_root
+                or _is_relative_to(candidate_runtime_outdir, protected_root)
+                or _is_relative_to(protected_root, candidate_runtime_outdir)
+            ):
+                raise ProgramRefinementWorkflowError(
+                    "GEPA candidate runtime output must be disjoint from candidate roots"
+                )
     assert_distinct_workflow_output_paths(
         artifact_label="program GEPA materialize-and-compare workflow",
         source_root=manifest_path.parent,
         outdir=outdir,
         comparison_out=comparison_out_path,
         gepa_candidate_result_out=gepa_candidate_result_out,
+        candidate_runtime_outdir=candidate_runtime_outdir,
+        runtime_inputs_input=runtime_inputs_path,
+        source_runtime_episode_input=source_runtime_episode_path,
         gepa_result_input=gepa_result_path,
     )
     try:
@@ -259,10 +338,153 @@ def materialize_and_compare_gepa_refinement_candidate(
         candidate_manifest_path = (
             Path(str(generation["candidate"]["manifest_path"])).expanduser().resolve()
         )
-        comparison = build_program_refinement_candidate_comparison(
-            source_manifest_path=manifest_path,
-            candidate_manifest_path=candidate_manifest_path,
-        )
+        candidate_runtime_episode_path: Path | None = None
+        runtime_descriptor: int | None = None
+        if candidate_runtime_outdir is not None:
+            assert runtime_inputs_path is not None
+            assert source_runtime_episode_path is not None
+            parent_descriptor = os.open(
+                candidate_runtime_outdir.parent,
+                os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+            )
+            try:
+                os.mkdir(
+                    candidate_runtime_outdir.name,
+                    mode=0o700,
+                    dir_fd=parent_descriptor,
+                )
+                runtime_root_before = os.stat(
+                    candidate_runtime_outdir.name,
+                    dir_fd=parent_descriptor,
+                    follow_symlinks=False,
+                )
+                if not stat.S_ISDIR(runtime_root_before.st_mode):
+                    raise ProgramRefinementWorkflowError(
+                        "GEPA candidate runtime output must be a directory"
+                    )
+                source_inputs_sha256 = _runtime_inputs_sha256(
+                    source_runtime_episode_path
+                )
+                if (
+                    hashlib.sha256(runtime_inputs_path.read_bytes()).hexdigest()
+                    != source_inputs_sha256
+                ):
+                    raise ProgramRefinementWorkflowError(
+                        "GEPA source runtime inputs drifted from the source episode"
+                    )
+                runtime_descriptor = os.open(
+                    candidate_runtime_outdir.name,
+                    os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0),
+                    dir_fd=parent_descriptor,
+                )
+                runtime = run_program_runtime_episode(
+                    manifest_path=candidate_manifest_path,
+                    inputs_path=runtime_inputs_path,
+                    outdir=Path(f"/proc/self/fd/{runtime_descriptor}"),
+                    skip_oracle_index=True,
+                )
+                runtime_root_after = os.stat(
+                    candidate_runtime_outdir.name,
+                    dir_fd=parent_descriptor,
+                    follow_symlinks=False,
+                )
+                runtime_descriptor_after = os.fstat(runtime_descriptor)
+                if (
+                    not stat.S_ISDIR(runtime_root_after.st_mode)
+                    or runtime_root_after.st_dev != runtime_root_before.st_dev
+                    or runtime_root_after.st_ino != runtime_root_before.st_ino
+                    or runtime_descriptor_after.st_dev != runtime_root_before.st_dev
+                    or runtime_descriptor_after.st_ino != runtime_root_before.st_ino
+                ):
+                    raise ProgramRefinementWorkflowError(
+                        "GEPA candidate runtime output identity changed during execution"
+                    )
+                if runtime.get("status") != "ok":
+                    raise ProgramRefinementWorkflowError(
+                        "GEPA candidate runtime evidence did not complete successfully"
+                    )
+                candidate_runtime_episode_path = Path(
+                    f"/proc/self/fd/{runtime_descriptor}/runtime_episode.json"
+                )
+                if (
+                    _runtime_inputs_sha256(candidate_runtime_episode_path)
+                    != source_inputs_sha256
+                ):
+                    raise ProgramRefinementWorkflowError(
+                        "GEPA source and candidate runtime inputs do not match"
+                    )
+            except Exception:
+                if runtime_descriptor is not None:
+                    os.close(runtime_descriptor)
+                    runtime_descriptor = None
+                raise
+            finally:
+                os.close(parent_descriptor)
+        try:
+            comparison = build_program_refinement_candidate_comparison(
+                source_manifest_path=manifest_path,
+                candidate_manifest_path=candidate_manifest_path,
+                source_runtime_episode_path=source_runtime_episode_path,
+                candidate_runtime_episode_path=candidate_runtime_episode_path,
+            )
+        finally:
+            if runtime_descriptor is not None:
+                os.close(runtime_descriptor)
+        if candidate_runtime_episode_path is not None:
+            assert candidate_runtime_outdir is not None
+            runtime_comparison = comparison.get("runtime_evidence_comparison")
+            created_from = comparison.get("created_from")
+            recorded_runtime_path = (
+                created_from.get("candidate_runtime_episode_path")
+                if isinstance(created_from, Mapping)
+                else None
+            )
+            expected_runtime_path = str(
+                candidate_runtime_outdir / "runtime_episode.json"
+            )
+            if recorded_runtime_path != expected_runtime_path:
+                raise ProgramRefinementWorkflowError(
+                    "GEPA comparison candidate runtime path escaped its canonical root"
+                )
+            source_runtime = (
+                runtime_comparison.get("source")
+                if isinstance(runtime_comparison, Mapping)
+                else None
+            )
+            candidate_runtime = (
+                runtime_comparison.get("candidate")
+                if isinstance(runtime_comparison, Mapping)
+                else None
+            )
+            source_hashes = (
+                source_runtime.get("artifact_hashes")
+                if isinstance(source_runtime, Mapping)
+                else None
+            )
+            candidate_hashes = (
+                candidate_runtime.get("artifact_hashes")
+                if isinstance(candidate_runtime, Mapping)
+                else None
+            )
+            source_input_hash = (
+                source_hashes.get("runtime_inputs_hash")
+                if isinstance(source_hashes, Mapping)
+                else None
+            )
+            candidate_input_hash = (
+                candidate_hashes.get("runtime_inputs_hash")
+                if isinstance(candidate_hashes, Mapping)
+                else None
+            )
+            if (
+                not isinstance(runtime_comparison, Mapping)
+                or runtime_comparison.get("compared") is not True
+                or not isinstance(source_input_hash, str)
+                or source_input_hash != candidate_input_hash
+            ):
+                raise ProgramRefinementWorkflowError(
+                    "GEPA comparison requires source and candidate runtime evidence over identical inputs"
+                )
         comparison_payload = write_program_refinement_candidate_comparison(
             comparison,
             comparison_out_path,
@@ -303,7 +525,7 @@ def materialize_and_compare_gepa_refinement_candidate(
         "notes": [
             "This explicit workflow materializes one local GEPA-backed candidate and writes one local comparison sidecar.",
             "It is not program-gen automation and does not rank, select a winner, promote, export authority, or mutate governance.",
-            "Comparison uses current generated local behavior evidence: behavior_episode.json plus example-backed behavior_results.json when present.",
+            "Comparison uses current generated behavior evidence and, when supplied, validated source and candidate runtime episodes over identical inputs.",
             "GEPA optimizer output is advisory local evidence, not approval or promotion authority.",
         ],
     }

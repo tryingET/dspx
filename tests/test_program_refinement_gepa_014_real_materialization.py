@@ -125,6 +125,23 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
         "DSPX_ALLOW_UNSAFE_GEPA_PICKLE_SHA256", optimizer_manifest_sha256
     )
 
+    runtime_inputs = tmp_path / "runtime-inputs.json"
+    runtime_inputs.write_text(
+        json.dumps(
+            {"inputs": {"ticket_text": "Server is down for all users"}},
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    source_runtime_root = tmp_path / "source-runtime"
+    source_runtime = run_program_runtime_episode(
+        manifest_path=source_manifest,
+        inputs_path=runtime_inputs,
+        outdir=source_runtime_root,
+        skip_oracle_index=True,
+    )
+    assert source_runtime["status"] == "ok"
+
     candidate_root = tmp_path / "gepa-candidate"
     comparison_path = tmp_path / "sidecars" / "comparison.json"
     candidate_result_path = tmp_path / "sidecars" / "candidate-result.json"
@@ -134,6 +151,9 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
         outdir=candidate_root,
         comparison_out_path=comparison_path,
         gepa_candidate_result_out=candidate_result_path,
+        runtime_inputs_path=source_runtime_root / "runtime_inputs.json",
+        source_runtime_episode_path=source_runtime_root / "runtime_episode.json",
+        candidate_runtime_outdir=tmp_path / "workflow-runtime",
     )
 
     assert workflow["status"] == "materialized_and_compared_gepa_candidate"
@@ -158,17 +178,17 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
     comparison = json.loads(comparison_path.read_text(encoding="utf-8"))
     assert comparison["status"] == "compared"
     assert comparison["non_authority"]["winner_selection"] is False
+    runtime_comparison = comparison["runtime_evidence_comparison"]
+    assert runtime_comparison["compared"] is True
+    assert runtime_comparison["source"]["runtime_evidence_present"] is True
+    assert runtime_comparison["candidate"]["runtime_evidence_present"] is True
+    assert (
+        runtime_comparison["source"]["artifact_hashes"]["runtime_inputs_hash"]
+        == runtime_comparison["candidate"]["artifact_hashes"]["runtime_inputs_hash"]
+    )
     assert _tree_hash(source_root) == source_before
     assert _tree_hash(optimizer_root) == optimizer_before
 
-    runtime_inputs = tmp_path / "runtime-inputs.json"
-    runtime_inputs.write_text(
-        json.dumps(
-            {"inputs": {"ticket_text": "Server is down for all users"}},
-            sort_keys=True,
-        ),
-        encoding="utf-8",
-    )
     candidate_before_runtime = _tree_hash(candidate_root)
     monkeypatch.delenv("DSPX_ALLOW_UNSAFE_GEPA_PICKLE_SHA256")
     blocked_runtime = run_program_runtime_episode(

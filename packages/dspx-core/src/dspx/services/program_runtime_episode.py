@@ -1345,6 +1345,16 @@ def _resolve_episode_artifact(root: Path, relative_path: str, *, label: str) -> 
     path = Path(relative_path)
     if path.is_absolute():
         raise ValueError(f"{label} path must be runtime-episode-relative")
+    root_parts = root.parts
+    descriptor_bound = (
+        len(root_parts) == 5
+        and root_parts[:4] == ("/", "proc", "self", "fd")
+        and root_parts[4].isdigit()
+    )
+    if descriptor_bound:
+        if len(path.parts) != 1 or path.parts[0] in {"", ".", ".."}:
+            raise ValueError(f"{label} path escapes runtime episode root")
+        return root / path
     try:
         return confine_path(root, path, strict=True)
     except ValueError as exc:
@@ -2027,7 +2037,16 @@ def load_validated_program_runtime_episode_bundle(
     label: str = "runtime episode",
     error_type: type[Exception] = ValueError,
 ) -> ProgramRuntimeEpisodeBundle:
-    episode_path = runtime_episode_path.expanduser().resolve()
+    requested_episode_path = runtime_episode_path.expanduser().absolute()
+    requested_parent_parts = requested_episode_path.parent.parts
+    descriptor_bound = (
+        len(requested_parent_parts) == 5
+        and requested_parent_parts[:4] == ("/", "proc", "self", "fd")
+        and requested_parent_parts[4].isdigit()
+    )
+    episode_path = (
+        requested_episode_path if descriptor_bound else requested_episode_path.resolve()
+    )
     try:
         behavior_path = _resolve_episode_artifact(
             episode_path.parent,
@@ -2069,10 +2088,10 @@ def load_validated_program_runtime_episode_bundle(
     return ProgramRuntimeEpisodeBundle(
         runtime_episode=runtime_episode,
         behavior_results=behavior_results,
-        runtime_episode_path=episode_path,
+        runtime_episode_path=episode_path.resolve(),
         runtime_episode_sha256=hashlib.sha256(episode_raw).hexdigest(),
         runtime_receipt_sha256=hashlib.sha256(receipt_raw).hexdigest(),
-        behavior_results_path=behavior_path,
+        behavior_results_path=behavior_path.resolve(),
         behavior_results_sha256=hashlib.sha256(behavior_raw).hexdigest(),
     )
 
@@ -2193,7 +2212,14 @@ def run_program_runtime_episode(
             "authority": "local_replay_input_only",
         }
 
-    resolved_root = outdir.expanduser().resolve()
+    requested_root = outdir.expanduser().absolute()
+    requested_parts = requested_root.parts
+    descriptor_bound_root = (
+        len(requested_parts) == 5
+        and requested_parts[:4] == ("/", "proc", "self", "fd")
+        and requested_parts[4].isdigit()
+    )
+    resolved_root = requested_root.resolve()
     if (
         resolved_root == candidate_root
         or resolved_root in candidate_root.parents
@@ -2202,13 +2228,13 @@ def run_program_runtime_episode(
         raise ValueError(
             "runtime episode output directory must be disjoint from the candidate root"
         )
-    if runtime_snapshot is None:
+    if descriptor_bound_root:
+        root = requested_root
+    elif runtime_snapshot is None:
         root = resolved_root
         root.mkdir(parents=True, exist_ok=True)
     else:
-        root = outdir.expanduser().absolute()
-        if not str(root).startswith("/proc/self/fd/"):
-            raise ValueError("protected runtime output is not descriptor-bound")
+        raise ValueError("protected runtime output is not descriptor-bound")
     _write_private_json_exclusive(
         root / "runtime_inputs.json", {"inputs": runtime_inputs}
     )
@@ -2528,7 +2554,7 @@ def run_program_runtime_episode(
         }
         else "failure",
     )
-    if runtime_snapshot is None:
+    if runtime_snapshot is None and not descriptor_bound_root:
         runtime_receipt_path = write_run_receipt(runtime_episode_path, receipt)
     else:
         runtime_receipt_path = runtime_episode_path.with_name(
