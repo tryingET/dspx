@@ -1,3 +1,10 @@
+---
+summary: "Applied operator directive reshaping G3 v3b across both model families and correcting fixture refs."
+read_when:
+  - "Auditing the G3 v3b run design, family allocation, or released-pin fixture correction."
+type: "reference"
+---
+
 # OPERATOR DIRECTIVE #2 — v3b reshape (AK 5085)
 
 Issued 2026-08-26 by the operator via the controller session. Binding.

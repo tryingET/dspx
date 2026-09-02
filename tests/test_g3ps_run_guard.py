@@ -18,7 +18,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "benchmarks" / "g3-pilot"))
 
-from g3ps_run_guard import PairRunGuard, RunGuardError  # noqa: E402
+from g3ps_run_guard import PairRunGuard, RunGuardError  # noqa: E402  # ty: ignore[unresolved-import]
 
 
 def make_guard(tmp_path: Path) -> PairRunGuard:

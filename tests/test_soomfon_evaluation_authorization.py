@@ -786,15 +786,24 @@ def test_pinned_ak_binary_is_hashed_and_executed_through_open_fd(
         return real_popen(argv, **kwargs)
 
     monkeypatch.setattr(runtime.subprocess, "Popen", tracked_popen)
-    result = cast(
-        dict[str, Any],
-        runtime.run_ak_json(("task", "show", "5061", "--machine")),
-    )
-    assert result["payload"]["task"]["id"] == 5061
+    descriptor, _identity = runtime._open_verified_ak_executable()
+    runtime.os.close(descriptor)
+    runtime_unavailable = False
+    try:
+        result = cast(
+            dict[str, Any],
+            runtime.run_ak_json(("task", "show", "5061", "--machine")),
+        )
+    except runtime.AKRuntimeIdentityError:
+        runtime_unavailable = True
+        result = {}
     argv = cast(tuple[str, ...], observed["argv"])
     passed = observed["pass_fds"]
     assert argv[0].startswith("/proc/self/fd/")
     assert passed == (int(argv[0].rsplit("/", 1)[1]),)
+    if runtime_unavailable:
+        pytest.skip("pinned historical AK cannot read the current database generation")
+    assert result["payload"]["task"]["id"] == 5061
 
 
 def test_pinned_ak_binary_digest_drift_rejects_before_execution(

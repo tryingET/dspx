@@ -8,7 +8,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import dspy
@@ -120,7 +120,8 @@ def _artifact(*, accepted: bool = True) -> VerifiedOwnerArtifact:
     )
 
 
-def _completed(receipt: _Receipt) -> list[dict[str, str]]:
+def _completed(receipt: object) -> list[dict[str, str]]:
+    typed_receipt = cast(_Receipt, receipt)
     response_hash = "b" * 64
     for event in (
         _Event(kind="wrapper_request_accepted"),
@@ -146,7 +147,7 @@ def _completed(receipt: _Receipt) -> list[dict[str, str]]:
             observed_model="gpt-5.6-luna",
         ),
     ):
-        receipt.sink(event)
+        typed_receipt.sink(event)
     return [{"judgment_json": "{}"}]
 
 
@@ -217,10 +218,11 @@ def test_custodian_latches_indeterminate_open_effect_and_forbids_replay(
 ) -> None:
     custodian = _custodian(tmp_path)
 
-    def incomplete(receipt: _Receipt) -> None:
-        receipt.sink(_Event(kind="wrapper_request_accepted"))
-        receipt.sink(_Event(kind="transport_gate_entered", gate_ordinal=1))
-        receipt.sink(_Event(kind="transport_effect_pending", gate_ordinal=1))
+    def incomplete(receipt: object) -> None:
+        typed_receipt = cast(_Receipt, receipt)
+        typed_receipt.sink(_Event(kind="wrapper_request_accepted"))
+        typed_receipt.sink(_Event(kind="transport_gate_entered", gate_ordinal=1))
+        typed_receipt.sink(_Event(kind="transport_effect_pending", gate_ordinal=1))
         raise RuntimeError("transport outcome unknown")
 
     with pytest.raises(ProgramModelJuryProviderExecutionError) as first:

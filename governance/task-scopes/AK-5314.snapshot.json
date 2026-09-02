@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-02T08:14:00.826566779+00:00",
+  "task_id": 5314,
+  "entity_version": 8,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/v1-proof/g3pilot-v3-DIRECTIVE-reshape.md",
+      "docs/v1-proof/g3pilot-v3b-DIRECTIVE-2.md",
+      "governance/task-scopes/*.snapshot.json",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_ledger.py",
+      "tests/test_g3ps_run_guard.py",
+      "tests/test_program_foundry_gepa_comparison_jury_provider.py",
+      "tests/test_soomfon_evaluation_authorization.py"
+    ],
+    "required_paths": [
+      "docs/v1-proof/g3pilot-v3-DIRECTIVE-reshape.md",
+      "docs/v1-proof/g3pilot-v3b-DIRECTIVE-2.md",
+      "governance/task-scopes/AK-5314.snapshot.json",
+      "packages/dspx-core/src/dspx/services/soomfon_evaluation_ledger.py",
+      "tests/test_g3ps_run_guard.py",
+      "tests/test_program_foundry_gepa_comparison_jury_provider.py",
+      "tests/test_soomfon_evaluation_authorization.py"
+    ],
+    "forbidden_paths": [
+      "docs/_core/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -325,6 +325,12 @@ def is_complete_terminal_marker(
         "empirical_disposition",
         "reason",
     }
+    typed_call_records = (
+        [item for item in call_records if isinstance(item, dict)]
+        if isinstance(call_records, list)
+        else []
+    )
+    last_call = typed_call_records[-1] if typed_call_records else {}
     provider_shape = (
         isinstance(provider, dict)
         and set(provider)
@@ -341,7 +347,7 @@ def is_complete_terminal_marker(
         and logical_call_total in {1, 2}
         and provider.get("maximum_provider_transports") == 2
         and isinstance(call_records, list)
-        and len(call_records) == logical_call_total
+        and len(typed_call_records) == len(call_records) == logical_call_total
         and all(
             isinstance(item, dict)
             and set(item) == record_keys
@@ -353,7 +359,7 @@ def is_complete_terminal_marker(
             and type(item.get("status_code")) is int
             and 100 <= item["status_code"] <= 599
             and item["status_class"] == item["status_code"] // 100
-            for index, item in enumerate(call_records, start=1)
+            for index, item in enumerate(typed_call_records, start=1)
         )
     )
     completed_shape = provider_shape and all(
@@ -361,20 +367,20 @@ def is_complete_terminal_marker(
         and item.get("status_class") == 2
         and item.get("empirical_disposition") == "not_evaluated"
         and item.get("reason") == "attributable_completion_not_evaluated"
-        for item in call_records
+        for item in typed_call_records
     )
     provider_error_shape = (
         provider_shape
-        and call_records[-1].get("producer_terminal") == "remote_http_error_final"
-        and call_records[-1].get("status_class") != 2
-        and call_records[-1].get("empirical_disposition") == "error"
-        and call_records[-1].get("reason") == "remote_http_error_final"
+        and last_call.get("producer_terminal") == "remote_http_error_final"
+        and last_call.get("status_class") != 2
+        and last_call.get("empirical_disposition") == "error"
+        and last_call.get("reason") == "remote_http_error_final"
         and all(
             item.get("producer_terminal") == "provider_response_completed"
             and item.get("status_class") == 2
             and item.get("empirical_disposition") == "not_evaluated"
             and item.get("reason") == "attributable_completion_not_evaluated"
-            for item in call_records[:-1]
+            for item in typed_call_records[:-1]
         )
     )
     provider_evidence_valid = (

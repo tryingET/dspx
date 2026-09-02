@@ -1,3 +1,10 @@
+---
+summary: "Applied operator directive reshaping the G3 v3 pilot to ten tasks and twenty executions."
+read_when:
+  - "Auditing the G3 v3 pilot corpus, execution budget, or operator-directed reshape."
+type: "reference"
+---
+
 # OPERATOR DIRECTIVE — v3 pilot reshape (AK 5081)
 
 Status: **APPLIED**. Issued 2026-08-25T21:05Z by the operator via the controller session.
