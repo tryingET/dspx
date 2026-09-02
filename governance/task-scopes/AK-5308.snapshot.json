@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-01T14:44:32.628650586+00:00",
+  "task_id": 5308,
+  "entity_version": 13,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-09-01-foundry-dspy-lm-auth-jury-integration.md",
+      "governance/task-scopes/AK-5308.snapshot.json",
+      "packages/dspx-core/pyproject.toml",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine.py",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine_foundry_jury.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_ak_runtime.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_owner.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_provider.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_provider_custody.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_provider_evidence.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_result.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_runtime.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_model_jury.py",
+      "packages/dspx-core/src/dspx/services/program_model_jury_judgment.py",
+      "packages/dspx-core/src/dspx/services/program_model_jury_provider_runtime.py",
+      "scripts/ci/verification-impact.yml",
+      "scripts/ci/verify_changed.py",
+      "tests/test_program_foundry_gepa_comparison_jury.py",
+      "tests/test_program_foundry_gepa_comparison_jury_provider.py",
+      "tests/test_program_model_jury_judgment.py",
+      "tests/test_program_refinement_gepa_014_real_materialization.py",
+      "uv.lock"
+    ],
+    "required_paths": [
+      "governance/task-scopes/AK-5308.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_ak_runtime.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_owner.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_provider.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_provider_evidence.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_runtime.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_model_jury.py",
+      "packages/dspx-core/src/dspx/services/program_model_jury_judgment.py",
+      "packages/dspx-core/src/dspx/services/program_model_jury_provider_runtime.py",
+      "tests/test_program_foundry_gepa_comparison_jury_provider.py",
+      "tests/test_program_model_jury_judgment.py",
+      "tests/test_program_refinement_gepa_014_real_materialization.py"
+    ],
+    "forbidden_paths": [
+      "packages/dspx-core/src/dspx/provider_registry.py",
+      "packages/dspx-core/src/dspx/services/program_model_jury_execution.py",
+      "packages/dspx-core/src/dspx/services/provider_outcome_receipt_contract.py"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import stat
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -20,24 +21,36 @@ from dspx.services.program_foundry_gepa_proposal_io import (
     read_regular_bytes,
 )
 from dspx.services.program_foundry_io import foundry_lock
-from dspx.services.program_model_jury_execution import (
+from dspx.services.program_foundry_gepa_comparison_jury_provider import (
+    DEFAULT_CODEX_MODEL,
+    DEFAULT_REASONING_EFFORT,
+)
+from dspx.services.program_foundry_gepa_comparison_model_jury import (
+    build_comparison_model_jury_result,
+)
+from dspx.services.program_foundry_gepa_comparison_jury_result import (
+    validate_task_local_jury_result,
+)
+from dspx.services.program_foundry_gepa_comparison_jury_runtime import (
+    COMMON_EXECUTION_REQUEST_KEYS,
+    PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_ATTEMPT_SCHEMA,
+    PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_SCHEMA,
+    TASK_LOCAL_EXECUTION_REQUEST_KEYS,
+    TASK_LOCAL_PROVIDER_NAME,
+    ProgramFoundryGepaComparisonJuryError,
+    execution_request as _execution_request,
+    make_task_local_runtime_binding,
+    preflight_task_local_request,
+    receipt_payload as _receipt_payload,
+    task_local_process_slot,
+)
+from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryExecutionError,
-    build_program_model_jury_execution_result,
+    _model_jury_process_slot,
 )
 from dspx.services.program_model_jury_validation import (
     validate_program_model_jury_results_contract,
 )
-
-PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_ATTEMPT_SCHEMA = (
-    "dspx-program-foundry-gepa-comparison-jury-attempt-v1"
-)
-PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_SCHEMA = (
-    "dspx-program-foundry-gepa-comparison-jury-v1"
-)
-
-
-class ProgramFoundryGepaComparisonJuryError(ValueError):
-    """Raised when a receipt-bound comparison jury cannot execute safely."""
 
 
 def _sha256_bytes(value: bytes) -> str:
@@ -170,39 +183,6 @@ def _paths(experiment_root: Path) -> dict[str, Path]:
     }
 
 
-def _execution_request(
-    *,
-    provider: str,
-    adjudicator_id: str,
-    adjudicator_kind: str,
-    adjudicator_repo: str | None,
-    max_jurors: int | None,
-) -> dict[str, Any]:
-    if not provider.strip():
-        raise ProgramFoundryGepaComparisonJuryError(
-            "comparison jury requires an explicit provider"
-        )
-    if not adjudicator_id.strip() or not adjudicator_kind.strip():
-        raise ProgramFoundryGepaComparisonJuryError(
-            "comparison jury adjudicator id and kind must be non-empty"
-        )
-    if max_jurors is not None and (isinstance(max_jurors, bool) or max_jurors < 1):
-        raise ProgramFoundryGepaComparisonJuryError(
-            "comparison jury max_jurors must be at least one"
-        )
-    return {
-        "provider": provider.strip(),
-        "adjudicator_id": adjudicator_id.strip(),
-        "adjudicator_kind": adjudicator_kind.strip(),
-        "adjudicator_repo": (
-            adjudicator_repo.strip()
-            if adjudicator_repo and adjudicator_repo.strip()
-            else None
-        ),
-        "max_jurors": max_jurors,
-    }
-
-
 def _jury_input_sha256(validated: Mapping[str, Any]) -> dict[Path, str]:
     candidate_manifest = Path(str(validated["candidate_manifest_path"]))
     comparison = Path(str(validated["comparison_path"]))
@@ -287,6 +267,8 @@ def _validate_jury_result(
     *,
     result_path: Path,
     validated: Mapping[str, Any],
+    request: Mapping[str, Any],
+    attempt_sha256: str,
 ) -> tuple[dict[str, Any], str]:
     result, digest = _load_json_snapshot(
         result_path,
@@ -318,60 +300,14 @@ def _validate_jury_result(
         raise ProgramFoundryGepaComparisonJuryError(
             "comparison jury results do not bind the receipt comparison exactly once"
         )
+    validate_task_local_jury_result(
+        result=result,
+        result_path=result_path,
+        validated=validated,
+        request=request,
+        attempt_sha256=attempt_sha256,
+    )
     return result, digest
-
-
-def _receipt_payload(
-    *,
-    validated: Mapping[str, Any],
-    request: Mapping[str, Any],
-    attempt_sha256: str,
-    result: Mapping[str, Any],
-    result_sha256: str,
-    paths: Mapping[str, Path],
-) -> dict[str, Any]:
-    return {
-        "schema_version": PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_SCHEMA,
-        "status": "ok",
-        "jury_status": result["status"],
-        "proposal_id": validated["proposal_id"],
-        "execution_request": dict(request),
-        "bindings": {
-            "consumption_receipt_path": str(validated["receipt_path"]),
-            "consumption_receipt_sha256": validated["receipt_sha256"],
-            "execution_receipt_path": str(validated["execution_receipt_path"]),
-            "execution_receipt_sha256": validated["execution_receipt_sha256"],
-            "source_manifest_path": str(validated["source_manifest_path"]),
-            "source_manifest_sha256": validated["source_manifest_sha256"],
-            "candidate_manifest_path": str(validated["candidate_manifest_path"]),
-            "candidate_manifest_sha256": validated["candidate_manifest_sha256"],
-            "comparison_path": str(validated["comparison_path"]),
-            "comparison_sha256": validated["comparison_sha256"],
-            "attempt_path": str(paths["attempt"]),
-            "attempt_sha256": attempt_sha256,
-            "jury_results_path": str(paths["result"]),
-            "jury_results_sha256": result_sha256,
-        },
-        "aggregate": result["aggregate"],
-        "effect": {
-            "program_specific_jury_executed": True,
-            "provider_calls_may_have_occurred": True,
-            "comparison_mutated": False,
-            "candidate_mutated": False,
-            "winner_selected": False,
-            "promotion_applied": False,
-            "activation_applied": False,
-            "external_authority_mutated": False,
-            "ak_called": False,
-        },
-        "non_authority": {
-            "local_jury_evidence_only": True,
-            "winner_selection": False,
-            "promotion_authority": False,
-            "activation_authority": False,
-            "governance_authority": False,
-        },
-    }
 
 
 def _validate_existing_receipt(
@@ -390,6 +326,8 @@ def _validate_existing_receipt(
     result, result_sha256 = _validate_jury_result(
         result_path=paths["result"],
         validated=validated,
+        request=request,
+        attempt_sha256=attempt_sha256,
     )
     expected = _receipt_payload(
         validated=validated,
@@ -450,23 +388,28 @@ def validate_successful_program_foundry_gepa_comparison_jury_receipt(
             label="comparison jury receipt",
         )
         raw_request = receipt.get("execution_request")
-        if not isinstance(raw_request, Mapping) or set(raw_request) != {
-            "provider",
-            "adjudicator_id",
-            "adjudicator_kind",
-            "adjudicator_repo",
-            "max_jurors",
-        }:
+        if not isinstance(raw_request, Mapping):
             raise ProgramFoundryGepaComparisonJuryError(
                 "comparison jury receipt execution_request is invalid"
             )
         provider = raw_request.get("provider")
+        expected_keys = (
+            TASK_LOCAL_EXECUTION_REQUEST_KEYS
+            if provider == TASK_LOCAL_PROVIDER_NAME
+            else COMMON_EXECUTION_REQUEST_KEYS
+        )
         adjudicator_id = raw_request.get("adjudicator_id")
         adjudicator_kind = raw_request.get("adjudicator_kind")
         adjudicator_repo = raw_request.get("adjudicator_repo")
         max_jurors = raw_request.get("max_jurors")
+        owner_source_root = raw_request.get("owner_source_root")
+        execution_task_id = raw_request.get("execution_task_id")
+        execution_claimant = raw_request.get("execution_claimant")
+        codex_model = raw_request.get("codex_model", DEFAULT_CODEX_MODEL)
+        reasoning_effort = raw_request.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
         if (
-            not isinstance(provider, str)
+            set(raw_request) != expected_keys
+            or not isinstance(provider, str)
             or not isinstance(adjudicator_id, str)
             or not isinstance(adjudicator_kind, str)
             or (adjudicator_repo is not None and not isinstance(adjudicator_repo, str))
@@ -474,6 +417,22 @@ def validate_successful_program_foundry_gepa_comparison_jury_receipt(
                 max_jurors is not None
                 and (isinstance(max_jurors, bool) or not isinstance(max_jurors, int))
             )
+            or (
+                owner_source_root is not None and not isinstance(owner_source_root, str)
+            )
+            or (
+                execution_task_id is not None
+                and (
+                    isinstance(execution_task_id, bool)
+                    or not isinstance(execution_task_id, int)
+                )
+            )
+            or not isinstance(codex_model, str)
+            or (
+                execution_claimant is not None
+                and not isinstance(execution_claimant, str)
+            )
+            or not isinstance(reasoning_effort, str)
         ):
             raise ProgramFoundryGepaComparisonJuryError(
                 "comparison jury receipt execution_request types are invalid"
@@ -484,6 +443,13 @@ def validate_successful_program_foundry_gepa_comparison_jury_receipt(
             adjudicator_kind=adjudicator_kind,
             adjudicator_repo=adjudicator_repo,
             max_jurors=max_jurors,
+            owner_source_root=(
+                Path(owner_source_root) if owner_source_root is not None else None
+            ),
+            execution_task_id=execution_task_id,
+            execution_claimant=execution_claimant,
+            codex_model=codex_model,
+            reasoning_effort=reasoning_effort,
         )
         if request != dict(raw_request):
             raise ProgramFoundryGepaComparisonJuryError(
@@ -506,6 +472,10 @@ def validate_successful_program_foundry_gepa_comparison_jury_receipt(
         path_jury_result, path_jury_result_sha256 = _validate_jury_result(
             result_path=paths["result"],
             validated=validated,
+            request=request,
+            attempt_sha256=_sha256_bytes(
+                read_regular_bytes(paths["attempt"], label="comparison jury attempt")
+            ),
         )
         jury_result, jury_result_sha256 = _load_json_snapshot_at(
             experiment_descriptor,
@@ -555,6 +525,11 @@ def execute_program_foundry_gepa_comparison_jury(
     adjudicator_kind: str = "local_foundry_adjudicator",
     adjudicator_repo: str | None = None,
     max_jurors: int | None = None,
+    owner_source_root: Path | None = None,
+    execution_task_id: int | None = None,
+    execution_claimant: str | None = None,
+    codex_model: str = DEFAULT_CODEX_MODEL,
+    reasoning_effort: str = DEFAULT_REASONING_EFFORT,
 ) -> dict[str, Any]:
     """Execute one program-specific jury against one receipt-bound comparison."""
 
@@ -566,8 +541,17 @@ def execute_program_foundry_gepa_comparison_jury(
         adjudicator_kind=adjudicator_kind,
         adjudicator_repo=adjudicator_repo,
         max_jurors=max_jurors,
+        owner_source_root=owner_source_root,
+        execution_task_id=execution_task_id,
+        execution_claimant=execution_claimant,
+        codex_model=codex_model,
+        reasoning_effort=reasoning_effort,
     )
-    with foundry_lock(root) as root_descriptor:
+    with (
+        task_local_process_slot(request["provider"]),
+        foundry_lock(root) as root_descriptor,
+        ExitStack() as exit_stack,
+    ):
         assert_path_descriptor_identity(root, root_descriptor, label="foundry root")
         try:
             validated = validate_successful_program_foundry_gepa_consumption_receipt(
@@ -618,6 +602,13 @@ def execute_program_foundry_gepa_comparison_jury(
             raise ProgramFoundryGepaComparisonJuryError(
                 "comparison jury results exist without an attempt marker"
             )
+        preflight_task_local_request(request)
+        try:
+            model_jury_slot = exit_stack.enter_context(_model_jury_process_slot())
+        except ProgramModelJuryExecutionError as exc:
+            raise ProgramFoundryGepaComparisonJuryError(
+                "model jury process slot is unavailable before provider effect"
+            ) from exc
         attempt = _attempt_payload(
             validated=validated,
             request=request,
@@ -628,17 +619,23 @@ def execute_program_foundry_gepa_comparison_jury(
             attempt,
             root_descriptor=root_descriptor,
         )
+        provider_runtime_binding = make_task_local_runtime_binding(
+            request=request,
+            experiment_root=experiment_root,
+            attempt_sha256=attempt_sha256,
+        )
         try:
-            result = build_program_model_jury_execution_result(
+            result = build_comparison_model_jury_result(
+                model_jury_slot,
                 manifest_path=Path(str(validated["candidate_manifest_path"])),
                 evidence_paths=[Path(str(validated["comparison_path"]))],
-                provider=request["provider"],
+                provider=str(request["provider"]),
                 adjudicator_id=str(request["adjudicator_id"]),
                 adjudicator_kind=str(request["adjudicator_kind"]),
                 adjudicator_repo=request["adjudicator_repo"],
                 max_jurors=request["max_jurors"],
                 expected_input_sha256=input_sha256,
-                include_default_behavior=False,
+                provider_runtime_binding=provider_runtime_binding,
             )
         except ProgramModelJuryExecutionError as exc:
             raise ProgramFoundryGepaComparisonJuryError(str(exc)) from exc
@@ -663,6 +660,8 @@ def execute_program_foundry_gepa_comparison_jury(
         validated_result, result_sha256 = _validate_jury_result(
             result_path=paths["result"],
             validated=validated,
+            request=request,
+            attempt_sha256=attempt_sha256,
         )
         receipt = _receipt_payload(
             validated=validated,

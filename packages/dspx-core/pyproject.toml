@@ -17,6 +17,7 @@ dependencies = [
   "duckduckgo-search>=8.1.1",
   "httpx>=0.28.1",
   "jsonschema>=4.23.0",
+  "litellm==1.82.1",
   "mlflow>=3.9.0",
   "pandas>=2.3.2",
   "typer>=0.12.5",

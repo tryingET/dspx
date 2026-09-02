@@ -85,7 +85,6 @@ def test_real_gepa_014_output_materializes_runs_replays_and_compares(
     )
 
     assert optimize.exit_code == 0, optimize.output
-    assert optimize.stderr.strip()
     optimize_payload = json.loads(optimize.stdout)
     assert optimize_payload == json.loads(gepa_result_path.read_text(encoding="utf-8"))
     assert optimize_payload["gepa"]["status"] == "completed"

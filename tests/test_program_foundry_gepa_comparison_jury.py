@@ -12,6 +12,7 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 import dspx.services.program_foundry_gepa_comparison_jury as comparison_jury
+import dspx.services.program_model_jury_provider_runtime as jury_runtime
 
 
 def _sha256(path: Path) -> str:
@@ -164,13 +165,13 @@ def _install_success(
         lambda path, **kwargs: dict(validated),
     )
 
-    def build(**kwargs: Any) -> dict[str, Any]:
+    def build(slot: object, **kwargs: Any) -> dict[str, Any]:
         calls.append(kwargs)
         return _model_result(validated)
 
     monkeypatch.setattr(
         comparison_jury,
-        "build_program_model_jury_execution_result",
+        "build_comparison_model_jury_result",
         build,
     )
 
@@ -229,14 +230,14 @@ def test_comparison_jury_attempt_blocks_replay_after_possible_provider_effect(
     )
     calls = 0
 
-    def crash(**kwargs: Any) -> dict[str, Any]:
+    def crash(slot: object, **kwargs: Any) -> dict[str, Any]:
         nonlocal calls
         calls += 1
         raise RuntimeError("provider call may have occurred")
 
     monkeypatch.setattr(
         comparison_jury,
-        "build_program_model_jury_execution_result",
+        "build_comparison_model_jury_result",
         crash,
     )
     with pytest.raises(RuntimeError, match="may have occurred"):
@@ -253,6 +254,29 @@ def test_comparison_jury_attempt_blocks_replay_after_possible_provider_effect(
     assert blocked["effect_disposition"] == (
         "one_or_more_provider_juror_calls_may_have_occurred"
     )
+
+
+def test_shared_model_jury_contention_rejects_before_attempt_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt, validated = _fixture(tmp_path)
+    monkeypatch.setattr(
+        comparison_jury,
+        "validate_successful_program_foundry_gepa_consumption_receipt",
+        lambda path, **kwargs: dict(validated),
+    )
+
+    with comparison_jury._model_jury_process_slot():
+        with pytest.raises(
+            comparison_jury.ProgramFoundryGepaComparisonJuryError,
+            match="slot is unavailable before provider effect",
+        ):
+            comparison_jury.execute_program_foundry_gepa_comparison_jury(
+                consumption_receipt_path=receipt,
+                provider="fixture-provider",
+            )
+
+    assert not (receipt.parent / "comparison-jury-attempt.json").exists()
 
 
 def test_comparison_jury_rejects_drift_and_changed_replay_request(
@@ -285,6 +309,27 @@ def test_comparison_jury_rejects_drift_and_changed_replay_request(
             provider="fixture-provider",
         )
     assert len(calls) == 1
+
+
+def test_task_local_policy_rejects_invalid_model_before_attempt_payload(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        comparison_jury.ProgramFoundryGepaComparisonJuryError,
+        match="requires owner source and execution task",
+    ):
+        comparison_jury._execution_request(
+            provider=comparison_jury.TASK_LOCAL_PROVIDER_NAME,
+            adjudicator_id="local",
+            adjudicator_kind="local",
+            adjudicator_repo=None,
+            max_jurors=1,
+            owner_source_root=tmp_path,
+            execution_task_id=6000,
+            execution_claimant="pi:test",
+            codex_model="not-reviewed",
+            reasoning_effort="xhigh",
+        )
 
 
 def test_comparison_jury_cli_forwards_only_consumption_receipt_and_policy(
@@ -327,5 +372,130 @@ def test_comparison_jury_cli_forwards_only_consumption_receipt_and_policy(
             "adjudicator_kind": "local_foundry_adjudicator",
             "adjudicator_repo": None,
             "max_jurors": 2,
+            "owner_source_root": None,
+            "execution_task_id": None,
+            "execution_claimant": None,
+            "codex_model": "gpt-5.6-luna",
+            "reasoning_effort": "xhigh",
+        }
+    ]
+
+
+def test_task_local_comparison_jury_bypasses_registry_with_bound_runtime_factory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt, validated = _fixture(tmp_path)
+    owner_root = tmp_path / "maintained-owner"
+    owner_root.mkdir()
+    calls: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        comparison_jury,
+        "validate_successful_program_foundry_gepa_consumption_receipt",
+        lambda path, **kwargs: dict(validated),
+    )
+    monkeypatch.setattr(
+        comparison_jury, "preflight_task_local_request", lambda request: None
+    )
+
+    def build(slot: object, **kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return _model_result(validated)
+
+    def validate_result(
+        *, result_path: Path, **kwargs: Any
+    ) -> tuple[dict[str, Any], str]:
+        return json.loads(result_path.read_text(encoding="utf-8")), _sha256(result_path)
+
+    monkeypatch.setattr(
+        comparison_jury,
+        "build_comparison_model_jury_result",
+        build,
+    )
+    monkeypatch.setattr(comparison_jury, "_validate_jury_result", validate_result)
+
+    payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
+        consumption_receipt_path=receipt,
+        provider=comparison_jury.TASK_LOCAL_PROVIDER_NAME,
+        owner_source_root=owner_root,
+        execution_task_id=6000,
+        execution_claimant="pi:test",
+        max_jurors=1,
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["effect"]["ak_called"] is True
+    assert payload["effect"]["ak_mutated"] is False
+    assert len(calls) == 1
+    assert calls[0]["provider"] == comparison_jury.TASK_LOCAL_PROVIDER_NAME
+    assert isinstance(
+        calls[0]["provider_runtime_binding"],
+        jury_runtime.ProgramModelJuryProviderRuntimeBinding,
+    )
+    attempt = json.loads(
+        (receipt.parent / "comparison-jury-attempt.json").read_text(encoding="utf-8")
+    )
+    assert attempt["execution_request"]["owner_source_root"] == str(
+        owner_root.resolve()
+    )
+    assert attempt["execution_request"]["execution_task_id"] == 6000
+    assert attempt["execution_request"]["execution_claimant"] == "pi:test"
+    assert attempt["execution_request"]["codex_model"] == "gpt-5.6-luna"
+
+
+def test_task_local_comparison_jury_cli_forwards_exact_custody_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt = tmp_path / "consumption-receipt.json"
+    receipt.write_text("{}", encoding="utf-8")
+    owner_root = tmp_path / "owner"
+    owner_root.mkdir()
+    calls: list[dict[str, Any]] = []
+
+    def execute(**kwargs: Any) -> dict[str, Any]:
+        calls.append(kwargs)
+        return {"status": "ok", "reused": False}
+
+    monkeypatch.setattr(
+        comparison_jury,
+        "execute_program_foundry_gepa_comparison_jury",
+        execute,
+    )
+    result = CliRunner().invoke(
+        app,
+        [
+            "program-refine",
+            "jury-foundry-gepa-comparison",
+            "--receipt",
+            str(receipt),
+            "--provider",
+            comparison_jury.TASK_LOCAL_PROVIDER_NAME,
+            "--owner-source-root",
+            str(owner_root),
+            "--execution-task-id",
+            "6000",
+            "--execution-claimant",
+            "pi:test",
+            "--codex-model",
+            "gpt-5.6-luna",
+            "--reasoning-effort",
+            "xhigh",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls == [
+        {
+            "consumption_receipt_path": receipt,
+            "provider": comparison_jury.TASK_LOCAL_PROVIDER_NAME,
+            "adjudicator_id": "local_foundry_adjudicator",
+            "adjudicator_kind": "local_foundry_adjudicator",
+            "adjudicator_repo": None,
+            "max_jurors": None,
+            "owner_source_root": owner_root,
+            "execution_task_id": 6000,
+            "execution_claimant": "pi:test",
+            "codex_model": "gpt-5.6-luna",
+            "reasoning_effort": "xhigh",
         }
     ]

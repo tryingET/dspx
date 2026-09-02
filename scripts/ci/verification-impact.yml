@@ -72,6 +72,14 @@ rules:
     commands:
       - workflow_contract_check
 
+  - match: "packages/dspx-core/pyproject.toml"
+    category: dependency
+    impact_group: dependency
+    risk: wide
+    commands:
+      - verify_fast
+      - pytest_test_defaults
+
   - match: "packages/dspx-core/src/dspx/cli/commands/program_promote.py"
     category: activation_packet_cli
     impact_group: activation_evidence
@@ -727,6 +735,17 @@ rules:
       - typecheck_core
       - pytest_program_model_jury
       - pytest_program_activation_packet
+      - pytest_authority_boundary_contracts
+
+  - match: "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury*.py"
+    category: provider_custody
+    impact_group: boundary_sensitive
+    risk: expanded
+    exclusive: true
+    commands:
+      - ruff_touched
+      - typecheck_core
+      - pytest_program_foundry_comparison_jury
       - pytest_authority_boundary_contracts
 
   - match: "packages/dspx-core/src/dspx/services/program_model_jury_validation.py"

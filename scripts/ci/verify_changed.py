@@ -353,6 +353,23 @@ COMMAND_REGISTRY: dict[str, CommandSpec] = {
         ],
         "program model-jury evidence seam changed",
     ),
+    "pytest_program_foundry_comparison_jury": CommandSpec(
+        [
+            "uv",
+            "run",
+            "--no-sync",
+            "-m",
+            "pytest",
+            "-q",
+            "tests/test_program_foundry_gepa_comparison_jury.py",
+            "tests/test_program_foundry_gepa_comparison_jury_provider.py",
+            "tests/test_program_model_jury_execution.py",
+            "-n",
+            "auto",
+            "--dist=loadfile",
+        ],
+        "foundry comparison-jury task-local provider custody changed",
+    ),
     "pytest_release_bundle": CommandSpec(
         [
             "uv",
@@ -1165,6 +1182,7 @@ def build_plan(
         "pytest_run_receipts",
         "pytest_program_meta_adjudication",
         "pytest_program_model_jury",
+        "pytest_program_foundry_comparison_jury",
         "pytest_generated_direct_runner",
         "pytest_program_direct_runner_generation",
         "pytest_program_generation_spine",
