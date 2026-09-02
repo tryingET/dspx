@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-02T09:01:44.067353913+00:00",
+  "task_id": 5317,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-09-01-foundry-dspy-lm-auth-jury-integration.md",
+      "docs/project/2026-09-02-foundry-codex-luna-terminal-failure-evidence.json",
+      "governance/task-scopes/*.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine_foundry_jury.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_provider_custody.py",
+      "tests/test_program_foundry_gepa_comparison_jury.py"
+    ],
+    "required_paths": [
+      "docs/project/2026-09-01-foundry-dspy-lm-auth-jury-integration.md",
+      "docs/project/2026-09-02-foundry-codex-luna-terminal-failure-evidence.json",
+      "governance/task-scopes/AK-5317.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_refine_foundry_jury.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_provider_custody.py",
+      "tests/test_program_foundry_gepa_comparison_jury.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

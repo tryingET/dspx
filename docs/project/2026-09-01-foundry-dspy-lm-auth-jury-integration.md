@@ -100,13 +100,17 @@ PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
   --owner-source-root <exact-clean-dspy-lm-auth-root> \
   --execution-task-id <claimed-live-execution-task> \
   --execution-claimant <exact-ak-claimed-by> \
-  --codex-model gpt-5.6-luna \
+  --codex-model gpt-5.6-sol \
   --reasoning-effort xhigh \
   --json
 ```
 
 The command is documented for contract shape only. AK task 5308 did not authorize or perform that
 live provider effect.
+
+The reviewed default is `gpt-5.6-sol`. A preserved one-shot dogfood under AK-5315 used
+`gpt-5.6-luna` and received a terminal HTTP 400 on the first juror; its attempt and receipt evidence
+forbid replay. That failed model assumption is not used as a fallback.
 
 ## Misegraph and adjudication
 

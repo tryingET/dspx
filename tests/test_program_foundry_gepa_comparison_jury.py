@@ -375,7 +375,7 @@ def test_comparison_jury_cli_forwards_only_consumption_receipt_and_policy(
             "owner_source_root": None,
             "execution_task_id": None,
             "execution_claimant": None,
-            "codex_model": "gpt-5.6-luna",
+            "codex_model": "gpt-5.6-sol",
             "reasoning_effort": "xhigh",
         }
     ]
@@ -439,7 +439,7 @@ def test_task_local_comparison_jury_bypasses_registry_with_bound_runtime_factory
     )
     assert attempt["execution_request"]["execution_task_id"] == 6000
     assert attempt["execution_request"]["execution_claimant"] == "pi:test"
-    assert attempt["execution_request"]["codex_model"] == "gpt-5.6-luna"
+    assert attempt["execution_request"]["codex_model"] == "gpt-5.6-sol"
 
 
 def test_task_local_comparison_jury_cli_forwards_exact_custody_inputs(

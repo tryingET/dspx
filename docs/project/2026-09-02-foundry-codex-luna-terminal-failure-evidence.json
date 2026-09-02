@@ -1,0 +1,72 @@
+{
+  "artifacts": {
+    "attempt": {
+      "sha256": "37aa6f05826f910c9f035f6d9c24642a42182c6ba49f25f365de85f3849aea29",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.gAwm3v/foundry/gepa-experiment/comparison-jury-attempt.json"
+    },
+    "events": [
+      {
+        "ordinal": "000000",
+        "sha256": "c0d6be9b3c3452fd38a315265f1f613567e65b52bdd267c39f3ee181274a0a7e"
+      },
+      {
+        "ordinal": "000001",
+        "sha256": "6716c0a48f853e2dad683327197b530fe39e55a8801f09aff68bdbb092a32deb"
+      },
+      {
+        "ordinal": "000002",
+        "sha256": "e4759c81aca0042e5904f58a7cb7d5226cb272798173d844d21fcb1c54a30bb5"
+      },
+      {
+        "ordinal": "000003",
+        "sha256": "e461f31aae3bf170b7befadd214e44015f53158c869ce1eb0c322d949953244a"
+      },
+      {
+        "ordinal": "000004",
+        "sha256": "8e99e3581f59f5119fc499cea043137b5f0aa1101763ef20899c884f7cd3c988"
+      },
+      {
+        "ordinal": "000005",
+        "sha256": "ccc3ba4e23f27d3be38a087ab0b8030c0007aa00570a0017d00bbc0d53187909"
+      }
+    ],
+    "journal_projection_sha256": "d90b35b59314c695245e02fa5f2be9a2f17bf36deaf0595b76b6ba4995553f79",
+    "reservation": {
+      "reservation_id": "8c2f27e8b579d9b297f6685614fef3a1ca244235daafd864d56fcff35b8dc5f0",
+      "sha256": "dfd08b7db8d91ff5bff7c85056c623f156f380d0d63814e186a647311ff9ff05",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.gAwm3v/foundry/gepa-experiment/provider-outcomes/01-d1f2fbd484fd9ce93f995e59f3bbf1954c59e15a8ace97949e7f86b4e0d9f7cf/reservation.json"
+    },
+    "results": {
+      "sha256": "e9b6f60f0b5f605fc7a866c653056f4b60d3365dac708a9fb99e0c82d8e51172",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.gAwm3v/foundry/gepa-experiment/comparison-jury-results.json"
+    }
+  },
+  "custody": {
+    "committed_projection_contains_credentials": false,
+    "committed_projection_contains_prompts": false,
+    "committed_projection_contains_responses": false,
+    "source_kind": "operator_owned_session_scratch",
+    "source_root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.gAwm3v"
+  },
+  "execution_task_id": 5315,
+  "execution_task_status": "failed",
+  "no_replay_after_marker": true,
+  "proposal_id": "0cb45055cc74715be4bda143a8b0284e2b33d2e381dc738db1d2d663a29d8863",
+  "request": {
+    "fallback_allowed": false,
+    "model": "gpt-5.6-luna",
+    "provider": "foundry-dspy-lm-auth-codex",
+    "reasoning_effort": "xhigh",
+    "retry_count": 0
+  },
+  "schema_version": "dspx-foundry-codex-terminal-failure-evidence-v1",
+  "terminal": {
+    "empirical_disposition": "error",
+    "external_effect_possible": true,
+    "juror_id": "inferred_correctness",
+    "producer_terminal": "remote_http_error_final",
+    "reason": "remote_http_error_final",
+    "status_class": 4,
+    "status_code": 400
+  }
+}

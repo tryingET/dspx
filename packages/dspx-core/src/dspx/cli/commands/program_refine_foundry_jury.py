@@ -57,7 +57,7 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
             help="Exact AK claimed_by identity required for every task-local provider call",
         ),
         codex_model: str = typer.Option(
-            "gpt-5.6-luna",
+            "gpt-5.6-sol",
             "--codex-model",
             help="Explicit reviewed Codex subscription model for the task-local provider",
         ),
