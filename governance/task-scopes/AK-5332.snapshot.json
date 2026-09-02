@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-02T12:55:32.282723978+00:00",
+  "task_id": 5332,
+  "entity_version": 3,
+  "commit_sha": "ba26914495becb3324a32c5b256c56647bc015cc",
+  "scope": {
+    "allowed_paths": [
+      "docs/project/2026-09-01-foundry-dspy-lm-auth-jury-integration.md",
+      "docs/project/2026-09-02-misegraph-foundry-luna-full-dogfood-evidence.json",
+      "docs/project/product-posture.md",
+      "governance/task-scopes/AK-*.snapshot.json"
+    ],
+    "required_paths": [
+      "docs/project/2026-09-01-foundry-dspy-lm-auth-jury-integration.md",
+      "docs/project/2026-09-02-misegraph-foundry-luna-full-dogfood-evidence.json",
+      "governance/task-scopes/AK-5332.snapshot.json"
+    ],
+    "forbidden_paths": [
+      "docs/_core/**",
+      "packages/**",
+      "tests/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

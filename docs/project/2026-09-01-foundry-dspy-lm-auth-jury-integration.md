@@ -12,8 +12,10 @@ type: "evidence"
 
 AK task 5308 implements the fixed provider-neutral source/test slice. AK task 5322 then completed
 one full live three-juror Misegraph Espresso Brownies comparison with `gpt-5.4`, followed by the
-existing deterministic adjudicator. The jury requested more evidence and adjudication recorded
-`require_review`; neither artifact claims promotion, activation, release, or external authority.
+existing deterministic adjudicator. Tasks 5328 and 5329 repaired dogfood-discovered quality-contract
+and runtime-evidence gaps. A new full lineage under AK task 5327 bound passing source/candidate
+behavior and both runtime episodes, but the sole `gpt-5.6-luna` call terminalized as HTTP 400 before
+any juror judgment. Neither lineage claims promotion, activation, release, or external authority.
 
 ## Boundary
 
@@ -107,12 +109,17 @@ PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
 The command is documented for contract shape only. AK task 5308 did not authorize or perform that
 live provider effect.
 
-The reviewed default is the catalog-backed `gpt-5.4`. Preserved one-shot dogfoods recorded three
+The reviewed default is the catalog-backed `gpt-5.4`. Preserved one-shot dogfoods recorded four
 terminal HTTP 400 results without replay: AK-5315 used unlisted `gpt-5.6-luna`; AK-5318 used
-`gpt-5.6-sol` with `json_object`; AK-5320 used `gpt-5.6-sol` with text transport. Their durable
-secret-free evidence projections are retained in this directory. The foundry adapter keeps DSPy's
-exact JSON instructions and closed judgment parser while using text transport; failed attempts are
-never retried or treated as fallback candidates.
+`gpt-5.6-sol` with `json_object`; AK-5320 used `gpt-5.6-sol` with text transport; and AK-5327 used
+`gpt-5.6-luna` with text transport after both quality-contract and runtime-evidence repairs. AK-5327 made
+exactly one provider call, obtained `remote_http_error_final`, produced zero judgments, and left no
+comparison-jury receipt. The retained evidence does not distinguish model availability from request,
+endpoint, entitlement, or another provider-side cause of HTTP 400. It does not authorize client
+impersonation, an unreviewed transport, or another replay. The results artifact mechanically marks
+three jurors failed; only the first called the provider, while the other two are post-terminal uncalled
+failures, so its generic rerun recommendation is non-actionable under the no-replay rule. The foundry
+adapter keeps DSPy's exact JSON instructions and closed judgment parser while using text transport.
 
 ## Misegraph and adjudication
 
@@ -125,6 +132,13 @@ The existing deterministic foundry comparison adjudicator then recorded `require
 not rerun models, select a winner, mutate the candidate, or grant promotion/activation authority.
 The self-contained secret-free evidence projection is
 `docs/project/2026-09-02-misegraph-foundry-full-dogfood-evidence.json`.
+
+The later AK-5327 lineage used DSPx commit `ba269144...`, the same exact maintained-fork owner
+commit, two passing source and candidate examples, descriptor-confined source/candidate runtime
+episodes over identical inputs, and a hash-bound comparison. Luna nevertheless ended at HTTP 400
+on the first juror. AK evidence `8200` and
+`docs/project/2026-09-02-misegraph-foundry-luna-full-dogfood-evidence.json` retain the terminal
+secret-free facts. No adjudication was possible because no juror produced a judgment.
 
 ## Credential-free verification
 

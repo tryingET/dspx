@@ -1,0 +1,175 @@
+{
+  "ak": {
+    "evidence_id": 8200,
+    "evidence_result": "fail",
+    "execution_task_id": 5327,
+    "execution_task_status": "failed"
+  },
+  "artifacts": {
+    "candidate_behavior_results": {
+      "sha256": "24f49f1f31ced990c4c8b8d8de94a2a2bb8100e22ab376ff499adfadc0d98da7",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/materialized-candidate/behavior_results.json"
+    },
+    "candidate_comparison": {
+      "sha256": "f3142012d63643f02c4702c3209048d4a42066d3a436125983a7f980926a6f4e",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/candidate-comparison.json"
+    },
+    "candidate_manifest": {
+      "sha256": "6247e1fee6329dfd0dfd00e15ef564f5324be715a968601d9eb6d4d74ca6627b",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/materialized-candidate/manifest.json"
+    },
+    "candidate_runtime_episode": {
+      "sha256": "2181a635ee5b5cf2f9616884d3f5c06c3e0b123378ca1a329b6b064a02cd47d7",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/candidate-runtime/runtime_episode.json"
+    },
+    "gepa_consumption_receipt": {
+      "sha256": "7ca1bda983e888b7137b5cfa10c1b744d97615ddd249f4b539fcbba7c7d4c49a",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/consumption-receipt.json"
+    },
+    "gepa_execution_receipt": {
+      "sha256": "cb99b853dc10c39147196ab023d07ade8f7fc5fa1ac879b9ca30d50b9a249730",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/execution-receipt.json"
+    },
+    "jury_attempt": {
+      "sha256": "a2002514b1f728722e661bb2b67d092dd79e44e7dfd291140254a887491deb27",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/comparison-jury-attempt.json"
+    },
+    "jury_results": {
+      "sha256": "beca32a36dab7e0c2c10b06b08f593e695db81fe53fb7e00abdbaa879b988f8b",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/comparison-jury-results.json"
+    },
+    "provider_events": [
+      {
+        "kind": "wrapper_request_accepted",
+        "observed_model": null,
+        "sequence": 0,
+        "sha256": "204a792b349df177d20bb5ed93f6bc76c5af29fd88638e54b6ef75e0263ad4e7",
+        "status_code": null
+      },
+      {
+        "kind": "transport_gate_entered",
+        "observed_model": null,
+        "sequence": 1,
+        "sha256": "380a9b56c7fa66fa27926deaa6a83b6047fb20119b4c12e48d272ed6098c3752",
+        "status_code": null
+      },
+      {
+        "kind": "transport_effect_pending",
+        "observed_model": null,
+        "sequence": 2,
+        "sha256": "276ba9e7e40a4e2af659129c8d027bd0f192920e25e3c1903bf34f07f6172c31",
+        "status_code": null
+      },
+      {
+        "kind": "transport_entered",
+        "observed_model": null,
+        "sequence": 3,
+        "sha256": "a885bc49b2856d511dedf710be5064f9338df1db1825bf99490a50c71353b810",
+        "status_code": null
+      },
+      {
+        "kind": "http_response_observed",
+        "observed_model": null,
+        "sequence": 4,
+        "sha256": "f11a83d4479e15145a2dfd0825faf38996f1a0e7c274bdc8336351f3997aa772",
+        "status_code": 400
+      },
+      {
+        "kind": "remote_http_error_final",
+        "observed_model": null,
+        "sequence": 5,
+        "sha256": "62949c04cccbb6a5ea53cb4469f060fe37645a513908134627323cda2f0e131b",
+        "status_code": 400
+      }
+    ],
+    "provider_reservation": {
+      "sha256": "59dcc13cd0bd207b4678359744f4a6da4ab95e7a26764623bf223cc398f12483",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/reservation.json"
+    },
+    "source_behavior_results": {
+      "sha256": "5067f5608267d2df60c98efcb045e618f0f00d03bef26e75fe21d8acad09a156",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/candidate/behavior_results.json"
+    },
+    "source_manifest": {
+      "sha256": "05a08f12eb43d7749eb13914a3584f2375c8f59e8573c4ec99f5a3111ab22afc",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/candidate/manifest.json"
+    },
+    "source_runtime_episode": {
+      "sha256": "1c16feb752480f595a25ddbea0fbd75fb019102674368fd2ca90da66ec436f72",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey/foundry/runtime/runtime_episode.json"
+    }
+  },
+  "custody": {
+    "committed_projection_contains_credentials": false,
+    "committed_projection_contains_prompts": false,
+    "committed_projection_contains_responses": false,
+    "fallback": false,
+    "fixed_codex_endpoint": true,
+    "no_refresh": true,
+    "redirects": false,
+    "retries": 0,
+    "source_kind": "operator_owned_session_scratch",
+    "source_root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey"
+  },
+  "identity": {
+    "dspx_commit": "ba26914495becb3324a32c5b256c56647bc015cc",
+    "dspy_lm_auth_owner_commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+    "dspy_lm_auth_owner_tree": "a4630f403b90e89d61b99368ef88581a1924a418"
+  },
+  "misegraph_evidence": {
+    "canonical_path": "/home/tryinget/ai-society/softwareco/owned/misegraph/tests/conformance/v1/valid/espresso-brownies/canonical.json",
+    "canonical_sha256": "068e4890ab5b278cecc3e27998ddf508c12b5b1b4c801ff704879c4915b75210",
+    "recipe": "espresso-brownies",
+    "render_path": "/home/tryinget/ai-society/softwareco/owned/misegraph/tests/conformance/v1/valid/espresso-brownies/artifacts/recipe.txt",
+    "render_sha256": "e0b343d04b2d5d3988a72574ca2532dcd2905016762da896c36e95cbbdb5de9b",
+    "source_path": "/home/tryinget/ai-society/softwareco/owned/misegraph/examples/espresso-brownies.mise",
+    "source_sha256": "b3d210c1e1acc1778f67a2c42f3a76b66f19a4ac864bdbb0331bc23d2b6b6cef"
+  },
+  "non_authority": {
+    "activation_authority": false,
+    "adr_changed": false,
+    "promotion_authority": false,
+    "publication_authority": false,
+    "release_authority": false,
+    "winner_selected": false
+  },
+  "offline_lineage": {
+    "candidate_behavior_status": "passed",
+    "candidate_example_count": 2,
+    "candidate_runtime_evidence_present": true,
+    "comparison_needs_more_evidence": true,
+    "consumption_status": "ok",
+    "gepa_status": "completed",
+    "identical_runtime_inputs": true,
+    "runtime_evidence_compared": true,
+    "source_behavior_status": "passed",
+    "source_runtime_evidence_present": true,
+    "strict_improvement_observed": false
+  },
+  "request": {
+    "fallback_allowed": false,
+    "model": "gpt-5.6-luna",
+    "provider": "foundry-dspy-lm-auth-codex",
+    "reasoning_effort": "xhigh",
+    "retry_count": 0,
+    "transport": "text"
+  },
+  "schema_version": "dspx-misegraph-foundry-luna-full-dogfood-evidence-v1",
+  "status": "terminal_provider_failure",
+  "terminal": {
+    "comparison_jury_receipt_present": false,
+    "effect_disposition": "completed_remote_http_error",
+    "failure_cause": "unproved",
+    "first_juror_id": "inferred_correctness",
+    "judged_jurors": 0,
+    "juror_failures": 3,
+    "no_replay_after_marker": true,
+    "observed_model": null,
+    "post_terminal_uncalled_juror_failures": 2,
+    "producer_terminal": "remote_http_error_final",
+    "provider_call_count": 1,
+    "rerun_recommendation_actionable": false,
+    "status_class": 4,
+    "status_code": 400
+  }
+}
