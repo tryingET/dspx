@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-02T11:32:53.792878010+00:00",
+  "task_id": 5328,
+  "entity_version": 4,
+  "commit_sha": "a4ee10ceb0ddec503283129a62aaab5ca3b24fa1",
+  "scope": {
+    "allowed_paths": [
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_consumption.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate.py",
+      "packages/dspx-core/src/dspx/services/program_refinement_workflow.py",
+      "tests/test_program_foundry_gepa_consumption.py",
+      "tests/test_program_refinement_gepa_014_real_materialization.py",
+      "tests/test_program_refinement_gepa_candidate.py"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_refinement_gepa_candidate.py",
+      "tests/test_program_refinement_gepa_014_real_materialization.py"
+    ],
+    "forbidden_paths": [
+      "docs/_core/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
