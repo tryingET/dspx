@@ -1,0 +1,457 @@
+{
+  "artifacts": {
+    "attempt": {
+      "projection": {
+        "attempt_id": "e01b96383abe525b437982263884fe4eb22ae3f520056e7fd54dccea7d2066dc",
+        "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/consumption-receipt.json",
+        "consumption_receipt_sha256": "f06eb824b4769e389d7c649d078169834391ee3c694df8ecb62c7018368b99da",
+        "effect_disposition": "indeterminate_until_comparison_jury_receipt",
+        "execution_request": {
+          "adjudicator_id": "misegraph_recipe_adjudicator",
+          "adjudicator_kind": "local_foundry_adjudicator",
+          "adjudicator_repo": "/home/tryinget/ai-society/softwareco/owned/misegraph",
+          "codex_model": "gpt-5.6-sol",
+          "execution_claimant": "pi:01a05bcc-4790-77cf-be21-e6a0d2ccc0d9",
+          "execution_task_id": 5318,
+          "max_jurors": null,
+          "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-owner-live.BGQqps/repo",
+          "provider": "foundry-dspy-lm-auth-codex",
+          "reasoning_effort": "xhigh"
+        },
+        "jury_input_snapshots": [
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/candidate-comparison.json",
+            "sha256": "018a7f62fbc46f6176c8a98d609b5ddc9facb58054cb42bb7ebef6df1055e6a4"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/materialized-candidate/jury.json",
+            "sha256": "ec9abb41495188d8a8d3b1bbcc810975c9924cffc91a2755411ad02b74b4eb78"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/materialized-candidate/jury_rubric.json",
+            "sha256": "ae0fae8981379fa8dfb9d3456b1f84111b0967b548b8a9acc25074f0a06f8178"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/materialized-candidate/jury_selection.json",
+            "sha256": "fabb07852cdf12e6cf74a398ed50f0b468f473364b76ebc4fb9070b620a874b6"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/materialized-candidate/manifest.json",
+            "sha256": "a4469494f5299c4b6202310b0d4ee195ac8e3ef5cc572c9bc57e4ff4456137e7"
+          }
+        ],
+        "no_replay_after_marker": true,
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "26f5b2192f481cfb35229215f0b56e9538a88b44ef934ae39fae43e3746e3be8",
+        "schema_version": "dspx-program-foundry-gepa-comparison-jury-attempt-v1",
+        "status": "provider_effect_possible"
+      },
+      "sha256": "84dce91568f384325f1c974755ed3c1cd88b374d4bec11debd996f07bb37c220",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/comparison-jury-attempt.json"
+    },
+    "events": [
+      {
+        "ordinal": "000000",
+        "projection": {
+          "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+          "event": {
+            "error_class": null,
+            "gate_ordinal": null,
+            "kind": "wrapper_request_accepted",
+            "observed_model": null,
+            "protocol_event": null,
+            "response_id_sha256": null,
+            "status_class": null,
+            "status_code": null
+          },
+          "previous_event_sha256": null,
+          "producer": {
+            "commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "owner": "tryinget-dspy-lm-auth",
+            "tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "version": "0.1.6.dev0"
+          },
+          "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+          "sequence": 0,
+          "source_identity_sha256": "f0b66fc640b9558a02b854b83c4db65505e56800586cee16d395b1af71c34961"
+        },
+        "sha256": "025e2d53af49d84a08979c981d2456b34f2ed2186b0e18a72596ec35fabefdf2"
+      },
+      {
+        "ordinal": "000001",
+        "projection": {
+          "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+          "event": {
+            "error_class": null,
+            "gate_ordinal": 1,
+            "kind": "transport_gate_entered",
+            "observed_model": null,
+            "protocol_event": null,
+            "response_id_sha256": null,
+            "status_class": null,
+            "status_code": null
+          },
+          "previous_event_sha256": "025e2d53af49d84a08979c981d2456b34f2ed2186b0e18a72596ec35fabefdf2",
+          "producer": {
+            "commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "owner": "tryinget-dspy-lm-auth",
+            "tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "version": "0.1.6.dev0"
+          },
+          "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+          "sequence": 1,
+          "source_identity_sha256": "f0b66fc640b9558a02b854b83c4db65505e56800586cee16d395b1af71c34961"
+        },
+        "sha256": "d44d326e566be5474807a875e8cfcb55049d6aef12c0d93aedaabf487d85c0f8"
+      },
+      {
+        "ordinal": "000002",
+        "projection": {
+          "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+          "event": {
+            "error_class": null,
+            "gate_ordinal": 1,
+            "kind": "transport_effect_pending",
+            "observed_model": null,
+            "protocol_event": null,
+            "response_id_sha256": null,
+            "status_class": null,
+            "status_code": null
+          },
+          "previous_event_sha256": "d44d326e566be5474807a875e8cfcb55049d6aef12c0d93aedaabf487d85c0f8",
+          "producer": {
+            "commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "owner": "tryinget-dspy-lm-auth",
+            "tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "version": "0.1.6.dev0"
+          },
+          "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+          "sequence": 2,
+          "source_identity_sha256": "f0b66fc640b9558a02b854b83c4db65505e56800586cee16d395b1af71c34961"
+        },
+        "sha256": "bd24897d0619e55495d54bf79786f670abf357e7ded5c7b7f54a99abb37e3d21"
+      },
+      {
+        "ordinal": "000003",
+        "projection": {
+          "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+          "event": {
+            "error_class": null,
+            "gate_ordinal": 1,
+            "kind": "transport_entered",
+            "observed_model": null,
+            "protocol_event": null,
+            "response_id_sha256": null,
+            "status_class": null,
+            "status_code": null
+          },
+          "previous_event_sha256": "bd24897d0619e55495d54bf79786f670abf357e7ded5c7b7f54a99abb37e3d21",
+          "producer": {
+            "commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "owner": "tryinget-dspy-lm-auth",
+            "tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "version": "0.1.6.dev0"
+          },
+          "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+          "sequence": 3,
+          "source_identity_sha256": "f0b66fc640b9558a02b854b83c4db65505e56800586cee16d395b1af71c34961"
+        },
+        "sha256": "6c75c6549ca50edad030633ca90366e23b390c27b784081afa3795192980dadd"
+      },
+      {
+        "ordinal": "000004",
+        "projection": {
+          "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+          "event": {
+            "error_class": null,
+            "gate_ordinal": 1,
+            "kind": "http_response_observed",
+            "observed_model": null,
+            "protocol_event": null,
+            "response_id_sha256": null,
+            "status_class": 4,
+            "status_code": 400
+          },
+          "previous_event_sha256": "6c75c6549ca50edad030633ca90366e23b390c27b784081afa3795192980dadd",
+          "producer": {
+            "commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "owner": "tryinget-dspy-lm-auth",
+            "tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "version": "0.1.6.dev0"
+          },
+          "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+          "sequence": 4,
+          "source_identity_sha256": "f0b66fc640b9558a02b854b83c4db65505e56800586cee16d395b1af71c34961"
+        },
+        "sha256": "33fe139d4dfc8c2a5e5cbda48fc68a828fa66cf1cd19dc6a7745229e55d29978"
+      },
+      {
+        "ordinal": "000005",
+        "projection": {
+          "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+          "event": {
+            "error_class": "remote_http_status",
+            "gate_ordinal": null,
+            "kind": "remote_http_error_final",
+            "observed_model": null,
+            "protocol_event": null,
+            "response_id_sha256": null,
+            "status_class": 4,
+            "status_code": 400
+          },
+          "previous_event_sha256": "33fe139d4dfc8c2a5e5cbda48fc68a828fa66cf1cd19dc6a7745229e55d29978",
+          "producer": {
+            "commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "owner": "tryinget-dspy-lm-auth",
+            "tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "version": "0.1.6.dev0"
+          },
+          "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+          "sequence": 5,
+          "source_identity_sha256": "f0b66fc640b9558a02b854b83c4db65505e56800586cee16d395b1af71c34961"
+        },
+        "sha256": "5e60b29abd659473f0a14a3c060380793101361cbdd9fb8d1017f35810c5042c"
+      }
+    ],
+    "journal_projection_sha256": "2b775b0acbc3e44d3fc0f30d01c9a70beea2cf7fdaaf202559c67fe300a361c2",
+    "reservation": {
+      "projection": {
+        "artifact_verification": "accepted_exact",
+        "reservation": {
+          "case_id": "jury-1",
+          "consumer_task_id": 5318,
+          "contract_sha256": "84dce91568f384325f1c974755ed3c1cd88b374d4bec11debd996f07bb37c220",
+          "dependency_identity": {
+            "dspy": {
+              "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+              "payload_count": 157,
+              "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+              "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+              "version": "3.3.1"
+            },
+            "httpcore": {
+              "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+              "payload_count": 32,
+              "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+              "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+              "version": "1.0.9"
+            },
+            "httpx": {
+              "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+              "payload_count": 24,
+              "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+              "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+              "version": "0.28.1"
+            },
+            "litellm": {
+              "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+              "payload_count": 2532,
+              "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+              "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+              "version": "1.82.1"
+            }
+          },
+          "endpoint_origin_sha256": "7d4b206e8a080358f16d8048e0705d8e17c9df9b8968ab150ff73ed1643294c8",
+          "ledger_sha256": "84dce91568f384325f1c974755ed3c1cd88b374d4bec11debd996f07bb37c220",
+          "logical_request_id": "79d884d3336d34d17c8c0ada7f5491b23da316431ee6027c230d8c564aed9964",
+          "mode": "sync",
+          "process_id": "d78e42e4960a297bef8a184b8e6f80ac2708f57c3c2df1a5b10f265aab7b3c25",
+          "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol",
+          "resolved_route": "openai:gpt-5.6-sol:responses",
+          "schema_version": "dspx-provider-outcome-reservation-v1",
+          "semantic_request_sha256": "f1db80543d2cb125b859aec47d18e873f02b7f1c7511ca37810ec140d12b8cd7",
+          "source_identity": {
+            "commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "lock_sha256": "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889",
+            "module_sha256": {
+              "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+              "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+              "lm": "45c11c0ac5b0de9a7e95c1d2f436f73243678585720bcdddb07b5f5f133d8165",
+              "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+              "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+              "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+              "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+              "package_init": "0591c12d885e56ae2d9c97526add39d7dcd72e2bcf8dbb3e614297af1812578c"
+            },
+            "owner": "tryinget-dspy-lm-auth",
+            "tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "version": "0.1.6.dev0"
+          },
+          "transport_gate_id": "bc59e15855f13e054e381909d35effa3e0e6dd3425b61e01bcf209f809cdc633"
+        },
+        "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+        "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+      },
+      "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+      "sha256": "59b0178a7d366bbd916eb7a3ac5fbe1728e9a5de5c01c580e693854c37e990c8",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/provider-outcomes/01-79d884d3336d34d17c8c0ada7f5491b23da316431ee6027c230d8c564aed9964/reservation.json"
+    },
+    "results": {
+      "projection": {
+        "aggregate": {
+          "blocking_concerns_present": true,
+          "judgment_counts": {
+            "failed": 3,
+            "reject": 0,
+            "request_more_evidence": 0,
+            "supports_review_evidence": 0,
+            "withhold": 0
+          },
+          "recommendation": "withhold_until_failed_jurors_rerun",
+          "unique_improvement_requests": []
+        },
+        "juror_results": [
+          {
+            "error": {
+              "message": "remote_http_error_final",
+              "type": "ProgramModelJuryProviderExecutionError"
+            },
+            "execution_mode": "provider_backed_model",
+            "juror_id": "inferred_correctness",
+            "model": "gpt-5.6-sol",
+            "perspective": "correctness",
+            "provider": "foundry-dspy-lm-auth-codex",
+            "status": "failed"
+          },
+          {
+            "error": {
+              "message": "adapter_lm_identity_drift",
+              "type": "ProgramModelJuryProviderExecutionError"
+            },
+            "execution_mode": "provider_backed_model",
+            "juror_id": "inferred_robustness",
+            "model": "gpt-5.6-sol",
+            "perspective": "robustness",
+            "provider": "foundry-dspy-lm-auth-codex",
+            "status": "failed"
+          },
+          {
+            "error": {
+              "message": "adapter_lm_identity_drift",
+              "type": "ProgramModelJuryProviderExecutionError"
+            },
+            "execution_mode": "provider_backed_model",
+            "juror_id": "inferred_instruction_following",
+            "model": "gpt-5.6-sol",
+            "perspective": "instruction_following",
+            "provider": "foundry-dspy-lm-auth-codex",
+            "status": "failed"
+          }
+        ],
+        "jury": {
+          "execution_mode": "provider_backed_model",
+          "planned_jury_schema_version": "program-jury-v1",
+          "provider_backed_model_calls": true,
+          "provider_config": {
+            "auth_provider": "codex",
+            "cache": false,
+            "credential_mode": "no-refresh",
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "execution_claimant": "pi:01a05bcc-4790-77cf-be21-e6a0d2ccc0d9",
+            "execution_task_id": 5318,
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "model": "gpt-5.6-sol",
+            "num_retries": 0,
+            "owner_commit": "755a378757c3f863b0ac3e534a4205729506dbd7",
+            "owner_tree": "a4630f403b90e89d61b99368ef88581a1924a418",
+            "owner_version": "0.1.6.dev0",
+            "provider": "foundry-dspy-lm-auth-codex",
+            "reasoning_effort": "xhigh",
+            "requested_route": "dspy-lm-auth:codex:gpt-5.6-sol",
+            "resolved_route": "openai:gpt-5.6-sol:responses",
+            "source_identity_sha256": "f0b66fc640b9558a02b854b83c4db65505e56800586cee16d395b1af71c34961",
+            "status": "configured",
+            "sync_only": true,
+            "timeout_seconds": 60.0
+          },
+          "provider_outcome_evidence": {
+            "artifact_verification": "accepted_exact",
+            "call_records": [
+              {
+                "call_ordinal": 1,
+                "empirical_disposition": "error",
+                "external_effect_possible": true,
+                "journal_sha256": "2b775b0acbc3e44d3fc0f30d01c9a70beea2cf7fdaaf202559c67fe300a361c2",
+                "juror_id": "inferred_correctness",
+                "producer_terminal": "remote_http_error_final",
+                "provider_outcome_receipt": "accepted",
+                "reason": "remote_http_error_final",
+                "request_acknowledged": true,
+                "reservation_id": "e07a050b5ebd404ae71a7265a5434edf1b466671e9d0072541dfea5e3d4f2551",
+                "semantic_request_sha256": "f1db80543d2cb125b859aec47d18e873f02b7f1c7511ca37810ec140d12b8cd7",
+                "status_class": 4,
+                "status_code": 400
+              }
+            ],
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "logical_call_total": 1,
+            "maximum_logical_calls": 3,
+            "maximum_provider_transports": 3,
+            "retry_count": 0,
+            "schema_version": "dspx-foundry-jury-provider-outcome-evidence-v1",
+            "session_disposition": "closed_terminal",
+            "stop_reason": "remote_http_error_final",
+            "stopped_after_call": 1,
+            "sync_only": true
+          },
+          "rubric_schema_version": "program-jury-rubric-v1",
+          "selected_juror_count": 3,
+          "selected_perspectives": [
+            "correctness",
+            "robustness",
+            "instruction_following"
+          ],
+          "selection_schema_version": "program-jury-selection-v1"
+        },
+        "status": "executed_with_failures"
+      },
+      "sha256": "3df4731d915ff4d682f7e44d49b7a78bb691e4a361b42470b46bd3201a5f75b6",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG/foundry/gepa-experiment/comparison-jury-results.json"
+    }
+  },
+  "custody": {
+    "committed_projection_contains_credentials": false,
+    "committed_projection_contains_prompts": false,
+    "committed_projection_contains_responses": false,
+    "projection_is_self_contained": true,
+    "source_kind": "operator_owned_session_scratch",
+    "source_root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-dogfood.TOxRGG"
+  },
+  "evidence_kind": "durable_secret_free_projection",
+  "execution_task_id": 5318,
+  "execution_task_status": "failed",
+  "no_replay_after_marker": true,
+  "proposal_id": "26f5b2192f481cfb35229215f0b56e9538a88b44ef934ae39fae43e3746e3be8",
+  "request": {
+    "fallback_allowed": false,
+    "model": "gpt-5.6-sol",
+    "provider": "foundry-dspy-lm-auth-codex",
+    "reasoning_effort": "xhigh",
+    "response_format": "json_object",
+    "retry_count": 0,
+    "semantic_request_sha256": "f1db80543d2cb125b859aec47d18e873f02b7f1c7511ca37810ec140d12b8cd7"
+  },
+  "schema_version": "dspx-foundry-codex-terminal-failure-evidence-v2",
+  "terminal": {
+    "empirical_disposition": "error",
+    "external_effect_possible": true,
+    "juror_id": "inferred_correctness",
+    "producer_terminal": "remote_http_error_final",
+    "reason": "remote_http_error_final",
+    "status_class": 4,
+    "status_code": 400
+  }
+}

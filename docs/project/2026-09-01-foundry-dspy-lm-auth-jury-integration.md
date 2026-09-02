@@ -111,6 +111,11 @@ live provider effect.
 The reviewed default is `gpt-5.6-sol`. A preserved one-shot dogfood under AK-5315 used
 `gpt-5.6-luna` and received a terminal HTTP 400 on the first juror; its attempt and receipt evidence
 forbid replay. That failed model assumption is not used as a fallback.
+AK-5318 then proved `gpt-5.6-sol` also returned terminal HTTP 400 when the backend forced
+Responses `json_object`; its evidence is retained at
+`docs/project/2026-09-02-foundry-codex-sol-terminal-failure-evidence.json`. The foundry adapter now
+keeps DSPy's JSON instructions and closed judgment parser but uses the Codex-compatible text
+transport format. Neither failed attempt is retried or treated as a fallback.
 
 ## Misegraph and adjudication
 

@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import inspect
 import json
 import threading
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
@@ -368,21 +369,34 @@ class _BackendResponse:
 
 
 class _Backend:
-    def __init__(self, output_text: str) -> None:
+    def __init__(self, output_text: str, *, response_hash: str | None = None) -> None:
         self.output_text = output_text
+        self.response_hash = response_hash
         self.requests: list[_BackendRequest] = []
+        self.semantic_hashes: list[str] = []
 
     def prepare(self, request: _BackendRequest):
         self.requests.append(request)
+        semantic_hash = hashlib.sha256(
+            b"dspy-lm-auth-backend-test-v1\0"
+            + json.dumps(
+                asdict(request), separators=(",", ":"), sort_keys=True
+            ).encode()
+        ).hexdigest()
+        self.semantic_hashes.append(semantic_hash)
         return type(
             "Prepared",
             (),
-            {"semantic_request_sha256": "c" * 64},
+            {"semantic_request_sha256": semantic_hash},
         )()
 
     def invoke(self, prepared: object, *, outcome_receipt: object) -> _BackendResponse:
-        del prepared, outcome_receipt
-        return _BackendResponse(self.output_text, "c" * 64)
+        del outcome_receipt
+        semantic_hash = getattr(prepared, "semantic_request_sha256")
+        return _BackendResponse(
+            self.output_text,
+            self.response_hash or semantic_hash,
+        )
 
 
 class _AdapterOwner:
@@ -452,11 +466,58 @@ def test_fixed_backend_runs_through_dspx_adapter_without_external_lm() -> None:
     assert result["outcome"] == "supports_review_evidence"
     assert type(lm) is DSPyTypedLMAdapter
     assert backend.requests[0].model == "gpt-5.6-luna"
-    assert backend.requests[0].response_format == "json_object"
-    assert custodian.calls == [("quality", "c" * 64)]
+    assert backend.requests[0].response_format == "text"
+    assert custodian.calls == [("quality", backend.semantic_hashes[0])]
+    json_object_hash = backend.prepare(
+        replace(backend.requests[0], response_format="json_object")
+    ).semantic_request_sha256
+    assert json_object_hash != backend.semantic_hashes[0]
     with pytest.raises(ProviderInvocationError) as caught:
         provider.invoke(ProviderRequest(model=provider.model, messages=()))
     assert caught.value.disposition is EffectDisposition.PREFLIGHT_REJECTED
+
+
+def test_fixed_backend_rejects_response_semantic_hash_drift() -> None:
+    judgment = {
+        "outcome": "supports_review_evidence",
+        "rationale": "bounded fixture",
+        "evidence_strengths": [],
+        "concerns": [],
+        "improvement_requests": [],
+        "confidence": "high",
+    }
+    backend = _Backend(
+        json.dumps({"judgment_json": json.dumps(judgment)}),
+        response_hash="f" * 64,
+    )
+    owner = _AdapterOwner()
+    provider = _FoundryJuryFormattingProvider("gpt-5.6-sol")
+    lm = DSPyTypedLMAdapter(provider, cache=False, callbacks=[])
+    adapter = FoundryJuryJSONAdapter(
+        owner=owner,  # type: ignore[arg-type]
+        lm=lm,
+        backend=backend,
+        custodian=_AdapterCustodian(),  # type: ignore[arg-type]
+        model="gpt-5.6-sol",
+        reasoning_effort="xhigh",
+        timeout_seconds=60.0,
+    )
+    previous_lm = getattr(dspy.settings, "lm", None)
+    previous_adapter = getattr(dspy.settings, "adapter", None)
+    try:
+        dspy.configure(lm=lm, adapter=adapter)
+        with pytest.raises(ProgramModelJuryProviderExecutionError) as caught:
+            _run_juror_model(
+                juror={"id": "quality", "perspective": "quality"},
+                rubric={"criteria": ["bounded"]},
+                candidate_identity={"sha256": "a" * 64},
+                evidence_json='{"bounded":true}',
+                adjudicator={"kind": "deterministic"},
+            )
+    finally:
+        dspy.configure(lm=previous_lm, adapter=previous_adapter)
+    assert caught.value.reason == "owner_backend_response_shape_drift"
+    assert caught.value.effect_indeterminate is False
 
 
 def test_canonical_task_revalidator_binds_exact_claimant(

@@ -174,7 +174,7 @@ class FoundryJuryJSONAdapter(dspy.JSONAdapter):
                 model=self._model,
                 messages=tuple(backend_messages),
                 reasoning_effort=self._reasoning_effort,
-                response_format="json_object",
+                response_format="text",
                 timeout_seconds=self._timeout_seconds,
             )
         )
