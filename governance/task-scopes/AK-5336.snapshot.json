@@ -2,7 +2,7 @@
   "schema_version": 1,
   "exported_at": "2026-09-02T17:45:14.579516746+00:00",
   "task_id": 5336,
-  "entity_version": 2,
+  "entity_version": 3,
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
