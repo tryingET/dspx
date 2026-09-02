@@ -140,6 +140,14 @@ on the first juror. AK evidence `8200` and
 `docs/project/2026-09-02-misegraph-foundry-luna-full-dogfood-evidence.json` retain the terminal
 secret-free facts. No adjudication was possible because no juror produced a judgment.
 
+AK-5336 copied the selected 18 JSON artifacts needed to re-audit that terminal lineage from
+transient `pi-quests` scratch into mode-0700 owner-local DSPx state. The deterministic archive is
+`/home/tryinget/.local/state/dspx/misegraph-foundry-dogfood/AK-5327/ak-5327-luna-evidence.tar.zst`
+(SHA-256 `25564d9e1317a9bce42dc067d907df82825efe289e0aa20af7b95ff91c0d6c69`). The tracked
+custody manifest is `docs/project/2026-09-02-misegraph-foundry-luna-durable-custody.json`.
+This improves local audit durability; it is not remote publication, release evidence, or a replacement
+for AK evidence `8200`. The historical scratch root was retained and the consumed lineage was not replayed.
+
 ## Credential-free verification
 
 The focused tests cover:

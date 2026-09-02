@@ -1,0 +1,135 @@
+{
+  "schema_version": "dspx-misegraph-foundry-luna-durable-custody-v1",
+  "status": "durably_copied_and_verified",
+  "ak": {
+    "execution_task_id": 5327,
+    "evidence_id": 8200,
+    "execution_status": "failed"
+  },
+  "terminal": {
+    "model": "gpt-5.6-luna",
+    "provider_calls": 1,
+    "status_code": 400,
+    "producer_terminal": "remote_http_error_final",
+    "judgments": 0,
+    "comparison_jury_receipt_present": false,
+    "no_replay": true,
+    "failure_cause": "unproved"
+  },
+  "source": {
+    "kind": "historical_pi_quests_scratch",
+    "root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey",
+    "deleted": false
+  },
+  "custody": {
+    "kind": "owner_local_dspx_state",
+    "root": "/home/tryinget/.local/state/dspx/misegraph-foundry-dogfood/AK-5327",
+    "directory_mode": "0700",
+    "archive_path": "/home/tryinget/.local/state/dspx/misegraph-foundry-dogfood/AK-5327/ak-5327-luna-evidence.tar.zst",
+    "archive_mode": "0600",
+    "archive_sha256": "25564d9e1317a9bce42dc067d907df82825efe289e0aa20af7b95ff91c0d6c69",
+    "archive_bytes": 28582,
+    "compression": "zstd",
+    "deterministic_tar_mtime": "2026-09-02T00:00:00Z",
+    "entry_count": 18,
+    "entries": [
+      {
+        "sha256": "5067f5608267d2df60c98efcb045e618f0f00d03bef26e75fe21d8acad09a156",
+        "path": "foundry/candidate/behavior_results.json"
+      },
+      {
+        "sha256": "05a08f12eb43d7749eb13914a3584f2375c8f59e8573c4ec99f5a3111ab22afc",
+        "path": "foundry/candidate/manifest.json"
+      },
+      {
+        "sha256": "f3142012d63643f02c4702c3209048d4a42066d3a436125983a7f980926a6f4e",
+        "path": "foundry/gepa-experiment/candidate-comparison.json"
+      },
+      {
+        "sha256": "2181a635ee5b5cf2f9616884d3f5c06c3e0b123378ca1a329b6b064a02cd47d7",
+        "path": "foundry/gepa-experiment/candidate-runtime/runtime_episode.json"
+      },
+      {
+        "sha256": "a2002514b1f728722e661bb2b67d092dd79e44e7dfd291140254a887491deb27",
+        "path": "foundry/gepa-experiment/comparison-jury-attempt.json"
+      },
+      {
+        "sha256": "beca32a36dab7e0c2c10b06b08f593e695db81fe53fb7e00abdbaa879b988f8b",
+        "path": "foundry/gepa-experiment/comparison-jury-results.json"
+      },
+      {
+        "sha256": "7ca1bda983e888b7137b5cfa10c1b744d97615ddd249f4b539fcbba7c7d4c49a",
+        "path": "foundry/gepa-experiment/consumption-receipt.json"
+      },
+      {
+        "sha256": "cb99b853dc10c39147196ab023d07ade8f7fc5fa1ac879b9ca30d50b9a249730",
+        "path": "foundry/gepa-experiment/execution-receipt.json"
+      },
+      {
+        "sha256": "24f49f1f31ced990c4c8b8d8de94a2a2bb8100e22ab376ff499adfadc0d98da7",
+        "path": "foundry/gepa-experiment/materialized-candidate/behavior_results.json"
+      },
+      {
+        "sha256": "6247e1fee6329dfd0dfd00e15ef564f5324be715a968601d9eb6d4d74ca6627b",
+        "path": "foundry/gepa-experiment/materialized-candidate/manifest.json"
+      },
+      {
+        "sha256": "204a792b349df177d20bb5ed93f6bc76c5af29fd88638e54b6ef75e0263ad4e7",
+        "path": "foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/events/000000.json"
+      },
+      {
+        "sha256": "380a9b56c7fa66fa27926deaa6a83b6047fb20119b4c12e48d272ed6098c3752",
+        "path": "foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/events/000001.json"
+      },
+      {
+        "sha256": "276ba9e7e40a4e2af659129c8d027bd0f192920e25e3c1903bf34f07f6172c31",
+        "path": "foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/events/000002.json"
+      },
+      {
+        "sha256": "a885bc49b2856d511dedf710be5064f9338df1db1825bf99490a50c71353b810",
+        "path": "foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/events/000003.json"
+      },
+      {
+        "sha256": "f11a83d4479e15145a2dfd0825faf38996f1a0e7c274bdc8336351f3997aa772",
+        "path": "foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/events/000004.json"
+      },
+      {
+        "sha256": "62949c04cccbb6a5ea53cb4469f060fe37645a513908134627323cda2f0e131b",
+        "path": "foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/events/000005.json"
+      },
+      {
+        "sha256": "59dcc13cd0bd207b4678359744f4a6da4ab95e7a26764623bf223cc398f12483",
+        "path": "foundry/gepa-experiment/provider-outcomes/01-ec224cc7134ea7223208fd1fde0a217ab3fe5e6756955c8c3076094208beb4a7/reservation.json"
+      },
+      {
+        "sha256": "1c16feb752480f595a25ddbea0fbd75fb019102674368fd2ca90da66ec436f72",
+        "path": "foundry/runtime/runtime_episode.json"
+      }
+    ]
+  },
+  "content_policy": {
+    "credentials": false,
+    "authorization_headers": false,
+    "cookies": false,
+    "raw_provider_responses": false,
+    "live_provider_prompt": false,
+    "refresh_material": false,
+    "selected_json_only": true
+  },
+  "verification": {
+    "json_parse_all_entries": "pass",
+    "source_to_archive_sha256s": "pass",
+    "archive_extract_and_sha256sum_check": "pass",
+    "sensitive_token_pattern_scan": "pass",
+    "provider_effects": false
+  },
+  "non_authority": {
+    "recipe_acceptance": false,
+    "promotion": false,
+    "activation": false,
+    "release": false,
+    "publication": false,
+    "successor_transition": false,
+    "consumer_exclusion": false
+  }
+}

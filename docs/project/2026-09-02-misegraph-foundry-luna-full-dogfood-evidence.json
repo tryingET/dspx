@@ -108,7 +108,10 @@
     "no_refresh": true,
     "redirects": false,
     "retries": 0,
-    "source_kind": "operator_owned_session_scratch",
+    "durable_archive_path": "/home/tryinget/.local/state/dspx/misegraph-foundry-dogfood/AK-5327/ak-5327-luna-evidence.tar.zst",
+    "durable_archive_sha256": "25564d9e1317a9bce42dc067d907df82825efe289e0aa20af7b95ff91c0d6c69",
+    "durable_custody_manifest": "docs/project/2026-09-02-misegraph-foundry-luna-durable-custody.json",
+    "source_kind": "historical_operator_owned_session_scratch_with_durable_owner_local_copy",
     "source_root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-luna-5327.ay3bey"
   },
   "identity": {
