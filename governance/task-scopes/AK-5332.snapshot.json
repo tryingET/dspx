@@ -2,8 +2,8 @@
   "schema_version": 1,
   "exported_at": "2026-09-02T12:55:32.282723978+00:00",
   "task_id": 5332,
-  "entity_version": 3,
-  "commit_sha": "ba26914495becb3324a32c5b256c56647bc015cc",
+  "entity_version": 4,
+  "commit_sha": "e71d5d023d80ddbd00eef55b4329b9d28610fd25",
   "scope": {
     "allowed_paths": [
       "docs/project/2026-09-01-foundry-dspy-lm-auth-jury-integration.md",
