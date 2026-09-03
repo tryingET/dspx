@@ -638,3 +638,110 @@ def test_adapter_postprocessing_lock_blocks_concurrent_direct_provider_call(
     assert evidence["attempt_total"] == 1
     assert evidence["terminal_effect"] == "effect_indeterminate"
     assert evidence["attempts"][-1]["effect_disposition"] == "effect_indeterminate"
+
+
+@pytest.mark.parametrize(
+    "message_extras, usage_extras",
+    [
+        (
+            {
+                "refusal": None,
+                "annotations": None,
+                "audio": None,
+                "function_call": None,
+                "reasoning": None,
+            },
+            {"prompt_tokens_details": None},
+        ),
+        (
+            {"reasoning_content": "thought"},
+            {"prompt_tokens_details": {"cached_tokens": 0}},
+        ),
+        ({"reasoning": "", "refusal": None}, {"completion_tokens_details": None}),
+    ],
+)
+def test_vllm_shaped_success_is_accepted_with_extras_ignored(
+    message_extras: dict[str, object], usage_extras: dict[str, object]
+) -> None:
+    payload = {
+        "model": "local-model",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "local answer",
+                    **message_extras,
+                }
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 2,
+            "completion_tokens": 3,
+            "total_tokens": 5,
+            **usage_extras,
+        },
+    }
+    provider, requests = _provider((200, payload))
+
+    result = provider.invoke(_request())
+
+    assert result.text == "local answer"
+    assert result.usage == {
+        "prompt_tokens": 2,
+        "completion_tokens": 3,
+        "total_tokens": 5,
+    }
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "model": "local-model",
+            "choices": [
+                {"message": {"role": "assistant", "content": "x", "refusal": "no"}}
+            ],
+        },
+        {
+            "model": "local-model",
+            "choices": [
+                {"message": {"role": "assistant", "content": "x", "reasoning": 5}}
+            ],
+        },
+        {
+            "model": "local-model",
+            "choices": [
+                {"message": {"role": "assistant", "content": "x", "unexpected": None}}
+            ],
+        },
+        {
+            "model": "local-model",
+            "choices": [{"message": {"role": "assistant", "content": "x"}}],
+            "usage": {
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2,
+                "prompt_tokens_details": 3,
+            },
+        },
+        {
+            "model": "local-model",
+            "choices": [{"message": {"role": "assistant", "content": "x"}}],
+            "usage": {
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2,
+                "other": None,
+            },
+        },
+    ],
+)
+def test_non_allowlisted_extras_remain_completed_failure(payload: object) -> None:
+    provider, requests = _provider((200, payload))
+
+    with pytest.raises(ProviderInvocationError) as exc_info:
+        provider.invoke(_request())
+
+    assert exc_info.value.disposition is EffectDisposition.COMPLETED_FAILURE
+    assert len(requests) == 1

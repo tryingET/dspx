@@ -39,6 +39,17 @@ _MAX_OUTPUT_CHARS: Final = 1_000_000
 _MAX_RESPONSE_BYTES: Final = 2_000_000
 _MAX_USAGE_TOKENS: Final = 1_000_000_000
 _USAGE_KEYS: Final = frozenset({"prompt_tokens", "completion_tokens", "total_tokens"})
+# Closed allowlists for keys that OpenAI-compatible servers (vLLM 0.27) add to a
+# plain chat completion. They never carry data this port consumes: null-only
+# keys must be null, reasoning keys may be null or bounded text, usage detail
+# keys may be null or an object. Anything else remains a completed failure.
+_MESSAGE_NULL_ONLY_KEYS: Final = frozenset(
+    {"refusal", "annotations", "audio", "function_call"}
+)
+_MESSAGE_REASONING_KEYS: Final = frozenset({"reasoning", "reasoning_content"})
+_USAGE_DETAIL_KEYS: Final = frozenset(
+    {"prompt_tokens_details", "completion_tokens_details"}
+)
 _PATH_SEGMENT = re.compile(r"^[A-Za-z0-9_~-]+(?:\.[A-Za-z0-9_~-]+)*$")
 
 
@@ -304,12 +315,23 @@ class OpenAICompatibleProvider:
         message = choice.get("message")
         if (
             not isinstance(message, dict)
-            or set(message) != {"role", "content"}
+            or not {"role", "content"} <= set(message)
+            or not set(message)
+            <= ({"role", "content"} | _MESSAGE_NULL_ONLY_KEYS | _MESSAGE_REASONING_KEYS)
             or message.get("role") != "assistant"
             or not isinstance(message.get("content"), str)
             or "text" in choice
         ):
             raise _ResponseFailure(observed_model)
+        for key in _MESSAGE_NULL_ONLY_KEYS & set(message):
+            if message[key] is not None:
+                raise _ResponseFailure(observed_model)
+        for key in _MESSAGE_REASONING_KEYS & set(message):
+            reasoning = message[key]
+            if reasoning is not None and (
+                not isinstance(reasoning, str) or len(reasoning) > _MAX_OUTPUT_CHARS
+            ):
+                raise _ResponseFailure(observed_model)
         text = message["content"]
         if len(text) > _MAX_OUTPUT_CHARS:
             raise _ResponseFailure(observed_model)
@@ -317,8 +339,18 @@ class OpenAICompatibleProvider:
         if "usage" not in payload:
             return text, {}, self.model
         usage_payload = payload["usage"]
-        if not isinstance(usage_payload, dict) or set(usage_payload) != _USAGE_KEYS:
+        if (
+            not isinstance(usage_payload, dict)
+            or not _USAGE_KEYS <= set(usage_payload)
+            or not set(usage_payload) <= (_USAGE_KEYS | _USAGE_DETAIL_KEYS)
+        ):
             raise _ResponseFailure(observed_model)
+        for key in _USAGE_DETAIL_KEYS & set(usage_payload):
+            if usage_payload[key] is not None and not isinstance(
+                usage_payload[key], dict
+            ):
+                raise _ResponseFailure(observed_model)
+        usage_payload = {key: usage_payload[key] for key in _USAGE_KEYS}
         if any(
             not isinstance(value, int)
             or isinstance(value, bool)
