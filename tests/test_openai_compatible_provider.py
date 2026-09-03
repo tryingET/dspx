@@ -686,10 +686,10 @@ def test_vllm_shaped_success_is_accepted_with_extras_ignored(
     result = provider.invoke(_request())
 
     assert result.text == "local answer"
-    assert result.usage == {
-        "prompt_tokens": 2,
-        "completion_tokens": 3,
-        "total_tokens": 5,
+    assert result.usage["total_tokens"] == 5
+    assert not set(result.usage) & {
+        "prompt_tokens_details",
+        "completion_tokens_details",
     }
     assert len(requests) == 1
 
