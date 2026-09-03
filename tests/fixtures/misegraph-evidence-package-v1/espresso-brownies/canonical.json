@@ -1,0 +1,320 @@
+{
+  "schema_version": 1,
+  "id": "espresso_brownies",
+  "title": "Espresso Brownies",
+  "description": "A compact interoperability fixture for tabular recipe rendering.",
+  "yield": {
+    "amount": 16.0,
+    "unit": "squares"
+  },
+  "sources": [
+    {
+      "label": "Cooking for Engineers — Espresso Brownies",
+      "url": "https://www.cookingforengineers.com/recipe/327/Espresso-Brownies",
+      "author": "Michael Chu"
+    },
+    {
+      "label": "Discovery trail — Juan Buis on X",
+      "url": "https://x.com/juanbuis/status/2082162851553398821"
+    }
+  ],
+  "instructions": [
+    {
+      "text": "Butter and flour an 8 × 8 inch pan.",
+      "placement": "top"
+    },
+    {
+      "text": "Preheat oven to 350 °F (170 °C).",
+      "placement": "top"
+    }
+  ],
+  "ingredients": [
+    {
+      "id": "butter",
+      "name": "unsalted butter",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 115.0
+        },
+        "unit": "g"
+      },
+      "display": "4 oz (115 g)",
+      "optional": false
+    },
+    {
+      "id": "sugar",
+      "name": "sugar",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 200.0
+        },
+        "unit": "g"
+      },
+      "display": "1 cup (200 g)",
+      "optional": false
+    },
+    {
+      "id": "vanilla",
+      "name": "vanilla extract",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 2.5
+        },
+        "unit": "ml"
+      },
+      "display": "1/4 tsp (2.5 mL)",
+      "optional": false
+    },
+    {
+      "id": "espresso",
+      "name": "fresh brewed espresso or very strong coffee",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 60.0
+        },
+        "unit": "ml"
+      },
+      "display": "1 shot (4 Tbsp; 60 mL)",
+      "optional": false
+    },
+    {
+      "id": "eggs",
+      "name": "eggs",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 2.0
+        },
+        "unit": "each"
+      },
+      "display": "2 large (100 g)",
+      "optional": false
+    },
+    {
+      "id": "flour",
+      "name": "all-purpose flour",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 80.0
+        },
+        "unit": "g"
+      },
+      "display": "1/2 cup (80 g)",
+      "optional": false
+    },
+    {
+      "id": "cocoa",
+      "name": "Hershey's cocoa powder",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 80.0
+        },
+        "unit": "g"
+      },
+      "display": "1/3 cup (80 g)",
+      "optional": false
+    },
+    {
+      "id": "baking_soda",
+      "name": "baking soda",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 1.3
+        },
+        "unit": "g"
+      },
+      "display": "1/4 tsp (1.3 g)",
+      "optional": false
+    },
+    {
+      "id": "salt",
+      "name": "table salt",
+      "quantity": {
+        "amount": {
+          "kind": "exact",
+          "value": 1.5
+        },
+        "unit": "g"
+      },
+      "display": "1/4 tsp (1.5 g)",
+      "optional": false
+    }
+  ],
+  "equipment": [
+    {
+      "id": "pan",
+      "name": "8 × 8 inch baking pan"
+    }
+  ],
+  "steps": [
+    {
+      "id": "melt_butter",
+      "action": "melt",
+      "label": "melt",
+      "inputs": [
+        {
+          "material": "butter",
+          "portion": {
+            "kind": "all"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "melted_butter"
+        }
+      ]
+    },
+    {
+      "id": "make_coffee_base",
+      "action": "mix",
+      "label": "mix",
+      "inputs": [
+        {
+          "material": "melted_butter",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "sugar",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "vanilla",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "espresso",
+          "portion": {
+            "kind": "all"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "coffee_base"
+        }
+      ]
+    },
+    {
+      "id": "add_eggs",
+      "action": "mix",
+      "label": "mix",
+      "inputs": [
+        {
+          "material": "coffee_base",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "eggs",
+          "portion": {
+            "kind": "all"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "wet_batter"
+        }
+      ]
+    },
+    {
+      "id": "fold_dry",
+      "action": "fold",
+      "label": "fold in",
+      "inputs": [
+        {
+          "material": "wet_batter",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "flour",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "cocoa",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "baking_soda",
+          "portion": {
+            "kind": "all"
+          }
+        },
+        {
+          "material": "salt",
+          "portion": {
+            "kind": "all"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "batter"
+        }
+      ]
+    },
+    {
+      "id": "bake_brownies",
+      "action": "bake",
+      "label": "bake",
+      "inputs": [
+        {
+          "material": "batter",
+          "portion": {
+            "kind": "all"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "brownies"
+        }
+      ],
+      "equipment": [
+        "pan"
+      ],
+      "temperature": {
+        "amount": {
+          "kind": "exact",
+          "value": 170.0
+        },
+        "unit": "C"
+      },
+      "duration": {
+        "amount": {
+          "kind": "range",
+          "min": 30.0,
+          "max": 40.0
+        },
+        "unit": "min"
+      }
+    }
+  ],
+  "final_outputs": [
+    "brownies"
+  ],
+  "metadata": {
+    "notation_reference": "https://www.cookingforengineers.com/article/29/Recipe-Summaries-Standards-and-Microsoft"
+  }
+}

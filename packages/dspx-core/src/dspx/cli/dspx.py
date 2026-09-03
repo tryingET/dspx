@@ -39,6 +39,9 @@ __all__ = [
     "_TEMPLATE_ADAPTER_AVAILABLE",
 ]
 
+from dspx.cli.commands.program_foundry_misegraph import (
+    register_foundry_import_misegraph_command,
+)
 from dspx.cli.commands import (
     cache_app,
     run_app,
@@ -1242,26 +1245,35 @@ def program_gen_fitness_results(
         raise typer.Exit(code=2)
 
 
-@app.command("foundry")
+foundry_app = typer.Typer(
+    add_completion=False,
+    help="Run accepted intent through runtime Oracle semantics; subcommands import evidence",
+)
+app.add_typer(foundry_app, name="foundry")
+register_foundry_import_misegraph_command(foundry_app)
+
+
+@foundry_app.callback(invoke_without_command=True)
 def program_foundry(
-    intent: Path = typer.Option(
-        ...,
+    ctx: typer.Context,
+    intent: Optional[Path] = typer.Option(
+        None,
         "--intent",
         "-i",
         help="Path to a quality-accepted program-intent-v2 JSON/YAML artifact",
     ),
-    quality_proposal: Path = typer.Option(
-        ...,
+    quality_proposal: Optional[Path] = typer.Option(
+        None,
         "--quality-proposal",
         help="Path to the accepted quality-proposal envelope that emitted --intent",
     ),
-    inputs: Path = typer.Option(
-        ...,
+    inputs: Optional[Path] = typer.Option(
+        None,
         "--inputs",
         help="Runtime inputs JSON object or {inputs: {...}}",
     ),
-    outdir: Path = typer.Option(
-        ...,
+    outdir: Optional[Path] = typer.Option(
+        None,
         "--outdir",
         "-o",
         help="Foundry root containing candidate, runtime, semantic, and workflow artifacts",
@@ -1363,6 +1375,15 @@ def program_foundry(
     json_out: bool = typer.Option(False, "--json", help="Print foundry workflow JSON"),
 ) -> None:
     """Run or safely resume accepted intent through runtime Oracle semantics."""
+    if ctx.invoked_subcommand is not None:
+        return
+    if intent is None or quality_proposal is None or inputs is None or outdir is None:
+        typer.echo(
+            "Error: --intent, --quality-proposal, --inputs and --outdir are required "
+            "when foundry has no subcommand",
+            err=True,
+        )
+        raise typer.Exit(code=2)
     from dspx.services.program_foundry import (
         foundry_failure_message,
         run_program_foundry,

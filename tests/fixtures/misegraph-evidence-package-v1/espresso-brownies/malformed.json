@@ -1,0 +1,45 @@
+{
+  "probes": [
+    {
+      "base_artifact": "canonical.json",
+      "error_contains": "JSON error: unknown field `unexpected_field`, expected one of `schema_version`, `id`, `title`, `description`, `yield`, `sources`, `instructions`, `ingredients`, `equipment`, `steps`, `final_outputs`, `todos`, `metadata` at line 316 column 20",
+      "exit_code": 2,
+      "expected": "reject",
+      "id": "unknown-field",
+      "input_format": "json",
+      "input_sha256": "c3041ca0544c34efb4b43e7dcbf09a379df13f9c62416f6b918abdedaf266d1f",
+      "mutation": "unknown_field"
+    },
+    {
+      "base_artifact": "canonical.json",
+      "error_contains": "JSON error: schema version 2 is unsupported; this release accepts version 1",
+      "exit_code": 2,
+      "expected": "reject",
+      "id": "schema-version-2",
+      "input_format": "json",
+      "input_sha256": "897cfd750d9a31b62f0fadab8cd0f11bf74240bb7076caf59c1eb1b6875490c6",
+      "mutation": "schema_version_2"
+    },
+    {
+      "base_artifact": "source.mise",
+      "error_contains": "line 17:1: recipe block is missing the closing `}`",
+      "exit_code": 2,
+      "expected": "reject",
+      "id": "truncated-source",
+      "input_format": "dsl",
+      "input_sha256": "5bbda32e51a87db357317371353681eb78222f16adae90c230cce875be852c95",
+      "mutation": "truncated_source"
+    },
+    {
+      "base_artifact": "check.json",
+      "error_contains": "missing artifact `check.json`",
+      "exit_code": 2,
+      "expected": "reject",
+      "id": "missing-artifact",
+      "input_format": "package",
+      "input_sha256": "6a433a9fa8b2f0e1086630be475634181285c41b0357b9bf34cbe0dcbe62a881",
+      "mutation": "missing_artifact"
+    }
+  ],
+  "schema_version": "misegraph-malformed-probes-v1"
+}

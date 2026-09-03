@@ -1,0 +1,31 @@
+# Material-flow example based on the cited Cooking for Engineers recipe.
+recipe espresso_brownies "Espresso Brownies" {
+  description "A compact interoperability fixture for tabular recipe rendering."
+  yield 16 "squares"
+  source "Cooking for Engineers — Espresso Brownies" "https://www.cookingforengineers.com/recipe/327/Espresso-Brownies" | author="Michael Chu"
+  source "Discovery trail — Juan Buis on X" "https://x.com/juanbuis/status/2082162851553398821"
+  meta notation_reference="https://www.cookingforengineers.com/article/29/Recipe-Summaries-Standards-and-Microsoft"
+
+  instruction top "Butter and flour an 8 × 8 inch pan."
+  instruction top "Preheat oven to 350 °F (170 °C)."
+
+  equipment pan "8 × 8 inch baking pan"
+
+  ingredient butter "unsalted butter" | qty="115 g" | display="4 oz (115 g)"
+  ingredient sugar "sugar" | qty="200 g" | display="1 cup (200 g)"
+  ingredient vanilla "vanilla extract" | qty="2.5 ml" | display="1/4 tsp (2.5 mL)"
+  ingredient espresso "fresh brewed espresso or very strong coffee" | qty="60 ml" | display="1 shot (4 Tbsp; 60 mL)"
+  ingredient eggs "eggs" | qty="2 each" | display="2 large (100 g)"
+  ingredient flour "all-purpose flour" | qty="80 g" | display="1/2 cup (80 g)"
+  ingredient cocoa "Hershey's cocoa powder" | qty="80 g" | display="1/3 cup (80 g)"
+  ingredient baking_soda "baking soda" | qty="1.3 g" | display="1/4 tsp (1.3 g)"
+  ingredient salt "table salt" | qty="1.5 g" | display="1/4 tsp (1.5 g)"
+
+  step melt_butter: melt butter -> melted_butter | label="melt"
+  step make_coffee_base: mix melted_butter + sugar + vanilla + espresso -> coffee_base | label="mix"
+  step add_eggs: mix coffee_base + eggs -> wet_batter | label="mix"
+  step fold_dry: fold wet_batter + flour + cocoa + baking_soda + salt -> batter | label="fold in"
+  step bake_brownies: bake batter -> brownies | equipment=pan | temp="170 C" | time="30..40 min" | label="bake"
+
+  final brownies
+}

@@ -1,0 +1,636 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/tryingET/misegraph/main/schema/misegraph.schema.json",
+  "title": "Misegraph canonical recipe IR",
+  "description": "The Serde-facing interchange representation for Misegraph recipes. JSON Schema validates transport shape; `misegraph check` performs semantic graph, quantity, consumption, and renderability checks.",
+  "type": "object",
+  "required": [
+    "id",
+    "schema_version",
+    "title"
+  ],
+  "properties": {
+    "description": {
+      "description": "Optional summary.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "equipment": {
+      "description": "Declared equipment.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Equipment"
+      }
+    },
+    "final_outputs": {
+      "description": "Materials considered finished products.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "id": {
+      "description": "Stable recipe identifier.",
+      "type": "string"
+    },
+    "ingredients": {
+      "description": "Declared ingredients, in preferred display order.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Ingredient"
+      }
+    },
+    "instructions": {
+      "description": "Presentation-only instructions.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DisplayInstruction"
+      }
+    },
+    "metadata": {
+      "description": "Non-semantic project/application metadata.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "schema_version": {
+      "description": "Canonical IR schema version. Serialized inputs must declare version 1.",
+      "type": "integer",
+      "format": "uint32",
+      "maximum": 1.0,
+      "minimum": 1.0
+    },
+    "sources": {
+      "description": "Source and discovery links.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Source"
+      }
+    },
+    "steps": {
+      "description": "Material transformations.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Step"
+      }
+    },
+    "title": {
+      "description": "Human-readable title.",
+      "type": "string"
+    },
+    "todos": {
+      "description": "Explicit unresolved questions.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Todo"
+      }
+    },
+    "yield": {
+      "description": "Produced quantity, renamed to `yield` in serialized data.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RecipeYield"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Amount": {
+      "description": "Numeric amount shape.",
+      "oneOf": [
+        {
+          "description": "One exact value.",
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "exact"
+              ]
+            },
+            "value": {
+              "description": "Numeric value.",
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        {
+          "description": "Inclusive range.",
+          "type": "object",
+          "required": [
+            "kind",
+            "max",
+            "min"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "range"
+              ]
+            },
+            "max": {
+              "description": "Upper bound.",
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "description": "Lower bound.",
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        {
+          "description": "Approximate value.",
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "approx"
+              ]
+            },
+            "value": {
+              "description": "Numeric value.",
+              "type": "number",
+              "format": "double"
+            }
+          }
+        }
+      ]
+    },
+    "DisplayInstruction": {
+      "description": "A display-only instruction.",
+      "type": "object",
+      "required": [
+        "placement",
+        "text"
+      ],
+      "properties": {
+        "placement": {
+          "description": "Placement category.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/InstructionPlacement"
+            }
+          ]
+        },
+        "step": {
+          "description": "Step target for before/after placements.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "text": {
+          "description": "Instruction text.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Equipment": {
+      "description": "A declared item of equipment.",
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable identifier.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Human-readable equipment name.",
+          "type": "string"
+        },
+        "note": {
+          "description": "Optional detail such as dimensions or material.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Ingredient": {
+      "description": "A declared ingredient.",
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "display": {
+          "description": "Source-faithful display text, which may include equivalent measures.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "group": {
+          "description": "Optional ingredient section.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "Stable ingredient identifier.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Human ingredient name.",
+          "type": "string"
+        },
+        "note": {
+          "description": "Short clarification.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "optional": {
+          "description": "Whether the ingredient may be omitted.",
+          "default": false,
+          "type": "boolean"
+        },
+        "preparation": {
+          "description": "Preparation state supplied by the source ingredient list.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quantity": {
+          "description": "Normalized quantity.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "InstructionPlacement": {
+      "description": "Placement of a non-transformational display instruction.",
+      "oneOf": [
+        {
+          "description": "Above the process table.",
+          "type": "string",
+          "enum": [
+            "top"
+          ]
+        },
+        {
+          "description": "Below the process table.",
+          "type": "string",
+          "enum": [
+            "bottom"
+          ]
+        },
+        {
+          "description": "Before a named step.",
+          "type": "string",
+          "enum": [
+            "before"
+          ]
+        },
+        {
+          "description": "After a named step.",
+          "type": "string",
+          "enum": [
+            "after"
+          ]
+        }
+      ]
+    },
+    "MaterialInput": {
+      "description": "An input material and how much of it is consumed.",
+      "type": "object",
+      "required": [
+        "material"
+      ],
+      "properties": {
+        "material": {
+          "description": "Ingredient or prior step-output identifier.",
+          "type": "string"
+        },
+        "portion": {
+          "description": "Portion consumed.",
+          "default": {
+            "kind": "all"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Portion"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MaterialOutput": {
+      "description": "An output material.",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "description": "Stable material identifier.",
+          "type": "string"
+        },
+        "label": {
+          "description": "Optional human label.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Portion": {
+      "description": "Portion of an input consumed by a step.",
+      "oneOf": [
+        {
+          "description": "Consume the whole material.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "all"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Consume a dimensionless fraction between zero and one.",
+          "type": "object",
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "fraction"
+              ]
+            },
+            "value": {
+              "description": "Fractional value.",
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        {
+          "description": "Consume what remains after explicit fractions.",
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "remaining"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Consume an absolute quantity.",
+          "type": "object",
+          "required": [
+            "kind",
+            "quantity"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "quantity"
+              ]
+            },
+            "quantity": {
+              "description": "Absolute amount.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Quantity"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Quantity": {
+      "description": "A normalized amount and unit.",
+      "type": "object",
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "properties": {
+        "amount": {
+          "description": "Exact, approximate, or ranged amount.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Amount"
+            }
+          ]
+        },
+        "unit": {
+          "description": "Unit text.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RecipeYield": {
+      "description": "Recipe yield.",
+      "type": "object",
+      "required": [
+        "amount",
+        "unit"
+      ],
+      "properties": {
+        "amount": {
+          "description": "Numeric amount.",
+          "type": "number",
+          "format": "double"
+        },
+        "unit": {
+          "description": "Human unit, such as `squares` or `servings`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Source": {
+      "description": "A source or provenance link.",
+      "type": "object",
+      "required": [
+        "label",
+        "url"
+      ],
+      "properties": {
+        "author": {
+          "description": "Optional author attribution.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "label": {
+          "description": "Display label.",
+          "type": "string"
+        },
+        "url": {
+          "description": "Absolute URL.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Step": {
+      "description": "A material transformation.",
+      "type": "object",
+      "required": [
+        "action",
+        "id"
+      ],
+      "properties": {
+        "action": {
+          "description": "Open-vocabulary action, such as `mix` or `bake`.",
+          "type": "string"
+        },
+        "duration": {
+          "description": "Optional duration.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "equipment": {
+          "description": "Equipment identifiers used by the step.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "id": {
+          "description": "Stable operation identifier.",
+          "type": "string"
+        },
+        "inputs": {
+          "description": "Materials consumed by the step.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MaterialInput"
+          }
+        },
+        "label": {
+          "description": "Human display label overriding the action.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "note": {
+          "description": "Short clarification.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outputs": {
+          "description": "Materials produced by the step.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MaterialOutput"
+          }
+        },
+        "tags": {
+          "description": "Open tags for renderer/application policy.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "temperature": {
+          "description": "Optional operating temperature.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Todo": {
+      "description": "An explicit unresolved import or authoring question.",
+      "type": "object",
+      "required": [
+        "message"
+      ],
+      "properties": {
+        "message": {
+          "description": "What must be resolved.",
+          "type": "string"
+        },
+        "source_excerpt": {
+          "description": "Optional source excerpt.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

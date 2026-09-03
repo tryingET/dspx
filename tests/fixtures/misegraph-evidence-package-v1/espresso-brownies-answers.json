@@ -1,0 +1,7 @@
+{
+  "schema_version": "dspx-misegraph-example-answers-v1",
+  "answers": {
+    "check-json": "Espresso brownies pass Misegraph check with zero diagnostics: the ingredient and process graph is complete, espresso identity is retained, and the bake step carries the canonical temperature and duration. Source, canonical IR, and text render agree, so the evidence is consistent for review.",
+    "render-text": "Espresso brownies preserve the declared ingredient and process graph: combine the brownie mixture, retain espresso identity, and bake at the canonical temperature and duration. The source, canonical IR, and text render are consistent enough for review evidence."
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "artifacts": {
+    "behavior.json": {
+      "bytes": 1974,
+      "kind": "behavior_cases",
+      "sha256": "1c45526a64731c828db19c9fadbb213494a026906295e20ebb46314482ba36f3"
+    },
+    "canonical.json": {
+      "bytes": 6202,
+      "kind": "canonical_ir",
+      "sha256": "068e4890ab5b278cecc3e27998ddf508c12b5b1b4c801ff704879c4915b75210"
+    },
+    "check.json": {
+      "bytes": 24,
+      "kind": "diagnostics",
+      "sha256": "6a433a9fa8b2f0e1086630be475634181285c41b0357b9bf34cbe0dcbe62a881"
+    },
+    "episode.json": {
+      "bytes": 1926,
+      "kind": "episode",
+      "sha256": "56bd48b6c49d49b6249e392611b99350c4ef7b68d214000f1f39b8aa18df935a"
+    },
+    "malformed.json": {
+      "bytes": 1742,
+      "kind": "malformed_probes",
+      "sha256": "a1fdc9b3e6c19657b04d151fc1b8e90c8a99263d484e93d996f85bbff424a304"
+    },
+    "render.eink.svg": {
+      "bytes": 11262,
+      "format": "svg",
+      "kind": "render",
+      "profile": "eink",
+      "sha256": "6a6a556e3e0297749e144bc825b7914782db063a8c21ec3cb97f4f089683241f"
+    },
+    "render.text.txt": {
+      "bytes": 928,
+      "format": "text",
+      "kind": "render",
+      "profile": "standard",
+      "sha256": "e0b343d04b2d5d3988a72574ca2532dcd2905016762da896c36e95cbbdb5de9b"
+    },
+    "schema.json": {
+      "bytes": 15389,
+      "kind": "ir_json_schema",
+      "sha256": "c4852c66c3e3f876ab4df054f8af376a02a9a1bf3a689be60fb0955308dfaf83"
+    },
+    "source.mise": {
+      "bytes": 1930,
+      "kind": "mise_source",
+      "sha256": "b3d210c1e1acc1778f67a2c42f3a76b66f19a4ac864bdbb0331bc23d2b6b6cef"
+    }
+  },
+  "conformance": {
+    "deny_warnings": true,
+    "error_count": 0,
+    "status": "ok",
+    "warning_count": 0
+  },
+  "non_authority": {
+    "acceptance_authority": false,
+    "evidence_only": true,
+    "release_authority": false
+  },
+  "package_sha256": "0be06d8d561751e9be26f43ada7e0c20ee4fbc7982194c7396986add07114905",
+  "producer": {
+    "ir_schema_version": 1,
+    "name": "misegraph",
+    "version": "0.1.0"
+  },
+  "recipe": {
+    "id": "espresso_brownies",
+    "title": "Espresso Brownies"
+  },
+  "schema_version": "misegraph-evidence-package-v1"
+}
