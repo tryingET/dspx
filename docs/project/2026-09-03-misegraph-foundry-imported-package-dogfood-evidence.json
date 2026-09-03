@@ -1,0 +1,1997 @@
+{
+  "artifacts": {
+    "adjudication": {
+      "projection": {
+        "bindings": {
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "62b7d7bec41c87ee014a7f7f0827baed0f7108f464336f873585c31bbb685d9b",
+          "comparison_jury_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-jury-receipt.json",
+          "comparison_jury_receipt_sha256": "ddd8c4509293ce6419cb6d7b84b6372b377e3d792f78cc59f3b1e7eedb808c3e",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "ce17e2b20c287d5d08fb01e641dc67a22a847207c6270dfa2352ede49e836344",
+          "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/consumption-receipt.json",
+          "consumption_receipt_sha256": "7d37ffedbd207c3ea0a2e93971e2ef79ed64c960e8a881706a8b177ab3c75cc4",
+          "jury_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-jury-results.json",
+          "jury_results_sha256": "bcd80fa5e5267c5b2d55d615f5d26456a192c07e77cc830bcd86d56feddeac8a",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "8bafbd08348d579cea56282d285cfd893cd7c86b3ff2796e8522912c50ef4397"
+        },
+        "disposition": "promote_locally",
+        "effect": {
+          "ak_called": false,
+          "bounded_local_disposition_recorded": true,
+          "candidate_files_mutated": false,
+          "comparison_mutated": false,
+          "external_authority_mutated": false,
+          "gepa_reexecuted": false,
+          "governance_mutated": false,
+          "models_rerun": false,
+          "production_activation_applied": false,
+          "winner_applied": false
+        },
+        "jury_snapshot": {
+          "aggregate": {
+            "blocking_concerns_present": false,
+            "judgment_counts": {
+              "failed": 0,
+              "reject": 0,
+              "request_more_evidence": 0,
+              "supports_review_evidence": 3,
+              "withhold": 0
+            },
+            "recommendation": "supports_review_evidence_only",
+            "unique_improvement_requests": [
+              "Add more granular runtime trace analysis to confirm that the pipeline topology and module execution align with the intended instruction-following behavior",
+              "Document expected vs. actual outputs for the mismatched cases to aid debugging.",
+              "Document the specific criteria used to evaluate 'answer' correctness to enable reproducible verification",
+              "Include a refinement proposal or decision record to document how the candidate was optimized relative to the source",
+              "Include additional test cases or edge-case scenarios to validate correctness beyond the 2 examples currently covered",
+              "Include detailed runtime traces or logs for the examples where mismatches occurred.",
+              "Provide additional behavior examples or refined prompts to resolve the 'mismatch:answer' failure signal",
+              "Provide additional behavior examples specifically targeting edge cases known to trigger 'mismatch:answer'.",
+              "Provide detailed diff of answer outputs between candidate and source to clarify the persisted 'mismatch:answer' signal"
+            ]
+          },
+          "jury_status": "executed"
+        },
+        "local_candidate_state": "eligible_local_candidate",
+        "non_authority": {
+          "activation_authority": false,
+          "bounded_local_disposition_only": true,
+          "external_authority_apply": false,
+          "external_winner_selection": false,
+          "governance_authority": false,
+          "production_promotion_authority": false
+        },
+        "policy": {
+          "deterministic": true,
+          "id": "foundry-gepa-comparison-jury-disposition-v1",
+          "input_mode": "validated_comparison_jury_receipt_only",
+          "models_rerun": false,
+          "unknown_or_mixed_outcomes_fail_to_review": true
+        },
+        "proposal_id": "efb9dcce1f18e925b5104b44c66a7828b1041c2eceb798b76a028892e7891e86",
+        "reason_codes": [
+          "all_jurors_support_review_evidence"
+        ],
+        "schema_version": "dspx-program-foundry-gepa-comparison-adjudication-v1",
+        "status": "recorded"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "1042edb319c4f934bfd7be6443f64ac8774812cf6f33f127eb9d4514d74eb1b3",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-adjudication.json"
+    },
+    "candidate_comparison": {
+      "projection": {
+        "behavior_comparison": {
+          "candidate": {
+            "behavior_episode_present": true,
+            "behavior_evidence_kind": "behavior_results",
+            "behavior_evidence_present": true,
+            "behavior_results_present": true,
+            "behavior_status": "passed",
+            "example_count": 2,
+            "failure_signals": [
+              "mismatch:answer"
+            ],
+            "source_count": 1,
+            "status_counts": {
+              "passed": 2
+            }
+          },
+          "delta": {
+            "candidate_degraded_count": 0,
+            "candidate_error_count": 0,
+            "candidate_failed_count": 0,
+            "degraded_count_delta": 0,
+            "error_count_delta": 0,
+            "failed_count_delta": 0,
+            "failure_signals_added": [],
+            "failure_signals_persisted": [
+              "mismatch:answer"
+            ],
+            "failure_signals_removed": [],
+            "source_degraded_count": 0,
+            "source_error_count": 0,
+            "source_failed_count": 0,
+            "status_changed": false
+          },
+          "source": {
+            "behavior_episode_present": true,
+            "behavior_evidence_kind": "behavior_results",
+            "behavior_evidence_present": true,
+            "behavior_results_present": true,
+            "behavior_status": "passed",
+            "example_count": 2,
+            "failure_signals": [
+              "mismatch:answer"
+            ],
+            "source_count": 1,
+            "status_counts": {
+              "passed": 2
+            }
+          }
+        },
+        "candidate_identity": {
+          "assembly_id": "prog-asm-0e70305e3111",
+          "candidate_id": "prog-cand-20f6e7d758b8",
+          "episode_id": "prog-ep-b31a76cb943a",
+          "receipt_bundle_id": "prog-rb-a5d761d5016f",
+          "request_id": "prog-req-4fb0c7a91d3b"
+        },
+        "created_from": {
+          "candidate_behavior_episode_hash": "ed2526ff73d5dc5e64c5ed2787dbcb653e083ce25b42c7446959aa7ae624438c",
+          "candidate_behavior_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/behavior_episode.json",
+          "candidate_behavior_results_hash": "6496e7787d0aad815fd78c3017f3e6411195ba07029b3fde832338900e835854",
+          "candidate_behavior_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/behavior_results.json",
+          "candidate_manifest_hash": "62b7d7bec41c87ee014a7f7f0827baed0f7108f464336f873585c31bbb685d9b",
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_schema_version": "program-candidate-assembly-v1",
+          "candidate_runtime_episode_hash": "30fd5918f57c93646f0e44026323a30048fea4e9c21e34575eb8e99be2fbe199",
+          "candidate_runtime_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-runtime/runtime_episode.json",
+          "decision_record_path": null,
+          "refinement_proposal_path": null,
+          "source_behavior_episode_hash": "598e037a32cec49670996c848df0154d42e5196a89d55ab69f78f210c5a39426",
+          "source_behavior_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/candidate/behavior_episode.json",
+          "source_behavior_results_hash": "0209483a3268a572af1d8a4b67c8878d37359276db8a82dd94d5113935f7cdbd",
+          "source_behavior_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/candidate/behavior_results.json",
+          "source_manifest_hash": "8bafbd08348d579cea56282d285cfd893cd7c86b3ff2796e8522912c50ef4397",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/candidate/manifest.json",
+          "source_manifest_schema_version": "program-candidate-assembly-v1",
+          "source_runtime_episode_hash": "ef19be74a07ad6b6b09f31d0323bc3c818883b0efb81307ba4455062e280a521",
+          "source_runtime_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/runtime/runtime_episode.json"
+        },
+        "effect": {
+          "candidate_program_files_mutated": false,
+          "external_authority_mutated": false,
+          "governance_mutated": false,
+          "local_comparison_only": true,
+          "new_candidate_generated": false,
+          "source_program_files_mutated": false
+        },
+        "interpretation": {
+          "evidence_basis": "generated_behavior",
+          "evidence_conflict": false,
+          "generated_evidence_compared": true,
+          "improvement_observed": false,
+          "limits": [
+            "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+            "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+            "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+            "This comparison is not a promotion, ranking, winner-selection, or approval decision."
+          ],
+          "needs_more_evidence": true,
+          "runtime_evidence_compared": true,
+          "summary": "The second candidate did not remove the observed local behavior signal."
+        },
+        "lineage": {
+          "candidate_declares_refinement_lineage": false,
+          "decision_outcome": null,
+          "decision_record_input_present": false,
+          "proposal_input_present": false,
+          "refinement_proposal_id": null,
+          "source_identity_matches_candidate_lineage": null
+        },
+        "non_authority": {
+          "automatic_promotion": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "local_comparison_only": true,
+          "new_candidate_generation": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "program_mutation": false,
+          "winner_selection": false
+        },
+        "runtime_evidence_comparison": {
+          "candidate": {
+            "artifact_hashes": {
+              "behavior_results_hash": "1529116a51e656ab106a6ded84591ff93b28ced49a46a85b9e7a608006c0f74f",
+              "oracle_evidence_hash": "e31bd4f7880326ecdb9911de39c2b3345ea0b0737bc2cd94713f0f8b73d12de0",
+              "program_runtime_traces_hash": "1825485139a893c12aa79b15960010464b01c2119623c1b92696ac186b719461",
+              "runtime_inputs_hash": "0aee8c5222b752649c009f8c2f3a7cf460d440c164ce6f4b5840639982bc2570"
+            },
+            "behavior_evidence_kind": "runtime_episode",
+            "behavior_evidence_present": true,
+            "behavior_status": "executed_quality_passed",
+            "contract_mode": "none",
+            "example_count": 1,
+            "failure_signals": [],
+            "runtime_episode_id": "prog-run-fbc71db394334883",
+            "runtime_evidence_present": true,
+            "runtime_status": "executed_quality_passed",
+            "status_counts": {
+              "executed_quality_passed": 1
+            }
+          },
+          "compared": true,
+          "delta": {
+            "candidate_degraded_count": 0,
+            "candidate_error_count": 0,
+            "candidate_failed_count": 0,
+            "degraded_count_delta": 0,
+            "error_count_delta": 0,
+            "failed_count_delta": 0,
+            "failure_signals_added": [],
+            "failure_signals_persisted": [],
+            "failure_signals_removed": [],
+            "source_degraded_count": 0,
+            "source_error_count": 0,
+            "source_failed_count": 0,
+            "status_changed": false
+          },
+          "interpretation": {
+            "improvement_observed": false,
+            "limits": [
+              "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+              "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+              "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+              "This comparison is not a promotion, ranking, winner-selection, or approval decision."
+            ],
+            "needs_more_evidence": true,
+            "summary": "The second candidate behavior status is unchanged on the available local evidence."
+          },
+          "limits": [
+            "Runtime episodes are already-produced local program-run evidence; comparison never reruns candidates.",
+            "Runtime success, trace coverage, or Oracle-readable evidence is not promotion, activation, ranking, or owner acceptance."
+          ],
+          "source": {
+            "artifact_hashes": {
+              "behavior_results_hash": "ce77c221d063de22555880f53ba8f25b2a138acb9e66c4b72411e835f3028ad0",
+              "oracle_evidence_hash": "7af7a05ca8ba6f10c7036d15452ce83c8252e7b512f2982bf58a86e105b2eec5",
+              "program_runtime_traces_hash": "eedc8812850512a9c200aab152b5e86e4c2de5e88292174311bc0129829369e3",
+              "runtime_inputs_hash": "0aee8c5222b752649c009f8c2f3a7cf460d440c164ce6f4b5840639982bc2570"
+            },
+            "behavior_evidence_kind": "runtime_episode",
+            "behavior_evidence_present": true,
+            "behavior_status": "executed_quality_passed",
+            "contract_mode": "none",
+            "example_count": 1,
+            "failure_signals": [],
+            "runtime_episode_id": "prog-run-73b6a6e99718ab0c",
+            "runtime_evidence_present": true,
+            "runtime_status": "executed_quality_passed",
+            "status_counts": {
+              "executed_quality_passed": 1
+            }
+          }
+        },
+        "schema_version": "program-refinement-candidate-comparison-v1",
+        "source_identity": {
+          "assembly_id": "prog-asm-c76f4b81cf4b",
+          "candidate_id": "prog-cand-1e898486f711",
+          "episode_id": "prog-ep-ca1327ba743f",
+          "receipt_bundle_id": "prog-rb-e188844a2014",
+          "request_id": "prog-req-cb7eebfd883f"
+        },
+        "status": "compared"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "ce17e2b20c287d5d08fb01e641dc67a22a847207c6270dfa2352ede49e836344",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-comparison.json"
+    },
+    "consumption_receipt": {
+      "projection": {
+        "bindings": {
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "62b7d7bec41c87ee014a7f7f0827baed0f7108f464336f873585c31bbb685d9b",
+          "candidate_result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-result.json",
+          "candidate_result_sha256": "45246b23e923fee010329ebb6fb5904e9046679d167953e63a656e8039d49333",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "ce17e2b20c287d5d08fb01e641dc67a22a847207c6270dfa2352ede49e836344",
+          "consumption_attempt_sha256": "1b64d87d65b5dff69a04883203cda081d2ab3d154ee80d92bcaa8319ab155dd0",
+          "execution_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/execution-receipt.json",
+          "execution_receipt_sha256": "6c643d392ba229019b788aeec4fedcf67c696270800ac52855af60f19e2d8653",
+          "gepa_result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/gepa-result.json",
+          "gepa_result_sha256": "d9b2ccee2b7c4e73d69ea6c0a7ea26cb26cd8928e6014522be7421ec20a5e3d3",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "8bafbd08348d579cea56282d285cfd893cd7c86b3ff2796e8522912c50ef4397",
+          "workflow_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialize-and-compare-result.json",
+          "workflow_sha256": "68dca69a6c067dc1b789ca15fac5e8bb8de7e94ef6cdaaaa7943db14cebe914c"
+        },
+        "comparison_status": "compared",
+        "effect": {
+          "ak_called": false,
+          "external_authority_mutated": false,
+          "gepa_reexecuted": false,
+          "local_comparison_recorded": true,
+          "one_local_candidate_materialized": true,
+          "promotion_applied": false,
+          "winner_selected": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_candidate_and_comparison_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "efb9dcce1f18e925b5104b44c66a7828b1041c2eceb798b76a028892e7891e86",
+        "schema_version": "dspx-program-foundry-gepa-consumption-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "7d37ffedbd207c3ea0a2e93971e2ef79ed64c960e8a881706a8b177ab3c75cc4",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/consumption-receipt.json"
+    },
+    "execution_receipt": {
+      "projection": {
+        "attempt_sha256": "6677d03803e699d98ffb7562eb1fc0d468f8695d9db3a3c0a4e9554ef00c8cbe",
+        "effect": {
+          "ak_called": false,
+          "candidate_materialized": false,
+          "external_authority_mutated": false,
+          "gepa_invoked": true,
+          "promotion_applied": false,
+          "terminal_result_recorded": true,
+          "winner_selected": false
+        },
+        "gepa_status": "completed",
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_optimizer_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "optimizer_manifest_sha256": "e837d77beb48f0d1098d8c46a8c4c59e51bb4a501c922669ceef5587af0dc702",
+        "optimizer_output_readiness": {
+          "blockers": [
+            "no_program_candidate_assembly_materializer_in_this_command",
+            "candidate_field_remains_null_until_explicit_materializer_lands"
+          ],
+          "ready_for_future_candidate_materializer": true,
+          "status": "optimizer_output_hash_bound_not_candidate"
+        },
+        "optimizer_tree_sha256": "62c95c128f6caf21bdc565a7ae6c9ca17442d82f3dfcea02f3ef5a6eb209a55d",
+        "proposal_id": "efb9dcce1f18e925b5104b44c66a7828b1041c2eceb798b76a028892e7891e86",
+        "proposal_sha256": "3ab3425cac9b650790db780fe6d605f499c3212312713b597787497378f1fddf",
+        "result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/gepa-result.json",
+        "result_sha256": "d9b2ccee2b7c4e73d69ea6c0a7ea26cb26cd8928e6014522be7421ec20a5e3d3",
+        "schema_version": "dspx-program-foundry-gepa-execution-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "6c643d392ba229019b788aeec4fedcf67c696270800ac52855af60f19e2d8653",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/execution-receipt.json"
+    },
+    "jury_attempt": {
+      "projection": {
+        "attempt_id": "b0df87355a0c12fcfc8951fcef79f536924baf3a5451e5ddabb3139c07e85b1a",
+        "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/consumption-receipt.json",
+        "consumption_receipt_sha256": "7d37ffedbd207c3ea0a2e93971e2ef79ed64c960e8a881706a8b177ab3c75cc4",
+        "effect_disposition": "indeterminate_until_comparison_jury_receipt",
+        "execution_request": {
+          "adjudicator_id": "local_foundry_adjudicator",
+          "adjudicator_kind": "local_foundry_adjudicator",
+          "adjudicator_repo": null,
+          "execution_claimant": "claude-code:508c6e1b",
+          "execution_task_id": 5360,
+          "local_vllm_base_url": "http://127.0.0.1:2456/v1",
+          "max_jurors": null,
+          "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+          "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-I1M2/dspy-lm-auth",
+          "provider": "foundry-dspy-lm-auth-local-vllm"
+        },
+        "jury_input_snapshots": [
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-comparison.json",
+            "sha256": "ce17e2b20c287d5d08fb01e641dc67a22a847207c6270dfa2352ede49e836344"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/jury.json",
+            "sha256": "ec9abb41495188d8a8d3b1bbcc810975c9924cffc91a2755411ad02b74b4eb78"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/jury_rubric.json",
+            "sha256": "ae0fae8981379fa8dfb9d3456b1f84111b0967b548b8a9acc25074f0a06f8178"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/jury_selection.json",
+            "sha256": "fabb07852cdf12e6cf74a398ed50f0b468f473364b76ebc4fb9070b620a874b6"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/manifest.json",
+            "sha256": "62b7d7bec41c87ee014a7f7f0827baed0f7108f464336f873585c31bbb685d9b"
+          }
+        ],
+        "no_replay_after_marker": true,
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "efb9dcce1f18e925b5104b44c66a7828b1041c2eceb798b76a028892e7891e86",
+        "schema_version": "dspx-program-foundry-gepa-comparison-jury-attempt-v1",
+        "status": "provider_effect_possible"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-jury-attempt.json"
+    },
+    "jury_receipt": {
+      "projection": {
+        "aggregate": {
+          "blocking_concerns_present": false,
+          "judgment_counts": {
+            "failed": 0,
+            "reject": 0,
+            "request_more_evidence": 0,
+            "supports_review_evidence": 3,
+            "withhold": 0
+          },
+          "recommendation": "supports_review_evidence_only",
+          "unique_improvement_requests": [
+            "Add more granular runtime trace analysis to confirm that the pipeline topology and module execution align with the intended instruction-following behavior",
+            "Document expected vs. actual outputs for the mismatched cases to aid debugging.",
+            "Document the specific criteria used to evaluate 'answer' correctness to enable reproducible verification",
+            "Include a refinement proposal or decision record to document how the candidate was optimized relative to the source",
+            "Include additional test cases or edge-case scenarios to validate correctness beyond the 2 examples currently covered",
+            "Include detailed runtime traces or logs for the examples where mismatches occurred.",
+            "Provide additional behavior examples or refined prompts to resolve the 'mismatch:answer' failure signal",
+            "Provide additional behavior examples specifically targeting edge cases known to trigger 'mismatch:answer'.",
+            "Provide detailed diff of answer outputs between candidate and source to clarify the persisted 'mismatch:answer' signal"
+          ]
+        },
+        "bindings": {
+          "attempt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-jury-attempt.json",
+          "attempt_sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "62b7d7bec41c87ee014a7f7f0827baed0f7108f464336f873585c31bbb685d9b",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "ce17e2b20c287d5d08fb01e641dc67a22a847207c6270dfa2352ede49e836344",
+          "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/consumption-receipt.json",
+          "consumption_receipt_sha256": "7d37ffedbd207c3ea0a2e93971e2ef79ed64c960e8a881706a8b177ab3c75cc4",
+          "execution_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/execution-receipt.json",
+          "execution_receipt_sha256": "6c643d392ba229019b788aeec4fedcf67c696270800ac52855af60f19e2d8653",
+          "jury_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-jury-results.json",
+          "jury_results_sha256": "bcd80fa5e5267c5b2d55d615f5d26456a192c07e77cc830bcd86d56feddeac8a",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "8bafbd08348d579cea56282d285cfd893cd7c86b3ff2796e8522912c50ef4397"
+        },
+        "effect": {
+          "activation_applied": false,
+          "ak_called": true,
+          "ak_mutated": false,
+          "candidate_mutated": false,
+          "comparison_mutated": false,
+          "external_authority_mutated": false,
+          "program_specific_jury_executed": true,
+          "promotion_applied": false,
+          "provider_calls_may_have_occurred": true,
+          "winner_selected": false
+        },
+        "execution_request": {
+          "adjudicator_id": "local_foundry_adjudicator",
+          "adjudicator_kind": "local_foundry_adjudicator",
+          "adjudicator_repo": null,
+          "execution_claimant": "claude-code:508c6e1b",
+          "execution_task_id": 5360,
+          "local_vllm_base_url": "http://127.0.0.1:2456/v1",
+          "max_jurors": null,
+          "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+          "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-I1M2/dspy-lm-auth",
+          "provider": "foundry-dspy-lm-auth-local-vllm"
+        },
+        "jury_status": "executed",
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_jury_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "efb9dcce1f18e925b5104b44c66a7828b1041c2eceb798b76a028892e7891e86",
+        "schema_version": "dspx-program-foundry-gepa-comparison-jury-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "ddd8c4509293ce6419cb6d7b84b6372b377e3d792f78cc59f3b1e7eedb808c3e",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-jury-receipt.json"
+    },
+    "jury_results": {
+      "projection": {
+        "adjudicator": {
+          "authority": "downstream_domain_review_recommendation_only",
+          "id": "local_foundry_adjudicator",
+          "kind": "local_foundry_adjudicator",
+          "promotion_authority": false,
+          "repo": null
+        },
+        "aggregate": {
+          "blocking_concerns_present": false,
+          "judgment_counts": {
+            "failed": 0,
+            "reject": 0,
+            "request_more_evidence": 0,
+            "supports_review_evidence": 3,
+            "withhold": 0
+          },
+          "recommendation": "supports_review_evidence_only",
+          "unique_improvement_requests": [
+            "Add more granular runtime trace analysis to confirm that the pipeline topology and module execution align with the intended instruction-following behavior",
+            "Document expected vs. actual outputs for the mismatched cases to aid debugging.",
+            "Document the specific criteria used to evaluate 'answer' correctness to enable reproducible verification",
+            "Include a refinement proposal or decision record to document how the candidate was optimized relative to the source",
+            "Include additional test cases or edge-case scenarios to validate correctness beyond the 2 examples currently covered",
+            "Include detailed runtime traces or logs for the examples where mismatches occurred.",
+            "Provide additional behavior examples or refined prompts to resolve the 'mismatch:answer' failure signal",
+            "Provide additional behavior examples specifically targeting edge cases known to trigger 'mismatch:answer'.",
+            "Provide detailed diff of answer outputs between candidate and source to clarify the persisted 'mismatch:answer' signal"
+          ]
+        },
+        "created_from": {
+          "evidence_paths": [
+            "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-comparison.json"
+          ],
+          "jury_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/jury.json",
+          "jury_rubric_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/jury_rubric.json",
+          "jury_rubric_sha256": "ae0fae8981379fa8dfb9d3456b1f84111b0967b548b8a9acc25074f0a06f8178",
+          "jury_selection_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/jury_selection.json",
+          "jury_selection_sha256": "fabb07852cdf12e6cf74a398ed50f0b468f473364b76ebc4fb9070b620a874b6",
+          "jury_sha256": "ec9abb41495188d8a8d3b1bbcc810975c9924cffc91a2755411ad02b74b4eb78",
+          "manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "manifest_schema_version": "program-candidate-assembly-v1",
+          "manifest_sha256": "62b7d7bec41c87ee014a7f7f0827baed0f7108f464336f873585c31bbb685d9b"
+        },
+        "effect": {
+          "ak_mutated": false,
+          "external_authority_mutated": false,
+          "governance_mutated": false,
+          "model_jury_evidence_only": true,
+          "new_candidate_generated": false,
+          "oracle_index_mutated": false,
+          "program_files_mutated": false,
+          "promotion_review_mutated": false
+        },
+        "evidence": {
+          "default_behavior": {
+            "entry_count": 0,
+            "kinds": [],
+            "present": false
+          },
+          "entries": [
+            {
+              "kind": "explicit_evidence",
+              "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/candidate-comparison.json",
+              "schema_version": "program-refinement-candidate-comparison-v1",
+              "sha256": "ce17e2b20c287d5d08fb01e641dc67a22a847207c6270dfa2352ede49e836344",
+              "summary": null
+            }
+          ],
+          "entry_count": 1,
+          "extra_evidence_count": 1,
+          "prompt_sha256": "b2643087d28a57518f26e6ed94f729f9f021575661ff97e3e2bb473f7733243b"
+        },
+        "identity": {
+          "assembly_id": "prog-asm-0e70305e3111",
+          "candidate_id": "prog-cand-20f6e7d758b8",
+          "episode_id": "prog-ep-b31a76cb943a",
+          "receipt_bundle_id": "prog-rb-a5d761d5016f",
+          "request_id": "prog-req-4fb0c7a91d3b"
+        },
+        "interpretation": {
+          "limits": [
+            "This command calls provider-backed juror models but does not mutate generated program outputs.",
+            "It does not improve files in place; improvement_requests are explicit follow-up evidence.",
+            "It does not promote, activate, rank winners, export authority, mutate AK, or mutate governance."
+          ],
+          "next_step": "Route aggregate critique to the declared target-repo adjudicator or run an explicit refinement pass.",
+          "ready_for_promotion_decision": false,
+          "summary": "Model-backed jury results are review evidence only and may request extraction refinement."
+        },
+        "juror_results": [
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "Failure signal 'mismatch:answer' persists without removal, suggesting the specific answer mismatch issue was not resolved by this candidate",
+                "Improvement_observed is false, indicating no measurable behavioral gain over source baseline",
+                "Evidence is limited to local comparison; no external validation or oracle confirmation provided"
+              ],
+              "confidence": "medium",
+              "evidence_strengths": [
+                "Both candidate and source behavior results show 2/2 passed with zero failures, degraded, or errors",
+                "Failure signal 'mismatch:answer' is consistently tracked and persisted across comparison, confirming deterministic baseline behavior",
+                "Runtime evidence shows executed_quality_passed for both candidate and source with matching artifact hashes and status counts",
+                "Comparison explicitly notes local_comparison_only with no external mutation or promotion authority exercised"
+              ],
+              "improvement_requests": [
+                "Provide detailed diff of answer outputs between candidate and source to clarify the persisted 'mismatch:answer' signal",
+                "Include additional test cases or edge-case scenarios to validate correctness beyond the 2 examples currently covered",
+                "Document the specific criteria used to evaluate 'answer' correctness to enable reproducible verification"
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "Behavioral evidence shows that both candidate and source passed 2/2 examples with identical status counts (2 passed, 0 failed/degraded/error). The failure_signal 'mismatch:answer' is persisted but not removed, indicating the same baseline behavior was retained rather than improved. Runtime evidence comparison shows executed_quality_passed for both candidate and source with no delta. This confirms baseline correctness coverage is stable and consistent, supporting review evidence for downstream adjudication without claiming promotion or improvement."
+            },
+            "juror_id": "inferred_correctness",
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "perspective": "correctness",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "status": "judged"
+          },
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "The failure signal 'mismatch:answer' persists, indicating potential edge cases where output quality is inconsistent.",
+                "Only two behavior examples were tested, which may not cover sufficient edge cases for robustness assurance.",
+                "No detailed breakdown of which specific edge cases caused the mismatch is provided."
+              ],
+              "confidence": "medium",
+              "evidence_strengths": [
+                "Behavior results show 2 out of 2 examples passed with no degraded or error states.",
+                "Failure signals are explicitly tracked, with 'mismatch:answer' clearly identified.",
+                "Local comparison confirms no regression relative to source baseline."
+              ],
+              "improvement_requests": [
+                "Provide additional behavior examples specifically targeting edge cases known to trigger 'mismatch:answer'.",
+                "Include detailed runtime traces or logs for the examples where mismatches occurred.",
+                "Document expected vs. actual outputs for the mismatched cases to aid debugging."
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "The evidence shows stable local behavior (2/2 passed) with no new failures, but the persisted failure_signal 'mismatch:answer' and the need_for_more_evidence flag suggest that edge-case robustness has not been fully validated. The comparison indicates no regression, which supports proceeding to review, though the specific edge cases triggering mismatches remain unexplored."
+            },
+            "juror_id": "inferred_robustness",
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "perspective": "robustness",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "status": "judged"
+          },
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "Failure signal 'mismatch:answer' persists in both candidate and source, indicating incomplete resolution of answer alignment",
+                "Interpretation flags needs_more_evidence=true, suggesting the current evidence is insufficient to confirm full instruction adherence",
+                "No refinement lineage or decision record is present, limiting traceability of how the candidate was derived"
+              ],
+              "confidence": "medium",
+              "evidence_strengths": [
+                "Behavior results show 2/2 examples passed with status 'passed'",
+                "Runtime traces and outcomes are captured and consistent with execution episode status 'passed'",
+                "Candidate identity and schema version are properly declared and match the expected assembly structure",
+                "No degraded, error, or failed counts in behavior comparison delta"
+              ],
+              "improvement_requests": [
+                "Provide additional behavior examples or refined prompts to resolve the 'mismatch:answer' failure signal",
+                "Include a refinement proposal or decision record to document how the candidate was optimized relative to the source",
+                "Add more granular runtime trace analysis to confirm that the pipeline topology and module execution align with the intended instruction-following behavior"
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "The candidate adheres to the requested field contract and maintains a consistent instruction-following perspective. The evidence shows that the candidate was materialized and executed with passing behavior results (2/2 passed) and runtime traces captured, supporting baseline objective adherence. However, a persistent failure signal 'mismatch:answer' remains unremoved in both candidate and source comparisons, and the interpretation explicitly notes that needs_more_evidence is true, indicating that while the output does not drift from the objective, it also has not fully resolved the answer-mismatch signal, warranting further review rather than full support or rejection."
+            },
+            "juror_id": "inferred_instruction_following",
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "perspective": "instruction_following",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "status": "judged"
+          }
+        ],
+        "jury": {
+          "execution_mode": "provider_backed_model",
+          "planned_jury_schema_version": "program-jury-v1",
+          "provider_backed_model_calls": true,
+          "provider_config": {
+            "auth_provider": "none",
+            "cache": false,
+            "credential_mode": "no-refresh",
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "endpoint_origin": "http://127.0.0.1:2456/v1",
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "execution_claimant": "claude-code:508c6e1b",
+            "execution_task_id": 5360,
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "num_retries": 0,
+            "owner_commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+            "owner_tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+            "owner_version": "0.1.6.dev0",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "reasoning_effort": null,
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3",
+            "status": "configured",
+            "sync_only": true,
+            "timeout_seconds": 60.0
+          },
+          "provider_outcome_evidence": {
+            "artifact_verification": "accepted_exact",
+            "call_records": [
+              {
+                "call_ordinal": 1,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "fde7956a806dc4bb62526926e58c52c8127f971eec0b09351a47c62823a15129",
+                "juror_id": "inferred_correctness",
+                "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+                "semantic_request_sha256": "109edad33ff564b8055c82e4f5a7a60399f684370293f32173adbbeaf47d2f69",
+                "status_class": 2,
+                "status_code": 200
+              },
+              {
+                "call_ordinal": 2,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "6001e08da897ecdb7071aac2834df2d4eeb3a5471fa96ee5b14f76d851de28d3",
+                "juror_id": "inferred_robustness",
+                "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+                "semantic_request_sha256": "3323aaa74429b95a68360dd7dcd42ea423a3f0d260ed5878a5f27756fd6d1aee",
+                "status_class": 2,
+                "status_code": 200
+              },
+              {
+                "call_ordinal": 3,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "b63ecbbb8908ba08ecbd7fd1e5da5b38983429daf00e26f00d3d9612ae614309",
+                "juror_id": "inferred_instruction_following",
+                "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+                "semantic_request_sha256": "799e27a3f7485a580a5a108713d25ddccc7e15ac5be062b54121c0c6bd9cc22d",
+                "status_class": 2,
+                "status_code": 200
+              }
+            ],
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "logical_call_total": 3,
+            "maximum_logical_calls": 3,
+            "maximum_provider_transports": 3,
+            "retry_count": 0,
+            "schema_version": "dspx-foundry-jury-provider-outcome-evidence-v1",
+            "session_disposition": "complete",
+            "stop_reason": null,
+            "stopped_after_call": null,
+            "sync_only": true
+          },
+          "rubric_schema_version": "program-jury-rubric-v1",
+          "selected_juror_count": 3,
+          "selected_perspectives": [
+            "correctness",
+            "robustness",
+            "instruction_following"
+          ],
+          "selection_schema_version": "program-jury-selection-v1"
+        },
+        "non_authority": {
+          "canonical_mutation": false,
+          "domain_acceptance": false,
+          "external_authority_apply": false,
+          "promotion_approval": false,
+          "ranking_or_winner_selection": false
+        },
+        "schema_version": "program-model-jury-results-v1",
+        "status": "executed"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "bcd80fa5e5267c5b2d55d615f5d26456a192c07e77cc830bcd86d56feddeac8a",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/comparison-jury-results.json"
+    }
+  },
+  "custody": {
+    "ak_evidence": {
+      "live_foundry_jury": 8258,
+      "note": "evidence 8258 records this run (check_type live_foundry_jury, result pass; details carry package_sha256, binding_sha256 and intent_sha256); no correction record"
+    },
+    "all_bound_json_artifacts_embedded": true,
+    "bound_manifests": {
+      "materialized_candidate_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/materialized-candidate/manifest.json",
+        "sha256": "62b7d7bec41c87ee014a7f7f0827baed0f7108f464336f873585c31bbb685d9b"
+      },
+      "source_candidate_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/candidate/manifest.json",
+        "sha256": "8bafbd08348d579cea56282d285cfd893cd7c86b3ff2796e8522912c50ef4397"
+      }
+    },
+    "cli_outputs": {
+      "adjudicate_foundry_gepa_comparison": {
+        "path": "/home/tryinget/.claude/jobs/508c6e1b/tmp/adjudication-imported.json",
+        "sha256": "81b371dd00193205d3580d5e1f27ea1f82d307ae0e079d82640cb4382f7e44fb"
+      },
+      "jury_foundry_gepa_comparison": {
+        "path": "/home/tryinget/.claude/jobs/508c6e1b/tmp/jury-imported.json",
+        "sha256": "93d61c383b853c946c64b1e95ec468584231aeb791bb70fc6d7c9353b705fda9"
+      },
+      "jury_output_note": "the live --json output carries a dspx-foundry-jury-preflight-v1 block (booleans, counts and hashes only) unbound from the attempt and receipt payloads; projected under custody.execution_path.preflight"
+    },
+    "contains_bounded_judgment_outputs": true,
+    "contains_credentials": false,
+    "contains_headers": false,
+    "contains_raw_provider_responses": false,
+    "dspx_commit": "9ac6dc260f97bcc8985897b72446233afca05cfe",
+    "dspx_commit_source": "AK evidence 8258; equals the DSPx HEAD at projection time",
+    "execution_claimant": "claude-code:508c6e1b",
+    "execution_path": {
+      "isolated_child_subprocess": true,
+      "note": "pre-marker preflight (DSPx 54568ce2d6b50e31428995faf6c0ce650044823f) fails closed before the attempt marker; after the marker the provider jury runs in a fresh -I -B child with a scrubbed environment (DSPx 1ce51274cb06f510b12b779985b186ab4decd11d); the parent never imports the owner package and validates and writes results and receipt unchanged",
+      "pre_marker_preflight": true,
+      "preflight": {
+        "ak_authority_active": true,
+        "ak_minimum_lease_seconds": 210.0,
+        "ak_task_id": 5360,
+        "auth_provider": "none",
+        "bytecode_disabled": true,
+        "cache_dir_private": true,
+        "cannot_prove": [
+          "capacity_at_completion",
+          "entitlement_at_completion"
+        ],
+        "catalog": {
+          "catalog_count": 1,
+          "catalog_ids_sha256": "6ed482c3ec1b960bb4645ef3ed629905ebe799a4d9e3c7be8b52de7adddd1e97",
+          "checked": true,
+          "model_listed": true,
+          "status_class": "2xx"
+        },
+        "credential": {
+          "credential_present": true,
+          "endpoint_fixed": true,
+          "expires_ms": 0,
+          "expiry_ok": true,
+          "probed": false
+        },
+        "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+        "destination_private": true,
+        "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+        "expected_juror_count": 3,
+        "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+        "owner_commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+        "owner_not_preloaded": true,
+        "owner_source_verified": true,
+        "proves": [
+          "reachability",
+          "credential_validity_at_t0",
+          "catalog_membership"
+        ],
+        "provider": "foundry-dspy-lm-auth-local-vllm",
+        "provider_completion_calls": 0,
+        "provider_outcomes_absent": true,
+        "schema_version": "dspx-foundry-jury-preflight-v1"
+      },
+      "preflight_commit": "54568ce2d6b50e31428995faf6c0ce650044823f",
+      "subprocess_commit": "1ce51274cb06f510b12b779985b186ab4decd11d"
+    },
+    "lineage_construction": {
+      "command_log": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/commands-run.txt",
+        "sha256": "e9bd4ff0638dda530da2b377722b4f04207901362fb33741787075d08a777871"
+      },
+      "command_log_note": "commands-run.txt records the package export, the import, the quality-proposal derivation and the offline lineage; it ends before the operator-run consume step and the live jury, which are recorded by the consume-output and CLI output bindings above",
+      "consume_step": {
+        "consume_output": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/consume-output.json",
+          "sha256": "cc3982e0c69d3d360d80a248256607cc95c9623734c3f85da02a820030a90aea"
+        },
+        "gepa_pickle_optin": "DSPX_ALLOW_UNSAFE_GEPA_PICKLE_SHA256 bound to this run's optimizer_manifest_sha256",
+        "operator_run": true,
+        "optimizer_manifest_sha256": "e837d77beb48f0d1098d8c46a8c4c59e51bb4a501c922669ceef5587af0dc702"
+      },
+      "input_pins": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import-sha256.txt",
+        "sha256": "ab1cba57c93f8a0f50bbe3d9ecfbd22cad2e1ce608047e765e1b3a7955b2ab96"
+      },
+      "intent": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import/intent.json",
+        "sha256": "959cec33a5c260aa92be206415eb240708fd5e42a76221295e8ec2cb623ac7bf"
+      },
+      "intent_note": "intent.json and inputs.json are the importer's emitted files under import/ (no hand-assembled intent in this root)",
+      "mode": "offline_pre_jury_lineage",
+      "network_used_before_jury": false,
+      "oracle_semantic_backend": "fixture-replay",
+      "oracle_semantic_fixture": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/oracle-semantic-fixture.json",
+        "sha256": "fa4a4a3e308ee9bec3f89ce774c0b92fd78974441abd03df4d804455f65d9891"
+      },
+      "oracle_semantic_fixture_note": "per-run authored fixture entry keyed cf19a9eb9b2d757a4767510583a36764ce1e59702f76a6381165d49f0560dafc (copy of the reference entry f19f50fa... with request_sha256 re-keyed; analysis text unchanged); earlier keys retained; pre-authoring copy identical to the AK-5358 fixture sha256 367d6d81e83fedb9932f0311b0a9e09b5a5cdbfcadc0c3a73ed4c807633f0f36 (as stated in commands-run.txt; byte identity of the pre-authoring copy not re-derived here)",
+      "program_provider": "stub",
+      "replay_fixture_env": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/replay-fixture.env.json",
+        "sha256": "a62046cd2431ec977f6e962f5bb42f2a796f8b7643565ec29c874d4af025fe23"
+      },
+      "replay_fixture_env_note": "DSPX_REPLAY_FIXTURE_JSON derived from import/intent.json (reasoning = objective, answer = examples[0].outputs.answer); the imported intent's examples carry compact canonical JSON of the package artifacts, so this env differs from the hand-assembled lineages",
+      "superseded_attempts_retained_under": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/superseded-attempts",
+      "trusted_program_roots": "DSPX_TRUSTED_PROGRAM_ROOTS bound to the lineage root"
+    },
+    "live_jury": {
+      "artifact_verification": "accepted_exact",
+      "auth_provider": "none",
+      "credential_mode": "no-refresh",
+      "credential_presented": false,
+      "endpoint_base_url": "http://127.0.0.1:2456/v1",
+      "endpoint_origin": "http://127.0.0.1:2456",
+      "endpoint_origin_sha256_as_recorded": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+      "endpoint_origin_sha256_recorded_in": [
+        "jury_results.jury.provider_config",
+        "preflight",
+        "provider_journal_reservations"
+      ],
+      "http_status_codes_observed": [
+        200
+      ],
+      "network": "loopback_only",
+      "no_replay_after_marker": true,
+      "observed_models": [
+        "local/Qwen3.8-27B-AEON-NVFP4-FP8"
+      ],
+      "producer_terminals": [
+        "provider_response_completed"
+      ],
+      "provider_calls": 3,
+      "replay": false,
+      "session_disposition": "complete"
+    },
+    "misegraph_import": {
+      "answers": {
+        "note": "byte copy of the checked-in DSPx fixture tests/fixtures/misegraph-evidence-package-v1/espresso-brownies-answers.json; operator-supplied, not authored by the importer (provenance non_authority.answers_authored_by_importer=false)",
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/answers.json",
+        "schema_version": "dspx-misegraph-example-answers-v1",
+        "sha256": "ed24fdd615bd766b49c77a9b72ea41b510896b3016dec14ac3094b6afbd434fc"
+      },
+      "binding": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import/misegraph-evidence-binding.json",
+        "sha256": "ca97a9c16bdf01dc27af0512f81b9250979642cf2b3965dbba9b0356eb31d2f4"
+      },
+      "binding_schema_version": "dspx-misegraph-evidence-binding-v1",
+      "example_cases": [
+        "render-text",
+        "check-json"
+      ],
+      "import_output": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import-output.json",
+        "sha256": "ea7af2c1a2703c57107f7573f488ffe7fbbb8ed299a53e98adad7811808dd4c4"
+      },
+      "import_sha256_record": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import-sha256.txt",
+        "sha256": "ab1cba57c93f8a0f50bbe3d9ecfbd22cad2e1ce608047e765e1b3a7955b2ab96"
+      },
+      "importer": "dspx foundry import-misegraph-evidence --package <root>/package --answers <root>/answers.json --outdir <root>/import --json (rc 0)",
+      "importer_commit": "ff4b7af3b34a54b674442456e9a16c193e126e2f",
+      "importer_schema_version": "dspx-misegraph-evidence-import-v1",
+      "inputs": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import/inputs.json",
+        "sha256": "0aee8c5222b752649c009f8c2f3a7cf460d440c164ce6f4b5840639982bc2570"
+      },
+      "intent": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import/intent.json",
+        "sha256": "959cec33a5c260aa92be206415eb240708fd5e42a76221295e8ec2cb623ac7bf"
+      },
+      "package_export": "misegraph evidence export examples/espresso-brownies.mise --out <root>/package --formats text,svg --deny-warnings (Misegraph committed CLI, run from the Misegraph repository)",
+      "package_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/package/manifest.json",
+        "sha256": "5c1fd0f581e738efeaaa87a0a3007768b1f30dd0e45e5ed35a4dd6ecd6c5c5e4"
+      },
+      "package_manifest_sha256_as_bound": "5c1fd0f581e738efeaaa87a0a3007768b1f30dd0e45e5ed35a4dd6ecd6c5c5e4",
+      "package_sha256_as_bound": "0be06d8d561751e9be26f43ada7e0c20ee4fbc7982194c7396986add07114905",
+      "provenance": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/import/misegraph-import-provenance.json",
+        "sha256": "0d8fb90c65f6979fdf56939f5f1fb5820305ca2af0fb9904dd441b172838bc41"
+      },
+      "validation": {
+        "artifact_hashes_ok": true,
+        "canonical_ir_schema_valid": true,
+        "freshness": {
+          "check": "manifest_sha256_matches_at_import",
+          "mode": "hash_bound"
+        },
+        "unknown_manifest_keys": []
+      }
+    },
+    "misegraph_recommendation_record": {
+      "json": {
+        "path": "/home/tryinget/ai-society/softwareco/owned/misegraph/docs/project/evidence/espresso-brownies-0be06d8d5617-jury-recommendation.json",
+        "sha256": "3cfd39acdcb1c1eee41c734d586d648349fd5974aff7250c4bf9cf8d4be9db5d"
+      },
+      "markdown": {
+        "path": "/home/tryinget/ai-society/softwareco/owned/misegraph/docs/project/evidence/espresso-brownies-0be06d8d5617-jury-recommendation.md",
+        "sha256": "e42caf5e1c1b375ec7096188adcbb779337a22dcb9de6e4b41d9b99268c9a468"
+      },
+      "misegraph_commit": "19c01dbdf49ec7b187e9f81431768f6b5d06d8e9",
+      "note": "Misegraph-side non-deciding record written by `misegraph evidence verify-receipt` over this run's jury receipt, adjudication and binding; recommendation review_recommended, decision null, requires_owner_action true; it grants no acceptance, release or activation",
+      "recommendation": "review_recommended",
+      "schema_version": "misegraph-jury-recommendation-v1"
+    },
+    "owner_commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+    "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-I1M2/dspy-lm-auth",
+    "owner_source_root_record": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/exact-owner-source-root.txt",
+      "sha256": "75e0d16d0c416d211b7247aa57effaf89ac82135fc671f8e2d82bf6bd127ab55"
+    },
+    "owner_tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+    "projection_is_self_contained": true,
+    "projection_written_at_dspx_commit": "9ac6dc260f97bcc8985897b72446233afca05cfe",
+    "quality_proposal_derivation": {
+      "base_proposal": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/quality-proposal.json",
+        "sha256": "00213d4dc38abc171de2a0b25d50be167258420973eb9ee91b0b5dff75e52e6d"
+      },
+      "base_proposal_lineage": "misegraph-foundry-copilot-5346.DVXv7O",
+      "fields_changed": [
+        "candidate_intent.examples",
+        "decision.source_envelope_sha256",
+        "identity.candidate_intent_sha256",
+        "identity.envelope_sha256"
+      ],
+      "note": "no repo tool emits a quality proposal for an existing intent offline (program-gen quality-chat is prompt-to-model bound); the AK-5346 proposal was copied, candidate_intent set to import/intent.json (only examples differ), identity.candidate_intent_sha256, identity.envelope_sha256 and decision.source_envelope_sha256 recomputed with the repo's program_quality_contract.identity_for / _derived_pending_envelope_sha256, and validated with validate_quality_proposal; criteria untouched",
+      "quality_proposal": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/quality-proposal.json",
+        "sha256": "9888173cbec669144c124f21d51030816f528e372a7ecbe432d749313634033d"
+      }
+    },
+    "source_kind": "operator_owned_session_scratch",
+    "source_root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY"
+  },
+  "dogfood_subject": "misegraph/espresso-brownies",
+  "evidence_kind": "durable_secret_free_live_projection",
+  "execution_task_id": 5360,
+  "execution_task_status": "done",
+  "misegraph_source": {
+    "canonical": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/package/canonical.json",
+      "sha256": "068e4890ab5b278cecc3e27998ddf508c12b5b1b4c801ff704879c4915b75210"
+    },
+    "package": {
+      "binding_schema_version": "dspx-misegraph-evidence-binding-v1",
+      "dir": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/package",
+      "example_cases": [
+        "render-text",
+        "check-json"
+      ],
+      "manifest_sha256": "5c1fd0f581e738efeaaa87a0a3007768b1f30dd0e45e5ed35a4dd6ecd6c5c5e4",
+      "package_sha256": "0be06d8d561751e9be26f43ada7e0c20ee4fbc7982194c7396986add07114905",
+      "schema_version": "misegraph-evidence-package-v1"
+    },
+    "render": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/package/render.text.txt",
+      "sha256": "e0b343d04b2d5d3988a72574ca2532dcd2905016762da896c36e95cbbdb5de9b"
+    },
+    "source": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/package/source.mise",
+      "sha256": "b3d210c1e1acc1778f67a2c42f3a76b66f19a4ac864bdbb0331bc23d2b6b6cef"
+    }
+  },
+  "non_authority": {
+    "activation_authority": false,
+    "external_authority": false,
+    "misegraph_acceptance_granted": false,
+    "misegraph_activation_granted": false,
+    "misegraph_recommendation_is_non_deciding": true,
+    "misegraph_release_granted": false,
+    "promote_locally_is_bounded_local_disposition": true,
+    "promote_locally_note": "promote_locally / eligible_local_candidate is a deterministic, bounded local disposition over the validated comparison-jury receipt; it grants no Misegraph acceptance, release, or activation, selects no winner, applies nothing, and mutates no external authority",
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "outcome": {
+    "adjudication_disposition": "promote_locally",
+    "adjudication_local_candidate_state": "eligible_local_candidate",
+    "adjudication_reason_codes": [
+      "all_jurors_support_review_evidence"
+    ],
+    "adjudication_status": "recorded",
+    "judgment_counts": {
+      "failed": 0,
+      "reject": 0,
+      "request_more_evidence": 0,
+      "supports_review_evidence": 3,
+      "withhold": 0
+    },
+    "juror_outcomes": {
+      "inferred_correctness": {
+        "confidence": "medium",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      },
+      "inferred_instruction_following": {
+        "confidence": "medium",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      },
+      "inferred_robustness": {
+        "confidence": "medium",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      }
+    },
+    "jury_recommendation": "supports_review_evidence_only",
+    "jury_status": "executed"
+  },
+  "provider_journals": [
+    {
+      "directory_name": "01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "61172032adf03af9c0de9cc6ea4e386aac3e473cdfde07eefe1710bbabc341d2",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "61172032adf03af9c0de9cc6ea4e386aac3e473cdfde07eefe1710bbabc341d2",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "4e4dbdd9db1cca1d45b950a923167ca4ab94d798338c99acb7dfdd244a22edf5",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "4e4dbdd9db1cca1d45b950a923167ca4ab94d798338c99acb7dfdd244a22edf5",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "5a9c08cffbf9860f3b5586531faecc83ef6183a313cd943984e78caaa6ea4299",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "5a9c08cffbf9860f3b5586531faecc83ef6183a313cd943984e78caaa6ea4299",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "60e56644b00804f1cb0c73424d6d8ec0400519dd386b6bf85208ac80c297c58b",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "60e56644b00804f1cb0c73424d6d8ec0400519dd386b6bf85208ac80c297c58b",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "4f9da704863d6ab71c96599513925c549707c8ee98160f4856bedff5965e57d7",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "4e55be6a9fd8ac670c8e0912d6cc3adb2a717774f23e38c8897e121ce2dd267b",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "4f9da704863d6ab71c96599513925c549707c8ee98160f4856bedff5965e57d7",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "ed32b09c84c315e48ef2ef88ba65d74217fb56fa76a673f84517199d70a7a91d",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+              "protocol_event": null,
+              "response_id_sha256": "4e55be6a9fd8ac670c8e0912d6cc3adb2a717774f23e38c8897e121ce2dd267b",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "ed32b09c84c315e48ef2ef88ba65d74217fb56fa76a673f84517199d70a7a91d",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "eea9d7efad3c2c1fce3f94cdab7dae6e8122ea5cbbb10e2e9e20f954894818a6",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-1",
+            "consumer_task_id": 5360,
+            "contract_sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "ledger_sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+            "logical_request_id": "757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993",
+            "mode": "sync",
+            "process_id": "7e1faa4c6efd32abebc9b8d1a297b3387b12b534f1bc7ac54243ddf25882ef0a",
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "109edad33ff564b8055c82e4f5a7a60399f684370293f32173adbbeaf47d2f69",
+            "source_identity": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "lock_sha256": "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "transport_gate_id": "5c22fe558e79c06ce897000b87d3faa435f972bf77f567f50050e12a3d6aea66"
+          },
+          "reservation_id": "2878e43217f93416320d3fe2f1f47a7c65818749e9de8055c828b0fe714a30af",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "a8da417c412245cc1a9db2aa06d240fae8eb42d93e40e455d1a95e419943ff8a",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/01-757acc5c5cf46f51abe53a49ef26c8ff5fb56298cbac12386ee7dc4dca673993/reservation.json"
+      }
+    },
+    {
+      "directory_name": "02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "96fa702c26b5ed26429c9dbb3013a2c83e0ba43a8b8574a6318006e9ea237cb5",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "96fa702c26b5ed26429c9dbb3013a2c83e0ba43a8b8574a6318006e9ea237cb5",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "9fcdd4bca65c3ebc4d7b26643e2e7366e39eb6dbae1641585a30e7436498b2d6",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "9fcdd4bca65c3ebc4d7b26643e2e7366e39eb6dbae1641585a30e7436498b2d6",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "5065b44e2bee662bf13e79eba6e6863900806c72554721c7cc3028f3218aa168",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "5065b44e2bee662bf13e79eba6e6863900806c72554721c7cc3028f3218aa168",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "3d9ca5af762fac679783c9f38463f9a04b70d0218d10a6248d53cf0e1cbcb9d7",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "3d9ca5af762fac679783c9f38463f9a04b70d0218d10a6248d53cf0e1cbcb9d7",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "e78a2e8fc68e3c00541982bc01e599ebc25eaa6dae9bd8a9ae8c59f71f9f3d50",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "26b045d81aacb66392fb563e8b1c411799fbe4db190dc92cb9022d71184003f2",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "e78a2e8fc68e3c00541982bc01e599ebc25eaa6dae9bd8a9ae8c59f71f9f3d50",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "772401293073ec25d00f0c53c7a189cd18785fdfe6dc65eb5fd579d5e9e82343",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+              "protocol_event": null,
+              "response_id_sha256": "26b045d81aacb66392fb563e8b1c411799fbe4db190dc92cb9022d71184003f2",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "772401293073ec25d00f0c53c7a189cd18785fdfe6dc65eb5fd579d5e9e82343",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "132cf103084e6354ffde0bf20e8a47e6fef6799375fba6a728d08b91d53ba577",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-2",
+            "consumer_task_id": 5360,
+            "contract_sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "ledger_sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+            "logical_request_id": "d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b",
+            "mode": "sync",
+            "process_id": "7e1faa4c6efd32abebc9b8d1a297b3387b12b534f1bc7ac54243ddf25882ef0a",
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "3323aaa74429b95a68360dd7dcd42ea423a3f0d260ed5878a5f27756fd6d1aee",
+            "source_identity": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "lock_sha256": "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "transport_gate_id": "5c4ed2d9c2e561c183434f09859802dea2f419cc20f0bc809f22769fe99a6502"
+          },
+          "reservation_id": "198494dec6488962ec92ce282cd3412c1b94c3d9c707bd103f03fe5f232a81a8",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "be48ac032679068ef89419514b017573a591160c10162b631008a8077b6a89b6",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/02-d78bc6805cd2b8bdc6d21fff4519c4bb473d54c8ed3f9b2211802a7863c7340b/reservation.json"
+      }
+    },
+    {
+      "directory_name": "03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "d6ddd5dab467ffee84fa4cf164198aef3cb8d0582c91b63883f8f670db95c98c",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "d6ddd5dab467ffee84fa4cf164198aef3cb8d0582c91b63883f8f670db95c98c",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "b419f85643d420fc69692b0d27c51d5e9943af8b04b399d70c104e353197dd90",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "b419f85643d420fc69692b0d27c51d5e9943af8b04b399d70c104e353197dd90",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "f2a18039748c7319aafa4778dea72ef71dbafa394f773fc7be6f17343abf7415",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "f2a18039748c7319aafa4778dea72ef71dbafa394f773fc7be6f17343abf7415",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "8c43206b2882330ddd248a72c8a97ccf3724ed72b5544caeabee6472d5c067c0",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "8c43206b2882330ddd248a72c8a97ccf3724ed72b5544caeabee6472d5c067c0",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "263f576f5e3cb37785a2f268fb0ddfe5258b1a2d44563919d8c6ea00a8c0a752",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "f0a10c4ad965463b222f716b92c80b01b127b0995e69b97a4124b8603300187c",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "263f576f5e3cb37785a2f268fb0ddfe5258b1a2d44563919d8c6ea00a8c0a752",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "28126fdecea97f4a83acedd7987c33d32e417445a41deb4d5d05c2d4dca976ba",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+              "protocol_event": null,
+              "response_id_sha256": "f0a10c4ad965463b222f716b92c80b01b127b0995e69b97a4124b8603300187c",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "28126fdecea97f4a83acedd7987c33d32e417445a41deb4d5d05c2d4dca976ba",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "98dc286c9e3c405f30bd0e1f9bd2d768ec9deaf272f5f0a2b041fe07de1a00e2",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-3",
+            "consumer_task_id": 5360,
+            "contract_sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "ledger_sha256": "80eec34576bc87f221c2233585e73a30e4176a03d6ee46736e18aa49751f6ade",
+            "logical_request_id": "526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b",
+            "mode": "sync",
+            "process_id": "7e1faa4c6efd32abebc9b8d1a297b3387b12b534f1bc7ac54243ddf25882ef0a",
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "799e27a3f7485a580a5a108713d25ddccc7e15ac5be062b54121c0c6bd9cc22d",
+            "source_identity": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "lock_sha256": "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "transport_gate_id": "d259ca6bc06193475d08ae4b0a7167c56c061ec9307a84cfd51fd1a52b8c9fa3"
+          },
+          "reservation_id": "27cb93e8256fd7de1941f4f2fa6a362cf90073cbc64405cb517ba68dbc74ab38",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "3254687b4a2da9e7c33248572b6f6937acbf6c03b29cf58ce594482b24a8809d",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/foundry/gepa-experiment/provider-outcomes/03-526bd83facb2fbedef199687a0ca2ce1b8fe30613a4f73487ffa692d8dd9676b/reservation.json"
+      }
+    }
+  ],
+  "request": {
+    "fallback_allowed": false,
+    "health_probe_allowed": false,
+    "local_vllm_base_url": "http://127.0.0.1:2456/v1",
+    "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+    "provider": "foundry-dspy-lm-auth-local-vllm",
+    "reasoning_effort": null,
+    "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+    "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+    "response_format": null,
+    "response_format_note": "the local-vllm family builds the owner request without reasoning_effort or response_format",
+    "retry_count": 0,
+    "selected_juror_count": 3,
+    "sync_only": true,
+    "timeout_seconds": 60.0
+  },
+  "schema_version": "dspx-misegraph-foundry-full-dogfood-evidence-v2"
+}

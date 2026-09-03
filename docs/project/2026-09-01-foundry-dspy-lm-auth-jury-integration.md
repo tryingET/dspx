@@ -429,3 +429,67 @@ The same day, the xAI one-shot AK-5349 (`grok-4.6`, lineage `misegraph-foundry-x
 evidence 8250) ended after one provider call at HTTP 429 (`remote_http_error_final`,
 `remote_http_status`; xAI capacity), zero judgments, no replay, no secrets in evidence. A fresh xAI
 lineage is staged under AK-5353 and waits for stable capacity.
+
+## 2026-09-03: first jury through preflight and the isolated child (AK-5358)
+
+AK task 5358 (done; AK evidence 8255) executed a receipt-bound comparison jury through
+`foundry-dspy-lm-auth-local-vllm` with `local/Qwen3.8-27B-AEON-NVFP4-FP8` (loopback
+`http://127.0.0.1:2456`, no credential), owner commit `777388ad9c692b0657e6b6e1d4820b15fcb6641d`,
+DSPx commit `1ce51274cb06f510b12b779985b186ab4decd11d`. It is the first live jury of any family
+through the pre-marker preflight (`54568ce2`) and the fresh `-I -B` child subprocess (`1ce51274`):
+the preflight reported `provider_completion_calls: 0`, catalog membership and a private
+destination before the attempt marker, and the child wrote the three provider journals while the
+parent validated and wrote results and receipt unchanged. Lineage `misegraph-foundry-local-vllm-5358.CYMSb7`
+was built offline as for AK-5352 (stub provider, fixture-replay Oracle with a per-run entry,
+operator-run consume with `optimizer_manifest_sha256` `19a8a2be...`). Three jurors judged
+`supports_review_evidence`, recommendation `supports_review_evidence_only`, adjudication
+`promote_locally` / `eligible_local_candidate`; all journals end in `provider_response_completed`
+with HTTP 200, no replay, zero retries. Secret-free projection:
+`docs/project/2026-09-03-misegraph-foundry-local-vllm-subprocess-dogfood-evidence.json`.
+
+## 2026-09-03: first jury on an imported Misegraph evidence package (AK-5360)
+
+AK task 5360 (done; AK evidence 8258) is the first jury whose evidence came from a real
+`misegraph-evidence-package-v1` through `dspx foundry import-misegraph-evidence` (Phase 2
+end-to-end). The package was exported by the committed Misegraph CLI
+(`misegraph evidence export examples/espresso-brownies.mise --formats text,svg --deny-warnings`,
+`package_sha256` `0be06d8d561751e9be26f43ada7e0c20ee4fbc7982194c7396986add07114905`); the
+importer (DSPx `ff4b7af3`) validated it read-only and emitted `import/intent.json`
+(`959cec33...`), `inputs.json`, the `dspx-misegraph-evidence-binding-v1` (`ca97a9c1...`) and the
+import provenance, with the operator answers file a byte copy of the checked-in fixture
+(`ed24fdd6...`). No repo tool emits a quality proposal for an existing intent offline, so the
+AK-5346 proposal was copied with `candidate_intent` set to the imported intent and its three
+derived hashes recomputed with the repo's own quality-contract helpers (criteria untouched); the
+derivation is recorded in the lineage's `commands-run.txt`. The offline lineage
+(`misegraph-foundry-imported-vllm.RByYoY`, `optimizer_manifest_sha256` `e837d77b...`) then ran
+the local vLLM jury (`local/Qwen3.8-27B-AEON-NVFP4-FP8`, DSPx `9ac6dc26`): three jurors
+`supports_review_evidence`, adjudication `promote_locally` / `eligible_local_candidate`, HTTP 200
+throughout, no replay. Misegraph's `evidence verify-receipt` wrote the non-deciding
+`misegraph-jury-recommendation-v1` record (`review_recommended`, `decision: null`,
+`requires_owner_action: true`) at `misegraph/docs/project/evidence/espresso-brownies-0be06d8d5617-jury-recommendation.json`.
+Nothing in this loop grants Misegraph acceptance, release, or activation. Secret-free projection:
+`docs/project/2026-09-03-misegraph-foundry-imported-package-dogfood-evidence.json`.
+
+## 2026-09-03: first live xAI jury (AK-5361) after two burned one-shots
+
+Two xAI one-shots burned before this run. AK-5349 (failed; evidence 8250, lineage
+`misegraph-foundry-xai-5349.QscXoP`, DSPx `1c120c3b`) ended after one call at HTTP 429
+(`remote_http_error_final`, `remote_http_status`; grok-4.6 at capacity), zero judgments. AK-5353
+(failed; evidence 8256, lineage `misegraph-foundry-xai-5353.jrIysb`, DSPx `1ce51274`) passed the
+preflight (catalog listed `grok-4.6`, credential valid) and then hit a 60 s transport read timeout
+on the first juror (`outcome_unresolved`, `transport_timeout`); the isolated child exited 1 and
+lost its results object, so no `comparison-jury-results.json` was written. DSPx `36444b43`
+(AK-5359) fixed both gaps: the child now emits a closed result envelope and retains results on
+failure, and `FoundryJuryProviderFamily.default_timeout_seconds` gives xAI 180 s.
+
+AK task 5361 (done; AK evidence 8259) then executed the first live receipt-bound jury through
+`foundry-dspy-lm-auth-xai` with `grok-4.6` (`auth_provider: xai`, `credential_mode: no-refresh`,
+endpoint origin `https://api.x.ai`, 180 s timeout, no `reasoning_effort` or `response_format`),
+owner commit `777388ad...`, DSPx `9ac6dc26`, lineage `misegraph-foundry-xai-5361.ErwrBQ`
+(`optimizer_manifest_sha256` `22ebcf07...`). All three calls completed
+(`provider_response_completed`, HTTP 200, observed model `grok-4.6`, no replay, zero retries).
+Three jurors judged `request_more_evidence` at `medium` confidence with blocking concerns present;
+recommendation `request_more_evidence`, deterministic adjudication `require_review` /
+`held_for_local_review`, reason `jury_requests_more_evidence`. The credential is not recorded
+anywhere in the lineage or the projection. Secret-free projection:
+`docs/project/2026-09-03-misegraph-foundry-xai-full-dogfood-evidence.json`.
