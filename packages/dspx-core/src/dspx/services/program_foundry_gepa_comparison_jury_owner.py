@@ -36,15 +36,15 @@ from dspx.services.soomfon_provider_outcome_receipt_identity import (
 # source_identity (provider_outcome_receipt_contract); every other reviewed
 # owner file is hash-pinned through _EXTRA_OWNER_FILES.
 # ---------------------------------------------------------------------------
-OWNER_COMMIT = "944f081de5abf44960995263355b42d41de38aba"
-OWNER_TREE = "264689803386fd3e239542050c1dcaa08ef3839a"
+OWNER_COMMIT = "777388ad9c692b0657e6b6e1d4820b15fcb6641d"
+OWNER_TREE = "a564fb0314292c739bebcd4b9362e5b3315974a9"
 OWNER_VERSION = "0.1.6.dev0"
 OWNER_LOCK_SHA256 = "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889"
 
 _OWNER_MODULES: dict[str, tuple[str, str]] = {
     "package_init": (
         "src/dspy_lm_auth/__init__.py",
-        "e2fa1964f3de564cbe879a39a36d8887581ecb4b2bb4015cc76334780d236c58",
+        "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a",
     ),
     "lm": (
         "src/dspy_lm_auth/lm.py",
@@ -81,14 +81,21 @@ _EXTRA_OWNER_FILES = {
     "src/dspy_lm_auth/codex_backend_contract.py": "c1df45aed46ed65ef80e95035cbac591e386d537970c8c5d12d648ab3fbb7ea6",
     "src/dspy_lm_auth/_codex_credential.py": "10cbf50b66b610d1ba76806a16f943779148f7aecd4a7a0ac2f2ba0cfc4e5264",
     "src/dspy_lm_auth/codex_request.py": "d8c8cce159daf757ab3bd4e13341f26df87448128ecd77171f87864b585f9ba3",
-    "src/dspy_lm_auth/outcome_receipt_chat.py": "8b75512143f49adc55bacb6ed3c8fca21f37389421fe98167bb81bbd999eada7",
-    "src/dspy_lm_auth/copilot_backend.py": "dd54621535a7bfa64cce9c010d041be6adde665a3e8458e10d4864a36db2d94a",
-    "src/dspy_lm_auth/copilot_backend_contract.py": "a4d7510f7cc1c93c225b4a513efdbf6e0a0d76428886f8b40e7ebc7bc35c0242",
-    "src/dspy_lm_auth/_copilot_credential.py": "022346e6ad65508738fc7ec65f3ff3a8f72564f7f404efac25eba19a4cea0b27",
-    "src/dspy_lm_auth/copilot_receipt_transport.py": "92e2e7657155ed1002fc9d458f09ae03b0d03fbda5b0cc4d3bcf14c23e3077bf",
-    "src/dspy_lm_auth/copilot_receipt_runtime.py": "26e85169a44cadfe61e19ee064a431b651d993d7977471b219ec4084116030b2",
+    "src/dspy_lm_auth/outcome_receipt_chat.py": "0d38f0d11fcfef1672c8fbb26a9bfbeb165b300d948acc65210897f257d33b56",
+    "src/dspy_lm_auth/copilot_backend.py": "7e7185bc2b551c7191f524619afa63b555e8819436005f24a3aa5e4df71dbf7e",
+    "src/dspy_lm_auth/copilot_backend_contract.py": "9625a7bf3b090b73bb8922f8197745d6e4155cbcd52dea82b33c2af5c8d233a4",
+    "src/dspy_lm_auth/_copilot_credential.py": "3aeca6578ea7164c879e29bf32286a575daab85a4aa373084b9710a7f654023a",
+    "src/dspy_lm_auth/copilot_receipt_transport.py": "052b2f0a966bac2986bbe7f274e272f396ccd5fb2c611d5dd7709ae0092ae61f",
+    "src/dspy_lm_auth/copilot_receipt_runtime.py": "888f993678e9183dfcd622f8df8dcdaad7b4b2a4d86576af8df65b0069739241",
     "src/dspy_lm_auth/_route_policy.py": "7dece27cc0bf8e3cad087f6d476ea44f9db6331195fe606c50c688a40b80ec12",
     "src/dspy_lm_auth/auth.py": "b46b390a292ddb8eb6ab22c6a26958644047ca31cc121d773af3bf9cc7f75e7e",
+    "src/dspy_lm_auth/chat_backend.py": "b005830503592bc44677a59ce9e945dbc5b42d032705e8e92fa19756bff0f78e",
+    "src/dspy_lm_auth/chat_backend_contract.py": "ec6396c5bedd8cf1e9484914bedb5b25b3161cb1bdf09c090c1c891a691b5bc5",
+    "src/dspy_lm_auth/chat_backend_runtime.py": "a53a8184237d38c68b6ddaa77f4e522e97b9717804165dd827d0e76a3bb2e479",
+    "src/dspy_lm_auth/chat_backend_transport.py": "552175ee9bb009e2075b5f5e339704630ee06489743e7df976c472e81bba8fa8",
+    "src/dspy_lm_auth/_chat_credential.py": "09c42dc17e010e4c9b3ffd8ead7ea20c0361243d50a4789940512b0eb017bed5",
+    "src/dspy_lm_auth/xai_backend.py": "a3c30358b3b669a250aa58fe3e5b3b2fc48a2210dddb4321935a093b2f49767a",
+    "src/dspy_lm_auth/local_vllm_backend.py": "992108f9895ddfc09c09ec4993c6fd69d37c91887466e71faeda05717481172d",
 }
 # ---------------------------------------------------------------------------
 # END OWNER PIN BLOCK

@@ -44,7 +44,7 @@ def validate_task_local_jury_result(
     request: Mapping[str, Any],
     attempt_sha256: str,
 ) -> None:
-    family = task_local_family(request["provider"])
+    family = task_local_family(request)
     if family is None:
         return
     jury = result.get("jury")

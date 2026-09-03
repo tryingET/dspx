@@ -26,6 +26,9 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
     canonical_ak_task_revalidator,
     family_for_provider,
 )
+from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
+    family_for_request,
+)
 from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryProviderRuntimeBinding,
     _bind_program_model_jury_provider_runtime,
@@ -58,8 +61,17 @@ class ProgramFoundryGepaComparisonJuryError(ValueError):
     """Raised when a receipt-bound comparison jury cannot execute safely."""
 
 
-def task_local_family(provider: object) -> FoundryJuryProviderFamily | None:
-    return family_for_provider(provider)
+def task_local_family(
+    request: Mapping[str, Any],
+) -> FoundryJuryProviderFamily | None:
+    """Family for one normalized request, bound to its retained endpoint."""
+
+    try:
+        return family_for_request(request)
+    except ValueError as exc:
+        raise ProgramFoundryGepaComparisonJuryError(
+            "task-local provider endpoint is not bound in the request"
+        ) from exc
 
 
 def task_local_execution_request_keys(provider: object) -> frozenset[str]:
@@ -101,6 +113,18 @@ def _resolve_task_local_model(
     return family.resolve_model(model if model is not None else codex_model)
 
 
+def _resolve_task_local_endpoint(
+    family: FoundryJuryProviderFamily, endpoint: str | None
+) -> FoundryJuryProviderFamily:
+    try:
+        return family.with_endpoint(endpoint)
+    except ValueError as exc:
+        raise ProgramFoundryGepaComparisonJuryError(
+            "task-local provider endpoint must be an explicit loopback "
+            "http://127.0.0.1|localhost|[::1]:<port>/v1 base URL"
+        ) from exc
+
+
 def execution_request(
     *,
     provider: str,
@@ -114,6 +138,7 @@ def execution_request(
     codex_model: str | None = None,
     reasoning_effort: str | None = None,
     model: str | None = None,
+    endpoint: str | None = None,
 ) -> dict[str, Any]:
     normalized_provider = provider.strip()
     if not normalized_provider:
@@ -145,6 +170,7 @@ def execution_request(
             family, model=model, codex_model=codex_model
         )
         resolved_effort = family.resolve_reasoning_effort(reasoning_effort)
+        family = _resolve_task_local_endpoint(family, endpoint)
         if (
             owner_source_root is None
             or isinstance(execution_task_id, bool)
@@ -169,6 +195,8 @@ def execution_request(
         )
         if family.allowed_reasoning_efforts is not None:
             request["reasoning_effort"] = resolved_effort
+        if family.endpoint_key is not None:
+            request[family.endpoint_key] = family.endpoint_origin
     elif (
         owner_source_root is not None
         or execution_task_id is not None
@@ -176,6 +204,7 @@ def execution_request(
         or codex_model is not None
         or reasoning_effort is not None
         or model is not None
+        or endpoint is not None
     ):
         raise ProgramFoundryGepaComparisonJuryError(
             "owner source and execution task are only valid for the task-local provider"
@@ -198,6 +227,11 @@ def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, An
     execution_claimant = raw_request.get("execution_claimant")
     model = raw_request.get(family.model_key) if family is not None else None
     reasoning_effort = raw_request.get("reasoning_effort")
+    endpoint = (
+        raw_request.get(family.endpoint_key)
+        if family is not None and family.endpoint_key is not None
+        else None
+    )
     if (
         set(raw_request) != expected_keys
         or not isinstance(provider, str)
@@ -219,6 +253,11 @@ def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, An
         or (execution_claimant is not None and not isinstance(execution_claimant, str))
         or (family is not None and not isinstance(model, str))
         or (reasoning_effort is not None and not isinstance(reasoning_effort, str))
+        or (
+            family is not None
+            and family.endpoint_key is not None
+            and not isinstance(endpoint, str)
+        )
     ):
         raise ProgramFoundryGepaComparisonJuryError(
             "comparison jury receipt execution_request types are invalid"
@@ -236,6 +275,7 @@ def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, An
         execution_claimant=execution_claimant,
         reasoning_effort=reasoning_effort,
         model=model,
+        endpoint=endpoint,
     )
     if request != dict(raw_request):
         raise ProgramFoundryGepaComparisonJuryError(
@@ -277,7 +317,7 @@ def make_task_local_runtime_binding(
     experiment_root: Path,
     attempt_sha256: str,
 ) -> ProgramModelJuryProviderRuntimeBinding | None:
-    family = family_for_provider(request["provider"])
+    family = task_local_family(request)
     if family is None:
         return None
     bound_family = family

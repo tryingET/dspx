@@ -40,7 +40,7 @@ def provider_metadata(
 ) -> dict[str, Any]:
     """Project the closed configured-provider metadata for one family."""
 
-    return {
+    metadata: dict[str, Any] = {
         "status": "configured",
         "provider": family.provider_name,
         "model": model,
@@ -63,6 +63,12 @@ def provider_metadata(
         "source_identity_sha256": sha256(canonical_json(source_identity)),
         "dependency_identity_sha256": sha256(canonical_json(dependency_identity)),
     }
+    if family.endpoint_resolved:
+        # Fixed families keep their historical metadata shape; env-resolved
+        # families bind the exact base URL and its origin hash per run.
+        metadata["endpoint_origin"] = family.endpoint_origin
+        metadata["endpoint_origin_sha256"] = family.endpoint_origin_sha256
+    return metadata
 
 
 def validate_foundry_jury_provider_metadata(

@@ -51,6 +51,10 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
     endpoint_origin_sha256,
     family_for_provider,
 )
+from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
+    LOCAL_VLLM_FAMILY,
+    XAI_FAMILY,
+)
 from dspx.services.program_foundry_gepa_comparison_jury_provider_evidence import (
     validate_foundry_jury_provider_evidence,
 )
@@ -120,8 +124,17 @@ def test_family_literals_and_codex_aliases_are_pinned() -> None:
     assert CODEX_FAMILY.model_key == "codex_model"
     assert CODEX_FAMILY.strict_observed_model is True
     assert TASK_LOCAL_PROVIDER_NAMES == frozenset(
-        {CODEX_FAMILY.provider_name, COPILOT_FAMILY.provider_name}
+        {
+            CODEX_FAMILY.provider_name,
+            COPILOT_FAMILY.provider_name,
+            XAI_FAMILY.provider_name,
+            LOCAL_VLLM_FAMILY.provider_name,
+        }
     )
+    assert COPILOT_FAMILY.contract_module == "dspy_lm_auth.chat_backend_contract"
+    assert COPILOT_FAMILY.message_class == "ChatBackendMessage"
+    assert COPILOT_FAMILY.endpoint_env is None
+    assert COPILOT_FAMILY.with_endpoint(None) is COPILOT_FAMILY
     assert family_for_provider("fixture-provider") is None
     assert family_for_provider(None) is None
     for family in FAMILIES:
@@ -169,6 +182,8 @@ def test_endpoint_origin_sha256_uses_the_v11_origin_rule() -> None:
         (CODEX_FAMILY, "gpt-5.6-luna", "gemini-3.7-flash"),
         (COPILOT_FAMILY, "gemini-3.7-flash", "gpt-5.4"),
         (COPILOT_FAMILY, "gemini-3.7-flash-001", "Gemini-3.7"),
+        (COPILOT_FAMILY, "grok-4.6", "Grok-4.6"),
+        (COPILOT_FAMILY, "grok-4.6-fast", "claude-4"),
     ],
 )
 def test_model_rules_are_family_specific(
@@ -845,6 +860,8 @@ def test_owner_pins_cover_copilot_modules_and_repin_helper_reproduces_them(
         "src/dspy_lm_auth/copilot_receipt_transport.py",
         "src/dspy_lm_auth/copilot_receipt_runtime.py",
         "src/dspy_lm_auth/copilot_backend.py",
+        "src/dspy_lm_auth/chat_backend.py",
+        "src/dspy_lm_auth/chat_backend_contract.py",
     ):
         assert relative in _EXTRA_OWNER_FILES
     root = tmp_path / "owner"

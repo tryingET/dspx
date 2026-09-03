@@ -30,6 +30,41 @@ from dspx.services.program_foundry_gepa_comparison_jury_owner import (  # noqa: 
 )
 
 
+# Every reviewed fork module the owner must hash-pin beyond the closed
+# eight-name receipt module set; extend when a new provider family lands.
+REQUIRED_EXTRA_OWNER_FILES: tuple[str, ...] = (
+    "src/dspy_lm_auth/codex_backend.py",
+    "src/dspy_lm_auth/codex_backend_contract.py",
+    "src/dspy_lm_auth/_codex_credential.py",
+    "src/dspy_lm_auth/codex_request.py",
+    "src/dspy_lm_auth/outcome_receipt_chat.py",
+    "src/dspy_lm_auth/copilot_backend.py",
+    "src/dspy_lm_auth/copilot_backend_contract.py",
+    "src/dspy_lm_auth/_copilot_credential.py",
+    "src/dspy_lm_auth/copilot_receipt_transport.py",
+    "src/dspy_lm_auth/copilot_receipt_runtime.py",
+    "src/dspy_lm_auth/_route_policy.py",
+    "src/dspy_lm_auth/auth.py",
+    "src/dspy_lm_auth/chat_backend.py",
+    "src/dspy_lm_auth/chat_backend_contract.py",
+    "src/dspy_lm_auth/chat_backend_runtime.py",
+    "src/dspy_lm_auth/chat_backend_transport.py",
+    "src/dspy_lm_auth/_chat_credential.py",
+    "src/dspy_lm_auth/xai_backend.py",
+    "src/dspy_lm_auth/local_vllm_backend.py",
+)
+
+
+def missing_required_extra_files() -> tuple[str, ...]:
+    """Return required reviewed fork files absent from the owner pin block."""
+
+    return tuple(
+        relative
+        for relative in REQUIRED_EXTRA_OWNER_FILES
+        if relative not in _EXTRA_OWNER_FILES
+    )
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -46,6 +81,9 @@ def _git(root: Path, *args: str) -> str:
 def collect_pins(root: Path) -> dict[str, object]:
     """Collect commit, tree, version, lock hash, and per-file hashes for one root."""
 
+    missing = missing_required_extra_files()
+    if missing:
+        raise ValueError(f"owner pin block lacks required files: {missing}")
     root = root.expanduser().resolve(strict=True)
     project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     return {

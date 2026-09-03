@@ -256,3 +256,103 @@ the runtime binding to the single Codex provider name
 restricted to the foundry provider" until that guard accepts both family names.
 
 The focused test command adds `tests/test_program_foundry_gepa_comparison_jury_copilot.py`.
+
+## 2026-09-03: xAI and local vLLM provider families (AK-5348)
+
+The task-local seam now carries four reviewed provider families, all outside `provider_registry`:
+
+| | xAI family | local vLLM family |
+| --- | --- | --- |
+| `--provider` | `foundry-dspy-lm-auth-xai` | `foundry-dspy-lm-auth-local-vllm` |
+| auth provider | `xai` (Pi OAuth entry, no refresh) | `none` (no credential file is read) |
+| backend | `dspy_lm_auth.xai_backend.XaiBackend` | `dspy_lm_auth.local_vllm_backend.LocalVllmBackend` |
+| model rule | `^grok-[a-z0-9][a-z0-9.-]{0,63}$`, default `grok-4.6` | `^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$`, default `local/Qwen3.8-27B-AEON-NVFP4-FP8` |
+| reasoning effort | not applicable | not applicable |
+| request key | `model` | `model` plus `local_vllm_base_url` |
+| routes | `dspy-lm-auth:xai:{model}` / `openai:{model}:chat` | `dspy-lm-auth:local-vllm:{model}` / `openai:{model}:chat` |
+| endpoint origin | fixed `https://api.x.ai` | `DSPX_LOCAL_VLLM_BASE_URL`, default `http://127.0.0.1:2456/v1` |
+| execution task title | `... with dspy-lm-auth xAI` | `... with dspy-lm-auth local vLLM` |
+| observed model | recorded, not enforced | recorded, not enforced |
+
+`COPILOT_FAMILY.model_re` is widened to `^(gemini|grok)-[a-z0-9][a-z0-9.-]{0,63}$` (Copilot also
+serves `grok-4.6`); the default stays `gemini-3.7-flash`. Codex literals, routes, request keys, and
+receipt shapes are unchanged.
+
+Endpoint-origin constants pinned by test:
+
+- xAI, same v11 derivation as before (`{"scheme": "https", "hostname": "api.x.ai"}`):
+  `b1cca9c83dc27a51b9887f2a66a651bea19f23ac4d86dccc456fab2141f5e40d`.
+- local vLLM default endpoint, loopback derivation over the exact origin including its explicit
+  port (`{"scheme": "http", "hostname": "127.0.0.1", "port": 2456}` under the same domain
+  prefix): `ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb`.
+
+The local vLLM endpoint is not fixed in code. `execution_request()` resolves it from
+`DSPX_LOCAL_VLLM_BASE_URL` (default above), validates it on the DSPx side with the same loopback
+contract as the fork (`http` scheme only; host exactly `127.0.0.1`, `localhost`, or `[::1]`;
+explicit port 1-65535 other than 80; path exactly `/v1`; no userinfo, query, fragment, whitespace,
+or non-ASCII), and retains the validated base URL under `local_vllm_base_url` in the execution
+request, attempt marker, and comparison-jury receipt. `family_for_request()` rebinds the family to
+that retained value, so retained validation and the runtime binding use the exact origin hash from
+the receipt rather than the current environment; a later environment change no longer matches the
+retained attempt. Fixed families reject any explicit endpoint. Env-resolved families additionally
+record `endpoint_origin` and `endpoint_origin_sha256` in the configured-provider metadata; the
+fixed families keep their historical metadata shape, so retained Codex/Copilot evidence still
+validates.
+
+Backend construction goes through `FoundryJuryProviderFamily.construct_backend(owner, *,
+auth_path=None, endpoint=None)`: fixed families call `backend_type()` (or with `auth_path`), the
+local family passes its bound base URL positionally and refuses an `auth_path`. Every backend
+instantiation in the provider runtime uses this hook.
+
+Receipt routes are bounded ids (`^[A-Za-z0-9._:-]{1,128}$`), so a served model id containing
+`/` is projected with `/` -> `:` in both routes (`dspy-lm-auth:local-vllm:local:Qwen3.8-27B-...`);
+`:` is outside every family's model charset, so the projection is injective, and the exact model
+stays in the request, metadata, and juror results. `model_allowed()` also rejects a model whose
+projected route would exceed the receipt id bound.
+
+Owner pins now bind maintained-fork commit `777388ad9c692b0657e6b6e1d4820b15fcb6641d` (tree
+`a564fb0314292c739bebcd4b9362e5b3315974a9`, version `0.1.6.dev0`, unchanged lock). The rewritten
+Copilot modules, `outcome_receipt_chat.py`, and `__init__.py` carry new hashes, and the generic
+chat modules (`chat_backend.py`, `chat_backend_contract.py`, `chat_backend_runtime.py`,
+`chat_backend_transport.py`, `_chat_credential.py`) plus `xai_backend.py` and
+`local_vllm_backend.py` are hash-pinned through `_EXTRA_OWNER_FILES`.
+`tests/foundry_jury_owner_repin.py` now lists the required reviewed files and refuses to print a
+block that lacks one. Because the fork now defines `CopilotBackendMessage/Request/Response` as
+aliases of the generic `ChatBackend*` contract types, the Copilot, xAI, and local vLLM families all
+bind `dspy_lm_auth.chat_backend_contract` in the loaded-owner check; the loaded-owner rules (exact
+backend class and source path, not a `dspy.BaseLM` subclass, `dspy_lm_auth.lm` never loaded) are
+tested for all four families. DSPx keeps using the backend's own
+`prepared.semantic_request_sha256` and never recomputes it, so the fork's provider-bound semantic
+hash is carried through unchanged.
+
+The runtime binding guard in `program_model_jury_provider_runtime.py` already keys off
+`TASK_LOCAL_PROVIDER_NAMES`; a credential-free test now proves it accepts all four family names
+and still rejects generic provider names.
+
+CLI shape (contract only; no live call was authorized by AK-5348):
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
+  jury-foundry-gepa-comparison \
+  --receipt <foundry>/gepa-experiment/consumption-receipt.json \
+  --provider foundry-dspy-lm-auth-xai \
+  --owner-source-root <exact-clean-dspy-lm-auth-root> \
+  --execution-task-id <claimed-live-execution-task> \
+  --execution-claimant <exact-ak-claimed-by> \
+  --model grok-4.6 \
+  --json
+
+DSPX_LOCAL_VLLM_BASE_URL=http://127.0.0.1:2456/v1 \
+PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
+  jury-foundry-gepa-comparison \
+  --receipt <foundry>/gepa-experiment/consumption-receipt.json \
+  --provider foundry-dspy-lm-auth-local-vllm \
+  --owner-source-root <exact-clean-dspy-lm-auth-root> \
+  --execution-task-id <claimed-live-execution-task> \
+  --execution-claimant <exact-ak-claimed-by> \
+  --model local/Qwen3.8-27B-AEON-NVFP4-FP8 \
+  --json
+```
+
+The focused test command adds `tests/test_program_foundry_gepa_comparison_jury_xai.py` and
+`tests/test_program_foundry_gepa_comparison_jury_local_vllm.py`.

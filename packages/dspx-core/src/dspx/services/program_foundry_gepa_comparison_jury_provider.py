@@ -345,7 +345,7 @@ def configure_foundry_jury_provider(
     configured: FoundryJuryConfiguredProvider | None = None
     try:
         owner = verify_loaded_foundry_jury_owner(owner_source_root, family)
-        backend = owner.backend_type()
+        backend = family.construct_backend(owner)
         lm = DSPyTypedLMAdapter(
             _FoundryJuryFormattingProvider(model, family.provider_name),
             cache=False,
