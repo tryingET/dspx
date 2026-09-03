@@ -1,4 +1,4 @@
-"""Foundry-only Codex provider over the maintained dspy-lm-auth backend."""
+"""Foundry-only task-local providers over the maintained dspy-lm-auth backends."""
 
 from __future__ import annotations
 
@@ -22,13 +22,13 @@ from dspx.services.program_foundry_gepa_comparison_jury_owner import (
     OWNER_TREE,
     OWNER_VERSION,
     VerifiedFoundryJuryOwner,
-    expected_foundry_jury_dependency_identity,
-    expected_foundry_jury_source_identity,
     verify_loaded_foundry_jury_owner,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import (
     ALLOWED_REASONING_EFFORTS,
     AUTH_PROVIDER,
+    CODEX_FAMILY,
+    COPILOT_FAMILY,
     CREDENTIAL_MODE,
     DEFAULT_CODEX_MODEL,
     DEFAULT_REASONING_EFFORT,
@@ -37,34 +37,36 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
     PROVIDER_NAME,
     FoundryJuryCallCustodian,
     FoundryJuryProviderConfigurationError,
+    FoundryJuryProviderFamily,
     canonical_ak_task_revalidator,
     closed_failure,
 )
-from dspx.services.soomfon_provider_outcome_receipt_contract import (
-    canonical_json,
-    sha256,
+from dspx.services.program_foundry_gepa_comparison_jury_provider_metadata import (
+    provider_metadata,
+    validate_foundry_jury_provider_metadata,
 )
 
 
 class _FoundryJuryFormattingProvider:
     """Non-effectful provider used only to construct DSPx's sole LM adapter."""
 
-    def __init__(self, model: str) -> None:
+    def __init__(self, model: str, provider_name: str = PROVIDER_NAME) -> None:
         self.model = model
+        self.provider_name = provider_name
 
     def invoke(self, request: ProviderRequest) -> ProviderResult:
         del request
         raise ProviderInvocationError(
             "foundry jury calls require the receipt-bound JSON adapter",
             disposition=EffectDisposition.PREFLIGHT_REJECTED,
-            provider=PROVIDER_NAME,
+            provider=self.provider_name,
         )
 
     def dump_state(self) -> dict[str, object]:
         raise ProviderInvocationError(
             "foundry jury formatting provider has no persistent state",
             disposition=EffectDisposition.PREFLIGHT_REJECTED,
-            provider=PROVIDER_NAME,
+            provider=self.provider_name,
         )
 
 
@@ -98,8 +100,9 @@ class FoundryJuryJSONAdapter(dspy.JSONAdapter):
         backend: Any,
         custodian: FoundryJuryCallCustodian,
         model: str,
-        reasoning_effort: str,
+        reasoning_effort: str | None,
         timeout_seconds: float,
+        family: FoundryJuryProviderFamily = CODEX_FAMILY,
     ) -> None:
         super().__init__(callbacks=None, use_native_function_calling=False)
         self._owner = owner
@@ -109,6 +112,7 @@ class FoundryJuryJSONAdapter(dspy.JSONAdapter):
         self._model = model
         self._reasoning_effort = reasoning_effort
         self._timeout_seconds = timeout_seconds
+        self._family = family
         self._local_terminal = False
 
     def __call__(
@@ -161,7 +165,7 @@ class FoundryJuryJSONAdapter(dspy.JSONAdapter):
                 closed_failure("adapter_message_invalid")
             typed_message = cast(Mapping[str, object], message)
             role = typed_message.get("role")
-            if role not in {"system", "developer", "user", "assistant"}:
+            if role not in self._family.allowed_roles:
                 closed_failure("adapter_message_invalid")
             backend_messages.append(
                 self._owner.message_type(
@@ -169,12 +173,15 @@ class FoundryJuryJSONAdapter(dspy.JSONAdapter):
                     content=_message_text(typed_message.get("content")),
                 )
             )
+        # Text transport for every family: DSPy's JSON instructions stay in the
+        # prompt and DSPx parses the judgment locally, so no response_format or
+        # reasoning controls reach a backend whose contract lacks them.
         prepared = self._backend.prepare(
-            self._owner.request_type(
+            self._family.build_backend_request(
+                self._owner,
                 model=self._model,
                 messages=tuple(backend_messages),
                 reasoning_effort=self._reasoning_effort,
-                response_format="text",
                 timeout_seconds=self._timeout_seconds,
             )
         )
@@ -233,9 +240,10 @@ class FoundryJuryConfiguredProvider:
         execution_task_id: int,
         execution_claimant: str,
         model: str,
-        reasoning_effort: str,
+        reasoning_effort: str | None,
         timeout_seconds: float,
         previous_cost_map: str | None,
+        family: FoundryJuryProviderFamily = CODEX_FAMILY,
     ) -> None:
         self._owner = owner
         self._custodian = custodian
@@ -247,37 +255,21 @@ class FoundryJuryConfiguredProvider:
         self._reasoning_effort = reasoning_effort
         self._timeout_seconds = timeout_seconds
         self._previous_cost_map = previous_cost_map
+        self._family = family
         self._closed = False
 
     def metadata(self) -> Mapping[str, Any]:
         self._owner.revalidate()
-        return {
-            "status": "configured",
-            "provider": PROVIDER_NAME,
-            "model": self._model,
-            "requested_route": f"dspy-lm-auth:codex:{self._model}",
-            "resolved_route": f"openai:{self._model}:responses",
-            "auth_provider": AUTH_PROVIDER,
-            "credential_mode": CREDENTIAL_MODE,
-            "reasoning_effort": self._reasoning_effort,
-            "num_retries": 0,
-            "cache": False,
-            "timeout_seconds": self._timeout_seconds,
-            "sync_only": True,
-            "fallback_allowed": False,
-            "health_probe_allowed": False,
-            "execution_task_id": self._execution_task_id,
-            "execution_claimant": self._execution_claimant,
-            "owner_commit": OWNER_COMMIT,
-            "owner_tree": OWNER_TREE,
-            "owner_version": OWNER_VERSION,
-            "source_identity_sha256": sha256(
-                canonical_json(self._owner.artifact.source_identity)
-            ),
-            "dependency_identity_sha256": sha256(
-                canonical_json(self._owner.artifact.dependency_identity)
-            ),
-        }
+        return provider_metadata(
+            family=self._family,
+            model=self._model,
+            reasoning_effort=self._reasoning_effort,
+            timeout_seconds=self._timeout_seconds,
+            execution_task_id=self._execution_task_id,
+            execution_claimant=self._execution_claimant,
+            source_identity=self._owner.artifact.source_identity,
+            dependency_identity=self._owner.artifact.dependency_identity,
+        )
 
     def finalize(self) -> Mapping[str, Any]:
         return self._custodian.finalize()
@@ -291,48 +283,6 @@ class FoundryJuryConfiguredProvider:
         else:
             os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = self._previous_cost_map
         self._closed = True
-
-
-def validate_foundry_jury_provider_metadata(
-    value: Mapping[str, Any],
-    *,
-    execution_task_id: int,
-    execution_claimant: str,
-    model: str,
-    reasoning_effort: str,
-) -> dict[str, Any]:
-    expected = {
-        "status": "configured",
-        "provider": PROVIDER_NAME,
-        "model": model,
-        "requested_route": f"dspy-lm-auth:codex:{model}",
-        "resolved_route": f"openai:{model}:responses",
-        "auth_provider": AUTH_PROVIDER,
-        "credential_mode": CREDENTIAL_MODE,
-        "reasoning_effort": reasoning_effort,
-        "num_retries": 0,
-        "cache": False,
-        "timeout_seconds": DEFAULT_TIMEOUT_SECONDS,
-        "sync_only": True,
-        "fallback_allowed": False,
-        "health_probe_allowed": False,
-        "execution_task_id": execution_task_id,
-        "execution_claimant": execution_claimant,
-        "owner_commit": OWNER_COMMIT,
-        "owner_tree": OWNER_TREE,
-        "owner_version": OWNER_VERSION,
-        "source_identity_sha256": sha256(
-            canonical_json(expected_foundry_jury_source_identity())
-        ),
-        "dependency_identity_sha256": sha256(
-            canonical_json(expected_foundry_jury_dependency_identity())
-        ),
-    }
-    if dict(value) != expected:
-        raise FoundryJuryProviderConfigurationError(
-            "task-local provider metadata drifted"
-        )
-    return expected
 
 
 def _assert_exact_runtime(
@@ -368,21 +318,25 @@ def configure_foundry_jury_provider(
     repo_root: Path,
     contract_sha256: str,
     expected_juror_ids: Sequence[str],
-    model: str = DEFAULT_CODEX_MODEL,
-    reasoning_effort: str = DEFAULT_REASONING_EFFORT,
+    model: str | None = None,
+    reasoning_effort: str | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    family: FoundryJuryProviderFamily = CODEX_FAMILY,
 ) -> FoundryJuryConfiguredProvider:
     """Configure one exact foundry-only provider after an outer attempt exists."""
 
-    if MODEL_RE.fullmatch(model) is None:
-        raise FoundryJuryProviderConfigurationError("Codex model is not allowed")
-    if reasoning_effort not in ALLOWED_REASONING_EFFORTS:
+    label = family.auth_provider
+    model = family.resolve_model(model)
+    reasoning_effort = family.resolve_reasoning_effort(reasoning_effort)
+    if not family.model_allowed(model):
+        raise FoundryJuryProviderConfigurationError(f"{label} model is not allowed")
+    if not family.reasoning_effort_allowed(reasoning_effort):
         raise FoundryJuryProviderConfigurationError(
-            "Codex reasoning effort is not allowed"
+            f"{label} reasoning effort is not allowed"
         )
     if timeout_seconds != DEFAULT_TIMEOUT_SECONDS:
         raise FoundryJuryProviderConfigurationError(
-            "Codex timeout must match the reviewed custody contract"
+            f"{label} timeout must match the reviewed custody contract"
         )
     previous_cost_map = os.environ.get("LITELLM_LOCAL_MODEL_COST_MAP")
     os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
@@ -390,10 +344,10 @@ def configure_foundry_jury_provider(
     previous_adapter = getattr(dspy.settings, "adapter", None)
     configured: FoundryJuryConfiguredProvider | None = None
     try:
-        owner = verify_loaded_foundry_jury_owner(owner_source_root)
+        owner = verify_loaded_foundry_jury_owner(owner_source_root, family)
         backend = owner.backend_type()
         lm = DSPyTypedLMAdapter(
-            _FoundryJuryFormattingProvider(model),
+            _FoundryJuryFormattingProvider(model, family.provider_name),
             cache=False,
             callbacks=[],
         )
@@ -403,6 +357,7 @@ def configure_foundry_jury_provider(
             execution_claimant=execution_claimant,
             repo_root=repo_root,
             minimum_lease_seconds=timeout_seconds + 30.0,
+            family=family,
         )
         revalidator()
         custodian = FoundryJuryCallCustodian(
@@ -411,9 +366,10 @@ def configure_foundry_jury_provider(
             execution_task_id=execution_task_id,
             contract_sha256=contract_sha256,
             expected_juror_ids=expected_juror_ids,
-            requested_route=f"dspy-lm-auth:codex:{model}",
-            resolved_route=f"openai:{model}:responses",
+            requested_route=family.requested_route(model),
+            resolved_route=family.resolved_route(model),
             authority_revalidator=revalidator,
+            family=family,
         )
         adapter = FoundryJuryJSONAdapter(
             owner=owner,
@@ -423,6 +379,7 @@ def configure_foundry_jury_provider(
             model=model,
             reasoning_effort=reasoning_effort,
             timeout_seconds=timeout_seconds,
+            family=family,
         )
         configured = FoundryJuryConfiguredProvider(
             owner=owner,
@@ -435,6 +392,7 @@ def configure_foundry_jury_provider(
             reasoning_effort=reasoning_effort,
             timeout_seconds=timeout_seconds,
             previous_cost_map=previous_cost_map,
+            family=family,
         )
         dspy.configure(lm=lm, adapter=adapter)
         configured.metadata()
@@ -449,3 +407,26 @@ def configure_foundry_jury_provider(
             else:
                 os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = previous_cost_map
         raise
+
+
+__all__ = [
+    "ALLOWED_REASONING_EFFORTS",
+    "AUTH_PROVIDER",
+    "CODEX_FAMILY",
+    "COPILOT_FAMILY",
+    "CREDENTIAL_MODE",
+    "DEFAULT_CODEX_MODEL",
+    "DEFAULT_REASONING_EFFORT",
+    "DEFAULT_TIMEOUT_SECONDS",
+    "MODEL_RE",
+    "OWNER_COMMIT",
+    "OWNER_TREE",
+    "OWNER_VERSION",
+    "PROVIDER_NAME",
+    "FoundryJuryConfiguredProvider",
+    "FoundryJuryJSONAdapter",
+    "FoundryJuryProviderConfigurationError",
+    "FoundryJuryProviderFamily",
+    "configure_foundry_jury_provider",
+    "validate_foundry_jury_provider_metadata",
+]

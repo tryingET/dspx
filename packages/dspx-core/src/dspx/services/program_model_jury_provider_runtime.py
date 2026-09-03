@@ -7,9 +7,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
+from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
+    TASK_LOCAL_PROVIDER_NAMES,
+)
 from dspx.services.program_model_jury_execution import ProgramModelJuryExecutionError
 
-_TASK_LOCAL_PROVIDER_RUNTIME_NAME = "foundry-dspy-lm-auth-codex"
+_TASK_LOCAL_PROVIDER_RUNTIME_NAMES = TASK_LOCAL_PROVIDER_NAMES
 _PROVIDER_RUNTIME_BINDING_TOKEN = object()
 _MODEL_JURY_PROCESS_LOCK = threading.Lock()
 _MODEL_JURY_SLOT_TOKEN = object()
@@ -118,7 +121,7 @@ def run_program_model_jurors(
 
     if (
         provider_runtime_binding is not None
-        and provider != _TASK_LOCAL_PROVIDER_RUNTIME_NAME
+        and provider not in _TASK_LOCAL_PROVIDER_RUNTIME_NAMES
     ):
         raise ProgramModelJuryExecutionError(
             "task-local provider runtime binding is restricted to the foundry provider"

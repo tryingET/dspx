@@ -375,8 +375,9 @@ def test_comparison_jury_cli_forwards_only_consumption_receipt_and_policy(
             "owner_source_root": None,
             "execution_task_id": None,
             "execution_claimant": None,
-            "codex_model": "gpt-5.4",
-            "reasoning_effort": "xhigh",
+            "codex_model": None,
+            "reasoning_effort": None,
+            "model": None,
         }
     ]
 
@@ -497,5 +498,6 @@ def test_task_local_comparison_jury_cli_forwards_exact_custody_inputs(
             "execution_claimant": "pi:test",
             "codex_model": "gpt-5.6-luna",
             "reasoning_effort": "xhigh",
+            "model": None,
         }
     ]

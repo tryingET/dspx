@@ -19,10 +19,12 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider import (
     configure_foundry_jury_provider,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import (
-    ALLOWED_REASONING_EFFORTS,
+    CODEX_FAMILY,
     IMPLEMENTATION_TASK_ID,
-    MODEL_RE,
+    TASK_LOCAL_PROVIDER_NAMES,
+    FoundryJuryProviderFamily,
     canonical_ak_task_revalidator,
+    family_for_provider,
 )
 from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryProviderRuntimeBinding,
@@ -36,20 +38,18 @@ PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_ATTEMPT_SCHEMA = (
     "dspx-program-foundry-gepa-comparison-jury-attempt-v1"
 )
 
-COMMON_EXECUTION_REQUEST_KEYS = {
-    "provider",
-    "adjudicator_id",
-    "adjudicator_kind",
-    "adjudicator_repo",
-    "max_jurors",
-}
-TASK_LOCAL_EXECUTION_REQUEST_KEYS = COMMON_EXECUTION_REQUEST_KEYS | {
-    "owner_source_root",
-    "execution_task_id",
-    "execution_claimant",
-    "codex_model",
-    "reasoning_effort",
-}
+COMMON_EXECUTION_REQUEST_KEYS = frozenset(
+    {
+        "provider",
+        "adjudicator_id",
+        "adjudicator_kind",
+        "adjudicator_repo",
+        "max_jurors",
+    }
+)
+TASK_LOCAL_EXECUTION_REQUEST_KEYS = CODEX_FAMILY.execution_request_keys(
+    COMMON_EXECUTION_REQUEST_KEYS
+)
 _DSPX_REPO_ROOT = Path(__file__).resolve().parents[5]
 _TASK_LOCAL_PROCESS_LOCK = threading.Lock()
 
@@ -58,9 +58,20 @@ class ProgramFoundryGepaComparisonJuryError(ValueError):
     """Raised when a receipt-bound comparison jury cannot execute safely."""
 
 
+def task_local_family(provider: object) -> FoundryJuryProviderFamily | None:
+    return family_for_provider(provider)
+
+
+def task_local_execution_request_keys(provider: object) -> frozenset[str]:
+    family = family_for_provider(provider)
+    if family is None:
+        return COMMON_EXECUTION_REQUEST_KEYS
+    return family.execution_request_keys(COMMON_EXECUTION_REQUEST_KEYS)
+
+
 @contextmanager
 def task_local_process_slot(provider: str) -> Iterator[None]:
-    if provider != TASK_LOCAL_PROVIDER_NAME:
+    if provider not in TASK_LOCAL_PROVIDER_NAMES:
         yield
         return
     if not _TASK_LOCAL_PROCESS_LOCK.acquire(blocking=False):
@@ -73,6 +84,23 @@ def task_local_process_slot(provider: str) -> Iterator[None]:
         _TASK_LOCAL_PROCESS_LOCK.release()
 
 
+def _resolve_task_local_model(
+    family: FoundryJuryProviderFamily,
+    *,
+    model: str | None,
+    codex_model: str | None,
+) -> str:
+    if codex_model is not None and family is not CODEX_FAMILY:
+        raise ProgramFoundryGepaComparisonJuryError(
+            "codex_model is only valid for the Codex task-local family"
+        )
+    if model is not None and codex_model is not None and model != codex_model:
+        raise ProgramFoundryGepaComparisonJuryError(
+            "model and codex_model must agree when both are given"
+        )
+    return family.resolve_model(model if model is not None else codex_model)
+
+
 def execution_request(
     *,
     provider: str,
@@ -83,8 +111,9 @@ def execution_request(
     owner_source_root: Path | None = None,
     execution_task_id: int | None = None,
     execution_claimant: str | None = None,
-    codex_model: str = DEFAULT_CODEX_MODEL,
-    reasoning_effort: str = DEFAULT_REASONING_EFFORT,
+    codex_model: str | None = None,
+    reasoning_effort: str | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     normalized_provider = provider.strip()
     if not normalized_provider:
@@ -110,7 +139,12 @@ def execution_request(
         ),
         "max_jurors": max_jurors,
     }
-    if normalized_provider == TASK_LOCAL_PROVIDER_NAME:
+    family = family_for_provider(normalized_provider)
+    if family is not None:
+        resolved_model = _resolve_task_local_model(
+            family, model=model, codex_model=codex_model
+        )
+        resolved_effort = family.resolve_reasoning_effort(reasoning_effort)
         if (
             owner_source_root is None
             or isinstance(execution_task_id, bool)
@@ -119,8 +153,8 @@ def execution_request(
             or execution_task_id == IMPLEMENTATION_TASK_ID
             or not isinstance(execution_claimant, str)
             or not execution_claimant.strip()
-            or MODEL_RE.fullmatch(codex_model) is None
-            or reasoning_effort not in ALLOWED_REASONING_EFFORTS
+            or not family.model_allowed(resolved_model)
+            or not family.reasoning_effort_allowed(resolved_effort)
         ):
             raise ProgramFoundryGepaComparisonJuryError(
                 "task-local dspy-lm-auth jury requires owner source and execution task"
@@ -130,14 +164,18 @@ def execution_request(
                 "owner_source_root": str(owner_source_root.expanduser().resolve()),
                 "execution_task_id": execution_task_id,
                 "execution_claimant": execution_claimant,
-                "codex_model": codex_model,
-                "reasoning_effort": reasoning_effort,
+                family.model_key: resolved_model,
             }
         )
+        if family.allowed_reasoning_efforts is not None:
+            request["reasoning_effort"] = resolved_effort
     elif (
         owner_source_root is not None
         or execution_task_id is not None
         or execution_claimant is not None
+        or codex_model is not None
+        or reasoning_effort is not None
+        or model is not None
     ):
         raise ProgramFoundryGepaComparisonJuryError(
             "owner source and execution task are only valid for the task-local provider"
@@ -145,8 +183,70 @@ def execution_request(
     return request
 
 
+def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, Any]:
+    """Re-normalize one retained execution_request and require exact equality."""
+
+    provider = raw_request.get("provider")
+    expected_keys = task_local_execution_request_keys(provider)
+    family = family_for_provider(provider)
+    adjudicator_id = raw_request.get("adjudicator_id")
+    adjudicator_kind = raw_request.get("adjudicator_kind")
+    adjudicator_repo = raw_request.get("adjudicator_repo")
+    max_jurors = raw_request.get("max_jurors")
+    owner_source_root = raw_request.get("owner_source_root")
+    execution_task_id = raw_request.get("execution_task_id")
+    execution_claimant = raw_request.get("execution_claimant")
+    model = raw_request.get(family.model_key) if family is not None else None
+    reasoning_effort = raw_request.get("reasoning_effort")
+    if (
+        set(raw_request) != expected_keys
+        or not isinstance(provider, str)
+        or not isinstance(adjudicator_id, str)
+        or not isinstance(adjudicator_kind, str)
+        or (adjudicator_repo is not None and not isinstance(adjudicator_repo, str))
+        or (
+            max_jurors is not None
+            and (isinstance(max_jurors, bool) or not isinstance(max_jurors, int))
+        )
+        or (owner_source_root is not None and not isinstance(owner_source_root, str))
+        or (
+            execution_task_id is not None
+            and (
+                isinstance(execution_task_id, bool)
+                or not isinstance(execution_task_id, int)
+            )
+        )
+        or (execution_claimant is not None and not isinstance(execution_claimant, str))
+        or (family is not None and not isinstance(model, str))
+        or (reasoning_effort is not None and not isinstance(reasoning_effort, str))
+    ):
+        raise ProgramFoundryGepaComparisonJuryError(
+            "comparison jury receipt execution_request types are invalid"
+        )
+    request = execution_request(
+        provider=provider,
+        adjudicator_id=adjudicator_id,
+        adjudicator_kind=adjudicator_kind,
+        adjudicator_repo=adjudicator_repo,
+        max_jurors=max_jurors,
+        owner_source_root=(
+            Path(owner_source_root) if owner_source_root is not None else None
+        ),
+        execution_task_id=execution_task_id,
+        execution_claimant=execution_claimant,
+        reasoning_effort=reasoning_effort,
+        model=model,
+    )
+    if request != dict(raw_request):
+        raise ProgramFoundryGepaComparisonJuryError(
+            "comparison jury receipt execution_request is not normalized"
+        )
+    return request
+
+
 def preflight_task_local_request(request: Mapping[str, Any]) -> None:
-    if request["provider"] != TASK_LOCAL_PROVIDER_NAME:
+    family = family_for_provider(request["provider"])
+    if family is None:
         return
     owner_source_root = Path(str(request["owner_source_root"]))
     if any(
@@ -163,6 +263,7 @@ def preflight_task_local_request(request: Mapping[str, Any]) -> None:
             execution_claimant=str(request["execution_claimant"]),
             repo_root=_DSPX_REPO_ROOT,
             minimum_lease_seconds=90.0,
+            family=family,
         )()
     except ValueError as exc:
         raise ProgramFoundryGepaComparisonJuryError(
@@ -176,8 +277,10 @@ def make_task_local_runtime_binding(
     experiment_root: Path,
     attempt_sha256: str,
 ) -> ProgramModelJuryProviderRuntimeBinding | None:
-    if request["provider"] != TASK_LOCAL_PROVIDER_NAME:
+    family = family_for_provider(request["provider"])
+    if family is None:
         return None
+    bound_family = family
 
     def make_provider_runtime(
         selected: Sequence[Mapping[str, Any]],
@@ -185,6 +288,7 @@ def make_task_local_runtime_binding(
         juror_ids = [
             str(item.get("id") or item.get("perspective") or "") for item in selected
         ]
+        effort = request.get("reasoning_effort")
         return configure_foundry_jury_provider(
             owner_source_root=Path(str(request["owner_source_root"])),
             journal_parent=experiment_root / "provider-outcomes",
@@ -193,8 +297,9 @@ def make_task_local_runtime_binding(
             repo_root=_DSPX_REPO_ROOT,
             contract_sha256=attempt_sha256,
             expected_juror_ids=juror_ids,
-            model=str(request["codex_model"]),
-            reasoning_effort=str(request["reasoning_effort"]),
+            model=str(request[bound_family.model_key]),
+            reasoning_effort=str(effort) if effort is not None else None,
+            family=bound_family,
         )
 
     return _bind_program_model_jury_provider_runtime(make_provider_runtime)
@@ -243,7 +348,7 @@ def receipt_payload(
             "external_authority_mutated": False,
             **(
                 {"ak_called": True, "ak_mutated": False}
-                if request["provider"] == TASK_LOCAL_PROVIDER_NAME
+                if request["provider"] in TASK_LOCAL_PROVIDER_NAMES
                 else {"ak_called": False}
             ),
         },
@@ -259,14 +364,20 @@ def receipt_payload(
 
 __all__ = [
     "COMMON_EXECUTION_REQUEST_KEYS",
+    "DEFAULT_CODEX_MODEL",
+    "DEFAULT_REASONING_EFFORT",
     "PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_ATTEMPT_SCHEMA",
     "PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_SCHEMA",
     "ProgramFoundryGepaComparisonJuryError",
     "TASK_LOCAL_EXECUTION_REQUEST_KEYS",
     "TASK_LOCAL_PROVIDER_NAME",
+    "TASK_LOCAL_PROVIDER_NAMES",
     "execution_request",
     "make_task_local_runtime_binding",
     "preflight_task_local_request",
     "receipt_payload",
+    "revalidate_execution_request",
+    "task_local_execution_request_keys",
+    "task_local_family",
     "task_local_process_slot",
 ]

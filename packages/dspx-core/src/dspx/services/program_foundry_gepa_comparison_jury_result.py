@@ -1,4 +1,4 @@
-"""Retained result validation for the task-local foundry Codex provider."""
+"""Retained result validation for the task-local foundry provider families."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_evidence import
 )
 from dspx.services.program_foundry_gepa_comparison_jury_runtime import (
     ProgramFoundryGepaComparisonJuryError,
-    TASK_LOCAL_PROVIDER_NAME,
+    task_local_family,
 )
 from dspx.services.program_foundry_gepa_proposal_io import read_regular_bytes
 
@@ -44,7 +44,8 @@ def validate_task_local_jury_result(
     request: Mapping[str, Any],
     attempt_sha256: str,
 ) -> None:
-    if request["provider"] != TASK_LOCAL_PROVIDER_NAME:
+    family = task_local_family(request["provider"])
+    if family is None:
         return
     jury = result.get("jury")
     outcome_evidence = (
@@ -79,12 +80,14 @@ def validate_task_local_jury_result(
         )
         for item in selected
     ]
-    expected_model = str(request["codex_model"])
+    expected_model = str(request[family.model_key])
+    raw_effort = request.get("reasoning_effort")
+    reasoning_effort = str(raw_effort) if raw_effort is not None else None
     if len(expected_jurors) != len(juror_results) or any(
         not isinstance(item, Mapping)
         or item.get("juror_id") != expected_id
         or item.get("perspective") != expected_perspective
-        or item.get("provider") != TASK_LOCAL_PROVIDER_NAME
+        or item.get("provider") != family.provider_name
         or item.get("model") != expected_model
         for item, (expected_id, expected_perspective) in zip(
             juror_results, expected_jurors, strict=True
@@ -100,7 +103,8 @@ def validate_task_local_jury_result(
             execution_task_id=int(request["execution_task_id"]),
             execution_claimant=str(request["execution_claimant"]),
             model=expected_model,
-            reasoning_effort=str(request["reasoning_effort"]),
+            reasoning_effort=reasoning_effort,
+            family=family,
         )
         validated_outcome = validate_foundry_jury_provider_evidence(
             outcome_evidence,
@@ -110,6 +114,7 @@ def validate_task_local_jury_result(
             contract_sha256=attempt_sha256,
             expected_juror_ids=juror_ids,
             expected_model=expected_model,
+            family=family,
         )
         call_records = validated_outcome["call_records"]
         call_total = validated_outcome["logical_call_total"]

@@ -1,7 +1,7 @@
 ---
-summary: "Credential-free implementation evidence for the foundry-only maintained dspy-lm-auth Codex jury custody seam."
+summary: "Credential-free implementation evidence for the foundry-only maintained dspy-lm-auth jury custody seam (Codex and GitHub Copilot families)."
 read_when:
-  - "Using or changing the task-local dspy-lm-auth provider for foundry GEPA comparison juries."
+  - "Using or changing a task-local dspy-lm-auth provider family for foundry GEPA comparison juries."
   - "Checking whether dspy-lm-auth was restored in the generic DSPx provider registry."
 type: "evidence"
 ---
@@ -182,3 +182,77 @@ Additional credential-free readback observed:
   checks without reading a credential or making a provider call;
 - the digest-pinned AK reader successfully read AK-5308; the live-call revalidator then rejected
   AK-5308 because it is the implementation task rather than the exact live-execution task kind.
+
+## 2026-09-03: GitHub Copilot provider family (AK-5345)
+
+The task-local seam now carries two reviewed provider families, both outside `provider_registry`:
+
+| | Codex family | GitHub Copilot family |
+| --- | --- | --- |
+| `--provider` | `foundry-dspy-lm-auth-codex` | `foundry-dspy-lm-auth-github-copilot` |
+| auth provider | `codex` | `github-copilot` |
+| backend | `dspy_lm_auth.codex_backend.CodexBackend` | `dspy_lm_auth.copilot_backend.GithubCopilotBackend` |
+| model rule | `^gpt-[A-Za-z0-9][A-Za-z0-9.-]{0,63}$`, default `gpt-5.4` | `^gemini-[a-z0-9][a-z0-9.-]{0,63}$`, default `gemini-3.7-flash` |
+| reasoning effort | `low/medium/high/xhigh`, default `xhigh` | not applicable (`None`; passing one is rejected) |
+| request key | `codex_model` | `model` |
+| routes | `dspy-lm-auth:codex:{model}` / `openai:{model}:responses` | `dspy-lm-auth:github-copilot:{model}` / `openai:{model}:chat` |
+| endpoint origin | `https://chatgpt.com/backend-api/codex` | `https://api.individual.githubcopilot.com` |
+| execution task title | `... with dspy-lm-auth Codex` | `... with dspy-lm-auth GitHub Copilot` |
+| observed model | strict equality | recorded, not enforced |
+
+Every Codex literal, route, request key, receipt shape, and CLI flag is unchanged; the Codex
+constants are now aliases of `CODEX_FAMILY` in
+`program_foundry_gepa_comparison_jury_provider_family.py`.
+
+`endpoint_origin_sha256` uses the same derivation as the Oracle semantic v11 endpoint check:
+`sha256(b"dspx-oracle-semantic-v11-endpoint-origin-v1\0" + canonical_json({"scheme": "https",
+"hostname": <host>}))`. It reproduces the historical Codex constant `7d4b206e...94c8` and yields
+`492c0bc03782d6829c9555ed9da0d359510619c2beb561c89505495cb241871d` for the Copilot origin; both
+are pinned by test.
+
+The Copilot backend takes chat messages (`system`/`user`/`assistant` only), no reasoning effort,
+and no response format. The foundry JSON adapter therefore keeps text transport for both
+families: DSPy's JSON instructions stay in the prompt and DSPx parses the judgment locally.
+
+Observed-model rule: Codex evidence keeps the strict `observed_model == requested model` check.
+Gemini through Copilot may report a versioned id, so the Copilot family records the closed
+provider-reported label as `observed_model` in each call record and retained validation only
+requires that record to match the journal; it does not fail on a mismatch. Codex call records are
+unchanged (no `observed_model` key), so previously retained Codex evidence still validates.
+
+Owner pins now bind maintained-fork commit `944f081de5abf44960995263355b42d41de38aba`
+(tree `264689803386fd3e239542050c1dcaa08ef3839a`, version `0.1.6.dev0`, unchanged lock). The
+eight-name `module_sha256` set bound into receipts is fixed by the receipt contract, so the new
+fork modules (`_codex_credential`, `codex_request`, `outcome_receipt_chat`,
+`copilot_backend_contract`, `_copilot_credential`, `copilot_receipt_transport`,
+`copilot_receipt_runtime`, `copilot_backend`) are hash-pinned through `_EXTRA_OWNER_FILES`. The
+pin block is regenerated with
+`uv run --no-sync python tests/foundry_jury_owner_repin.py --print-pins <fork-root>`.
+
+Loaded-owner rules for both families: the bound backend class must not subclass `dspy.BaseLM`,
+and `dspy_lm_auth.lm` must not be loaded.
+
+CLI shape for the Copilot family (contract only; no live call was authorized by AK-5345):
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
+  jury-foundry-gepa-comparison \
+  --receipt <foundry>/gepa-experiment/consumption-receipt.json \
+  --provider foundry-dspy-lm-auth-github-copilot \
+  --owner-source-root <exact-clean-dspy-lm-auth-root> \
+  --execution-task-id <claimed-live-execution-task> \
+  --execution-claimant <exact-ak-claimed-by> \
+  --model gemini-3.7-flash \
+  --json
+```
+
+`--model` applies to both families (family default when omitted); `--codex-model` remains the
+Codex-only alias; `--reasoning-effort` defaults per family.
+
+Known gap outside this task's file scope: `program_model_jury_provider_runtime.py` still restricts
+the runtime binding to the single Codex provider name
+(`_TASK_LOCAL_PROVIDER_RUNTIME_NAME`), so a live Copilot run through
+`build_comparison_model_jury_result` is rejected with "task-local provider runtime binding is
+restricted to the foundry provider" until that guard accepts both family names.
+
+The focused test command adds `tests/test_program_foundry_gepa_comparison_jury_copilot.py`.

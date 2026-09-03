@@ -17,6 +17,18 @@ from dspx.services.program_foundry_gepa_comparison_jury_ak_runtime import (
 from dspx.services.program_foundry_gepa_comparison_jury_owner import (
     VerifiedFoundryJuryOwner,
 )
+from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
+    CODEX_FAMILY,
+    COPILOT_FAMILY,
+    CREDENTIAL_MODE,
+    DEFAULT_TIMEOUT_SECONDS,
+    FAMILIES,
+    IMPLEMENTATION_TASK_ID,
+    TASK_LOCAL_PROVIDER_NAMES,
+    FoundryJuryProviderFamily,
+    endpoint_origin_sha256,
+    family_for_provider,
+)
 from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryProviderExecutionError,
 )
@@ -32,21 +44,15 @@ from dspx.services.soomfon_provider_outcome_receipt_reducer import (
     verify_receipt_chain,
 )
 
-PROVIDER_NAME = "foundry-dspy-lm-auth-codex"
-AUTH_PROVIDER = "codex"
-CREDENTIAL_MODE = "no-refresh"
-DEFAULT_CODEX_MODEL = "gpt-5.4"
-DEFAULT_REASONING_EFFORT = "xhigh"
-DEFAULT_TIMEOUT_SECONDS = 60.0
-IMPLEMENTATION_TASK_ID = 5308
-EXECUTION_TASK_TITLE = (
-    "Execute one receipt-bound foundry comparison jury with dspy-lm-auth Codex"
-)
-ENDPOINT_ORIGIN_SHA256 = (
-    "7d4b206e8a080358f16d8048e0705d8e17c9df9b8968ab150ff73ed1643294c8"
-)
-ALLOWED_REASONING_EFFORTS = frozenset({"low", "medium", "high", "xhigh"})
-MODEL_RE = re.compile(r"^gpt-[A-Za-z0-9][A-Za-z0-9.-]{0,63}$")
+# Codex-family aliases retained for existing call sites and literals.
+PROVIDER_NAME = CODEX_FAMILY.provider_name
+AUTH_PROVIDER = CODEX_FAMILY.auth_provider
+DEFAULT_CODEX_MODEL = CODEX_FAMILY.default_model
+DEFAULT_REASONING_EFFORT = CODEX_FAMILY.default_reasoning_effort
+EXECUTION_TASK_TITLE = CODEX_FAMILY.execution_task_title
+ENDPOINT_ORIGIN_SHA256 = CODEX_FAMILY.endpoint_origin_sha256
+ALLOWED_REASONING_EFFORTS = CODEX_FAMILY.allowed_reasoning_efforts
+MODEL_RE = CODEX_FAMILY.model_re
 _JUROR_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _CLAIMANT_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _LOCAL_CLOSED_STOP_REASONS = frozenset(
@@ -138,6 +144,7 @@ def canonical_ak_task_revalidator(
     execution_claimant: str,
     repo_root: Path,
     minimum_lease_seconds: float,
+    family: FoundryJuryProviderFamily = CODEX_FAMILY,
 ) -> Callable[[], None]:
     """Build an exact-binary canonical-AK claim/lease revalidator for each call."""
 
@@ -172,7 +179,7 @@ def canonical_ak_task_revalidator(
             or observed_repo != expected_repo
             or task.get("status") != "claimed"
             or task.get("claimed_by") != execution_claimant
-            or task.get("title") != EXECUTION_TASK_TITLE
+            or task.get("title") != family.execution_task_title
             or task.get("result") is not None
             or task.get("completed_at") is not None
             or remaining < minimum_lease_seconds
@@ -182,6 +189,47 @@ def canonical_ak_task_revalidator(
             )
 
     return revalidate
+
+
+def observed_model_of(journal: Any, reduced: Any) -> str | None:
+    """Return the closed observed model label of one completed journal."""
+
+    if reduced.terminal != "provider_response_completed" or not journal.events:
+        return None
+    value = getattr(journal.events[-1].event, "observed_model", None)
+    return value if isinstance(value, str) else None
+
+
+def call_record(
+    journal: Any,
+    reduced: Any,
+    *,
+    ordinal: int,
+    juror_id: str,
+    family: FoundryJuryProviderFamily,
+) -> dict[str, object]:
+    """Project one closed journal into the retained per-call evidence record."""
+
+    record: dict[str, object] = {
+        "call_ordinal": ordinal,
+        "juror_id": juror_id,
+        "reservation_id": journal.reservation.reservation_id,
+        "journal_sha256": _journal_projection_sha256(journal),
+        "semantic_request_sha256": journal.reservation.semantic_request_sha256,
+        "provider_outcome_receipt": "accepted",
+        "request_acknowledged": reduced.request_acknowledged,
+        "external_effect_possible": reduced.external_effect_possible,
+        "producer_terminal": reduced.terminal,
+        "status_class": reduced.status_class,
+        "status_code": reduced.status_code,
+        "empirical_disposition": reduced.empirical_disposition,
+        "reason": reduced.reason,
+    }
+    if not family.strict_observed_model:
+        # Non-strict families retain the provider-reported label instead of
+        # failing on a versioned/aliased id; strict families keep the exact rule.
+        record["observed_model"] = observed_model_of(journal, reduced)
+    return record
 
 
 def _request_identity(
@@ -223,6 +271,7 @@ class FoundryJuryCallCustodian:
         requested_route: str,
         resolved_route: str,
         authority_revalidator: Callable[[], None],
+        family: FoundryJuryProviderFamily = CODEX_FAMILY,
     ) -> None:
         juror_ids = tuple(expected_juror_ids)
         invalid_identity = (
@@ -249,6 +298,7 @@ class FoundryJuryCallCustodian:
         self._requested_route = requested_route
         self._resolved_route = resolved_route
         self._authority_revalidator = authority_revalidator
+        self._family = family
         self._records: list[dict[str, object]] = []
         self._terminal = False
         self._stop_reason: str | None = None
@@ -274,7 +324,7 @@ class FoundryJuryCallCustodian:
             mode="sync",
             requested_route=self._requested_route,
             resolved_route=self._resolved_route,
-            endpoint_origin_sha256=ENDPOINT_ORIGIN_SHA256,
+            endpoint_origin_sha256=self._family.endpoint_origin_sha256,
             source_identity=self._owner.artifact.source_identity,
             dependency_identity=self._owner.artifact.dependency_identity,
         )
@@ -349,21 +399,13 @@ class FoundryJuryCallCustodian:
                 indeterminate_failure(exc.reason)
             closed_failure(exc.reason)
         self._records.append(
-            {
-                "call_ordinal": ordinal,
-                "juror_id": juror_id,
-                "reservation_id": reservation.reservation_id,
-                "journal_sha256": _journal_projection_sha256(loaded),
-                "semantic_request_sha256": reservation.semantic_request_sha256,
-                "provider_outcome_receipt": "accepted",
-                "request_acknowledged": reduced.request_acknowledged,
-                "external_effect_possible": reduced.external_effect_possible,
-                "producer_terminal": reduced.terminal,
-                "status_class": reduced.status_class,
-                "status_code": reduced.status_code,
-                "empirical_disposition": reduced.empirical_disposition,
-                "reason": reduced.reason,
-            }
+            call_record(
+                loaded,
+                reduced,
+                ordinal=ordinal,
+                juror_id=juror_id,
+                family=self._family,
+            )
         )
         if reduced.terminal != "provider_response_completed":
             self._terminal = True
@@ -418,3 +460,32 @@ class FoundryJuryCallCustodian:
         if self._terminal and not self._stop_reason:
             closed_failure("provider_closed_stop_reason_missing")
         return self.evidence()
+
+
+__all__ = [
+    "ALLOWED_REASONING_EFFORTS",
+    "AUTH_PROVIDER",
+    "CODEX_FAMILY",
+    "COPILOT_FAMILY",
+    "CREDENTIAL_MODE",
+    "DEFAULT_CODEX_MODEL",
+    "DEFAULT_REASONING_EFFORT",
+    "DEFAULT_TIMEOUT_SECONDS",
+    "ENDPOINT_ORIGIN_SHA256",
+    "EXECUTION_TASK_TITLE",
+    "FAMILIES",
+    "IMPLEMENTATION_TASK_ID",
+    "MODEL_RE",
+    "PROVIDER_NAME",
+    "TASK_LOCAL_PROVIDER_NAMES",
+    "FoundryJuryCallCustodian",
+    "FoundryJuryProviderConfigurationError",
+    "FoundryJuryProviderFamily",
+    "call_record",
+    "canonical_ak_task_revalidator",
+    "closed_failure",
+    "endpoint_origin_sha256",
+    "family_for_provider",
+    "indeterminate_failure",
+    "observed_model_of",
+]

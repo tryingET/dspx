@@ -11,12 +11,14 @@ from dspx.services.program_foundry_gepa_comparison_jury_owner import (
     verify_foundry_jury_owner_source,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import (
-    ENDPOINT_ORIGIN_SHA256,
+    CODEX_FAMILY,
     FoundryJuryProviderConfigurationError,
-    _journal_projection_sha256,
+    FoundryJuryProviderFamily,
     _LOCAL_CLOSED_STOP_REASONS,
     _private_directory,
     _request_identity,
+    call_record,
+    observed_model_of,
 )
 from dspx.services.soomfon_provider_outcome_receipt_journal import (
     load_verified_journal,
@@ -36,8 +38,15 @@ def validate_foundry_jury_provider_evidence(
     contract_sha256: str,
     expected_juror_ids: Sequence[str],
     expected_model: str,
+    family: FoundryJuryProviderFamily = CODEX_FAMILY,
 ) -> dict[str, Any]:
-    """Revalidate retained closed journals against one outer jury attempt."""
+    """Revalidate retained closed journals against one outer jury attempt.
+
+    Observed-model rule: strict families require the completed journal's
+    observed model to equal the requested model; non-strict families retain
+    the provider-reported label in the call record and only require record
+    equality, so a versioned or aliased id does not invalidate the evidence.
+    """
 
     records = value.get("call_records")
     total = value.get("logical_call_total")
@@ -84,8 +93,8 @@ def validate_foundry_jury_provider_evidence(
     members = sorted(parent.iterdir(), key=lambda item: item.name)
     source_identity = verify_foundry_jury_owner_source(owner_source_root)
     dependency_identity = expected_foundry_jury_dependency_identity()
-    requested_route = f"dspy-lm-auth:codex:{expected_model}"
-    resolved_route = f"openai:{expected_model}:responses"
+    requested_route = family.requested_route(expected_model)
+    resolved_route = family.resolved_route(expected_model)
     if len(members) != total:
         raise FoundryJuryProviderConfigurationError(
             "provider outcome journal count drifted"
@@ -106,21 +115,14 @@ def validate_foundry_jury_provider_evidence(
             ordinal=ordinal,
             juror_id=expected_juror_ids[ordinal - 1],
         )
-        expected_record = {
-            "call_ordinal": ordinal,
-            "juror_id": expected_juror_ids[ordinal - 1],
-            "reservation_id": reservation.reservation_id,
-            "journal_sha256": _journal_projection_sha256(journal),
-            "semantic_request_sha256": reservation.semantic_request_sha256,
-            "provider_outcome_receipt": "accepted",
-            "request_acknowledged": reduced.request_acknowledged,
-            "external_effect_possible": reduced.external_effect_possible,
-            "producer_terminal": reduced.terminal,
-            "status_class": reduced.status_class,
-            "status_code": reduced.status_code,
-            "empirical_disposition": reduced.empirical_disposition,
-            "reason": reduced.reason,
-        }
+        expected_record = call_record(
+            journal,
+            reduced,
+            ordinal=ordinal,
+            juror_id=expected_juror_ids[ordinal - 1],
+            family=family,
+        )
+        observed_model = observed_model_of(journal, reduced)
         if (
             path.name != f"{ordinal:02d}-{reservation.logical_request_id}"
             or journal.artifact_verification != "accepted_exact"
@@ -134,12 +136,13 @@ def validate_foundry_jury_provider_evidence(
             or reservation.mode != "sync"
             or reservation.requested_route != requested_route
             or reservation.resolved_route != resolved_route
-            or reservation.endpoint_origin_sha256 != ENDPOINT_ORIGIN_SHA256
+            or reservation.endpoint_origin_sha256 != family.endpoint_origin_sha256
             or reservation.source_identity != source_identity
             or reservation.dependency_identity != dependency_identity
             or (
-                reduced.terminal == "provider_response_completed"
-                and journal.events[-1].event.observed_model != expected_model
+                family.strict_observed_model
+                and reduced.terminal == "provider_response_completed"
+                and observed_model != expected_model
             )
             or dict(raw_record) != expected_record
             or reduced.empirical_disposition == "effect_indeterminate"

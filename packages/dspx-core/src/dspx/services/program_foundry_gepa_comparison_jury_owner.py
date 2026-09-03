@@ -13,6 +13,10 @@ from typing import Any, cast
 
 from dspy import BaseLM
 
+from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
+    CODEX_FAMILY,
+    FoundryJuryProviderFamily,
+)
 from dspx.services.soomfon_provider_outcome_receipt_contract import (
     ProviderOutcomeConsumerError,
 )
@@ -24,19 +28,27 @@ from dspx.services.soomfon_provider_outcome_receipt_identity import (
     verify_owner_source,
 )
 
-OWNER_COMMIT = "755a378757c3f863b0ac3e534a4205729506dbd7"
-OWNER_TREE = "a4630f403b90e89d61b99368ef88581a1924a418"
+# ---------------------------------------------------------------------------
+# BEGIN OWNER PIN BLOCK
+# Regenerate with:
+#   uv run --no-sync python tests/foundry_jury_owner_repin.py --print-pins <root>
+# _OWNER_MODULES is the closed 8-name set bound into every receipt's
+# source_identity (provider_outcome_receipt_contract); every other reviewed
+# owner file is hash-pinned through _EXTRA_OWNER_FILES.
+# ---------------------------------------------------------------------------
+OWNER_COMMIT = "944f081de5abf44960995263355b42d41de38aba"
+OWNER_TREE = "264689803386fd3e239542050c1dcaa08ef3839a"
 OWNER_VERSION = "0.1.6.dev0"
 OWNER_LOCK_SHA256 = "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889"
 
 _OWNER_MODULES: dict[str, tuple[str, str]] = {
     "package_init": (
         "src/dspy_lm_auth/__init__.py",
-        "0591c12d885e56ae2d9c97526add39d7dcd72e2bcf8dbb3e614297af1812578c",
+        "e2fa1964f3de564cbe879a39a36d8887581ecb4b2bb4015cc76334780d236c58",
     ),
     "lm": (
         "src/dspy_lm_auth/lm.py",
-        "45c11c0ac5b0de9a7e95c1d2f436f73243678585720bcdddb07b5f5f133d8165",
+        "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
     ),
     "codex_stream": (
         "src/dspy_lm_auth/codex_stream.py",
@@ -63,6 +75,24 @@ _OWNER_MODULES: dict[str, tuple[str, str]] = {
         "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
     ),
 }
+
+_EXTRA_OWNER_FILES = {
+    "src/dspy_lm_auth/codex_backend.py": "afe459aec9ab2b28a6bf5535781cbcf0df71d38cbd047d1593837c2e2d9a3679",
+    "src/dspy_lm_auth/codex_backend_contract.py": "c1df45aed46ed65ef80e95035cbac591e386d537970c8c5d12d648ab3fbb7ea6",
+    "src/dspy_lm_auth/_codex_credential.py": "10cbf50b66b610d1ba76806a16f943779148f7aecd4a7a0ac2f2ba0cfc4e5264",
+    "src/dspy_lm_auth/codex_request.py": "d8c8cce159daf757ab3bd4e13341f26df87448128ecd77171f87864b585f9ba3",
+    "src/dspy_lm_auth/outcome_receipt_chat.py": "8b75512143f49adc55bacb6ed3c8fca21f37389421fe98167bb81bbd999eada7",
+    "src/dspy_lm_auth/copilot_backend.py": "dd54621535a7bfa64cce9c010d041be6adde665a3e8458e10d4864a36db2d94a",
+    "src/dspy_lm_auth/copilot_backend_contract.py": "a4d7510f7cc1c93c225b4a513efdbf6e0a0d76428886f8b40e7ebc7bc35c0242",
+    "src/dspy_lm_auth/_copilot_credential.py": "022346e6ad65508738fc7ec65f3ff3a8f72564f7f404efac25eba19a4cea0b27",
+    "src/dspy_lm_auth/copilot_receipt_transport.py": "92e2e7657155ed1002fc9d458f09ae03b0d03fbda5b0cc4d3bcf14c23e3077bf",
+    "src/dspy_lm_auth/copilot_receipt_runtime.py": "26e85169a44cadfe61e19ee064a431b651d993d7977471b219ec4084116030b2",
+    "src/dspy_lm_auth/_route_policy.py": "7dece27cc0bf8e3cad087f6d476ea44f9db6331195fe606c50c688a40b80ec12",
+    "src/dspy_lm_auth/auth.py": "b46b390a292ddb8eb6ab22c6a26958644047ca31cc121d773af3bf9cc7f75e7e",
+}
+# ---------------------------------------------------------------------------
+# END OWNER PIN BLOCK
+# ---------------------------------------------------------------------------
 
 _OWNER_DEPENDENCIES: dict[str, ExpectedDependency] = {
     "dspy": ExpectedDependency(
@@ -107,13 +137,6 @@ FOUNDRY_JURY_OWNER_SOURCE = ExpectedOwnerSource(
     modules=_OWNER_MODULES,
     dependencies=_OWNER_DEPENDENCIES,
 )
-
-_EXTRA_OWNER_FILES = {
-    "src/dspy_lm_auth/codex_backend.py": "23040fd3da20633074adb3abf2fe009309ae9c169c5e4909cdf19b150e496b7a",
-    "src/dspy_lm_auth/codex_backend_contract.py": "c1df45aed46ed65ef80e95035cbac591e386d537970c8c5d12d648ab3fbb7ea6",
-    "src/dspy_lm_auth/_route_policy.py": "7dece27cc0bf8e3cad087f6d476ea44f9db6331195fe606c50c688a40b80ec12",
-    "src/dspy_lm_auth/auth.py": "b46b390a292ddb8eb6ab22c6a26958644047ca31cc121d773af3bf9cc7f75e7e",
-}
 
 
 def expected_foundry_jury_source_identity() -> dict[str, Any]:
@@ -186,29 +209,41 @@ class VerifiedFoundryJuryOwner:
     backend_module: Any
     receipt_module: Any
     source_root: Path
+    family: FoundryJuryProviderFamily = CODEX_FAMILY
 
     def revalidate(self) -> None:
         verify_foundry_jury_owner_source(self.source_root)
         self.artifact.revalidate()
-        source = inspect.getsourcefile(self.backend_type)
-        expected = self.source_root / "src/dspy_lm_auth/codex_backend.py"
+        family = self.family
+        try:
+            source = inspect.getsourcefile(self.backend_type)
+        except (TypeError, OSError):
+            source = None
+        expected = (
+            self.source_root / "src" / (family.backend_module.replace(".", "/") + ".py")
+        )
+        contract = family.contract_module
         if (
-            self.backend_type.__module__ != "dspy_lm_auth.codex_backend"
-            or self.backend_type.__name__ != "CodexBackend"
+            self.backend_type.__module__ != family.backend_module
+            or self.backend_type.__name__ != family.backend_class
             or issubclass(self.backend_type, BaseLM)
+            or "dspy_lm_auth.lm" in sys.modules
             or source is None
             or Path(source).resolve(strict=True) != expected.resolve(strict=True)
-            or self.message_type.__module__ != "dspy_lm_auth.codex_backend_contract"
-            or self.message_type.__name__ != "CodexBackendMessage"
-            or self.request_type.__module__ != "dspy_lm_auth.codex_backend_contract"
-            or self.request_type.__name__ != "CodexBackendRequest"
-            or self.response_type.__module__ != "dspy_lm_auth.codex_backend_contract"
-            or self.response_type.__name__ != "CodexBackendResponse"
+            or self.message_type.__module__ != contract
+            or self.message_type.__name__ != family.message_class
+            or self.request_type.__module__ != contract
+            or self.request_type.__name__ != family.request_class
+            or self.response_type.__module__ != contract
+            or self.response_type.__name__ != family.response_class
         ):
             raise ProviderOutcomeConsumerError("loaded_owner_backend_type_drift")
 
 
-def verify_loaded_foundry_jury_owner(source_root: Path) -> VerifiedFoundryJuryOwner:
+def verify_loaded_foundry_jury_owner(
+    source_root: Path,
+    family: FoundryJuryProviderFamily = CODEX_FAMILY,
+) -> VerifiedFoundryJuryOwner:
     """Import only after the outer attempt marker and bind exact loaded owner types."""
 
     import importlib
@@ -223,16 +258,16 @@ def verify_loaded_foundry_jury_owner(source_root: Path) -> VerifiedFoundryJuryOw
     sys.path.insert(0, str(source_path))
     try:
         package = importlib.import_module("dspy_lm_auth")
-        backend_module = importlib.import_module("dspy_lm_auth.codex_backend")
+        backend_module = importlib.import_module(family.backend_module)
         receipt_module = importlib.import_module("dspy_lm_auth.outcome_receipt")
         if "dspy_lm_auth.lm" in sys.modules:
             raise ProviderOutcomeConsumerError("loaded_owner_legacy_lm_present")
         event_type = getattr(package, "OutcomeReceiptEvent", None)
         receipt_type = getattr(package, "ProviderOutcomeReceipt", None)
-        backend_type = getattr(package, "CodexBackend", None)
-        message_type = getattr(package, "CodexBackendMessage", None)
-        request_type = getattr(package, "CodexBackendRequest", None)
-        response_type = getattr(package, "CodexBackendResponse", None)
+        backend_type = getattr(package, family.backend_class, None)
+        message_type = getattr(package, family.message_class, None)
+        request_type = getattr(package, family.request_class, None)
+        response_type = getattr(package, family.response_class, None)
         owner_types = (
             event_type,
             receipt_type,
@@ -258,6 +293,7 @@ def verify_loaded_foundry_jury_owner(source_root: Path) -> VerifiedFoundryJuryOw
             backend_module=backend_module,
             receipt_module=receipt_module,
             source_root=root,
+            family=family,
         )
         owner.revalidate()
         return owner

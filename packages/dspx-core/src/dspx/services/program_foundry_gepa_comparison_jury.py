@@ -21,10 +21,6 @@ from dspx.services.program_foundry_gepa_proposal_io import (
     read_regular_bytes,
 )
 from dspx.services.program_foundry_io import foundry_lock
-from dspx.services.program_foundry_gepa_comparison_jury_provider import (
-    DEFAULT_CODEX_MODEL,
-    DEFAULT_REASONING_EFFORT,
-)
 from dspx.services.program_foundry_gepa_comparison_model_jury import (
     build_comparison_model_jury_result,
 )
@@ -37,11 +33,13 @@ from dspx.services.program_foundry_gepa_comparison_jury_runtime import (
     PROGRAM_FOUNDRY_GEPA_COMPARISON_JURY_SCHEMA,
     TASK_LOCAL_EXECUTION_REQUEST_KEYS,
     TASK_LOCAL_PROVIDER_NAME,
+    TASK_LOCAL_PROVIDER_NAMES,
     ProgramFoundryGepaComparisonJuryError,
     execution_request as _execution_request,
     make_task_local_runtime_binding,
     preflight_task_local_request,
     receipt_payload as _receipt_payload,
+    revalidate_execution_request,
     task_local_process_slot,
 )
 from dspx.services.program_model_jury_provider_runtime import (
@@ -392,69 +390,7 @@ def validate_successful_program_foundry_gepa_comparison_jury_receipt(
             raise ProgramFoundryGepaComparisonJuryError(
                 "comparison jury receipt execution_request is invalid"
             )
-        provider = raw_request.get("provider")
-        expected_keys = (
-            TASK_LOCAL_EXECUTION_REQUEST_KEYS
-            if provider == TASK_LOCAL_PROVIDER_NAME
-            else COMMON_EXECUTION_REQUEST_KEYS
-        )
-        adjudicator_id = raw_request.get("adjudicator_id")
-        adjudicator_kind = raw_request.get("adjudicator_kind")
-        adjudicator_repo = raw_request.get("adjudicator_repo")
-        max_jurors = raw_request.get("max_jurors")
-        owner_source_root = raw_request.get("owner_source_root")
-        execution_task_id = raw_request.get("execution_task_id")
-        execution_claimant = raw_request.get("execution_claimant")
-        codex_model = raw_request.get("codex_model", DEFAULT_CODEX_MODEL)
-        reasoning_effort = raw_request.get("reasoning_effort", DEFAULT_REASONING_EFFORT)
-        if (
-            set(raw_request) != expected_keys
-            or not isinstance(provider, str)
-            or not isinstance(adjudicator_id, str)
-            or not isinstance(adjudicator_kind, str)
-            or (adjudicator_repo is not None and not isinstance(adjudicator_repo, str))
-            or (
-                max_jurors is not None
-                and (isinstance(max_jurors, bool) or not isinstance(max_jurors, int))
-            )
-            or (
-                owner_source_root is not None and not isinstance(owner_source_root, str)
-            )
-            or (
-                execution_task_id is not None
-                and (
-                    isinstance(execution_task_id, bool)
-                    or not isinstance(execution_task_id, int)
-                )
-            )
-            or not isinstance(codex_model, str)
-            or (
-                execution_claimant is not None
-                and not isinstance(execution_claimant, str)
-            )
-            or not isinstance(reasoning_effort, str)
-        ):
-            raise ProgramFoundryGepaComparisonJuryError(
-                "comparison jury receipt execution_request types are invalid"
-            )
-        request = _execution_request(
-            provider=provider,
-            adjudicator_id=adjudicator_id,
-            adjudicator_kind=adjudicator_kind,
-            adjudicator_repo=adjudicator_repo,
-            max_jurors=max_jurors,
-            owner_source_root=(
-                Path(owner_source_root) if owner_source_root is not None else None
-            ),
-            execution_task_id=execution_task_id,
-            execution_claimant=execution_claimant,
-            codex_model=codex_model,
-            reasoning_effort=reasoning_effort,
-        )
-        if request != dict(raw_request):
-            raise ProgramFoundryGepaComparisonJuryError(
-                "comparison jury receipt execution_request is not normalized"
-            )
+        request = revalidate_execution_request(raw_request)
         paths = _paths(experiment_root)
         validated_receipt = _validate_existing_receipt(
             validated=validated,
@@ -528,8 +464,9 @@ def execute_program_foundry_gepa_comparison_jury(
     owner_source_root: Path | None = None,
     execution_task_id: int | None = None,
     execution_claimant: str | None = None,
-    codex_model: str = DEFAULT_CODEX_MODEL,
-    reasoning_effort: str = DEFAULT_REASONING_EFFORT,
+    codex_model: str | None = None,
+    reasoning_effort: str | None = None,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """Execute one program-specific jury against one receipt-bound comparison."""
 
@@ -546,6 +483,7 @@ def execute_program_foundry_gepa_comparison_jury(
         execution_claimant=execution_claimant,
         codex_model=codex_model,
         reasoning_effort=reasoning_effort,
+        model=model,
     )
     with (
         task_local_process_slot(request["provider"]),
@@ -677,3 +615,14 @@ def execute_program_foundry_gepa_comparison_jury(
             root_descriptor=root_descriptor,
         )
         return {**receipt, "reused": False}
+
+
+__all__ = [
+    "COMMON_EXECUTION_REQUEST_KEYS",
+    "TASK_LOCAL_EXECUTION_REQUEST_KEYS",
+    "TASK_LOCAL_PROVIDER_NAME",
+    "TASK_LOCAL_PROVIDER_NAMES",
+    "ProgramFoundryGepaComparisonJuryError",
+    "execute_program_foundry_gepa_comparison_jury",
+    "validate_successful_program_foundry_gepa_comparison_jury_receipt",
+]

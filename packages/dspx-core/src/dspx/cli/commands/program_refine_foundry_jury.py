@@ -56,15 +56,26 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
             "--execution-claimant",
             help="Exact AK claimed_by identity required for every task-local provider call",
         ),
-        codex_model: str = typer.Option(
-            "gpt-5.4",
-            "--codex-model",
-            help="Explicit reviewed Codex subscription model for the task-local provider",
+        model: str | None = typer.Option(
+            None,
+            "--model",
+            help=(
+                "Reviewed model for the task-local provider family "
+                "(Codex default gpt-5.4; GitHub Copilot default gemini-3.7-flash)"
+            ),
         ),
-        reasoning_effort: str = typer.Option(
-            "xhigh",
+        codex_model: str | None = typer.Option(
+            None,
+            "--codex-model",
+            help="Codex-family alias of --model (foundry-dspy-lm-auth-codex only)",
+        ),
+        reasoning_effort: str | None = typer.Option(
+            None,
             "--reasoning-effort",
-            help="Bounded Codex reasoning effort for the task-local provider",
+            help=(
+                "Bounded Codex reasoning effort (default xhigh); "
+                "not applicable to the GitHub Copilot family"
+            ),
         ),
         json_out: bool = typer.Option(False, "--json", help="Print jury receipt JSON"),
     ) -> None:
@@ -87,6 +98,7 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
                 execution_claimant=execution_claimant,
                 codex_model=codex_model,
                 reasoning_effort=reasoning_effort,
+                model=model,
             )
         except ProgramFoundryGepaComparisonJuryError as exc:
             typer.echo(f"Error: {exc}", err=True)
