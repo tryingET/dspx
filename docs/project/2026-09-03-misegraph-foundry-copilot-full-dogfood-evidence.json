@@ -1,0 +1,1779 @@
+{
+  "artifacts": {
+    "adjudication": {
+      "projection": {
+        "bindings": {
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "08e425e910cc0ce86f0db15a4e45d22bba186392f383030dd3dd0525309c75e4",
+          "comparison_jury_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-jury-receipt.json",
+          "comparison_jury_receipt_sha256": "2b76effd616fd7ea6372baa027cef5255bd7f99cc972fd96828945758afb6e6d",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "9c0b3bf4aa232749ad73faa17d70e05ddb242ced0befd10576c7ddc0ad0ae319",
+          "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/consumption-receipt.json",
+          "consumption_receipt_sha256": "6d4148c58ef2e0a5a5d614a7d868eb8e296aae25cd8db41838e3b79c105690e4",
+          "jury_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-jury-results.json",
+          "jury_results_sha256": "cc214687c52baaf252d7d69c2c753b591f390e3f2a4331941d986e8f3b512bd7",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "ab4a521d13c66a914c311deb518a70b8fa94cb4354af138aa27a604c48b6d8b8"
+        },
+        "disposition": "require_review",
+        "effect": {
+          "ak_called": false,
+          "bounded_local_disposition_recorded": true,
+          "candidate_files_mutated": false,
+          "comparison_mutated": false,
+          "external_authority_mutated": false,
+          "gepa_reexecuted": false,
+          "governance_mutated": false,
+          "models_rerun": false,
+          "production_activation_applied": false,
+          "winner_applied": false
+        },
+        "jury_snapshot": {
+          "aggregate": {
+            "blocking_concerns_present": true,
+            "judgment_counts": {
+              "failed": 0,
+              "reject": 0,
+              "request_more_evidence": 1,
+              "supports_review_evidence": 2,
+              "withhold": 0
+            },
+            "recommendation": "request_more_evidence",
+            "unique_improvement_requests": [
+              "Add test cases covering malformed or empty inputs to determine how the pipeline handles edge cases.",
+              "Expand the evaluation dataset with additional diverse input cases to further validate answer correctness across edge scenarios.",
+              "Expose and document explicit failure modes and error handling paths in runtime traces.",
+              "Provide broader test evaluation sets to verify instruction adherence across edge cases."
+            ]
+          },
+          "jury_status": "executed"
+        },
+        "local_candidate_state": "held_for_local_review",
+        "non_authority": {
+          "activation_authority": false,
+          "bounded_local_disposition_only": true,
+          "external_authority_apply": false,
+          "external_winner_selection": false,
+          "governance_authority": false,
+          "production_promotion_authority": false
+        },
+        "policy": {
+          "deterministic": true,
+          "id": "foundry-gepa-comparison-jury-disposition-v1",
+          "input_mode": "validated_comparison_jury_receipt_only",
+          "models_rerun": false,
+          "unknown_or_mixed_outcomes_fail_to_review": true
+        },
+        "proposal_id": "d5f82f888e3ee4edd6a2f0295745a2136b75079187c234d4a0d0d48fba9047a9",
+        "reason_codes": [
+          "jury_requests_more_evidence"
+        ],
+        "schema_version": "dspx-program-foundry-gepa-comparison-adjudication-v1",
+        "status": "recorded"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "079cb5ca80e563e6963ff22841f66da13d201fec542b7b9cd1854b622dba33e7",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-adjudication.json"
+    },
+    "candidate_comparison": {
+      "projection": {
+        "behavior_comparison": {
+          "candidate": {
+            "behavior_episode_present": true,
+            "behavior_evidence_kind": "behavior_results",
+            "behavior_evidence_present": true,
+            "behavior_results_present": true,
+            "behavior_status": "passed",
+            "example_count": 2,
+            "failure_signals": [],
+            "source_count": 1,
+            "status_counts": {
+              "passed": 2
+            }
+          },
+          "delta": {
+            "candidate_degraded_count": 0,
+            "candidate_error_count": 0,
+            "candidate_failed_count": 0,
+            "degraded_count_delta": 0,
+            "error_count_delta": 0,
+            "failed_count_delta": 0,
+            "failure_signals_added": [],
+            "failure_signals_persisted": [],
+            "failure_signals_removed": [],
+            "source_degraded_count": 0,
+            "source_error_count": 0,
+            "source_failed_count": 0,
+            "status_changed": false
+          },
+          "source": {
+            "behavior_episode_present": true,
+            "behavior_evidence_kind": "behavior_results",
+            "behavior_evidence_present": true,
+            "behavior_results_present": true,
+            "behavior_status": "passed",
+            "example_count": 2,
+            "failure_signals": [],
+            "source_count": 1,
+            "status_counts": {
+              "passed": 2
+            }
+          }
+        },
+        "candidate_identity": {
+          "assembly_id": "prog-asm-ac8f7adf784b",
+          "candidate_id": "prog-cand-2ee30e819ad0",
+          "episode_id": "prog-ep-1e563b7089cc",
+          "receipt_bundle_id": "prog-rb-17fb9005a425",
+          "request_id": "prog-req-8c77386e6a4f"
+        },
+        "created_from": {
+          "candidate_behavior_episode_hash": "d39e0f4f22740810d9c2f0a25c61c71c971dfb6c86e59caa51538c6e5e2f0e26",
+          "candidate_behavior_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/behavior_episode.json",
+          "candidate_behavior_results_hash": "24f49f1f31ced990c4c8b8d8de94a2a2bb8100e22ab376ff499adfadc0d98da7",
+          "candidate_behavior_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/behavior_results.json",
+          "candidate_manifest_hash": "08e425e910cc0ce86f0db15a4e45d22bba186392f383030dd3dd0525309c75e4",
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_schema_version": "program-candidate-assembly-v1",
+          "candidate_runtime_episode_hash": "83d0ac38ad47a07384c3928b3500b90c43816bff65ec4c2622b89b7f26eea991",
+          "candidate_runtime_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-runtime/runtime_episode.json",
+          "decision_record_path": null,
+          "refinement_proposal_path": null,
+          "source_behavior_episode_hash": "c7283000e526b97db44df691179c8a96ed546c985af99a0f059b941b6d270e5f",
+          "source_behavior_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/candidate/behavior_episode.json",
+          "source_behavior_results_hash": "5067f5608267d2df60c98efcb045e618f0f00d03bef26e75fe21d8acad09a156",
+          "source_behavior_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/candidate/behavior_results.json",
+          "source_manifest_hash": "ab4a521d13c66a914c311deb518a70b8fa94cb4354af138aa27a604c48b6d8b8",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/candidate/manifest.json",
+          "source_manifest_schema_version": "program-candidate-assembly-v1",
+          "source_runtime_episode_hash": "5e76b6453a55c9eda2fee4ff71d00d9e1ff6524052c03ceec8806605a4e9aae2",
+          "source_runtime_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/runtime/runtime_episode.json"
+        },
+        "effect": {
+          "candidate_program_files_mutated": false,
+          "external_authority_mutated": false,
+          "governance_mutated": false,
+          "local_comparison_only": true,
+          "new_candidate_generated": false,
+          "source_program_files_mutated": false
+        },
+        "interpretation": {
+          "evidence_basis": "generated_behavior",
+          "evidence_conflict": false,
+          "generated_evidence_compared": true,
+          "improvement_observed": false,
+          "limits": [
+            "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+            "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+            "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+            "This comparison is not a promotion, ranking, winner-selection, or approval decision."
+          ],
+          "needs_more_evidence": true,
+          "runtime_evidence_compared": true,
+          "summary": "The second candidate behavior status is unchanged on the available local evidence."
+        },
+        "lineage": {
+          "candidate_declares_refinement_lineage": false,
+          "decision_outcome": null,
+          "decision_record_input_present": false,
+          "proposal_input_present": false,
+          "refinement_proposal_id": null,
+          "source_identity_matches_candidate_lineage": null
+        },
+        "non_authority": {
+          "automatic_promotion": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "local_comparison_only": true,
+          "new_candidate_generation": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "program_mutation": false,
+          "winner_selection": false
+        },
+        "runtime_evidence_comparison": {
+          "candidate": {
+            "artifact_hashes": {
+              "behavior_results_hash": "7b51beb5fdc30f7417e34d04685adc8f20642857782ecaa77217c0f7819564c1",
+              "oracle_evidence_hash": "43147dc5a7c086735f2e77addb796aaffbdac702d11a2b0831822ea4b0232770",
+              "program_runtime_traces_hash": "c566fa075eee4ab9500e19f22fd9b16a9d7f9f2c60413bf25ac7edbbf70eeaee",
+              "runtime_inputs_hash": "3734fe49ffda9fb3f75891a7ffb8a89d17b167fa06643658561ef3863101b3c1"
+            },
+            "behavior_evidence_kind": "runtime_episode",
+            "behavior_evidence_present": true,
+            "behavior_status": "executed_quality_passed",
+            "contract_mode": "none",
+            "example_count": 1,
+            "failure_signals": [],
+            "runtime_episode_id": "prog-run-bf6a5ab881e8761f",
+            "runtime_evidence_present": true,
+            "runtime_status": "executed_quality_passed",
+            "status_counts": {
+              "executed_quality_passed": 1
+            }
+          },
+          "compared": true,
+          "delta": {
+            "candidate_degraded_count": 0,
+            "candidate_error_count": 0,
+            "candidate_failed_count": 0,
+            "degraded_count_delta": 0,
+            "error_count_delta": 0,
+            "failed_count_delta": 0,
+            "failure_signals_added": [],
+            "failure_signals_persisted": [],
+            "failure_signals_removed": [],
+            "source_degraded_count": 0,
+            "source_error_count": 0,
+            "source_failed_count": 0,
+            "status_changed": false
+          },
+          "interpretation": {
+            "improvement_observed": false,
+            "limits": [
+              "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+              "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+              "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+              "This comparison is not a promotion, ranking, winner-selection, or approval decision."
+            ],
+            "needs_more_evidence": true,
+            "summary": "The second candidate behavior status is unchanged on the available local evidence."
+          },
+          "limits": [
+            "Runtime episodes are already-produced local program-run evidence; comparison never reruns candidates.",
+            "Runtime success, trace coverage, or Oracle-readable evidence is not promotion, activation, ranking, or owner acceptance."
+          ],
+          "source": {
+            "artifact_hashes": {
+              "behavior_results_hash": "762d315f4c0fdfea124f4572f8b19a4f58591594877e29e106dccbc502211553",
+              "oracle_evidence_hash": "7fa13dd6695e99a9ca80e4c891572dae6ea0cec15a01ab12d612c89b516edb35",
+              "program_runtime_traces_hash": "ea8346338cafdae3f7f0d6f80c6a4accb041a5650ed6dd69b372516766f2a4a3",
+              "runtime_inputs_hash": "3734fe49ffda9fb3f75891a7ffb8a89d17b167fa06643658561ef3863101b3c1"
+            },
+            "behavior_evidence_kind": "runtime_episode",
+            "behavior_evidence_present": true,
+            "behavior_status": "executed_quality_passed",
+            "contract_mode": "none",
+            "example_count": 1,
+            "failure_signals": [],
+            "runtime_episode_id": "prog-run-5d104c828fddfd10",
+            "runtime_evidence_present": true,
+            "runtime_status": "executed_quality_passed",
+            "status_counts": {
+              "executed_quality_passed": 1
+            }
+          }
+        },
+        "schema_version": "program-refinement-candidate-comparison-v1",
+        "source_identity": {
+          "assembly_id": "prog-asm-f87bb7cbc2c4",
+          "candidate_id": "prog-cand-356a1e657e14",
+          "episode_id": "prog-ep-963b76c54977",
+          "receipt_bundle_id": "prog-rb-7cfc6e24f225",
+          "request_id": "prog-req-a2753d01e73b"
+        },
+        "status": "compared"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "9c0b3bf4aa232749ad73faa17d70e05ddb242ced0befd10576c7ddc0ad0ae319",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-comparison.json"
+    },
+    "consumption_receipt": {
+      "projection": {
+        "bindings": {
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "08e425e910cc0ce86f0db15a4e45d22bba186392f383030dd3dd0525309c75e4",
+          "candidate_result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-result.json",
+          "candidate_result_sha256": "12e7dee58f901902662828443126153beb6feaca44aff2810a47a3d7c78fc379",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "9c0b3bf4aa232749ad73faa17d70e05ddb242ced0befd10576c7ddc0ad0ae319",
+          "consumption_attempt_sha256": "2bee4ec4a69416b29e3b0712d5e8e7e6e825057d34ab079ad91cce18aeb15d6d",
+          "execution_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/execution-receipt.json",
+          "execution_receipt_sha256": "4e2ed24a064c0a6b1a297af749e75e3538003f9818362392c440255955d51e2d",
+          "gepa_result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/gepa-result.json",
+          "gepa_result_sha256": "47dd83c22261a620e25fcfe2bc9be66d7d05389a4aab8d32a4cf51c9c1eedd2a",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "ab4a521d13c66a914c311deb518a70b8fa94cb4354af138aa27a604c48b6d8b8",
+          "workflow_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialize-and-compare-result.json",
+          "workflow_sha256": "6e751fcce9f56867dc01e4b488165f37d0c53ab75e36b5c6a4a66b3f23678a1b"
+        },
+        "comparison_status": "compared",
+        "effect": {
+          "ak_called": false,
+          "external_authority_mutated": false,
+          "gepa_reexecuted": false,
+          "local_comparison_recorded": true,
+          "one_local_candidate_materialized": true,
+          "promotion_applied": false,
+          "winner_selected": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_candidate_and_comparison_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "d5f82f888e3ee4edd6a2f0295745a2136b75079187c234d4a0d0d48fba9047a9",
+        "schema_version": "dspx-program-foundry-gepa-consumption-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "6d4148c58ef2e0a5a5d614a7d868eb8e296aae25cd8db41838e3b79c105690e4",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/consumption-receipt.json"
+    },
+    "execution_receipt": {
+      "projection": {
+        "attempt_sha256": "e9c34654583f9cf6f39f482208102bb4f92fb3ff33e3ff28ef55bd5cf04b6255",
+        "effect": {
+          "ak_called": false,
+          "candidate_materialized": false,
+          "external_authority_mutated": false,
+          "gepa_invoked": true,
+          "promotion_applied": false,
+          "terminal_result_recorded": true,
+          "winner_selected": false
+        },
+        "gepa_status": "completed",
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_optimizer_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "optimizer_manifest_sha256": "54d02bad0254081961f68a3d222612312e6c5bf500ef867dc90fb919602b2ce6",
+        "optimizer_output_readiness": {
+          "blockers": [
+            "no_program_candidate_assembly_materializer_in_this_command",
+            "candidate_field_remains_null_until_explicit_materializer_lands"
+          ],
+          "ready_for_future_candidate_materializer": true,
+          "status": "optimizer_output_hash_bound_not_candidate"
+        },
+        "optimizer_tree_sha256": "4d5d97b9f9f9981568fada2a9c96adc797edd2afcd8a871560f9c3786f6489a9",
+        "proposal_id": "d5f82f888e3ee4edd6a2f0295745a2136b75079187c234d4a0d0d48fba9047a9",
+        "proposal_sha256": "6dec5aa564acfed4d71acd5670424bbe3e18698bd67c1a421a37e4087b745b35",
+        "result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/gepa-result.json",
+        "result_sha256": "47dd83c22261a620e25fcfe2bc9be66d7d05389a4aab8d32a4cf51c9c1eedd2a",
+        "schema_version": "dspx-program-foundry-gepa-execution-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "4e2ed24a064c0a6b1a297af749e75e3538003f9818362392c440255955d51e2d",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/execution-receipt.json"
+    },
+    "jury_attempt": {
+      "projection": {
+        "attempt_id": "bef9f201e674be184e43d861be9c30f3fa31853e40af3e4ba36cb611f8944598",
+        "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/consumption-receipt.json",
+        "consumption_receipt_sha256": "6d4148c58ef2e0a5a5d614a7d868eb8e296aae25cd8db41838e3b79c105690e4",
+        "effect_disposition": "indeterminate_until_comparison_jury_receipt",
+        "execution_request": {
+          "adjudicator_id": "local_foundry_adjudicator",
+          "adjudicator_kind": "local_foundry_adjudicator",
+          "adjudicator_repo": null,
+          "execution_claimant": "claude-code:508c6e1b",
+          "execution_task_id": 5346,
+          "max_jurors": null,
+          "model": "gemini-3.7-flash",
+          "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-I1M2/dspy-lm-auth",
+          "provider": "foundry-dspy-lm-auth-github-copilot"
+        },
+        "jury_input_snapshots": [
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-comparison.json",
+            "sha256": "9c0b3bf4aa232749ad73faa17d70e05ddb242ced0befd10576c7ddc0ad0ae319"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/jury.json",
+            "sha256": "ec9abb41495188d8a8d3b1bbcc810975c9924cffc91a2755411ad02b74b4eb78"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/jury_rubric.json",
+            "sha256": "ae0fae8981379fa8dfb9d3456b1f84111b0967b548b8a9acc25074f0a06f8178"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/jury_selection.json",
+            "sha256": "fabb07852cdf12e6cf74a398ed50f0b468f473364b76ebc4fb9070b620a874b6"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/manifest.json",
+            "sha256": "08e425e910cc0ce86f0db15a4e45d22bba186392f383030dd3dd0525309c75e4"
+          }
+        ],
+        "no_replay_after_marker": true,
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "d5f82f888e3ee4edd6a2f0295745a2136b75079187c234d4a0d0d48fba9047a9",
+        "schema_version": "dspx-program-foundry-gepa-comparison-jury-attempt-v1",
+        "status": "provider_effect_possible"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-jury-attempt.json"
+    },
+    "jury_receipt": {
+      "projection": {
+        "aggregate": {
+          "blocking_concerns_present": true,
+          "judgment_counts": {
+            "failed": 0,
+            "reject": 0,
+            "request_more_evidence": 1,
+            "supports_review_evidence": 2,
+            "withhold": 0
+          },
+          "recommendation": "request_more_evidence",
+          "unique_improvement_requests": [
+            "Add test cases covering malformed or empty inputs to determine how the pipeline handles edge cases.",
+            "Expand the evaluation dataset with additional diverse input cases to further validate answer correctness across edge scenarios.",
+            "Expose and document explicit failure modes and error handling paths in runtime traces.",
+            "Provide broader test evaluation sets to verify instruction adherence across edge cases."
+          ]
+        },
+        "bindings": {
+          "attempt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-jury-attempt.json",
+          "attempt_sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "08e425e910cc0ce86f0db15a4e45d22bba186392f383030dd3dd0525309c75e4",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "9c0b3bf4aa232749ad73faa17d70e05ddb242ced0befd10576c7ddc0ad0ae319",
+          "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/consumption-receipt.json",
+          "consumption_receipt_sha256": "6d4148c58ef2e0a5a5d614a7d868eb8e296aae25cd8db41838e3b79c105690e4",
+          "execution_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/execution-receipt.json",
+          "execution_receipt_sha256": "4e2ed24a064c0a6b1a297af749e75e3538003f9818362392c440255955d51e2d",
+          "jury_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-jury-results.json",
+          "jury_results_sha256": "cc214687c52baaf252d7d69c2c753b591f390e3f2a4331941d986e8f3b512bd7",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "ab4a521d13c66a914c311deb518a70b8fa94cb4354af138aa27a604c48b6d8b8"
+        },
+        "effect": {
+          "activation_applied": false,
+          "ak_called": true,
+          "ak_mutated": false,
+          "candidate_mutated": false,
+          "comparison_mutated": false,
+          "external_authority_mutated": false,
+          "program_specific_jury_executed": true,
+          "promotion_applied": false,
+          "provider_calls_may_have_occurred": true,
+          "winner_selected": false
+        },
+        "execution_request": {
+          "adjudicator_id": "local_foundry_adjudicator",
+          "adjudicator_kind": "local_foundry_adjudicator",
+          "adjudicator_repo": null,
+          "execution_claimant": "claude-code:508c6e1b",
+          "execution_task_id": 5346,
+          "max_jurors": null,
+          "model": "gemini-3.7-flash",
+          "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-I1M2/dspy-lm-auth",
+          "provider": "foundry-dspy-lm-auth-github-copilot"
+        },
+        "jury_status": "executed",
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_jury_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "d5f82f888e3ee4edd6a2f0295745a2136b75079187c234d4a0d0d48fba9047a9",
+        "schema_version": "dspx-program-foundry-gepa-comparison-jury-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "2b76effd616fd7ea6372baa027cef5255bd7f99cc972fd96828945758afb6e6d",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-jury-receipt.json"
+    },
+    "jury_results": {
+      "projection": {
+        "adjudicator": {
+          "authority": "downstream_domain_review_recommendation_only",
+          "id": "local_foundry_adjudicator",
+          "kind": "local_foundry_adjudicator",
+          "promotion_authority": false,
+          "repo": null
+        },
+        "aggregate": {
+          "blocking_concerns_present": true,
+          "judgment_counts": {
+            "failed": 0,
+            "reject": 0,
+            "request_more_evidence": 1,
+            "supports_review_evidence": 2,
+            "withhold": 0
+          },
+          "recommendation": "request_more_evidence",
+          "unique_improvement_requests": [
+            "Add test cases covering malformed or empty inputs to determine how the pipeline handles edge cases.",
+            "Expand the evaluation dataset with additional diverse input cases to further validate answer correctness across edge scenarios.",
+            "Expose and document explicit failure modes and error handling paths in runtime traces.",
+            "Provide broader test evaluation sets to verify instruction adherence across edge cases."
+          ]
+        },
+        "created_from": {
+          "evidence_paths": [
+            "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-comparison.json"
+          ],
+          "jury_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/jury.json",
+          "jury_rubric_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/jury_rubric.json",
+          "jury_rubric_sha256": "ae0fae8981379fa8dfb9d3456b1f84111b0967b548b8a9acc25074f0a06f8178",
+          "jury_selection_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/jury_selection.json",
+          "jury_selection_sha256": "fabb07852cdf12e6cf74a398ed50f0b468f473364b76ebc4fb9070b620a874b6",
+          "jury_sha256": "ec9abb41495188d8a8d3b1bbcc810975c9924cffc91a2755411ad02b74b4eb78",
+          "manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "manifest_schema_version": "program-candidate-assembly-v1",
+          "manifest_sha256": "08e425e910cc0ce86f0db15a4e45d22bba186392f383030dd3dd0525309c75e4"
+        },
+        "effect": {
+          "ak_mutated": false,
+          "external_authority_mutated": false,
+          "governance_mutated": false,
+          "model_jury_evidence_only": true,
+          "new_candidate_generated": false,
+          "oracle_index_mutated": false,
+          "program_files_mutated": false,
+          "promotion_review_mutated": false
+        },
+        "evidence": {
+          "default_behavior": {
+            "entry_count": 0,
+            "kinds": [],
+            "present": false
+          },
+          "entries": [
+            {
+              "kind": "explicit_evidence",
+              "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/candidate-comparison.json",
+              "schema_version": "program-refinement-candidate-comparison-v1",
+              "sha256": "9c0b3bf4aa232749ad73faa17d70e05ddb242ced0befd10576c7ddc0ad0ae319",
+              "summary": null
+            }
+          ],
+          "entry_count": 1,
+          "extra_evidence_count": 1,
+          "prompt_sha256": "3115227a773e2bd26b3d10d7aa151e12c49ea1d3682a32e300bb3a824b040eef"
+        },
+        "identity": {
+          "assembly_id": "prog-asm-ac8f7adf784b",
+          "candidate_id": "prog-cand-2ee30e819ad0",
+          "episode_id": "prog-ep-1e563b7089cc",
+          "receipt_bundle_id": "prog-rb-17fb9005a425",
+          "request_id": "prog-req-8c77386e6a4f"
+        },
+        "interpretation": {
+          "limits": [
+            "This command calls provider-backed juror models but does not mutate generated program outputs.",
+            "It does not improve files in place; improvement_requests are explicit follow-up evidence.",
+            "It does not promote, activate, rank winners, export authority, mutate AK, or mutate governance."
+          ],
+          "next_step": "Route aggregate critique to the declared target-repo adjudicator or run an explicit refinement pass.",
+          "ready_for_promotion_decision": false,
+          "summary": "Model-backed jury results are review evidence only and may request extraction refinement."
+        },
+        "juror_results": [
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "The evaluation suite is bounded to a small sample size (2 examples), limiting broad adversarial robustness verification."
+              ],
+              "confidence": "high",
+              "evidence_strengths": [
+                "Behavior episode results indicate 100% pass rate (2/2 passed) with no failure signals.",
+                "Runtime episode status achieved executed_quality_passed with valid trace capture.",
+                "Execution episode and generated module policy both verified as passed."
+              ],
+              "improvement_requests": [
+                "Expand the evaluation dataset with additional diverse input cases to further validate answer correctness across edge scenarios."
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "The candidate assembly demonstrates correct behavior across the evaluated suite, passing all 2 behavior test examples with zero errors, degradations, or failure signals. Runtime traces and execution episodes confirm objective satisfaction and schema compliance."
+            },
+            "juror_id": "inferred_correctness",
+            "model": "gemini-3.7-flash",
+            "perspective": "correctness",
+            "provider": "foundry-dspy-lm-auth-github-copilot",
+            "status": "judged"
+          },
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "The evaluation suite is limited to only 2 nominal examples, leaving boundary conditions and edge cases untested.",
+                "Candidate comparison notes that needs_more_evidence is true and no improvement or failure modes were exercised."
+              ],
+              "confidence": "medium",
+              "evidence_strengths": [
+                "Behavioral test suite passed 2 of 2 evaluations cleanly with no reported degraded states or errors.",
+                "Runtime episode traces were captured and executed with quality checks passing."
+              ],
+              "improvement_requests": [
+                "Add test cases covering malformed or empty inputs to determine how the pipeline handles edge cases.",
+                "Expose and document explicit failure modes and error handling paths in runtime traces."
+              ],
+              "outcome": "request_more_evidence",
+              "rationale": "The candidate passes the nominal behavioral and runtime checks on two test examples with zero errors. However, from a robustness perspective, there is insufficient evidence demonstrating resilience against edge cases, malformed inputs, or failure visibility under adverse conditions."
+            },
+            "juror_id": "inferred_robustness",
+            "model": "gemini-3.7-flash",
+            "perspective": "robustness",
+            "provider": "foundry-dspy-lm-auth-github-copilot",
+            "status": "judged"
+          },
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "Candidate comparison notes no observable performance improvement delta relative to the source candidate.",
+                "Candidate comparison flags needs_more_evidence regarding potential optimization gains."
+              ],
+              "confidence": "high",
+              "evidence_strengths": [
+                "Behavior results show 2 of 2 tests passed with zero failed, degraded, or error states.",
+                "Artifact assembly defines complete schemas for signatures, modules, runtime traces, and evaluation harnesses.",
+                "Runtime episode executed cleanly with status executed_quality_passed and no recorded failure signals."
+              ],
+              "improvement_requests": [
+                "Provide broader test evaluation sets to verify instruction adherence across edge cases."
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "The candidate assembly satisfies structural field contracts and demonstrates adherence to behavioral requirements, successfully passing all executed behavior tests and runtime quality checks without degradation or errors."
+            },
+            "juror_id": "inferred_instruction_following",
+            "model": "gemini-3.7-flash",
+            "perspective": "instruction_following",
+            "provider": "foundry-dspy-lm-auth-github-copilot",
+            "status": "judged"
+          }
+        ],
+        "jury": {
+          "execution_mode": "provider_backed_model",
+          "planned_jury_schema_version": "program-jury-v1",
+          "provider_backed_model_calls": true,
+          "provider_config": {
+            "auth_provider": "github-copilot",
+            "cache": false,
+            "credential_mode": "no-refresh",
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "execution_claimant": "claude-code:508c6e1b",
+            "execution_task_id": 5346,
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "model": "gemini-3.7-flash",
+            "num_retries": 0,
+            "owner_commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+            "owner_tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+            "owner_version": "0.1.6.dev0",
+            "provider": "foundry-dspy-lm-auth-github-copilot",
+            "reasoning_effort": null,
+            "requested_route": "dspy-lm-auth:github-copilot:gemini-3.7-flash",
+            "resolved_route": "openai:gemini-3.7-flash:chat",
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3",
+            "status": "configured",
+            "sync_only": true,
+            "timeout_seconds": 60.0
+          },
+          "provider_outcome_evidence": {
+            "artifact_verification": "accepted_exact",
+            "call_records": [
+              {
+                "call_ordinal": 1,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "16b5a9878bcb66b0405a355a4eab2ec50c7cc4f19eb8b1a134a711e7cba2ad1a",
+                "juror_id": "inferred_correctness",
+                "observed_model": "gemini-3.7-flash",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+                "semantic_request_sha256": "89b4d296ff68dc0289ab6849bbf8e288a0da3736f1a99ede491a0705cfe71aea",
+                "status_class": 2,
+                "status_code": 200
+              },
+              {
+                "call_ordinal": 2,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "90eca48de08ff8293de3a896de92be777dfc5607a4b25f1bda8083b9bddfef1e",
+                "juror_id": "inferred_robustness",
+                "observed_model": "gemini-3.7-flash",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+                "semantic_request_sha256": "e158469ce1d3a6ab4be3aedd3dcdcaaf0c6482ee55b69b6a26bc409fbcb79465",
+                "status_class": 2,
+                "status_code": 200
+              },
+              {
+                "call_ordinal": 3,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "049fa2cda644d5829bf451eb34cc6651bed15a76625d806f2df95535df21d987",
+                "juror_id": "inferred_instruction_following",
+                "observed_model": "gemini-3.7-flash",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+                "semantic_request_sha256": "577e97c97ad27317e2044d8c56682d11d5b132c3f92ce12ad1a58640d2049123",
+                "status_class": 2,
+                "status_code": 200
+              }
+            ],
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "logical_call_total": 3,
+            "maximum_logical_calls": 3,
+            "maximum_provider_transports": 3,
+            "retry_count": 0,
+            "schema_version": "dspx-foundry-jury-provider-outcome-evidence-v1",
+            "session_disposition": "complete",
+            "stop_reason": null,
+            "stopped_after_call": null,
+            "sync_only": true
+          },
+          "rubric_schema_version": "program-jury-rubric-v1",
+          "selected_juror_count": 3,
+          "selected_perspectives": [
+            "correctness",
+            "robustness",
+            "instruction_following"
+          ],
+          "selection_schema_version": "program-jury-selection-v1"
+        },
+        "non_authority": {
+          "canonical_mutation": false,
+          "domain_acceptance": false,
+          "external_authority_apply": false,
+          "promotion_approval": false,
+          "ranking_or_winner_selection": false
+        },
+        "schema_version": "program-model-jury-results-v1",
+        "status": "executed"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "cc214687c52baaf252d7d69c2c753b591f390e3f2a4331941d986e8f3b512bd7",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/comparison-jury-results.json"
+    }
+  },
+  "custody": {
+    "ak_evidence": {
+      "evidence_field_correction": 8247,
+      "live_foundry_jury": 8246,
+      "note": "evidence 8247 corrects the dspx_commit field of evidence 8246 to the value recorded here"
+    },
+    "all_bound_json_artifacts_embedded": true,
+    "bound_manifests": {
+      "materialized_candidate_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/materialized-candidate/manifest.json",
+        "sha256": "08e425e910cc0ce86f0db15a4e45d22bba186392f383030dd3dd0525309c75e4"
+      },
+      "source_candidate_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/candidate/manifest.json",
+        "sha256": "ab4a521d13c66a914c311deb518a70b8fa94cb4354af138aa27a604c48b6d8b8"
+      }
+    },
+    "cli_outputs": {
+      "adjudicate_foundry_gepa_comparison": {
+        "path": "/home/tryinget/.claude/jobs/508c6e1b/tmp/adjudication-copilot.json",
+        "sha256": "05522ef7be515d4026ea29d037843e0da0714c9f15ab27f8d9e842eaa45f1f07"
+      },
+      "jury_foundry_gepa_comparison": {
+        "path": "/home/tryinget/.claude/jobs/508c6e1b/tmp/jury-copilot.json",
+        "sha256": "53566d4fee7be5e30db7129db230e911e1f80f78fd3bf72fc224aab49947819f"
+      }
+    },
+    "contains_bounded_judgment_outputs": true,
+    "contains_credentials": false,
+    "contains_headers": false,
+    "contains_raw_provider_responses": false,
+    "dspx_commit": "18db08c691db0e4a518d8d895d571eaafb5e6f70",
+    "execution_claimant": "claude-code:508c6e1b",
+    "lineage_construction": {
+      "command_log": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/commands-run.txt",
+        "sha256": "5799bbdeaf9c40c82c9e1bee813dae5dcca3995b2bf78cb7d27853abd6b9e133"
+      },
+      "command_log_note": "commands-run.txt ends before the operator-run consume step and the live jury; those two commands are recorded by the consume-output and CLI output bindings above",
+      "consume_step": {
+        "consume_output": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/consume-output.json",
+          "sha256": "687f1b2461b2d66e0993a9eec571a0e029aeb459907811118e9c3b16a1da24ee"
+        },
+        "gepa_pickle_optin": "DSPX_ALLOW_UNSAFE_GEPA_PICKLE_SHA256 bound to this run's optimizer_manifest_sha256",
+        "operator_run": true,
+        "optimizer_manifest_sha256": "54d02bad0254081961f68a3d222612312e6c5bf500ef867dc90fb919602b2ce6"
+      },
+      "input_pins": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/input-sha256.txt",
+        "sha256": "3bad2c4580f5dc66afdb0dce7edb3fd4910feb32e151fa402a996ca07b1265c8"
+      },
+      "intent": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/intent.json",
+        "sha256": "0253a79ca002176191ccbd17cc26265026846b87574b53bc373bdc8f7f50a5c2"
+      },
+      "mode": "offline_pre_jury_lineage",
+      "network_used_before_jury": false,
+      "oracle_semantic_backend": "fixture-replay",
+      "oracle_semantic_fixture": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/oracle-semantic-fixture.json",
+        "sha256": "7c85d167035eb60a6bccba6d62233feb405807acc769614f82013e87b4628cb0"
+      },
+      "oracle_semantic_fixture_note": "per-run authored fixture entry keyed e04d296f11e710045718b8c98d13fea29df0e71d96013b9f0c7a3c4bec87a528 (copy of the reference entry with request_sha256 re-keyed; analysis text unchanged); pre-authoring reference-copy sha256 c8bbdf9e380e218f034e07502e4f661c5fbea457d07e436efbbc77d0833a51f7",
+      "program_provider": "stub",
+      "replay_fixture_env": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/replay-fixture.env.json",
+        "sha256": "9258f6964c7497668d403f72a6800ca3374f82e393c3c2100b84a16fd5a41908"
+      },
+      "replay_fixture_env_note": "DSPX_REPLAY_FIXTURE_JSON derived from intent.json (reasoning = objective, answer = examples[*].outputs.answer)",
+      "superseded_attempts_retained_under": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/superseded-attempts",
+      "trusted_program_roots": "DSPX_TRUSTED_PROGRAM_ROOTS bound to the lineage root"
+    },
+    "live_jury": {
+      "artifact_verification": "accepted_exact",
+      "no_replay_after_marker": true,
+      "observed_models": [
+        "gemini-3.7-flash"
+      ],
+      "producer_terminals": [
+        "provider_response_completed"
+      ],
+      "provider_calls": 3,
+      "replay": false,
+      "session_disposition": "complete"
+    },
+    "owner_commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+    "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-I1M2/dspy-lm-auth",
+    "owner_source_root_record": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/exact-owner-source-root.txt",
+      "sha256": "75e0d16d0c416d211b7247aa57effaf89ac82135fc671f8e2d82bf6bd127ab55"
+    },
+    "owner_tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+    "projection_is_self_contained": true,
+    "source_kind": "operator_owned_session_scratch",
+    "source_root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O"
+  },
+  "dogfood_subject": "misegraph/espresso-brownies",
+  "evidence_kind": "durable_secret_free_live_projection",
+  "execution_task_id": 5346,
+  "execution_task_status": "done",
+  "misegraph_source": {
+    "canonical": {
+      "path": "/home/tryinget/ai-society/softwareco/owned/misegraph/tests/conformance/v1/valid/espresso-brownies/canonical.json",
+      "sha256": "068e4890ab5b278cecc3e27998ddf508c12b5b1b4c801ff704879c4915b75210"
+    },
+    "render": {
+      "path": "/home/tryinget/ai-society/softwareco/owned/misegraph/tests/conformance/v1/valid/espresso-brownies/artifacts/recipe.txt",
+      "sha256": "e0b343d04b2d5d3988a72574ca2532dcd2905016762da896c36e95cbbdb5de9b"
+    },
+    "source": {
+      "path": "/home/tryinget/ai-society/softwareco/owned/misegraph/examples/espresso-brownies.mise",
+      "sha256": "b3d210c1e1acc1778f67a2c42f3a76b66f19a4ac864bdbb0331bc23d2b6b6cef"
+    }
+  },
+  "non_authority": {
+    "activation_authority": false,
+    "external_authority": false,
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "outcome": {
+    "adjudication_disposition": "require_review",
+    "adjudication_local_candidate_state": "held_for_local_review",
+    "adjudication_status": "recorded",
+    "judgment_counts": {
+      "failed": 0,
+      "reject": 0,
+      "request_more_evidence": 1,
+      "supports_review_evidence": 2,
+      "withhold": 0
+    },
+    "juror_outcomes": {
+      "inferred_correctness": {
+        "confidence": "high",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      },
+      "inferred_instruction_following": {
+        "confidence": "high",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      },
+      "inferred_robustness": {
+        "confidence": "medium",
+        "outcome": "request_more_evidence",
+        "status": "judged"
+      }
+    },
+    "jury_recommendation": "request_more_evidence",
+    "jury_status": "executed"
+  },
+  "provider_journals": [
+    {
+      "directory_name": "01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "560ffa067178b65012899168e0b083d2c73a1f743b8dadb2fb6c0c5264cfd2b6",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "560ffa067178b65012899168e0b083d2c73a1f743b8dadb2fb6c0c5264cfd2b6",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "7feb8b81fe846561958d86515826ac37c8fa88e6d8f7046cd3de7c6e3365d3a0",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "7feb8b81fe846561958d86515826ac37c8fa88e6d8f7046cd3de7c6e3365d3a0",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "0f32c0e5a315eb9e1564bd7c7a89d90feac2b0c6f98e4f37a41a94b0eecdc3ec",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "0f32c0e5a315eb9e1564bd7c7a89d90feac2b0c6f98e4f37a41a94b0eecdc3ec",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "d8d8017bee9dc79e82823b56fe79b39499d491b377f907af65dea35b17ff9cda",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "d8d8017bee9dc79e82823b56fe79b39499d491b377f907af65dea35b17ff9cda",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "b5b9157771af9aee42a0ee5474b8980682b5ea7c1a821c82e7964b7e8c72eb1d",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "c8a815f82b3a0d12a5d2ccc6201c84a81324eb66a0b886ab767edfb62e859df7",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "b5b9157771af9aee42a0ee5474b8980682b5ea7c1a821c82e7964b7e8c72eb1d",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "87b8bcacf68c1ba3f66cdf2709ff0fb7ca8b2fa5ebaa14d9f15a6b3e3e932c28",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "gemini-3.7-flash",
+              "protocol_event": null,
+              "response_id_sha256": "c8a815f82b3a0d12a5d2ccc6201c84a81324eb66a0b886ab767edfb62e859df7",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "87b8bcacf68c1ba3f66cdf2709ff0fb7ca8b2fa5ebaa14d9f15a6b3e3e932c28",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "94a220f3ccc123ec9473df945c1be58f7c24626f35feee8b56ac344ee53867b0",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-1",
+            "consumer_task_id": 5346,
+            "contract_sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "492c0bc03782d6829c9555ed9da0d359510619c2beb561c89505495cb241871d",
+            "ledger_sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+            "logical_request_id": "2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149",
+            "mode": "sync",
+            "process_id": "845c2fcf7dba605f1d3cbe99ff26f561428a21feca762df7499e4374edf2aa3b",
+            "requested_route": "dspy-lm-auth:github-copilot:gemini-3.7-flash",
+            "resolved_route": "openai:gemini-3.7-flash:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "89b4d296ff68dc0289ab6849bbf8e288a0da3736f1a99ede491a0705cfe71aea",
+            "source_identity": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "lock_sha256": "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "transport_gate_id": "ef6540c6ef3226b66710b8c371fc13406b1d2c9528d2a563aaf3c0a59a1c11b9"
+          },
+          "reservation_id": "b35231e342bfb9690c2bb90a9125b5bf36187d1a262ccabe985e8e1995431412",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "8db26e44eb144d70e2a34815f5cbd457d75b133d09e4b3a8f605c1519204995e",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/01-2721d16e35f71ad1c799f82983652c72fb599999e7d3d2566d6c14d188742149/reservation.json"
+      }
+    },
+    {
+      "directory_name": "02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "71c1033cbd11c2875bfa3da02bed5a7cc64f1b7552d7a3f5833fd2dac7994d11",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "71c1033cbd11c2875bfa3da02bed5a7cc64f1b7552d7a3f5833fd2dac7994d11",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "a027f570cfc50776af16c1a58d0c61eb2aec1b7e923a3ff3c6be8ad5a502b5c5",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "a027f570cfc50776af16c1a58d0c61eb2aec1b7e923a3ff3c6be8ad5a502b5c5",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "efc3ca1a41c58c037481c008e9da2c0a1472007fb5cc0b8477f68055db3438e6",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "efc3ca1a41c58c037481c008e9da2c0a1472007fb5cc0b8477f68055db3438e6",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "70eb30e2df45e4d59373362df609858557af05421d9b92383c2e208819c02d16",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "70eb30e2df45e4d59373362df609858557af05421d9b92383c2e208819c02d16",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "72800fac0b8efdce5d63b1cbe057ea0e32ddc89fe18c9da4b92cf47245a7442f",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "6356209d82faee271dc5449d1bab31452b7dda849ac17b296c47b7c7e680cb4d",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "72800fac0b8efdce5d63b1cbe057ea0e32ddc89fe18c9da4b92cf47245a7442f",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "c7d58f8e80a85794f5fc0d34ca3d5959dd9f0bf1c6b4ef849f9c6d2d95b22cbd",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "gemini-3.7-flash",
+              "protocol_event": null,
+              "response_id_sha256": "6356209d82faee271dc5449d1bab31452b7dda849ac17b296c47b7c7e680cb4d",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "c7d58f8e80a85794f5fc0d34ca3d5959dd9f0bf1c6b4ef849f9c6d2d95b22cbd",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "eee000bf732f4e9b1fd5dad7e923b5fd3892ff49a5e63f5905d241a3174d3578",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-2",
+            "consumer_task_id": 5346,
+            "contract_sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "492c0bc03782d6829c9555ed9da0d359510619c2beb561c89505495cb241871d",
+            "ledger_sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+            "logical_request_id": "2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d",
+            "mode": "sync",
+            "process_id": "845c2fcf7dba605f1d3cbe99ff26f561428a21feca762df7499e4374edf2aa3b",
+            "requested_route": "dspy-lm-auth:github-copilot:gemini-3.7-flash",
+            "resolved_route": "openai:gemini-3.7-flash:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "e158469ce1d3a6ab4be3aedd3dcdcaaf0c6482ee55b69b6a26bc409fbcb79465",
+            "source_identity": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "lock_sha256": "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "transport_gate_id": "86aba7428b83eabe86ba8c7af95f335e4623fe135b76cee78b74563fc01b7e99"
+          },
+          "reservation_id": "78bee8cb62a191bf2f15fc7349b7c28d6852964793f15c67357d3555ad109950",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "0e40e2a829b8e97907d13c4d3aac61305a4b25be3c9c0c8fd553029e9910aa2b",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/02-2bf2bfdebc27b53eb932c9fe5fbf50f33125d64dbb7d00c74d7f1d0422771b1d/reservation.json"
+      }
+    },
+    {
+      "directory_name": "03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "ac342731ac22df09f29be246498f67094259deb1d4f664942fd2e96fb1fbaecc",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "ac342731ac22df09f29be246498f67094259deb1d4f664942fd2e96fb1fbaecc",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "db865ee21e9ebb91a4f3916aba387a674dc594ac69582ba4400ec7b10548ab37",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "db865ee21e9ebb91a4f3916aba387a674dc594ac69582ba4400ec7b10548ab37",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "047d55f3fefb8764a523a4ded20a448828a0822136dc182610a139d41aa06b49",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "047d55f3fefb8764a523a4ded20a448828a0822136dc182610a139d41aa06b49",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "948779c4f9b2ee5324b3451e4a330040db6e7f0ef18fb799979b105dc332d460",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "948779c4f9b2ee5324b3451e4a330040db6e7f0ef18fb799979b105dc332d460",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "c486c0ff69e7675986edb920fb0b89cec6893f2e439ab6c9ced375e5ba84c096",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "806f6c0ee1d80fd721dfbdda3b3f793a08e30f9f5c4c804815480d2215357e57",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "c486c0ff69e7675986edb920fb0b89cec6893f2e439ab6c9ced375e5ba84c096",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "edc41ca5fded9d3037e0ea339e498d8d65a5bd9ef7ebbc28db740fcb2e491ab0",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "gemini-3.7-flash",
+              "protocol_event": null,
+              "response_id_sha256": "806f6c0ee1d80fd721dfbdda3b3f793a08e30f9f5c4c804815480d2215357e57",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "edc41ca5fded9d3037e0ea339e498d8d65a5bd9ef7ebbc28db740fcb2e491ab0",
+            "producer": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "5c73f459433dd8fba7ff892de13ca5b3602d8319a4ef97714927b5c72aba3cb3"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "a973824122e6693ba27755db55478ea54360295fb5235b14a9a118e1b99a177b",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-3",
+            "consumer_task_id": 5346,
+            "contract_sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "492c0bc03782d6829c9555ed9da0d359510619c2beb561c89505495cb241871d",
+            "ledger_sha256": "5a517c4860d71306a0e5159d58fb6c2df303ad7155ed8fb8bd52eb1e05976b84",
+            "logical_request_id": "b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134",
+            "mode": "sync",
+            "process_id": "845c2fcf7dba605f1d3cbe99ff26f561428a21feca762df7499e4374edf2aa3b",
+            "requested_route": "dspy-lm-auth:github-copilot:gemini-3.7-flash",
+            "resolved_route": "openai:gemini-3.7-flash:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "577e97c97ad27317e2044d8c56682d11d5b132c3f92ce12ad1a58640d2049123",
+            "source_identity": {
+              "commit": "777388ad9c692b0657e6b6e1d4820b15fcb6641d",
+              "lock_sha256": "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "a564fb0314292c739bebcd4b9362e5b3315974a9",
+              "version": "0.1.6.dev0"
+            },
+            "transport_gate_id": "ea96594454ca4917a8008884f65d299bda21c970906b74eaf2e8d149162fcf7b"
+          },
+          "reservation_id": "a1f5989b420bd71bebee9c1740fd867f5afa4a1cb5ee41cb94700f8a6f09f8a3",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "9493e5042ad979cc2f2e7ea31d912f5cd32e6045dc1dce2210783d9d8a54478c",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-copilot-5346.DVXv7O/foundry/gepa-experiment/provider-outcomes/03-b9e2759900fbd54a40a16981b576dd2d99b3ebd142303507aaf3f80007c35134/reservation.json"
+      }
+    }
+  ],
+  "request": {
+    "fallback_allowed": false,
+    "model": "gemini-3.7-flash",
+    "provider": "foundry-dspy-lm-auth-github-copilot",
+    "reasoning_effort": null,
+    "requested_route": "dspy-lm-auth:github-copilot:gemini-3.7-flash",
+    "resolved_route": "openai:gemini-3.7-flash:chat",
+    "response_format": "text",
+    "retry_count": 0,
+    "selected_juror_count": 3
+  },
+  "schema_version": "dspx-misegraph-foundry-full-dogfood-evidence-v2"
+}
