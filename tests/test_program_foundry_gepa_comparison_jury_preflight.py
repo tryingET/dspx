@@ -271,7 +271,9 @@ def test_preflight_lease_margin_scales_with_selected_jurors(
     _task_local_env(monkeypatch, tmp_path, owner_root)
     seen: list[dict[str, Any]] = []
     _revalidator_capture(monkeypatch, seen)
-    for count, expected in ((1, 90.0), (3, 210.0), (6, 390.0)):
+    # xAI pins a 180 s per-call timeout (grok-4.6 reasons before answering).
+    assert XAI_FAMILY.default_timeout_seconds == 180.0
+    for count, expected in ((1, 210.0), (3, 570.0), (6, 1110.0)):
         facts = preflight.run_task_local_preflight(
             _request(owner_root),
             experiment_root=experiment,
@@ -282,6 +284,27 @@ def test_preflight_lease_margin_scales_with_selected_jurors(
         assert seen[-1]["family"] is XAI_FAMILY
         assert facts["ak_minimum_lease_seconds"] == expected
         assert facts["expected_juror_count"] == count
+    # Other families keep the shared 60 s default and the historical margins.
+    copilot_request = comparison_jury._execution_request(
+        provider=COPILOT_FAMILY.provider_name,
+        adjudicator_id="local",
+        adjudicator_kind="local",
+        adjudicator_repo=None,
+        max_jurors=None,
+        owner_source_root=owner_root,
+        execution_task_id=6000,
+        execution_claimant="pi:test",
+    )
+    for count, expected in ((1, 90.0), (3, 210.0), (6, 390.0)):
+        facts = preflight.run_task_local_preflight(
+            copilot_request,
+            experiment_root=experiment,
+            expected_juror_count=count,
+            repo_root=tmp_path,
+        )
+        assert seen[-1]["minimum_lease_seconds"] == expected
+        assert seen[-1]["family"] is COPILOT_FAMILY
+        assert facts["ak_minimum_lease_seconds"] == expected
 
 
 def test_preflight_rejects_zero_selected_jurors_before_marker(

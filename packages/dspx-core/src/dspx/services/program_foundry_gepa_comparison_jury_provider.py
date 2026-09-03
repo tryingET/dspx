@@ -343,12 +343,18 @@ def configure_foundry_jury_provider(
     expected_juror_ids: Sequence[str],
     model: str | None = None,
     reasoning_effort: str | None = None,
-    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    timeout_seconds: float | None = None,
     family: FoundryJuryProviderFamily = CODEX_FAMILY,
 ) -> FoundryJuryConfiguredProvider:
-    """Configure one exact foundry-only provider after an outer attempt exists."""
+    """Configure one exact foundry-only provider after an outer attempt exists.
+
+    ``timeout_seconds`` defaults to the family's reviewed per-call timeout and
+    must equal it when given explicitly.
+    """
 
     label = family.auth_provider
+    if timeout_seconds is None:
+        timeout_seconds = family.default_timeout_seconds
     model = family.resolve_model(model)
     reasoning_effort = family.resolve_reasoning_effort(reasoning_effort)
     if not family.model_allowed(model):
@@ -357,7 +363,7 @@ def configure_foundry_jury_provider(
         raise FoundryJuryProviderConfigurationError(
             f"{label} reasoning effort is not allowed"
         )
-    if timeout_seconds != DEFAULT_TIMEOUT_SECONDS:
+    if timeout_seconds != family.default_timeout_seconds:
         raise FoundryJuryProviderConfigurationError(
             f"{label} timeout must match the reviewed custody contract"
         )

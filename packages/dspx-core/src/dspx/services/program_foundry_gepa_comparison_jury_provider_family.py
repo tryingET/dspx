@@ -135,6 +135,11 @@ class FoundryJuryProviderFamily:
     # Read-only model-listing path appended to ``endpoint_origin`` by the
     # write-free preflight; None means the family exposes no listing (regex only).
     catalog_path: str | None = None
+    # Per-call request timeout the reviewed custody contract pins for this
+    # family. It is retained in provider metadata, sizes the AK lease margin in
+    # the preflight and the fresh-child timeout. Reasoning models that
+    # regularly exceed the shared default carry their own value.
+    default_timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
 
     def requested_route(self, model: str) -> str:
         return self.requested_route_template.format(model=_route_model(model))
@@ -361,6 +366,8 @@ XAI_FAMILY = FoundryJuryProviderFamily(
     model_key="model",
     strict_observed_model=False,
     catalog_path="/v1/models",
+    # grok-4.6 reasons before answering; live calls exceeded the 60 s default.
+    default_timeout_seconds=180.0,
 )
 
 LOCAL_VLLM_FAMILY = FoundryJuryProviderFamily(

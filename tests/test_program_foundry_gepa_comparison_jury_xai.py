@@ -131,6 +131,7 @@ def test_xai_family_literals_are_pinned() -> None:
     assert XAI_FAMILY.endpoint_env is None
     assert XAI_FAMILY.endpoint_key is None
     assert XAI_FAMILY.endpoint_resolved is False
+    assert XAI_FAMILY.default_timeout_seconds == 180.0
     assert family_for_provider(XAI_FAMILY.provider_name) is XAI_FAMILY
     assert FAMILIES[XAI_FAMILY.provider_name] is XAI_FAMILY
     assert XAI_FAMILY.provider_name in TASK_LOCAL_PROVIDER_NAMES
@@ -332,7 +333,7 @@ def test_provider_metadata_validates_per_fixed_family(
         family=family,
         model=model,
         reasoning_effort=effort,
-        timeout_seconds=60.0,
+        timeout_seconds=family.default_timeout_seconds,
         execution_task_id=6000,
         execution_claimant="pi:test",
         source_identity=artifact.source_identity,
@@ -341,6 +342,7 @@ def test_provider_metadata_validates_per_fixed_family(
     assert metadata["provider"] == family.provider_name
     assert metadata["auth_provider"] == family.auth_provider
     assert metadata["credential_mode"] == "no-refresh"
+    assert metadata["timeout_seconds"] == family.default_timeout_seconds
     assert metadata["requested_route"] == family.requested_route(model)
     assert metadata["resolved_route"] == family.resolved_route(model)
     assert metadata["owner_commit"] == OWNER_COMMIT
@@ -731,7 +733,8 @@ def test_xai_family_runs_end_to_end_through_configure_adapter_and_custody(
     assert backend.auth_path == "<default-pi-auth>"
     request = backend.requests[0]
     assert request.model == XAI_MODEL
-    assert request.timeout_seconds == 60.0
+    assert request.timeout_seconds == 180.0
+    assert metadata["timeout_seconds"] == 180.0
     assert not hasattr(request, "reasoning_effort")
     assert not hasattr(request, "response_format")
     assert metadata["provider"] == XAI_FAMILY.provider_name
@@ -782,6 +785,40 @@ def test_xai_configure_rejects_invalid_model_before_owner_load(
                 model=model,
                 reasoning_effort=effort,
                 family=XAI_FAMILY,
+            )
+
+
+def test_family_timeouts_are_pinned_and_enforced_before_owner_load(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """xAI carries 180 s per call; the other three families keep 60 s."""
+
+    assert [family.default_timeout_seconds for family in ALL_FAMILIES] == [
+        60.0,
+        60.0,
+        180.0,
+        60.0,
+    ]
+    assert XAI_FAMILY.default_timeout_seconds == 180.0
+
+    def verify(root: Path, bound: FoundryJuryProviderFamily) -> Any:
+        raise AssertionError("owner must not load for a rejected timeout")
+
+    monkeypatch.setattr(provider_module, "verify_loaded_foundry_jury_owner", verify)
+    for family, wrong in ((XAI_FAMILY, 60.0), (COPILOT_FAMILY, 180.0)):
+        with pytest.raises(
+            FoundryJuryProviderConfigurationError, match="timeout must match"
+        ):
+            configure_foundry_jury_provider(
+                owner_source_root=tmp_path,
+                journal_parent=tmp_path / "provider-outcomes",
+                execution_task_id=6000,
+                execution_claimant="pi:test",
+                repo_root=tmp_path,
+                contract_sha256="a" * 64,
+                expected_juror_ids=("quality",),
+                timeout_seconds=wrong,
+                family=family,
             )
 
 

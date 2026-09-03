@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
@@ -29,6 +30,10 @@ from dspx.services.program_model_jury_provider_runtime import (
 from test_program_foundry_gepa_comparison_jury import _fixture, _model_result, _sha256
 
 CHILD_TIMEOUT = 180
+V2 = jury_child.CHILD_RESULT_SCHEMA
+NO_JUDGED_JUROR = (
+    "foundry GEPA comparison jury results must include at least one judged juror result"
+)
 ALLOWED_ENV_KEYS = {
     "HOME",
     "PATH",
@@ -93,6 +98,61 @@ def _sidecars(receipt: Path) -> dict[str, bool]:
         "receipt": (experiment / "comparison-jury-receipt.json").exists(),
         "journals": (experiment / "provider-outcomes").exists(),
     }
+
+
+def _failed_result(validated: dict[str, Any]) -> dict[str, Any]:
+    """A built results object whose only juror failed: no judged juror remains."""
+
+    result = _model_result(validated)
+    result["status"] = "executed_with_failures"
+    result["juror_results"] = [
+        {
+            "juror_id": "quality",
+            "status": "failed",
+            "error": {"type": "AdapterParseError", "message": "bounded diagnostic"},
+        }
+    ]
+    result["aggregate"] = {
+        "judgment_counts": {
+            "supports_review_evidence": 0,
+            "withhold": 0,
+            "reject": 0,
+            "request_more_evidence": 0,
+            "failed": 1,
+        },
+        "recommendation": "withhold_until_failed_jurors_rerun",
+    }
+    return result
+
+
+def _emit_argv(stdout: str, exit_code: int) -> tuple[str, ...]:
+    return (
+        sys.executable,
+        "-I",
+        "-B",
+        "-c",
+        f"import sys; sys.stdout.write({stdout!r}); sys.exit({exit_code})",
+    )
+
+
+def _cli(receipt: Path, owner_root: Path, provider: str) -> Any:
+    return CliRunner().invoke(
+        app,
+        [
+            "program-refine",
+            "jury-foundry-gepa-comparison",
+            "--receipt",
+            str(receipt),
+            "--provider",
+            provider,
+            "--owner-source-root",
+            str(owner_root),
+            "--execution-task-id",
+            "6000",
+            "--execution-claimant",
+            "pi:test",
+        ],
+    )
 
 
 # --- the real child ------------------------------------------------------------
@@ -225,8 +285,11 @@ def test_child_environment_is_an_allowlist_with_family_endpoint(
         assert env["PYTHONDONTWRITEBYTECODE"] == "1"
         assert env["DSPX_CACHE_DIR"] == "/tmp/cache"
         assert "OPENAI_API_KEY" not in env and "PYTHONPATH" not in env
-    assert jury_child.child_timeout_seconds(3) == 240.0
-    assert jury_child.child_timeout_seconds(0) == 120.0
+    # One family timeout per juror plus a 60 s margin; xAI pins 180 s per call.
+    assert jury_child.child_timeout_seconds(3, LOCAL_VLLM_FAMILY) == 240.0
+    assert jury_child.child_timeout_seconds(0, LOCAL_VLLM_FAMILY) == 120.0
+    assert jury_child.child_timeout_seconds(1, XAI_FAMILY) == 240.0
+    assert jury_child.child_timeout_seconds(3, XAI_FAMILY) == 600.0
 
 
 # --- parent-side boundary with a faked child -----------------------------------
@@ -271,9 +334,11 @@ def test_parent_runs_task_local_jury_in_child_without_importing_owner(
             }), encoding="utf-8")
             sys.stderr.write("diagnostic noise the parent must discard\\n")
             result = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
-            sys.stdout.write(json.dumps(
-                {"schema_version": "dspx-foundry-jury-child-result-v1", "result": result}
-            ))
+            sys.stdout.write(json.dumps({
+                "schema_version": "dspx-foundry-jury-child-result-v2",
+                "kind": "jury_ok",
+                "results": result,
+            }))
             """,
             str(seen),
             str(canned),
@@ -389,31 +454,167 @@ def test_child_failure_exits_3_through_cli(
     assert _sidecars(receipt)["attempt"] is True
 
 
+def _long_error() -> dict[str, str]:
+    return {
+        "type": "ValueError",
+        "message": "x" * (jury_child.CHILD_MAX_ERROR_MESSAGE_CHARS + 1),
+    }
+
+
 @pytest.mark.parametrize(
-    ("stdout", "reason"),
+    ("stdout", "exit_code", "reason"),
     [
-        ("this is not json", "output is not JSON"),
-        ('{"schema_version": "other", "result": {}}', "output shape drifted"),
-        ('{"result": {"status": "executed"}}', "output shape drifted"),
+        ("this is not json", 0, "output is not JSON"),
+        ("", 0, "output is not JSON"),
+        ("", 1, "exited with status 1"),
         (
-            '{"schema_version": "dspx-foundry-jury-child-result-v1", "result": []}',
-            "output shape drifted",
+            '{"schema_version": "other", "kind": "jury_ok", "results": {}}',
+            0,
+            "shape drifted",
         ),
-        ("", "output is not JSON"),
+        # The retired v1 shape and any unknown kind are indeterminate.
+        (
+            '{"schema_version": "dspx-foundry-jury-child-result-v1", "result": {}}',
+            0,
+            "output kind is unknown",
+        ),
+        (
+            json.dumps({"schema_version": V2, "kind": "jury_done", "results": {}}),
+            0,
+            "output kind is unknown",
+        ),
+        (
+            json.dumps({"schema_version": V2, "kind": "jury_ok", "results": []}),
+            0,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {"schema_version": V2, "kind": "jury_ok", "results": {}, "error": None}
+            ),
+            0,
+            "shape drifted",
+        ),
+        # Kind and exit status must agree.
+        (
+            json.dumps({"schema_version": V2, "kind": "jury_ok", "results": {}}),
+            4,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_failed",
+                    "results": {},
+                    "error": {"type": "E", "message": "m"},
+                }
+            ),
+            0,
+            "shape drifted",
+        ),
+        # jury_failed results must be an object; error payloads are closed and bounded.
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_failed",
+                    "results": "x",
+                    "error": {"type": "E", "message": "m"},
+                }
+            ),
+            4,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_failed",
+                    "error": {"type": "E", "message": "m"},
+                }
+            ),
+            4,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_failed",
+                    "results": {},
+                    "error": {"type": "E", "message": "m", "trace": "x"},
+                }
+            ),
+            4,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {"schema_version": V2, "kind": "jury_error", "error": _long_error()}
+            ),
+            5,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_error",
+                    "error": {"type": "not an identifier", "message": "m"},
+                }
+            ),
+            5,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_error",
+                    "error": {"type": "E", "message": 7},
+                }
+            ),
+            5,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_error",
+                    "error": {"type": "E", "message": "m"},
+                    "results": {},
+                }
+            ),
+            5,
+            "shape drifted",
+        ),
+        (
+            json.dumps(
+                {
+                    "schema_version": V2,
+                    "kind": "jury_error",
+                    "error": {"type": "E", "message": "m"},
+                }
+            ),
+            0,
+            "shape drifted",
+        ),
     ],
 )
 def test_unparsable_child_output_is_indeterminate(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stdout: str, reason: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: str,
+    exit_code: int,
+    reason: str,
 ) -> None:
     receipt, validated = _fixture(tmp_path)
     owner_root = tmp_path / "owner"
     owner_root.mkdir()
     _install(monkeypatch, validated)
-    monkeypatch.setattr(
-        comparison_jury,
-        "_CHILD_ARGV",
-        (sys.executable, "-I", "-B", "-c", f"import sys; sys.stdout.write({stdout!r})"),
-    )
+    monkeypatch.setattr(comparison_jury, "_CHILD_ARGV", _emit_argv(stdout, exit_code))
     with pytest.raises(RuntimeError, match=reason):
         _execute(receipt, owner_root, XAI_FAMILY.provider_name)
     assert _sidecars(receipt) == {
@@ -422,6 +623,247 @@ def test_unparsable_child_output_is_indeterminate(
         "receipt": False,
         "journals": False,
     }
+
+
+# --- jury_failed: results retained, in-process error class and exit code -------
+
+
+def test_child_failed_envelope_retains_results_and_raises_exit_2_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt, validated = _fixture(tmp_path)
+    owner_root = tmp_path / "owner"
+    owner_root.mkdir()
+    _install(monkeypatch, validated)
+    failed = _failed_result(validated)
+    envelope = {
+        "schema_version": V2,
+        "kind": "jury_failed",
+        "results": failed,
+        "error": {
+            "type": "ProgramFoundryGepaComparisonJuryError",
+            "message": NO_JUDGED_JUROR,
+        },
+    }
+    monkeypatch.setattr(
+        comparison_jury,
+        "_CHILD_ARGV",
+        _emit_argv(json.dumps(envelope), jury_child.CHILD_EXIT_JURY_FAILED),
+    )
+    with pytest.raises(
+        comparison_jury.ProgramFoundryGepaComparisonJuryError,
+        match="must include at least one judged juror result",
+    ) as caught:
+        _execute(receipt, owner_root, XAI_FAMILY.provider_name)
+    assert not isinstance(caught.value, RuntimeError)
+    assert "may have occurred" not in str(caught.value)
+    assert _sidecars(receipt) == {
+        "attempt": True,
+        "result": True,
+        "receipt": False,
+        "journals": False,
+    }
+    written = json.loads(
+        (receipt.parent / "comparison-jury-results.json").read_text(encoding="utf-8")
+    )
+    assert written == failed
+    assert written["juror_results"][0]["status"] == "failed"
+    # One-shot: the marker stays, replay is blocked, the results are untouched.
+    blocked = _execute(receipt, owner_root, XAI_FAMILY.provider_name)
+    assert blocked["status"] == "blocked_indeterminate"
+    assert (
+        json.loads(
+            (receipt.parent / "comparison-jury-results.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        == failed
+    )
+
+
+def test_child_failed_envelope_exits_2_through_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt, validated = _fixture(tmp_path)
+    owner_root = tmp_path / "owner"
+    owner_root.mkdir()
+    _install(monkeypatch, validated)
+    envelope = {
+        "schema_version": V2,
+        "kind": "jury_failed",
+        "results": _failed_result(validated),
+        "error": {
+            "type": "ProgramFoundryGepaComparisonJuryError",
+            "message": NO_JUDGED_JUROR,
+        },
+    }
+    monkeypatch.setattr(
+        comparison_jury,
+        "_CHILD_ARGV",
+        _emit_argv(json.dumps(envelope), jury_child.CHILD_EXIT_JURY_FAILED),
+    )
+    result = _cli(receipt, owner_root, XAI_FAMILY.provider_name)
+    assert result.exit_code == 2, result.output
+    assert "must include at least one judged juror result" in result.output
+    assert "may have occurred" not in result.output
+    assert _sidecars(receipt)["attempt"] is True
+    assert _sidecars(receipt)["result"] is True
+
+
+# --- jury_error: no results object; indeterminate, but the error is surfaced ---
+
+
+def test_child_error_envelope_stays_indeterminate_and_surfaces_error_text(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt, validated = _fixture(tmp_path)
+    owner_root = tmp_path / "owner"
+    owner_root.mkdir()
+    _install(monkeypatch, validated)
+    envelope = {
+        "schema_version": V2,
+        "kind": "jury_error",
+        "error": {
+            "type": "ProgramModelJuryProviderExecutionError",
+            "message": "producer_outcome_unresolved",
+        },
+    }
+    monkeypatch.setattr(
+        comparison_jury,
+        "_CHILD_ARGV",
+        _emit_argv(json.dumps(envelope), jury_child.CHILD_EXIT_JURY_ERROR),
+    )
+    with pytest.raises(
+        jury_child.ProgramFoundryGepaComparisonJuryChildError,
+        match=(
+            "failed: ProgramModelJuryProviderExecutionError: "
+            "producer_outcome_unresolved; one or more provider juror calls may "
+            "have occurred"
+        ),
+    ):
+        _execute(receipt, owner_root, XAI_FAMILY.provider_name)
+    assert _sidecars(receipt) == {
+        "attempt": True,
+        "result": False,
+        "receipt": False,
+        "journals": False,
+    }
+    blocked = _execute(receipt, owner_root, XAI_FAMILY.provider_name)
+    assert blocked["status"] == "blocked_indeterminate"
+    # Through the CLI (own lineage: the CLI request carries no max_jurors bound).
+    cli_receipt, cli_validated = _fixture(tmp_path / "cli")
+    _install(monkeypatch, cli_validated)
+    result = _cli(cli_receipt, owner_root, XAI_FAMILY.provider_name)
+    assert result.exit_code == 3, result.output
+    assert "ProgramModelJuryProviderExecutionError: producer_outcome_unresolved" in (
+        result.output
+    )
+    assert "may have occurred" in result.output
+    assert _sidecars(cli_receipt)["attempt"] is True
+    assert _sidecars(cli_receipt)["result"] is False
+
+
+# --- child side: respond() classifies and bounds ---------------------------------
+
+
+def _child_payload(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    receipt, validated = _fixture(tmp_path)
+    owner_root = tmp_path / "owner"
+    owner_root.mkdir()
+    request = comparison_jury._execution_request(
+        provider=XAI_FAMILY.provider_name,
+        adjudicator_id="local_foundry_adjudicator",
+        adjudicator_kind="local_foundry_adjudicator",
+        adjudicator_repo=None,
+        max_jurors=1,
+        owner_source_root=owner_root,
+        execution_task_id=6000,
+        execution_claimant="pi:test",
+    )
+    manifest = Path(validated["candidate_manifest_path"])
+    payload = jury_child.child_request_payload(
+        request=request,
+        validated=validated,
+        experiment_root=receipt.parent,
+        attempt_sha256="a" * 64,
+        input_sha256={manifest: _sha256(manifest)},
+    )
+    return json.loads(json.dumps(payload)), validated
+
+
+def test_respond_emits_ok_failed_or_error_envelopes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload, validated = _child_payload(tmp_path)
+    good = _model_result(validated)
+    monkeypatch.setattr(jury_child, "run_child_request", lambda p: dict(good))
+    assert jury_child.respond(payload) == (
+        0,
+        {"schema_version": V2, "kind": "jury_ok", "results": good},
+    )
+
+    failed = _failed_result(validated)
+    monkeypatch.setattr(jury_child, "run_child_request", lambda p: dict(failed))
+    status, envelope = jury_child.respond(payload)
+    assert status == jury_child.CHILD_EXIT_JURY_FAILED == 4
+    assert envelope == {
+        "schema_version": V2,
+        "kind": "jury_failed",
+        "results": failed,
+        "error": {
+            "type": "ProgramFoundryGepaComparisonJuryError",
+            "message": NO_JUDGED_JUROR,
+        },
+    }
+
+    class Boom(RuntimeError):
+        reason = "producer_outcome_unresolved"
+
+    def raise_boom(p: Any) -> dict[str, Any]:
+        raise Boom("program model jury provider execution failed")
+
+    monkeypatch.setattr(jury_child, "run_child_request", raise_boom)
+    assert jury_child.respond(payload) == (
+        5,
+        {
+            "schema_version": V2,
+            "kind": "jury_error",
+            "error": {"type": "Boom", "message": "producer_outcome_unresolved"},
+        },
+    )
+
+    def raise_noisy(p: Any) -> dict[str, Any]:
+        raise ValueError("Authorization: Bearer sk-secret-token " + "z" * 5000)
+
+    monkeypatch.setattr(jury_child, "run_child_request", raise_noisy)
+    status, envelope = jury_child.respond(payload)
+    assert status == 5
+    message = envelope["error"]["message"]
+    assert len(message) <= jury_child.CHILD_MAX_ERROR_MESSAGE_CHARS
+    assert "sk-secret-token" not in message
+    # Every envelope respond() produces is accepted by the parent-side validator.
+    for status, envelope in (
+        jury_child.respond(payload),
+        (0, {"schema_version": V2, "kind": "jury_ok", "results": good}),
+    ):
+        assert jury_child._validate_envelope(envelope, returncode=status) == envelope
+
+
+def test_child_main_binds_exit_status_to_envelope_kind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    payload, validated = _child_payload(tmp_path)
+    failed = _failed_result(validated)
+    monkeypatch.setattr(jury_child, "_require_fresh_process", lambda: None)
+    monkeypatch.setattr(jury_child, "run_child_request", lambda p: dict(failed))
+    monkeypatch.setattr(
+        sys, "stdin", io.TextIOWrapper(io.BytesIO(json.dumps(payload).encode("utf-8")))
+    )
+    assert jury_child.main([]) == 4
+    out = json.loads(capsys.readouterr().out)
+    assert out["kind"] == "jury_failed"
+    assert out["results"] == failed
+    assert out["error"]["message"] == NO_JUDGED_JUROR
 
 
 def test_child_timeout_kills_the_child_and_stays_indeterminate(
@@ -448,7 +890,9 @@ def test_child_timeout_kills_the_child_and_stays_indeterminate(
             str(pid_file),
         ),
     )
-    monkeypatch.setattr(comparison_jury, "child_timeout_seconds", lambda count: 2.0)
+    monkeypatch.setattr(
+        comparison_jury, "child_timeout_seconds", lambda count, family: 2.0
+    )
     with pytest.raises(RuntimeError, match="timed out"):
         _execute(receipt, owner_root, XAI_FAMILY.provider_name)
     child_pid = int(pid_file.read_text(encoding="utf-8"))

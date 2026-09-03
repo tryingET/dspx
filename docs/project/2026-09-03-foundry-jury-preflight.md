@@ -170,3 +170,69 @@ is therefore enforced where it matters, in the process that will call the provid
 Generic (registry) providers keep running in-process. `_CHILD_ARGV = None` on the orchestrator
 module is a test-only seam that restores the in-process path so fixtures can patch
 `build_comparison_model_jury_result`; it is never set in production.
+
+## Child result retention and per-family timeouts (2026-09-03, evening)
+
+Two live observations drove this pass. First, the AK-5353 xAI lineage's first juror call ended
+`outcome_unresolved` / `transport_timeout` after the shared 60 s request timeout; the child exited 1
+with empty stdout, the parent raised the generic child error (exit 3), and no
+`comparison-jury-results.json` was written. Second, the same `grok-4.6` model timed out in earlier
+probes: it is a reasoning model and 60 s is not a realistic per-call bound for it.
+
+### What the failure classes are
+
+`run_program_model_jurors` treats the two provider failure classes differently, and the child
+boundary inherited that:
+
+- A *closed* failure (parse error after a completed response, session terminal, and so on) is
+  recorded as a `failed` juror record; the jury builds a results object with status
+  `executed_with_failures`. The in-process path wrote that object to disk and only then failed
+  the results contract ("must include at least one judged juror result", exit 2). AK-5350 is
+  such a case: its `comparison-jury-results.json` holds three failed juror records.
+- An *indeterminate* failure (`effect_indeterminate`, which is what `outcome_unresolved` reduces
+  to) is re-raised out of the juror loop before any results object exists. Neither the in-process
+  path nor the child ever had juror records to retain for it; the provider journals under
+  `provider-outcomes/` are the retained evidence. AK-5353 is this case.
+
+The child previously printed nothing on either class, so the parent could not tell them apart
+and could retain nothing.
+
+### Closed child envelope (`dspx-foundry-jury-child-result-v2`)
+
+The child now applies the shared results contract itself and prints exactly one of three closed
+envelopes, each bound to its own exit status; the parent rejects any kind/exit mismatch:
+
+| kind | exit | payload | parent |
+| --- | --- | --- | --- |
+| `jury_ok` | 0 | `results` | write results, validate, write receipt (unchanged) |
+| `jury_failed` | 4 | `results` + `error{type,message}` | write `comparison-jury-results.json` from `results`, then raise `ProgramFoundryGepaComparisonJuryError(message)` (CLI exit 2) |
+| `jury_error` | 5 | `error{type,message}` | raise `ProgramFoundryGepaComparisonJuryChildError("failed: <type>: <message>")` (CLI exit 3) |
+
+`error.type` is the exception class name; `error.message` is the closed provider `reason` when the
+exception carries one, otherwise `str(exc)` through `sanitize_diagnostic_text`, capped at 2000
+characters. The parent-side validator requires exactly `{type, message}`, an identifier-shaped
+type, and the bound. Any other exit status, empty or non-JSON stdout, an unknown kind, a
+`results` that is not an object, or a drifted error payload stays indeterminate (exit 3) exactly
+as before. Pre-effect refusals (non-`-I -B` interpreter, unreadable request) still exit 1 silently.
+
+For `jury_failed` the on-disk outcome is now identical to the in-process path: marker present,
+results present with the failed juror records, no receipt, same error class and text, exit 2,
+and the next run answers `blocked_indeterminate` without touching the results. For `jury_error`
+the operator now sees the error class and closed reason (for AK-5353 it would have read
+`ProgramModelJuryProviderExecutionError: producer_outcome_unresolved`) instead of
+"exited with status 1". One-shot and no-replay semantics are untouched.
+
+### Per-family request timeout
+
+`FoundryJuryProviderFamily.default_timeout_seconds` replaces every use of the shared
+`DEFAULT_TIMEOUT_SECONDS` in the request/backend timeout, the configured-provider metadata
+(`timeout_seconds`), the preflight lease margin (`expected_juror_count * timeout + 30`) and the
+child timeout (`n * timeout + 60`). Codex, GitHub Copilot and local vLLM keep 60.0; xAI carries
+180.0. `configure_foundry_jury_provider` defaults to the family value and rejects an explicit
+different one before the owner loads.
+
+Consequences for xAI: a three-juror jury now needs an AK lease of at least 570 s (was 210 s) and
+the child may run up to 600 s (was 240 s). The earlier "Dry run" section's `210.0` figure is the
+pre-change value for that lineage. Retained metadata for the other families is unchanged, so the
+AK-5346 (Copilot) and AK-5352 (local vLLM) receipts still validate byte-for-byte with their
+`timeout_seconds: 60.0`; there is no retained xAI receipt to migrate.

@@ -23,6 +23,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_attempt import (
     write_json_exclusive,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_child import (
+    ProgramFoundryGepaComparisonJuryChildError,
     child_environment,
     child_request_payload,
     child_timeout_seconds,
@@ -81,12 +82,19 @@ def _run_jury(
     attempt_sha256: str,
     input_sha256: dict[Path, str],
     expected_juror_count: int | None,
-) -> dict[str, Any]:
-    """Task-local providers run in a fresh child; generic providers in-process."""
+) -> tuple[dict[str, Any], str | None]:
+    """Task-local providers run in a fresh child; generic providers in-process.
+
+    Returns the jury results object and, when the child already classified it
+    as rejected by the results contract (``jury_failed``), the rejection text.
+    The caller retains the results either way and raises the rejection after
+    the write, which is exactly what the in-process path does implicitly by
+    writing first and validating second.
+    """
 
     family = family_for_provider(request["provider"])
     if family is not None and _CHILD_ARGV is not None:
-        return run_task_local_jury_child(
+        envelope = run_task_local_jury_child(
             _CHILD_ARGV,
             payload=child_request_payload(
                 request=request,
@@ -96,15 +104,23 @@ def _run_jury(
                 input_sha256=input_sha256,
             ),
             env=child_environment(family),
-            timeout=child_timeout_seconds(expected_juror_count or 0),
+            timeout=child_timeout_seconds(expected_juror_count or 0, family),
         )
+        if envelope["kind"] == "jury_error":
+            error = envelope["error"]
+            raise ProgramFoundryGepaComparisonJuryChildError(
+                f"failed: {error['type']}: {error['message']}"
+            )
+        if envelope["kind"] == "jury_failed":
+            return envelope["results"], str(envelope["error"]["message"])
+        return envelope["results"], None
     provider_runtime_binding = make_task_local_runtime_binding(
         request=request,
         experiment_root=experiment_root,
         attempt_sha256=attempt_sha256,
     )
     try:
-        return build_comparison_model_jury_result(
+        result = build_comparison_model_jury_result(
             model_jury_slot,
             manifest_path=Path(str(validated["candidate_manifest_path"])),
             evidence_paths=[Path(str(validated["comparison_path"]))],
@@ -118,6 +134,7 @@ def _run_jury(
         )
     except ProgramModelJuryExecutionError as exc:
         raise ProgramFoundryGepaComparisonJuryError(str(exc)) from exc
+    return result, None
 
 
 def validate_successful_program_foundry_gepa_comparison_jury_receipt(
@@ -349,7 +366,7 @@ def execute_program_foundry_gepa_comparison_jury(
             attempt,
             root_descriptor=root_descriptor,
         )
-        result = _run_jury(
+        result, rejection = _run_jury(
             model_jury_slot=model_jury_slot,
             request=request,
             validated=validated,
@@ -363,6 +380,10 @@ def execute_program_foundry_gepa_comparison_jury(
             result,
             root_descriptor=root_descriptor,
         )
+        if rejection is not None:
+            # Same class and text the in-process validation raises below once
+            # the results are on disk; the marker and results stay as evidence.
+            raise ProgramFoundryGepaComparisonJuryError(rejection)
         try:
             validated_after = (
                 validate_successful_program_foundry_gepa_consumption_receipt(

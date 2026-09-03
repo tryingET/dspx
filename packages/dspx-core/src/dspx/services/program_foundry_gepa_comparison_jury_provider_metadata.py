@@ -18,7 +18,6 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
 from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
     CODEX_FAMILY,
     CREDENTIAL_MODE,
-    DEFAULT_TIMEOUT_SECONDS,
     FoundryJuryProviderFamily,
 )
 from dspx.services.soomfon_provider_outcome_receipt_contract import (
@@ -84,7 +83,7 @@ def validate_foundry_jury_provider_metadata(
         family=family,
         model=model,
         reasoning_effort=reasoning_effort,
-        timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
+        timeout_seconds=family.default_timeout_seconds,
         execution_task_id=execution_task_id,
         execution_claimant=execution_claimant,
         source_identity=expected_foundry_jury_source_identity(),

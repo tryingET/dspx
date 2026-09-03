@@ -4,7 +4,8 @@ Runs before the attempt marker exists, so every rejection here leaves no
 attempt, journal directory, or result behind and makes zero provider
 completion calls. It proves posture at T0: exact owner source, dependency
 identity, bytecode posture, private cache/receipt destinations, an active
-AK claim whose lease covers every selected juror, credential presence and
+AK claim whose lease covers every selected juror at the family's per-call
+timeout, credential presence and
 expiry through the owner's own reader (in an isolated child), and read-only
 catalog membership of the requested model. It cannot prove capacity or
 entitlement at completion time; a provider-side 429 after the marker still
@@ -37,7 +38,6 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
     canonical_ak_task_revalidator,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
-    DEFAULT_TIMEOUT_SECONDS,
     FoundryJuryProviderFamily,
     family_for_request,
 )
@@ -330,7 +330,7 @@ def run_task_local_preflight(
     except (ValueError, OSError) as exc:
         raise _reject("exact owner source verification failed") from exc
     dependency_sha256 = _dependency_identity_sha256()
-    minimum_lease = expected_juror_count * DEFAULT_TIMEOUT_SECONDS + 30.0
+    minimum_lease = expected_juror_count * family.default_timeout_seconds + 30.0
     try:
         canonical_ak_task_revalidator(
             execution_task_id=int(request["execution_task_id"]),
