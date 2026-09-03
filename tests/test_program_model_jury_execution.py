@@ -762,3 +762,137 @@ def test_model_jury_rejects_changed_expected_input_snapshot_before_provider_call
             expected_input_sha256=expected,
             include_default_behavior=False,
         )
+
+
+def _fail_provider(provider: str | None = None) -> dict[str, Any]:
+    raise AssertionError("provider must not be configured before evidence gates")
+
+
+def test_model_jury_rejects_empty_input_examples_before_provider_calls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """The foundry path takes no default behavior evidence; empty input rejects
+    before the bound provider runtime factory (the only provider seam) runs."""
+
+    from dspx.services import program_foundry_gepa_comparison_model_jury as foundry
+    from dspx.services import program_model_jury_provider_runtime as runtime
+
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    monkeypatch.setattr(model_jury, "_configure_provider", _fail_provider)
+    factory_calls: list[Any] = []
+
+    def factory(selected: Any) -> Any:
+        factory_calls.append(selected)
+        raise AssertionError("provider runtime must not be built without evidence")
+
+    binding = runtime._bind_program_model_jury_provider_runtime(factory)
+    manifest_path = program_root / "manifest.json"
+    with runtime._model_jury_process_slot() as slot:
+        with pytest.raises(
+            model_jury.ProgramModelJuryExecutionError,
+            match="at least one receipt-bound evidence path",
+        ):
+            foundry.build_comparison_model_jury_result(
+                slot,
+                manifest_path=manifest_path,
+                evidence_paths=[],
+                provider="foundry-dspy-lm-auth-xai",
+                adjudicator_id="local",
+                adjudicator_kind="local",
+                adjudicator_repo=None,
+                max_jurors=None,
+                expected_input_sha256={},
+                provider_runtime_binding=binding,
+            )
+    with pytest.raises(
+        model_jury.ProgramModelJuryExecutionError,
+        match="requires behavior evidence or at least one --evidence path",
+    ):
+        model_jury.build_program_model_jury_execution_result(
+            manifest_path=manifest_path,
+            evidence_paths=[],
+            provider="stub",
+            include_default_behavior=False,
+        )
+    assert factory_calls == []
+
+
+def test_model_jury_rejects_non_utf8_evidence_before_provider_calls(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    binary_evidence = tmp_path / "comparison.json"
+    binary_evidence.write_bytes(b'{"status": "\xff\xfe compared"}')
+    monkeypatch.setattr(model_jury, "_configure_provider", _fail_provider)
+    with pytest.raises(
+        model_jury.ProgramModelJuryExecutionError,
+        match="must be UTF-8 text",
+    ):
+        model_jury.build_program_model_jury_execution_result(
+            manifest_path=program_root / "manifest.json",
+            evidence_paths=[binary_evidence],
+            provider="stub",
+            include_default_behavior=False,
+        )
+
+
+def test_model_jury_rejects_empty_evidence_directory(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    program_root = _materialize_program(tmp_path, monkeypatch)
+    empty_dir = tmp_path / "evidence"
+    empty_dir.mkdir()
+    monkeypatch.setattr(model_jury, "_configure_provider", _fail_provider)
+    with pytest.raises(
+        model_jury.ProgramModelJuryExecutionError,
+        match="requires behavior evidence or at least one --evidence path",
+    ):
+        model_jury.build_program_model_jury_execution_result(
+            manifest_path=program_root / "manifest.json",
+            evidence_paths=[empty_dir],
+            provider="stub",
+            include_default_behavior=False,
+        )
+    assert model_jury._load_extra_evidence([empty_dir]) == []
+
+
+def test_model_jury_failed_jurors_always_carry_error_object() -> None:
+    """Producer-side guarantee: a failed juror result is never a bare status.
+
+    The shared contract validator deliberately stays lenient here (downstream
+    promotion tests pin the `judged juror` rejection for bare failures), so the
+    guarantee is asserted where results are produced.
+    """
+
+    from dspx.services import program_model_jury_provider_runtime as runtime
+
+    def run_juror(**kwargs: Any) -> dict[str, Any]:
+        juror_id = str(kwargs["juror"]["id"])
+        if juror_id == "closed":
+            raise runtime.ProgramModelJuryProviderExecutionError(
+                "provider_session_terminal", effect_indeterminate=False
+            )
+        raise RuntimeError("api_key=supersecret-value boom")
+
+    _config, results, evidence = runtime.run_program_model_jurors(
+        selected=[{"id": "closed"}, {"id": "generic"}],
+        rubrics={},
+        candidate_identity={},
+        evidence_json="[]",
+        adjudicator={},
+        provider="stub",
+        configure_provider=lambda provider: {"provider": provider},
+        run_juror=run_juror,
+        sanitize_diagnostic=model_jury._sanitize_model_jury_diagnostic,
+        provider_runtime_binding=None,
+    )
+    assert evidence is None
+    assert [item["status"] for item in results] == ["failed", "failed"]
+    for item in results:
+        assert set(item["error"]) == {"type", "message"}
+        assert isinstance(item["error"]["message"], str)
+    assert results[0]["error"]["message"] == "provider_session_terminal"
+    assert "supersecret-value" not in json.dumps(results)

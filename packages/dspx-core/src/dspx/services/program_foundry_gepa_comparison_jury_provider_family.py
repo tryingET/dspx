@@ -132,6 +132,9 @@ class FoundryJuryProviderFamily:
     # request key retains it and the origin hash is recomputed on resolution.
     endpoint_env: str | None = None
     endpoint_key: str | None = None
+    # Read-only model-listing path appended to ``endpoint_origin`` by the
+    # write-free preflight; None means the family exposes no listing (regex only).
+    catalog_path: str | None = None
 
     def requested_route(self, model: str) -> str:
         return self.requested_route_template.format(model=_route_model(model))
@@ -163,6 +166,14 @@ class FoundryJuryProviderFamily:
     @property
     def endpoint_resolved(self) -> bool:
         return self.endpoint_env is not None
+
+    @property
+    def catalog_url(self) -> str | None:
+        """Exact read-only listing URL for the bound endpoint, or None."""
+
+        if self.catalog_path is None:
+            return None
+        return self.endpoint_origin + self.catalog_path
 
     def with_endpoint(self, endpoint: str | None) -> FoundryJuryProviderFamily:
         """Bind one explicit or environment-provided endpoint into this family.
@@ -321,6 +332,7 @@ COPILOT_FAMILY = FoundryJuryProviderFamily(
     allowed_roles=_CHAT_ROLES,
     model_key="model",
     strict_observed_model=False,
+    catalog_path="/models",
 )
 
 XAI_FAMILY = FoundryJuryProviderFamily(
@@ -348,6 +360,7 @@ XAI_FAMILY = FoundryJuryProviderFamily(
     allowed_roles=_CHAT_ROLES,
     model_key="model",
     strict_observed_model=False,
+    catalog_path="/v1/models",
 )
 
 LOCAL_VLLM_FAMILY = FoundryJuryProviderFamily(
@@ -377,6 +390,7 @@ LOCAL_VLLM_FAMILY = FoundryJuryProviderFamily(
     strict_observed_model=False,
     endpoint_env=LOCAL_VLLM_ENDPOINT_ENV,
     endpoint_key="local_vllm_base_url",
+    catalog_path="/models",
 )
 
 FAMILIES: Mapping[str, FoundryJuryProviderFamily] = {

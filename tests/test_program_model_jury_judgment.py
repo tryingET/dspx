@@ -137,3 +137,23 @@ def test_non_object_and_foreign_completions_are_not_rewrapped(
 
 def test_judgment_key_contract_is_pinned() -> None:
     assert JUDGMENT_KEYS == frozenset(_judgment())
+
+
+@pytest.mark.parametrize(
+    "missing",
+    sorted(JUDGMENT_KEYS),
+)
+def test_model_jury_contract_rejects_incomplete_judgment_object(missing: str) -> None:
+    """The foundry judgment contract is the exact six-key set; nothing less."""
+
+    incomplete = _judgment()
+    incomplete.pop(missing)
+    assert set(incomplete) != JUDGMENT_KEYS
+    with pytest.raises(ProgramModelJuryExecutionError, match="closed schema"):
+        parse_model_judgment(incomplete, juror_id="quality")
+    with pytest.raises(ProgramModelJuryExecutionError, match="closed schema"):
+        parse_model_judgment(json.dumps(incomplete), juror_id="quality")
+    # A bare incomplete object is not re-wrapped as `judgment_json` either.
+    assert judgment_field_text_from_completion(json.dumps(incomplete)) is None
+    with pytest.raises(ProgramModelJuryExecutionError, match="closed schema"):
+        parse_model_judgment({"outcome": "withhold"}, juror_id="quality")

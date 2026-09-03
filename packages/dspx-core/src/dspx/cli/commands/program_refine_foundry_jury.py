@@ -85,6 +85,14 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
                 "not applicable to the GitHub Copilot, xAI, or local vLLM families"
             ),
         ),
+        preflight_only: bool = typer.Option(
+            False,
+            "--preflight-only",
+            help=(
+                "Run the write-free task-local preflight (owner, AK lease, credential, "
+                "catalog GET) and print its facts; writes no marker, exit 0/2"
+            ),
+        ),
         json_out: bool = typer.Option(False, "--json", help="Print jury receipt JSON"),
     ) -> None:
         """Run one receipt-bound program-specific jury without transition authority."""
@@ -107,6 +115,7 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
                 codex_model=codex_model,
                 reasoning_effort=reasoning_effort,
                 model=model,
+                **({"preflight_only": True} if preflight_only else {}),
             )
         except ProgramFoundryGepaComparisonJuryError as exc:
             typer.echo(f"Error: {exc}", err=True)
@@ -118,6 +127,13 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
                 err=True,
             )
             raise typer.Exit(code=3) from exc
+        if preflight_only:
+            typer.echo(
+                json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+            )
+            if payload.get("status") != "preflight_ok":
+                raise typer.Exit(code=2)
+            return
         if json_out:
             typer.echo(
                 json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)

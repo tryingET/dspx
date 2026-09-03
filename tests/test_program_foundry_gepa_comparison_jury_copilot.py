@@ -601,7 +601,7 @@ def test_copilot_comparison_jury_binds_runtime_and_records_model_key(
         lambda path, **kwargs: dict(validated),
     )
     monkeypatch.setattr(
-        comparison_jury, "preflight_task_local_request", lambda request: None
+        comparison_jury, "run_task_local_preflight", lambda request, **kwargs: None
     )
 
     def build(slot: object, **kwargs: Any) -> dict[str, Any]:

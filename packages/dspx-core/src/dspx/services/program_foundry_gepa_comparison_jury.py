@@ -17,12 +17,17 @@ from dspx.services.program_foundry_gepa_consumption import (
     validate_successful_program_foundry_gepa_consumption_receipt,
 )
 from dspx.services.program_foundry_gepa_proposal_io import (
+    ProgramFoundryGepaProposalError,
     assert_path_descriptor_identity,
     read_regular_bytes,
 )
 from dspx.services.program_foundry_io import foundry_lock
 from dspx.services.program_foundry_gepa_comparison_model_jury import (
     build_comparison_model_jury_result,
+)
+from dspx.services.program_foundry_gepa_comparison_jury_preflight import (
+    run_task_local_preflight,
+    selected_juror_count,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_result import (
     validate_task_local_jury_result,
@@ -34,10 +39,11 @@ from dspx.services.program_foundry_gepa_comparison_jury_runtime import (
     TASK_LOCAL_EXECUTION_REQUEST_KEYS,
     TASK_LOCAL_PROVIDER_NAME,
     TASK_LOCAL_PROVIDER_NAMES,
+    _DSPX_REPO_ROOT,
     ProgramFoundryGepaComparisonJuryError,
     execution_request as _execution_request,
+    family_for_provider,
     make_task_local_runtime_binding,
-    preflight_task_local_request,
     receipt_payload as _receipt_payload,
     revalidate_execution_request,
     task_local_process_slot,
@@ -191,9 +197,17 @@ def _jury_input_sha256(validated: Mapping[str, Any]) -> dict[Path, str]:
         candidate_manifest.parent / "jury_rubric.json",
         comparison,
     )
-    snapshots = {
-        path: _sha256_bytes(read_regular_bytes(path, label=path.name)) for path in paths
-    }
+    try:
+        snapshots = {
+            path: _sha256_bytes(read_regular_bytes(path, label=path.name))
+            for path in paths
+        }
+    except ProgramFoundryGepaProposalError as exc:
+        # A partial evidence bundle is a closed pre-marker rejection (exit 2),
+        # not an indeterminate provider effect.
+        raise ProgramFoundryGepaComparisonJuryError(
+            f"comparison jury input is missing or unsafe: {exc}"
+        ) from exc
     if snapshots[candidate_manifest] != validated["candidate_manifest_sha256"]:
         raise ProgramFoundryGepaComparisonJuryError(
             "candidate manifest changed before comparison jury execution"
@@ -467,8 +481,13 @@ def execute_program_foundry_gepa_comparison_jury(
     codex_model: str | None = None,
     reasoning_effort: str | None = None,
     model: str | None = None,
+    preflight_only: bool = False,
 ) -> dict[str, Any]:
-    """Execute one program-specific jury against one receipt-bound comparison."""
+    """Execute one program-specific jury against one receipt-bound comparison.
+
+    ``preflight_only`` runs every write-free gate for a task-local provider and
+    returns the closed preflight facts without writing an attempt marker.
+    """
 
     receipt_path = consumption_receipt_path.expanduser().absolute()
     root = receipt_path.parent.parent
@@ -540,7 +559,23 @@ def execute_program_foundry_gepa_comparison_jury(
             raise ProgramFoundryGepaComparisonJuryError(
                 "comparison jury results exist without an attempt marker"
             )
-        preflight_task_local_request(request)
+        preflight: dict[str, Any] | None = None
+        if family_for_provider(request["provider"]) is not None:
+            preflight = run_task_local_preflight(
+                request,
+                experiment_root=experiment_root,
+                expected_juror_count=selected_juror_count(
+                    Path(str(validated["candidate_manifest_path"])),
+                    max_jurors=request["max_jurors"],
+                ),
+                repo_root=_DSPX_REPO_ROOT,
+            )
+        elif preflight_only:
+            raise ProgramFoundryGepaComparisonJuryError(
+                "preflight-only runs are defined for task-local providers"
+            )
+        if preflight_only:
+            return {"status": "preflight_ok", "preflight": preflight}
         try:
             model_jury_slot = exit_stack.enter_context(_model_jury_process_slot())
         except ProgramModelJuryExecutionError as exc:
@@ -614,7 +649,10 @@ def execute_program_foundry_gepa_comparison_jury(
             receipt,
             root_descriptor=root_descriptor,
         )
-        return {**receipt, "reused": False}
+        payload = {**receipt, "reused": False}
+        if preflight is not None:
+            payload["preflight"] = preflight
+        return payload
 
 
 __all__ = [

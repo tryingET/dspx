@@ -534,7 +534,7 @@ def test_local_vllm_comparison_jury_binds_endpoint_into_attempt_and_receipt(
         lambda path, **kwargs: dict(validated),
     )
     monkeypatch.setattr(
-        comparison_jury, "preflight_task_local_request", lambda request: None
+        comparison_jury, "run_task_local_preflight", lambda request, **kwargs: None
     )
 
     def build(slot: object, **kwargs: Any) -> dict[str, Any]:

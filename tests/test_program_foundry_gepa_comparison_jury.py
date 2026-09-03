@@ -395,7 +395,7 @@ def test_task_local_comparison_jury_bypasses_registry_with_bound_runtime_factory
         lambda path, **kwargs: dict(validated),
     )
     monkeypatch.setattr(
-        comparison_jury, "preflight_task_local_request", lambda request: None
+        comparison_jury, "run_task_local_preflight", lambda request, **kwargs: None
     )
 
     def build(slot: object, **kwargs: Any) -> dict[str, Any]:
@@ -501,3 +501,74 @@ def test_task_local_comparison_jury_cli_forwards_exact_custody_inputs(
             "model": None,
         }
     ]
+
+
+@pytest.mark.parametrize("missing", ["jury_rubric.json", "jury_selection.json"])
+def test_foundry_jury_rejects_partial_evidence_bundle_before_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, missing: str
+) -> None:
+    """A sibling deleted after consumption fails in `_jury_input_sha256`, pre-marker."""
+
+    receipt, validated = _fixture(tmp_path)
+    monkeypatch.setattr(
+        comparison_jury,
+        "validate_successful_program_foundry_gepa_consumption_receipt",
+        lambda path, **kwargs: dict(validated),
+    )
+    monkeypatch.setattr(
+        comparison_jury,
+        "build_comparison_model_jury_result",
+        lambda *a, **k: pytest.fail("jury must not run on a partial bundle"),
+    )
+    (Path(validated["candidate_manifest_path"]).parent / missing).unlink()
+    with pytest.raises(
+        comparison_jury.ProgramFoundryGepaComparisonJuryError,
+        match=f"input is missing or unsafe: {missing}",
+    ):
+        comparison_jury.execute_program_foundry_gepa_comparison_jury(
+            consumption_receipt_path=receipt,
+            provider="fixture-provider",
+        )
+    experiment = receipt.parent
+    assert not (experiment / "comparison-jury-attempt.json").exists()
+    assert not (experiment / "comparison-jury-results.json").exists()
+    assert not (experiment / "comparison-jury-receipt.json").exists()
+
+
+def test_foundry_jury_rejects_comparison_missing_at_jury_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    receipt, validated = _fixture(tmp_path)
+    monkeypatch.setattr(
+        comparison_jury,
+        "validate_successful_program_foundry_gepa_consumption_receipt",
+        lambda path, **kwargs: dict(validated),
+    )
+    monkeypatch.setattr(
+        comparison_jury,
+        "build_comparison_model_jury_result",
+        lambda *a, **k: pytest.fail("jury must not run without its comparison"),
+    )
+    Path(validated["comparison_path"]).unlink()
+    with pytest.raises(
+        comparison_jury.ProgramFoundryGepaComparisonJuryError,
+        match="input is missing or unsafe: candidate-comparison.json",
+    ):
+        comparison_jury.execute_program_foundry_gepa_comparison_jury(
+            consumption_receipt_path=receipt,
+            provider="fixture-provider",
+        )
+    assert not (receipt.parent / "comparison-jury-attempt.json").exists()
+    result = CliRunner().invoke(
+        app,
+        [
+            "program-refine",
+            "jury-foundry-gepa-comparison",
+            "--receipt",
+            str(receipt),
+            "--provider",
+            "fixture-provider",
+        ],
+    )
+    assert result.exit_code == 2, result.output
+    assert "may have occurred" not in result.output
