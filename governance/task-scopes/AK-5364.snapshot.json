@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-03T22:58:49.507311432+00:00",
+  "task_id": 5364,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/**",
+      "docs/learnings/**",
+      "docs/project/**",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/openai_compatible_provider.py",
+      "packages/dspx-core/src/dspx/services/program_oracle_semantic*.py",
+      "tests/**"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/openai_compatible_provider.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
