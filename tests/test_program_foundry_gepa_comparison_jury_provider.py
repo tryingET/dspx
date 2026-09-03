@@ -43,6 +43,7 @@ from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryProviderExecutionError,
 )
 from dspx.services.soomfon_provider_outcome_receipt_contract import EVENT_FIELDS_V2
+from dspy.utils.exceptions import AdapterParseError
 from dspx.services.soomfon_provider_outcome_receipt_identity import (
     VerifiedOwnerArtifact,
     _ARTIFACT_TOKEN,
@@ -475,6 +476,126 @@ def test_fixed_backend_runs_through_dspx_adapter_without_external_lm() -> None:
     with pytest.raises(ProviderInvocationError) as caught:
         provider.invoke(ProviderRequest(model=provider.model, messages=()))
     assert caught.value.disposition is EffectDisposition.PREFLIGHT_REJECTED
+
+
+class _LatchingAdapterCustodian(_AdapterCustodian):
+    def __init__(self) -> None:
+        super().__init__()
+        self.latched = 0
+
+    def latch_closed_after_completed_call(self) -> None:
+        self.latched += 1
+
+
+def _judgment_fixture() -> dict[str, object]:
+    return {
+        "outcome": "supports_review_evidence",
+        "rationale": "bounded fixture",
+        "evidence_strengths": ["receipt"],
+        "concerns": [],
+        "improvement_requests": [],
+        "confidence": "high",
+    }
+
+
+def _adapter_for(backend: _Backend, custodian: _AdapterCustodian):
+    provider = _FoundryJuryFormattingProvider("gpt-5.6-luna")
+    lm = DSPyTypedLMAdapter(provider, cache=False, callbacks=[])
+    adapter = FoundryJuryJSONAdapter(
+        owner=_AdapterOwner(),  # type: ignore[arg-type]
+        lm=lm,
+        backend=backend,
+        custodian=custodian,  # type: ignore[arg-type]
+        model="gpt-5.6-luna",
+        reasoning_effort="xhigh",
+        timeout_seconds=60.0,
+    )
+    return lm, adapter
+
+
+def _run_quality_juror() -> dict[str, Any]:
+    return _run_juror_model(
+        juror={"id": "quality", "perspective": "quality"},
+        rubric={"criteria": ["bounded"]},
+        candidate_identity={"sha256": "a" * 64},
+        evidence_json='{"bounded":true}',
+        adjudicator={"kind": "deterministic"},
+    )
+
+
+@pytest.mark.parametrize(
+    "output_text",
+    [
+        json.dumps(_judgment_fixture()),
+        json.dumps({"judgment_json": json.dumps(_judgment_fixture())}),
+        json.dumps({"judgment_json": _judgment_fixture()}),
+        "```json\n" + json.dumps(_judgment_fixture()) + "\n```",
+    ],
+)
+def test_adapter_accepts_bare_and_wrapped_closed_judgment_shapes(
+    output_text: str,
+) -> None:
+    backend = _Backend(output_text)
+    custodian = _AdapterCustodian()
+    lm, adapter = _adapter_for(backend, custodian)
+    previous_lm = getattr(dspy.settings, "lm", None)
+    previous_adapter = getattr(dspy.settings, "adapter", None)
+    try:
+        dspy.configure(lm=lm, adapter=adapter)
+        result = _run_quality_juror()
+    finally:
+        dspy.configure(lm=previous_lm, adapter=previous_adapter)
+    assert result == _judgment_fixture()
+    assert len(backend.requests) == 1
+    assert custodian.calls == [("quality", backend.semantic_hashes[0])]
+
+
+@pytest.mark.parametrize(
+    "output_text",
+    [
+        json.dumps({**_judgment_fixture(), "extra": "widening"}),
+        json.dumps({"outcome": "withhold"}),
+        json.dumps([_judgment_fixture()]),
+        json.dumps("supports_review_evidence"),
+    ],
+)
+def test_adapter_rejects_non_contract_shapes_then_latches_terminal(
+    output_text: str,
+) -> None:
+    backend = _Backend(output_text)
+    custodian = _LatchingAdapterCustodian()
+    lm, adapter = _adapter_for(backend, custodian)
+    previous_lm = getattr(dspy.settings, "lm", None)
+    previous_adapter = getattr(dspy.settings, "adapter", None)
+    try:
+        dspy.configure(lm=lm, adapter=adapter)
+        with pytest.raises(AdapterParseError):
+            _run_quality_juror()
+        assert len(backend.requests) == 1
+        assert custodian.latched == 1
+        # The completed-but-unparseable call latches the session closed: later
+        # jurors fail before any provider call with a truthful reason.
+        with pytest.raises(ProgramModelJuryProviderExecutionError) as caught:
+            _run_quality_juror()
+    finally:
+        dspy.configure(lm=previous_lm, adapter=previous_adapter)
+    assert caught.value.reason == "adapter_session_terminal"
+    assert caught.value.effect_indeterminate is False
+    assert len(backend.requests) == 1
+    assert len(custodian.calls) == 1
+
+
+def test_adapter_reports_lm_identity_drift_distinct_from_terminal_latch() -> None:
+    backend = _Backend(json.dumps(_judgment_fixture()))
+    lm, adapter = _adapter_for(backend, _AdapterCustodian())
+    other_lm = DSPyTypedLMAdapter(
+        _FoundryJuryFormattingProvider("gpt-5.6-luna"), cache=False, callbacks=[]
+    )
+    with pytest.raises(ProgramModelJuryProviderExecutionError) as caught:
+        adapter(other_lm, {}, object, [], {"juror_json": "{}"})
+    assert caught.value.reason == "adapter_lm_identity_drift"
+    assert backend.requests == []
+    del lm
 
 
 def test_fixed_backend_rejects_response_semantic_hash_drift() -> None:

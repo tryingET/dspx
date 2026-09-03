@@ -356,3 +356,46 @@ PYTHONDONTWRITEBYTECODE=1 uv run --no-sync dspx program-refine \
 
 The focused test command adds `tests/test_program_foundry_gepa_comparison_jury_xai.py` and
 `tests/test_program_foundry_gepa_comparison_jury_local_vllm.py`.
+
+## 2026-09-03: first live Copilot jury (AK-5346)
+
+AK task 5346 (done; AK evidence 8246, corrected by 8247) executed the first live receipt-bound
+comparison jury through `foundry-dspy-lm-auth-github-copilot` with `gemini-3.7-flash`, owner
+commit `777388ad9c692b0657e6b6e1d4820b15fcb6641d`, DSPx commit
+`18db08c691db0e4a518d8d895d571eaafb5e6f70`. The lineage under
+`misegraph-foundry-copilot-5346.DVXv7O` was built offline (stub provider, fixture-replay Oracle
+with a per-run authored fixture entry, `DSPX_REPLAY_FIXTURE_JSON` derived from the intent
+examples); the consume step used the operator-run hash-bound GEPA pickle opt-in. Three jurors
+judged (2 `supports_review_evidence`, 1 `request_more_evidence`), recommendation
+`request_more_evidence`, deterministic adjudication `require_review` / `held_for_local_review`;
+all three journals terminate in `provider_response_completed` with HTTP 200, no replay, no
+fallback, zero retries. Secret-free projection:
+`docs/project/2026-09-03-misegraph-foundry-copilot-full-dogfood-evidence.json`.
+
+## 2026-09-03: bare judgment object tolerance and terminal-latch reason
+
+The first live local vLLM jury (`local/Qwen3.8-27B-AEON-NVFP4-FP8`, lineage
+`misegraph-foundry-local-vllm-5350`) completed its first provider call with HTTP 200 and
+`provider_response_completed`, but the model returned the six judgment keys as the top-level JSON
+object instead of wrapping them under `judgment_json`. DSPy's `JSONAdapter.parse` therefore found
+no output field, raised `AdapterParseError`, and the adapter latched the session closed (evidence
+`stop_reason: local_postprocessing_failed_after_closed_receipt`); jurors 2 and 3 then failed
+without a provider call.
+
+`FoundryJuryJSONAdapter.parse` now applies one closed, deterministic shape tolerance before DSPy's
+parser, via `judgment_field_text_from_completion` in `program_model_jury_judgment.py`: the
+completion is decoded with strict `json.loads` (fence-stripped; no repair, no substring search) and
+is re-wrapped only when it is a single object whose key set equals the judgment contract exactly
+(`outcome`, `rationale`, `evidence_strengths`, `concerns`, `improvement_requests`, `confidence`),
+or when it is `{"judgment_json": <string | object>}`. Any other shape falls through to DSPy's
+parser unchanged. Values are not touched; `parse_model_judgment` still enforces the closed
+vocabularies and bounded text. The prompt text is unchanged, so the semantic request hash contract
+is unchanged.
+
+The post-terminal behaviour is intended fail-closed and is kept: a completed provider call whose
+local post-processing fails latches both the custodian (`local_postprocessing_failed_after_closed_receipt`)
+and the adapter, so remaining jurors are not called and nothing is replayed. What changed is the
+label: the adapter's own latch now reports `adapter_session_terminal`; `adapter_lm_identity_drift`
+is reserved for an actual `dspy.settings.lm` identity mismatch. Earlier retained evidence
+(`2026-09-02-foundry-codex-sol*-terminal-failure-evidence.json`) carries the old label for the
+same latch and is left as recorded.

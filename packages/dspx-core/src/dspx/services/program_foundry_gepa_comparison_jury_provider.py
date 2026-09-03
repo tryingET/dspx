@@ -45,6 +45,10 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_metadata import
     provider_metadata,
     validate_foundry_jury_provider_metadata,
 )
+from dspx.services.program_model_jury_judgment import (
+    JUDGMENT_FIELD,
+    judgment_field_text_from_completion,
+)
 
 
 class _FoundryJuryFormattingProvider:
@@ -123,7 +127,11 @@ class FoundryJuryJSONAdapter(dspy.JSONAdapter):
         demos: list[dict[str, Any]],
         inputs: dict[str, Any],
     ) -> list[dict[str, Any]]:
-        if self._local_terminal or lm is not self._lm:
+        if self._local_terminal:
+            # A completed provider call whose local post-processing failed latches
+            # this adapter closed; later jurors fail without a provider call.
+            closed_failure("adapter_session_terminal")
+        if lm is not self._lm:
             closed_failure("adapter_lm_identity_drift")
         self._owner.revalidate()
         configured = dict(lm_kwargs)
@@ -221,6 +229,21 @@ class FoundryJuryJSONAdapter(dspy.JSONAdapter):
             self._custodian.latch_closed_after_completed_call()
             self._local_terminal = True
             raise
+
+    def parse(self, signature: type[Any], completion: str) -> dict[str, Any]:
+        """Parse the single `judgment_json` field with a closed shape tolerance.
+
+        Some served models return the judgment object itself instead of wrapping
+        it under `judgment_json`. Only a bare object whose key set equals the
+        judgment contract exactly is re-wrapped; every other shape, and every
+        value, is still judged by DSPy's parser and the closed judgment parser.
+        """
+
+        if set(signature.output_fields) == {JUDGMENT_FIELD}:
+            field_text = judgment_field_text_from_completion(completion)
+            if field_text is not None:
+                completion = json.dumps({JUDGMENT_FIELD: field_text})
+        return super().parse(signature, completion)
 
     async def acall(self, *args: Any, **kwargs: Any) -> list[dict[str, Any]]:
         del args, kwargs

@@ -10,14 +10,18 @@ from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryExecutionError,
 )
 
-_JUDGMENT_KEYS = {
-    "outcome",
-    "rationale",
-    "evidence_strengths",
-    "concerns",
-    "improvement_requests",
-    "confidence",
-}
+JUDGMENT_KEYS = frozenset(
+    {
+        "outcome",
+        "rationale",
+        "evidence_strengths",
+        "concerns",
+        "improvement_requests",
+        "confidence",
+    }
+)
+_JUDGMENT_KEYS = set(JUDGMENT_KEYS)
+JUDGMENT_FIELD = "judgment_json"
 _OUTCOMES = {
     "supports_review_evidence",
     "withhold",
@@ -66,6 +70,40 @@ def _bounded_text_list(value: object, *, label: str) -> list[str]:
     return [
         _bounded_text(item, label=label, maximum=_MAX_LIST_ITEM_BYTES) for item in value
     ]
+
+
+def judgment_field_text_from_completion(completion: str) -> str | None:
+    """Return the closed `judgment_json` text carried by one raw LM completion.
+
+    Accepted shapes, all decoded with strict JSON (no repair, no substring search):
+
+    - `{"judgment_json": "<json text>"}` -> that text unchanged;
+    - `{"judgment_json": {...}}` -> the object re-serialized as canonical JSON text;
+    - a bare object whose key set equals the judgment contract exactly (no extra,
+      no missing key) -> the object re-serialized as canonical JSON text.
+
+    Any other shape returns None so the caller keeps its normal parse failure.
+    Values are not validated here; `parse_model_judgment` still applies the closed
+    vocabularies and bounded-text rules downstream.
+    """
+
+    try:
+        payload = json.loads(_strip_json_fence(completion))
+    except (json.JSONDecodeError, RecursionError, TypeError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    keys = set(payload)
+    if keys == {JUDGMENT_FIELD}:
+        value = payload[JUDGMENT_FIELD]
+        if isinstance(value, str):
+            return value
+        if isinstance(value, dict):
+            return json.dumps(value, ensure_ascii=False, sort_keys=True)
+        return None
+    if keys == _JUDGMENT_KEYS:
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return None
 
 
 def parse_model_judgment(raw: object, *, juror_id: str) -> dict[str, Any]:
@@ -166,4 +204,10 @@ def aggregate_model_judgments(
     }
 
 
-__all__ = ["aggregate_model_judgments", "parse_model_judgment"]
+__all__ = [
+    "JUDGMENT_FIELD",
+    "JUDGMENT_KEYS",
+    "aggregate_model_judgments",
+    "judgment_field_text_from_completion",
+    "parse_model_judgment",
+]
