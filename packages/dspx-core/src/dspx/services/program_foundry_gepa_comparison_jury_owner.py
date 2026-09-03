@@ -36,10 +36,10 @@ from dspx.services.soomfon_provider_outcome_receipt_identity import (
 # source_identity (provider_outcome_receipt_contract); every other reviewed
 # owner file is hash-pinned through _EXTRA_OWNER_FILES.
 # ---------------------------------------------------------------------------
-OWNER_COMMIT = "777388ad9c692b0657e6b6e1d4820b15fcb6641d"
-OWNER_TREE = "a564fb0314292c739bebcd4b9362e5b3315974a9"
-OWNER_VERSION = "0.1.6.dev0"
-OWNER_LOCK_SHA256 = "e7d9eae5753be3fbf5ea4fc8e88380aeefecd74e5dccaf341fe362281d3c6889"
+OWNER_COMMIT = "80cc409da976028263da884ed633bef0806cd986"
+OWNER_TREE = "552f2f6675cb770776a329bb3cd5c6e8073844f5"
+OWNER_VERSION = "0.1.6"
+OWNER_LOCK_SHA256 = "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648"
 
 _OWNER_MODULES: dict[str, tuple[str, str]] = {
     "package_init": (
