@@ -13,6 +13,10 @@ from typing import Any, Mapping
 
 from dspx.redaction import sanitize_diagnostic_text
 
+from dspx.services.program_foundry_provider_evidence import (
+    PROVIDER_EVIDENCE_KIND_FIELD,
+    provider_evidence_kind_from_oracle_result,
+)
 from dspx.services.program_oracle_semantic_backend import (
     resolve_program_oracle_semantic_backend,
 )
@@ -387,6 +391,8 @@ def run_program_runtime_oracle_semantics(
             "live_call_succeeded": False,
             "error": "semantic attempt marker exists without a terminal result",
         },
+        # Closed additive label of what produced the analysis; None means unknown.
+        PROVIDER_EVIDENCE_KIND_FIELD: None,
         "effect": {
             "semantic_backend_invoked": None,
             "effect_disposition": "indeterminate",
@@ -416,6 +422,9 @@ def run_program_runtime_oracle_semantics(
             **attempt,
             "status": "ok" if semantic_ok else "degraded",
             "semantic_result": result_payload,
+            PROVIDER_EVIDENCE_KIND_FIELD: provider_evidence_kind_from_oracle_result(
+                result_payload
+            ),
             "effect": {
                 **attempt["effect"],
                 "semantic_backend_invoked": True,

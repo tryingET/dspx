@@ -29,6 +29,10 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
 from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
     family_for_request,
 )
+from dspx.services.program_foundry_provider_evidence import (
+    PROVIDER_EVIDENCE_KIND_FIELD,
+    validate_optional_provider_evidence_kind,
+)
 from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryProviderRuntimeBinding,
     _bind_program_model_jury_provider_runtime,
@@ -139,8 +143,13 @@ def execution_request(
     reasoning_effort: str | None = None,
     model: str | None = None,
     endpoint: str | None = None,
+    provider_evidence_kind: str | None = None,
 ) -> dict[str, Any]:
     normalized_provider = provider.strip()
+    try:
+        evidence_kind = validate_optional_provider_evidence_kind(provider_evidence_kind)
+    except ValueError as exc:
+        raise ProgramFoundryGepaComparisonJuryError(str(exc)) from exc
     if not normalized_provider:
         raise ProgramFoundryGepaComparisonJuryError(
             "comparison jury requires an explicit provider"
@@ -209,12 +218,30 @@ def execution_request(
         raise ProgramFoundryGepaComparisonJuryError(
             "owner source and execution task are only valid for the task-local provider"
         )
+    if evidence_kind is not None:
+        # Additive closed label (AK-5362); absent means unknown so retained
+        # pre-label receipts keep validating unchanged.
+        request[PROVIDER_EVIDENCE_KIND_FIELD] = evidence_kind
     return request
 
 
 def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, Any]:
     """Re-normalize one retained execution_request and require exact equality."""
 
+    try:
+        evidence_kind = validate_optional_provider_evidence_kind(
+            raw_request.get(PROVIDER_EVIDENCE_KIND_FIELD)
+        )
+    except ValueError as exc:
+        raise ProgramFoundryGepaComparisonJuryError(
+            f"comparison jury receipt execution_request is invalid: {exc}"
+        ) from exc
+    retained_request = dict(raw_request)
+    raw_request = {
+        key: value
+        for key, value in raw_request.items()
+        if key != PROVIDER_EVIDENCE_KIND_FIELD
+    }
     provider = raw_request.get("provider")
     expected_keys = task_local_execution_request_keys(provider)
     family = family_for_provider(provider)
@@ -276,8 +303,9 @@ def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, An
         reasoning_effort=reasoning_effort,
         model=model,
         endpoint=endpoint,
+        provider_evidence_kind=evidence_kind,
     )
-    if request != dict(raw_request):
+    if request != retained_request:
         raise ProgramFoundryGepaComparisonJuryError(
             "comparison jury receipt execution_request is not normalized"
         )

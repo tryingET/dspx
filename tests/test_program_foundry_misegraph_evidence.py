@@ -1,4 +1,4 @@
-# summary: "Tests the read-only Misegraph evidence package loader, the deterministic intent/inputs/binding importer, its CLI, and an offline stub program-gen/program-run smoke."
+# summary: "Tests the read-only Misegraph evidence package loader, the deterministic intent/inputs/binding importer (package-derived expected projection), its CLI, and an offline stub program-gen/program-run smoke."
 # read_when:
 #   - "You are changing program_foundry_misegraph_evidence*.py or the checked-in misegraph-evidence-package-v1 fixture."
 
@@ -16,9 +16,12 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 from dspx.services.program_foundry_misegraph_evidence import (
+    ANSWERS_ORIGIN_OPERATOR,
+    ANSWERS_ORIGIN_PACKAGE_DERIVED,
     BINDING_FILE,
     BINDING_SCHEMA_VERSION,
     DEFAULT_EXAMPLE_CASES,
+    EXPECTED_PROJECTION_SCHEMA_VERSION,
     INPUTS_FILE,
     INTENT_FILE,
     PROVENANCE_FILE,
@@ -27,8 +30,13 @@ from dspx.services.program_foundry_misegraph_evidence import (
     build_misegraph_inputs,
     build_misegraph_intent,
     build_misegraph_source_projection,
+    derive_misegraph_expected,
     load_misegraph_answers,
     write_import_bundle,
+)
+from dspx.services.program_quality_evaluation import (
+    evaluate_declared_quality,
+    normalize_quality_criteria,
 )
 from dspx.services.program_foundry_misegraph_evidence_package import (
     MisegraphEvidencePackageError,
@@ -327,6 +335,22 @@ def test_emitted_intent_loads_through_program_gen_loader(tmp_path: Path) -> None
 
     payload = json.loads(intent_path.read_text(encoding="utf-8"))
     examples = payload.pop("examples")
+    derived_groups = payload["quality_criteria"][0]["required_concept_groups"]
+    expected = derive_misegraph_expected(
+        load_misegraph_evidence_package(PACKAGE), "render-text"
+    )
+    assert derived_groups == expected["required_concept_groups"]
+    assert (
+        derived_groups
+        != REFERENCE_INTENT_TEMPLATE["quality_criteria"][0]["required_concept_groups"]
+    )
+    # Every non-example field except the package-derived concept groups is the
+    # pinned AK-5346 reference intent.
+    payload["quality_criteria"][0]["required_concept_groups"] = json.loads(
+        json.dumps(
+            REFERENCE_INTENT_TEMPLATE["quality_criteria"][0]["required_concept_groups"]
+        )
+    )
     compact = json.dumps(
         payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     )
@@ -422,8 +446,10 @@ def test_answers_file_hashed_into_provenance_and_bound_via_intent(
 ) -> None:
     result = _import(tmp_path)
     provenance = json.loads(Path(result["provenance_path"]).read_text(encoding="utf-8"))
+    assert provenance["answers"]["origin"] == ANSWERS_ORIGIN_OPERATOR
     assert provenance["answers"]["sha256"] == _sha(ANSWERS.read_bytes())
     assert provenance["answers"]["path"] == str(ANSWERS.resolve())
+    assert provenance["expected_projection"]["used_as_example_answer"] is False
     assert provenance["package_sha256"] == PACKAGE_SHA256
     assert provenance["binding"]["sha256"] == _sha(
         Path(result["binding_path"]).read_bytes()
@@ -444,7 +470,7 @@ def test_answers_file_hashed_into_provenance_and_bound_via_intent(
     assert other["provenance"]["answers"]["sha256"] == _sha(altered.read_bytes())
 
 
-def test_importer_never_invents_answers(tmp_path: Path) -> None:
+def test_importer_never_invents_operator_answers(tmp_path: Path) -> None:
     package = load_misegraph_evidence_package(PACKAGE)
     answers = load_misegraph_answers(ANSWERS)
     with pytest.raises(
@@ -584,6 +610,198 @@ def test_misegraph_source_projection(tmp_path: Path) -> None:
         build_misegraph_source_projection(stale)
     with pytest.raises(MisegraphEvidenceImportError, match="schema_version"):
         build_misegraph_source_projection({"schema_version": "other"})
+
+
+# --- package-derived expected projection --------------------------------------
+
+
+def _criterion_passes(groups: list[list[str]], answer: str) -> bool:
+    criteria = normalize_quality_criteria(
+        [
+            {
+                "id": "misegraph_recipe_fidelity",
+                "output_field": "answer",
+                "evaluator": "concept_coverage",
+                "required_concept_groups": groups,
+                "forbidden_concepts": [],
+                "min_score": 1.0,
+            }
+        ],
+        outputs=["answer"],
+    )
+    return evaluate_declared_quality(criteria, {"answer": answer})["status"] == "passed"
+
+
+def test_derive_misegraph_expected_comes_only_from_package_facts() -> None:
+    package = load_misegraph_evidence_package(PACKAGE)
+    expected = derive_misegraph_expected(package, "check-json")
+    groups = expected["required_concept_groups"]
+    flat = [term for group in groups for term in group]
+    assert expected["schema_version"] == EXPECTED_PROJECTION_SCHEMA_VERSION
+    assert expected["case_id"] == "check-json"
+    assert ["espresso"] in groups and ["brownies"] in groups
+    assert ["butter", "unsalted butter"] in groups
+    assert ["baking_soda", "baking soda"] in groups
+    assert ["pan", "8 × 8 inch baking pan"] in groups
+    assert any("170 °C" in group and "170 C" in group for group in groups)
+    assert any("30-40 min" in group and "40 min" in group for group in groups)
+    assert any("0 errors" in group and "no diagnostics" in group for group in groups)
+    assert expected["facts"]["error_count"] == 0
+    assert expected["facts"]["recipe_id"] == "espresso_brownies"
+    assert [item["id"] for item in expected["facts"]["ingredients"]] == [
+        "butter",
+        "sugar",
+        "vanilla",
+        "espresso",
+        "eggs",
+        "flour",
+        "cocoa",
+        "baking_soda",
+        "salt",
+    ]
+    assert expected["facts"]["bake_steps"] == [
+        {
+            "step": "bake_brownies",
+            "action": "bake",
+            "temperature": "170 C",
+            "duration": "30-40 min",
+        }
+    ]
+    assert len(groups) <= 20 and all(1 <= len(group) <= 10 for group in groups)
+    assert all(len(term) <= 256 for term in flat)
+    assert set(expected["derived_from"]) == {
+        "canonical.json",
+        "check.json",
+        "manifest.json",
+        "behavior.json",
+    }
+    projection = expected["projection"]
+    assert expected["projection_sha256"] == _sha(projection.encode("utf-8"))
+    assert "case check-json (exit code 0)" in projection
+    assert "not a judgment" in projection
+    assert _criterion_passes(groups, projection)
+    # The projection is not template prose: it fails once a package fact is dropped.
+    assert not _criterion_passes(groups, projection.replace("170 C", "hot"))
+    # The operator answers written for AK-5346 do not carry these package facts.
+    operator = json.loads(ANSWERS.read_text(encoding="utf-8"))["answers"]["check-json"]
+    assert not _criterion_passes(groups, operator)
+    # Determinism and case independence of the groups.
+    again = derive_misegraph_expected(package, "check-json")
+    assert again == expected
+    other = derive_misegraph_expected(package, "render-text")
+    assert other["required_concept_groups"] == groups
+    assert other["projection"] != projection
+    assert "case render-text (exit code 0)" in other["projection"]
+
+
+def test_derive_misegraph_expected_tracks_check_errors_and_fails_closed(
+    tmp_path: Path,
+) -> None:
+    package_dir = _copy_package(tmp_path)
+    check = {
+        "diagnostics": [
+            {"level": "error", "message": "missing bake temperature"},
+            {"level": "warning", "message": "style"},
+        ]
+    }
+    check_bytes = (json.dumps(check, indent=2) + "\n").encode("utf-8")
+    _replace_artifact(package_dir, "check.json", check_bytes)
+    behavior = json.loads((package_dir / "behavior.json").read_text(encoding="utf-8"))
+    for case in behavior["cases"]:
+        if case["output_artifact"] == "check.json":
+            case["output_sha256"] = _sha(check_bytes)
+    _replace_artifact(package_dir, "behavior.json", canonical_json(behavior).encode())
+    package = load_misegraph_evidence_package(package_dir)
+    expected = derive_misegraph_expected(package, "check-json")
+    assert expected["facts"]["error_count"] == 1
+    assert expected["facts"]["diagnostic_count"] == 2
+    assert ["1 errors", "1 error", "error_count 1", "error_count: 1"] in expected[
+        "required_concept_groups"
+    ]
+    assert "Check: 1 errors, 2 diagnostics" in expected["projection"]
+
+    with pytest.raises(MisegraphEvidenceImportError, match="not a behavior case"):
+        derive_misegraph_expected(package, "render-pdf")
+
+
+def test_import_without_answers_uses_package_derived_projection(tmp_path: Path) -> None:
+    result = write_import_bundle(package_dir=PACKAGE, outdir=tmp_path / "derived")
+    intent = json.loads(Path(result["intent_path"]).read_text(encoding="utf-8"))
+    package = load_misegraph_evidence_package(PACKAGE)
+    groups = intent["quality_criteria"][0]["required_concept_groups"]
+    for case_id, example in zip(DEFAULT_EXAMPLE_CASES, intent["examples"]):
+        expected = derive_misegraph_expected(package, case_id)
+        assert example["outputs"] == {"answer": expected["projection"]}
+        assert groups == expected["required_concept_groups"]
+        assert _criterion_passes(groups, example["outputs"]["answer"])
+    provenance = result["provenance"]
+    assert provenance["answers"] == {
+        "origin": ANSWERS_ORIGIN_PACKAGE_DERIVED,
+        "schema_version": None,
+        "path": None,
+        "sha256": None,
+    }
+    projection = provenance["expected_projection"]
+    assert projection["schema_version"] == EXPECTED_PROJECTION_SCHEMA_VERSION
+    assert projection["quality_criterion_id"] == "misegraph_recipe_fidelity"
+    assert projection["required_concept_groups"] == groups
+    assert projection["used_as_example_answer"] is True
+    assert set(projection["projection_sha256_by_case"]) == set(DEFAULT_EXAMPLE_CASES)
+    assert provenance["non_authority"]["answers_authored_by_importer"] is True
+    written = json.loads(Path(result["provenance_path"]).read_text(encoding="utf-8"))
+    assert written == provenance
+    # Binding stays byte-compatible with Misegraph's closed receipt shape.
+    binding = json.loads(Path(result["binding_path"]).read_text(encoding="utf-8"))
+    assert set(binding) == {
+        "schema_version",
+        "package",
+        "validation",
+        "emitted",
+        "example_cases",
+        "non_authority",
+    }
+    assert binding["non_authority"] == {
+        "misegraph_mutated": False,
+        "acceptance_authority": False,
+    }
+    # Determinism across outdirs.
+    second = write_import_bundle(package_dir=PACKAGE, outdir=tmp_path / "derived-2")
+    assert (
+        Path(second["intent_path"]).read_bytes()
+        == Path(result["intent_path"]).read_bytes()
+    )
+    # Operator answers change the example answers but not the derived groups.
+    operator = _import(tmp_path, outdir_name="operator")
+    operator_intent = json.loads(
+        Path(operator["intent_path"]).read_text(encoding="utf-8")
+    )
+    assert operator_intent["quality_criteria"] == intent["quality_criteria"]
+    assert operator_intent["examples"][0]["outputs"] != intent["examples"][0]["outputs"]
+    assert operator["provenance"]["answers"]["origin"] == ANSWERS_ORIGIN_OPERATOR
+    assert (
+        operator["provenance"]["non_authority"]["answers_authored_by_importer"] is False
+    )
+
+
+def test_cli_import_without_answers(tmp_path: Path) -> None:
+    outdir = tmp_path / "cli-derived"
+    result = runner.invoke(
+        app,
+        [
+            "foundry",
+            "import-misegraph-evidence",
+            "--package",
+            str(PACKAGE),
+            "--outdir",
+            str(outdir),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert payload["provenance"]["answers"]["origin"] == ANSWERS_ORIGIN_PACKAGE_DERIVED
+    intent = json.loads((outdir / INTENT_FILE).read_text(encoding="utf-8"))
+    assert "not a judgment" in intent["examples"][0]["outputs"]["answer"]
 
 
 # --- CLI ----------------------------------------------------------------------

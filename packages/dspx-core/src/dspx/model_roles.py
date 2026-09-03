@@ -1,7 +1,7 @@
-# summary: "Defines explicit Codex subscription model roles for the autonomous DSPx foundry."
+# summary: "Defines explicit model roles (codex/ declarations, local/ loopback ids) for the autonomous DSPx foundry."
 # read_when:
 #   - "Changing intent/quality conversation or Oracle semantic model selection."
-#   - "Changing role-specific Codex reasoning effort, auth routing, or evidence labels."
+#   - "Changing role-specific reasoning effort, provider routing, or evidence labels."
 
 from __future__ import annotations
 
@@ -12,6 +12,12 @@ from dataclasses import dataclass
 from dspx.provider_registry import UnsupportedProviderError
 
 CODEX_REASONING_EFFORTS = frozenset({"none", "low", "medium", "high", "xhigh", "max"})
+# Route prefixes a role model id may use. ``codex/`` is the declared (not live)
+# subscription route; ``local/`` is a loopback OpenAI-compatible model id served
+# through the typed ``openai-compatible`` provider port.
+CODEX_ROUTE_PREFIX = "codex/"
+LOCAL_ROUTE_PREFIX = "local/"
+MODEL_ROUTE_PREFIXES = (CODEX_ROUTE_PREFIX, LOCAL_ROUTE_PREFIX)
 
 
 @dataclass(frozen=True)
@@ -24,8 +30,11 @@ class ModelRole:
     purpose: str
 
     def __post_init__(self) -> None:
-        if not self.model.startswith("codex/"):
-            raise ValueError(f"model role {self.name!r} must use the codex/ route")
+        if not self.model.startswith(MODEL_ROUTE_PREFIXES) or len(self.model) <= len(
+            self.route_prefix
+        ):
+            allowed = " or ".join(MODEL_ROUTE_PREFIXES)
+            raise ValueError(f"model role {self.name!r} must use the {allowed} route")
         if self.reasoning_effort not in CODEX_REASONING_EFFORTS:
             allowed = ", ".join(sorted(CODEX_REASONING_EFFORTS))
             raise ValueError(
@@ -33,14 +42,33 @@ class ModelRole:
                 f"{allowed}; got {self.reasoning_effort!r}"
             )
 
+    @property
+    def route_prefix(self) -> str:
+        for prefix in MODEL_ROUTE_PREFIXES:
+            if self.model.startswith(prefix):
+                return prefix
+        return ""
+
+    @property
+    def is_local_route(self) -> bool:
+        return self.route_prefix == LOCAL_ROUTE_PREFIX
+
     def evidence_descriptor(self) -> dict[str, str | bool]:
+        # ``local/`` ids run through the typed openai-compatible loopback port;
+        # they never claim the removed ``dspy-lm-auth`` provider or a Codex auth route.
+        if self.is_local_route:
+            provider = "openai-compatible"
+            auth_route = "loopback_credential_free"
+        else:
+            provider = "dspy-lm-auth"
+            auth_route = "codex_subscription"
         return {
             "schema_version": "dspx-model-role-declaration-v1",
             "status": "declared_not_live_verified",
             "live_verified": False,
             "role": self.name,
-            "provider": "dspy-lm-auth",
-            "auth_route": "codex_subscription",
+            "provider": provider,
+            "auth_route": auth_route,
             "model": self.model,
             "reasoning_effort": self.reasoning_effort,
             "purpose": self.purpose,

@@ -29,6 +29,12 @@ from dspx.services.program_runtime_episode import (
     load_validated_program_runtime_episode_bundle,
     run_program_runtime_episode,
 )
+from dspx.services.program_foundry_provider_evidence import (
+    PROVIDER_EVIDENCE_KIND_FIELD,
+    lineage_provider_evidence,
+    provider_evidence_kind_from_behavior_results,
+    provider_evidence_kind_from_oracle_result,
+)
 from dspx.services.program_runtime_oracle_semantic import (
     DEFAULT_PROGRAM_RUNTIME_ORACLE_SEMANTIC_NAME,
     run_program_runtime_oracle_semantics,
@@ -274,6 +280,9 @@ def _validate_runtime_stage(
         "status": bundle.runtime_episode.get("status"),
         "artifact_hashes": hash_map,
         "receipt_status": receipt.get("status"),
+        PROVIDER_EVIDENCE_KIND_FIELD: provider_evidence_kind_from_behavior_results(
+            bundle.behavior_results
+        ),
     }
 
 
@@ -433,6 +442,16 @@ def _run_program_foundry_locked(
             "execution_authority": False,
         }
 
+    semantic_kind = provider_evidence_kind_from_oracle_result(semantic_result_map)
+    provider_evidence = lineage_provider_evidence(
+        {
+            "program_run": runtime.get(PROVIDER_EVIDENCE_KIND_FIELD),
+            "oracle_semantic": semantic_kind,
+            # GEPA has not run at foundry time; its link is labelled by the
+            # execution receipt and folded into the jury request later.
+            "gepa": None,
+        }
+    )
     payload: dict[str, Any] = {
         "schema_version": PROGRAM_FOUNDRY_SCHEMA,
         "status": status,
@@ -440,6 +459,7 @@ def _run_program_foundry_locked(
         "inputs_path": str(inputs_path),
         "foundry_root": str(root),
         "workflow_path": str(summary_path),
+        "provider_evidence": provider_evidence,
         "stages": {
             "accepted_intent": {"status": "accepted", "binding": accepted},
             "candidate": {
@@ -460,6 +480,7 @@ def _run_program_foundry_locked(
                 "execution_status": semantic_execution,
                 "preferred_model": semantic_result_map.get("preferred_model"),
                 "executed_model": semantic_result_map.get("executed_model"),
+                PROVIDER_EVIDENCE_KIND_FIELD: semantic_kind,
                 "contract_valid": semantic_validation["contract_valid"],
                 "effect": semantic_validation["effect"],
                 "non_authority": semantic_validation["non_authority"],

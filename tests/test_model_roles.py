@@ -53,12 +53,37 @@ def test_role_overrides_remain_explicit_and_validated() -> None:
     assert role.reasoning_effort == "xhigh"
 
 
-def test_role_rejects_non_codex_route() -> None:
-    with pytest.raises(ValueError, match="must use the codex/ route"):
+def test_role_rejects_non_codex_non_local_route() -> None:
+    with pytest.raises(ValueError, match="must use the codex/ or local/ route"):
         resolve_model_role(
             "quality_criteria",
             environ={"DSPX_QUALITY_CRITERIA_MODEL": "openai/gpt-5.6-sol"},
         )
+    with pytest.raises(ValueError, match="must use the codex/ or local/ route"):
+        resolve_model_role(
+            "oracle_semantic",
+            environ={"DSPX_ORACLE_SEMANTIC_MODEL": "local/"},
+        )
+
+
+def test_local_route_role_never_claims_dspy_lm_auth() -> None:
+    role = resolve_model_role(
+        "oracle_semantic",
+        environ={"DSPX_ORACLE_SEMANTIC_MODEL": "local/Qwen3.8-27B-AEON-NVFP4-FP8"},
+    )
+
+    assert role.is_local_route is True
+    assert role.route_prefix == "local/"
+    descriptor = role.evidence_descriptor()
+    assert descriptor["provider"] == "openai-compatible"
+    assert descriptor["auth_route"] == "loopback_credential_free"
+    assert descriptor["model"] == "local/Qwen3.8-27B-AEON-NVFP4-FP8"
+    assert descriptor["live_verified"] is False
+    assert descriptor["status"] == "declared_not_live_verified"
+    assert "dspy-lm-auth" not in descriptor.values()
+    codex = resolve_model_role("oracle_semantic", environ={})
+    assert codex.is_local_route is False
+    assert codex.evidence_descriptor()["provider"] == "dspy-lm-auth"
 
 
 def test_role_rejects_unknown_reasoning_effort() -> None:

@@ -42,7 +42,7 @@ def _proposal(tmp_path: Path, monkeypatch, *, name: str = "foundry") -> Path:
         skip_oracle_index=True,
         gepa_recommendation_index=0,
         gepa_max_metric_calls=3,
-        gepa_metric="exact_match",
+        gepa_metric="concept_coverage",
     )
     return root / "gepa_experiment_proposal.json"
 
@@ -143,7 +143,7 @@ def test_reviewed_foundry_gepa_executes_once_and_reuses_terminal_receipt(
     assert third["status"] == "ok"
     assert third["reused"] is True
     assert len(calls) == 1
-    assert calls[0]["metric"] == "exact"
+    assert calls[0]["metric"] == "concept_coverage"
     assert calls[0]["max_metric_calls"] == 3
     attempt = json.loads((root / "attempt.json").read_text(encoding="utf-8"))
     assert attempt["review_declaration"]["authenticated"] is False

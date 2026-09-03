@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from contextlib import ExitStack
 from pathlib import Path
@@ -61,6 +62,13 @@ from dspx.services.program_foundry_gepa_proposal_io import (
     assert_path_descriptor_identity,
     read_regular_bytes,
 )
+from dspx.services.program_foundry_provider_evidence import (
+    PROVIDER_EVIDENCE_KIND_FIELD,
+    is_provider_evidence_kind,
+    provider_evidence_kind_for_provider,
+    provider_evidence_kind_from_interpretation,
+    weakest_provider_evidence_kind,
+)
 from dspx.services.program_foundry_io import foundry_lock
 from dspx.services.program_model_jury_provider_runtime import (
     ProgramModelJuryExecutionError,
@@ -71,6 +79,78 @@ from dspx.services.program_model_jury_provider_runtime import (
 # runs the jury in this process instead; that is a test seam for fixtures that
 # patch ``build_comparison_model_jury_result`` here, never a production setting.
 _CHILD_ARGV: tuple[str, ...] | None = default_child_argv()
+
+
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    """Best-effort advisory read for labelling; never raises."""
+
+    try:
+        payload = json.loads(read_regular_bytes(path, label=path.name))
+    except Exception:
+        return None
+    return dict(payload) if isinstance(payload, Mapping) else None
+
+
+def _closed_kind(value: object) -> str | None:
+    return str(value) if is_provider_evidence_kind(value) else None
+
+
+def lineage_provider_evidence_kind(
+    validated: Mapping[str, Any], *, jury_provider: str
+) -> str | None:
+    """Weakest link across program-run, Oracle, GEPA, and this jury's provider.
+
+    Program-run evidence is read from the bound candidate comparison's
+    interpretation, the GEPA link from the bound execution receipt, and the
+    Oracle link from the foundry runtime sidecar. Any unknown link keeps the
+    lineage unknown (label absent) unless a weaker known link decides it.
+    """
+
+    comparison = _read_json_object(Path(str(validated["comparison_path"])))
+    execution_receipt = _read_json_object(
+        Path(str(validated["execution_receipt_path"]))
+    )
+    root = Path(
+        str(validated.get("root") or Path(str(validated["experiment_root"])).parent)
+    )
+    oracle = _read_json_object(root / "runtime" / "program_oracle_semantic.json")
+    return weakest_provider_evidence_kind(
+        provider_evidence_kind_from_interpretation(comparison),
+        _closed_kind(
+            execution_receipt.get(PROVIDER_EVIDENCE_KIND_FIELD)
+            if execution_receipt is not None
+            else None
+        ),
+        _closed_kind(
+            oracle.get(PROVIDER_EVIDENCE_KIND_FIELD) if oracle is not None else None
+        ),
+        provider_evidence_kind_for_provider(jury_provider),
+    )
+
+
+def _retained_request_kind(path: Path) -> str | None:
+    """Reuse the label a retained attempt/receipt already carries (absent = unknown)."""
+
+    payload = _read_json_object(path)
+    if payload is None:
+        return None
+    request = payload.get("execution_request")
+    if not isinstance(request, Mapping):
+        return None
+    return _closed_kind(request.get(PROVIDER_EVIDENCE_KIND_FIELD))
+
+
+def _with_provider_evidence_kind(
+    request: Mapping[str, Any], kind: str | None
+) -> dict[str, Any]:
+    labelled = {
+        key: value
+        for key, value in request.items()
+        if key != PROVIDER_EVIDENCE_KIND_FIELD
+    }
+    if kind is not None:
+        labelled[PROVIDER_EVIDENCE_KIND_FIELD] = kind
+    return labelled
 
 
 def _run_jury(
@@ -304,6 +384,21 @@ def execute_program_foundry_gepa_comparison_jury(
         experiment_root = Path(str(validated["experiment_root"]))
         input_sha256 = jury_input_sha256(validated)
         paths = jury_paths(experiment_root)
+        if paths["receipt"].exists() and not paths["receipt"].is_symlink():
+            request = _with_provider_evidence_kind(
+                request, _retained_request_kind(paths["receipt"])
+            )
+        elif paths["attempt"].exists() and not paths["attempt"].is_symlink():
+            request = _with_provider_evidence_kind(
+                request, _retained_request_kind(paths["attempt"])
+            )
+        else:
+            request = _with_provider_evidence_kind(
+                request,
+                lineage_provider_evidence_kind(
+                    validated, jury_provider=str(request["provider"])
+                ),
+            )
         if paths["receipt"].exists():
             return receipt_validation._validate_existing_receipt(
                 validated=validated,

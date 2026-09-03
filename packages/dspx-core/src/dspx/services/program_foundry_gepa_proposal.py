@@ -20,7 +20,9 @@ from dspx.services.program_foundry_gepa_proposal_io import (
 from dspx.services.program_oracle_semantic_contract import OracleSemanticAnalysis
 
 PROGRAM_FOUNDRY_GEPA_PROPOSAL_SCHEMA = "dspx-program-foundry-gepa-proposal-v1"
-_SUPPORTED_METRICS = {"exact_match", "exact", "contains", "f1"}
+CONCEPT_COVERAGE_METRIC = "concept_coverage"
+_EXACT_METRICS = {"exact_match", "exact"}
+_SUPPORTED_METRICS = {*_EXACT_METRICS, "contains", "f1", CONCEPT_COVERAGE_METRIC}
 
 
 def _canonical_json(value: object) -> str:
@@ -190,6 +192,29 @@ def _validate_semantic_sources(
     return validated
 
 
+def _concept_coverage_binding(intent: Mapping[str, Any]) -> dict[str, Any]:
+    """Bind the optimizer metric to the intent's declared concept-coverage criteria."""
+
+    criteria = intent.get("quality_criteria")
+    if not isinstance(criteria, list) or not criteria:
+        raise ProgramFoundryGepaProposalError(
+            "concept_coverage GEPA metric requires non-empty intent quality_criteria"
+        )
+    criterion_ids = [
+        str(item.get("id") or "") for item in criteria if isinstance(item, Mapping)
+    ]
+    if len(criterion_ids) != len(criteria) or any(not cid for cid in criterion_ids):
+        raise ProgramFoundryGepaProposalError(
+            "concept_coverage GEPA metric requires identified quality criteria"
+        )
+    return {
+        "criterion_ids": criterion_ids,
+        "criteria_sha256": _sha256_bytes(_canonical_json(criteria).encode("utf-8")),
+        "optimizer_backend_metric": "exact",
+        "scoring": "binary_pass_of_all_declared_criteria_via_normalize_output",
+    }
+
+
 def _metric_plan(
     candidate: Mapping[str, Any], *, metric_override: str | None
 ) -> dict[str, Any]:
@@ -200,24 +225,43 @@ def _metric_plan(
         selected = metric_override.strip()
         if selected not in _SUPPORTED_METRICS:
             raise ProgramFoundryGepaProposalError(
-                "GEPA proposal metric override must be exact_match, exact, contains, or f1"
+                "GEPA proposal metric override must be exact_match, exact, contains, "
+                "f1, or concept_coverage"
             )
-        optimizer_metric = "exact" if selected in {"exact", "exact_match"} else selected
-        return {
+        if declared == CONCEPT_COVERAGE_METRIC and selected in _EXACT_METRICS:
+            # Exact string match over concept-coverage examples would score a
+            # correct-but-differently-worded answer as a failure; refuse it.
+            raise ProgramFoundryGepaProposalError(
+                "exact/exact_match GEPA metric is dishonest for a concept_coverage "
+                "intent; use --gepa-metric concept_coverage"
+            )
+        if selected == CONCEPT_COVERAGE_METRIC and declared != CONCEPT_COVERAGE_METRIC:
+            raise ProgramFoundryGepaProposalError(
+                "concept_coverage GEPA metric requires an intent whose metric is "
+                "concept_coverage"
+            )
+        optimizer_metric = "exact" if selected in _EXACT_METRICS else selected
+        plan = {
             "declared_metric": declared,
             "operator_metric_override": selected,
             "optimizer_metric": optimizer_metric,
             "operator_metric_required": False,
             "blockers": [],
         }
+        if optimizer_metric == CONCEPT_COVERAGE_METRIC:
+            plan["concept_coverage_binding"] = _concept_coverage_binding(intent)
+        return plan
     if declared in _SUPPORTED_METRICS:
-        optimizer_metric = "exact" if declared in {"exact", "exact_match"} else declared
-        return {
+        optimizer_metric = "exact" if declared in _EXACT_METRICS else declared
+        plan = {
             "declared_metric": declared,
             "optimizer_metric": optimizer_metric,
             "operator_metric_required": False,
             "blockers": [],
         }
+        if optimizer_metric == CONCEPT_COVERAGE_METRIC:
+            plan["concept_coverage_binding"] = _concept_coverage_binding(intent)
+        return plan
     return {
         "declared_metric": declared,
         "optimizer_metric": None,

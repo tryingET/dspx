@@ -13,10 +13,16 @@ from dspx.services.program_runtime_episode import (
     load_validated_program_runtime_episode_bundle,
 )
 
+from dspx.services.program_foundry_provider_evidence import (
+    PROVIDER_EVIDENCE_KIND_FIELD,
+    provider_evidence_kind_from_behavior_results,
+    weakest_provider_evidence_kind,
+)
 from dspx.services.program_refinement import (
     ProgramRefinementError,
     load_program_behavior_results,
     load_program_manifest,
+    metric_is_exact,
 )
 
 PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA = (
@@ -53,6 +59,7 @@ _LIMITS = [
     "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
     "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
     "This comparison is not a promotion, ranking, winner-selection, or approval decision.",
+    "interpretation.provider_evidence_kind labels what produced the compared behavior (live, authored_fixture_replay, stub_echo); absent or null means unknown, and stub_echo or authored_fixture_replay evidence cannot support a review recommendation.",
 ]
 
 
@@ -176,9 +183,13 @@ def _behavior_examples(behavior: Mapping[str, Any] | None) -> list[dict[str, Any
 
 
 def _failure_signals_from_behavior(
-    behavior: Mapping[str, Any] | None, *, output_fields: list[str]
+    behavior: Mapping[str, Any] | None,
+    *,
+    output_fields: list[str],
+    exact_metric: bool = True,
 ) -> list[str]:
     signals: list[str] = []
+    comparison_signal = "mismatch" if exact_metric else "differs"
     for record in _behavior_examples(behavior):
         status = str(record.get("status") or "unknown")
         expected = _safe_mapping(record.get("expected_outputs"))
@@ -194,14 +205,14 @@ def _failure_signals_from_behavior(
                 and field in observed
                 and str(expected[field]) != str(observed[field])
             ):
-                signals.append(f"mismatch:{field}")
+                signals.append(f"{comparison_signal}:{field}")
             if field not in observed and status != "error":
                 signals.append(f"missing_observed:{field}")
         for note in _string_list(record.get("notes")):
             if "output mismatch" in note:
                 for field in output_fields:
                     if field in note:
-                        signals.append(f"mismatch:{field}")
+                        signals.append(f"{comparison_signal}:{field}")
     unique: list[str] = []
     for signal in signals:
         if signal not in unique:
@@ -505,6 +516,9 @@ def _behavior_summary(
             "failure_signals": _failure_signals_from_behavior(
                 behavior,
                 output_fields=output_fields,
+                exact_metric=metric_is_exact(
+                    _safe_mapping(manifest.get("intent")).get("metric")
+                ),
             ),
         }
     episode_summary = _safe_mapping((behavior_episode or {}).get("summary"))
@@ -844,6 +858,39 @@ def build_program_refinement_candidate_comparison(
             "runtime_evidence_compared": True,
             "evidence_conflict": False,
         }
+    provider_evidence_links = {
+        "source_generated_behavior": provider_evidence_kind_from_behavior_results(
+            source_behavior
+        ),
+        "candidate_generated_behavior": provider_evidence_kind_from_behavior_results(
+            candidate_behavior
+        ),
+        "source_runtime_behavior": provider_evidence_kind_from_behavior_results(
+            source_runtime_behavior
+        ),
+        "candidate_runtime_behavior": provider_evidence_kind_from_behavior_results(
+            candidate_runtime_behavior
+        ),
+    }
+    compared_links = [
+        kind
+        for name, kind in provider_evidence_links.items()
+        if (name.endswith("generated_behavior") and generated_compared)
+        or (name.endswith("runtime_behavior") and runtime_compared)
+    ]
+    provider_evidence_kind = (
+        weakest_provider_evidence_kind(*compared_links) if compared_links else None
+    )
+    interpretation[PROVIDER_EVIDENCE_KIND_FIELD] = provider_evidence_kind
+    interpretation["provider_evidence_links"] = provider_evidence_links
+    runtime_interpretation[PROVIDER_EVIDENCE_KIND_FIELD] = (
+        weakest_provider_evidence_kind(
+            provider_evidence_links["source_runtime_behavior"],
+            provider_evidence_links["candidate_runtime_behavior"],
+        )
+        if runtime_compared
+        else None
+    )
     return {
         "schema_version": PROGRAM_REFINEMENT_CANDIDATE_COMPARISON_SCHEMA,
         "status": status,

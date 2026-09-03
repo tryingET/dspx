@@ -18,6 +18,10 @@ from dspx.services.program_foundry_gepa_execution_contract import (
     validate_execution_proposal,
     validate_review_declaration,
 )
+from dspx.services.program_foundry_provider_evidence import (
+    PROVIDER_EVIDENCE_KIND_FIELD,
+    provider_evidence_kind_from_gepa_result,
+)
 from dspx.services.program_foundry_gepa_proposal_io import (
     assert_path_descriptor_identity,
     sha256_regular_file,
@@ -246,6 +250,7 @@ def _build_receipt(
         "optimizer_output_readiness": checked["readiness"],
         "optimizer_manifest_sha256": checked["optimizer_manifest_sha256"],
         "optimizer_tree_sha256": checked["optimizer_tree_sha256"],
+        PROVIDER_EVIDENCE_KIND_FIELD: provider_evidence_kind_from_gepa_result(result),
         "effect": {
             "gepa_invoked": gepa.get("attempted") is True,
             "terminal_result_recorded": True,

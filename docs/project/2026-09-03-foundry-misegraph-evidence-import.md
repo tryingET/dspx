@@ -1,9 +1,9 @@
 ---
-summary: "Contract for `dspx foundry import-misegraph-evidence`: verified misegraph-evidence-package-v1 in, deterministic program-intent-v2 + inputs + dspx-misegraph-evidence-binding-v1 out (AK-5355, Phase 2 slices D1-D3)."
+summary: "Contract for `dspx foundry import-misegraph-evidence`: verified misegraph-evidence-package-v1 in, deterministic program-intent-v2 (package-derived concept groups, optional operator answers) + inputs + dspx-misegraph-evidence-binding-v1 out (AK-5355, Phase 2 slices D1-D3; AK-5362 honest loop: live typed Oracle backend, concept_coverage GEPA metric, provider_evidence_kind labelling)."
 read_when:
-  - "You are importing a Misegraph evidence package into the DSPx foundry flow or authoring the answers file for it."
+  - "You are importing a Misegraph evidence package into the DSPx foundry flow or authoring the optional answers file for it."
   - "You are changing program_foundry_misegraph_evidence*.py, program_foundry_misegraph.py, or the checked-in misegraph-evidence-package-v1 fixture."
-  - "You need to know what the offline (stub / fixture-replay) foundry lineage proves and what it does not."
+  - "You need to know what an offline (stub / fixture-replay) or a live (typed openai-compatible) foundry lineage proves, and how provider_evidence_kind labels it."
 type: "reference"
 ---
 
@@ -26,8 +26,11 @@ or Oracle fixture schemas.
 - The importer refuses to write into the package dir, into a directory that contains the package
   dir, or under any directory tree whose ancestor is a Misegraph repository root
   (`Cargo.toml` with `name = "misegraph"`).
-- The importer never authors an expected answer. `examples[*].outputs.answer` is copied verbatim
-  from the operator-supplied `--answers` file; a selected case without an answer is a hard error.
+- The importer never authors a judgment. With `--answers`, `examples[*].outputs.answer` is copied
+  verbatim from the operator file (a selected case without an answer is a hard error). Without
+  `--answers`, the answer is the deterministic package-derived projection string described below
+  and provenance says so (`answers.origin = "package_derived"`,
+  `non_authority.answers_authored_by_importer = true`).
 - No AK call, no network, no Misegraph mutation. Jury consensus, adjudication disposition, and
   the eventual `misegraph-jury-recommendation-v1` record are never mapped onto an AK task state.
 - The importer emits candidate material for the foundry flow; it does not grant quality
@@ -76,7 +79,34 @@ Field names and the canonical JSON rule are taken from the Misegraph producer
 Any failure raises `MisegraphEvidencePackageError`; the CLI maps it to exit 2 as
 `Error: package rejected: <reason>` and writes nothing.
 
-## Answers file: `dspx-misegraph-example-answers-v1`
+## Package-derived expected projection (AK-5362)
+
+`derive_misegraph_expected(package, case_id)` (`program_foundry_misegraph_evidence.py`) turns
+package facts into the quality criterion and, when no answers file is supplied, the example
+answer. Nothing comes from a template or an operator's memory:
+
+- `required_concept_groups` (one group = one fact, any listed spelling satisfies it):
+  recipe id tokens from `canonical.json.id` (`espresso`, `brownies`); one group per ingredient
+  `[id, id with spaces, name]`; one group per equipment `[id, name]`; for every step carrying a
+  `temperature` / `duration`, one group of spellings per amount (`170 C`, `170 °C`, `170°C`,
+  `170 degrees C`; `30 min`, `40 min`, `30-40 min`, ...); one group for the `check.json` error
+  count (`0 errors`, `zero errors`, `no errors`, `error_count 0`, `no diagnostics`, ... or
+  `N errors`). Bounds are the evaluator's (≤ 20 groups, ≤ 10 terms per group, ≤ 256 chars);
+  exceeding them fails the import closed rather than truncating facts.
+- `projection`: a case-specific canonical restatement (`Misegraph evidence projection for case
+  check-json (exit code 0). Recipe espresso_brownies ... Step bake_brownies (bake): temperature
+  170 C, duration 30-40 min. Check: 0 errors, 0 diagnostics; ... not a judgment.`). The importer
+  asserts that the projection satisfies its own derived criterion.
+- The intent's `misegraph_recipe_fidelity` criterion carries the derived groups instead of the
+  template's literal `[["espresso","brownies"],["ingredient","process"],["bake","temperature"]]`;
+  every other non-example intent field is still the pinned AK-5346 reference (the test pins the
+  intent with the template groups substituted back).
+- `misegraph-import-provenance.json` gains `answers.origin` (`operator` | `package_derived`) and
+  an `expected_projection` block (`dspx-misegraph-expected-projection-v1`: criterion id, derived
+  groups, `derived_from`, `projection_sha256_by_case`, `used_as_example_answer`). The binding
+  file is unchanged and stays byte-compatible with Misegraph's `receipt.rs`.
+
+## Answers file (optional): `dspx-misegraph-example-answers-v1`
 
 ```json
 {
@@ -98,7 +128,7 @@ binding's `emitted.intent_sha256` (the answers are inside the intent).
 ```bash
 uv run --no-sync dspx foundry import-misegraph-evidence \
   --package <dir>            # misegraph-evidence-package-v1, read-only
-  --answers <answers.json>   # dspx-misegraph-example-answers-v1
+  [--answers <answers.json>] # optional dspx-misegraph-example-answers-v1 (origin=operator)
   --outdir <dir>             # receives the four files below; no-clobber
   [--case render-text --case check-json]   # ordered; default: render-text, check-json
   [--json]
@@ -148,10 +178,12 @@ already exists.
    `Path::new(path)` and re-hashes them. The only Misegraph-side path that appears is
    `package.dir`; the intent and inputs carry no absolute paths at all.
 4. `misegraph-import-provenance.json` — `dspx-misegraph-import-provenance-v1`: importer schema
-   version, `package_sha256`, `manifest_sha256`, `answers{schema_version,path,sha256}`,
-   `binding{path,sha256}`, `example_cases`, `canonical_ir_validator`, and a non-authority block
-   including `answers_authored_by_importer: false`. It exists because the binding is closed by
-   the Misegraph verifier and cannot carry the answers hash.
+   version, `package_sha256`, `manifest_sha256`,
+   `answers{origin,schema_version,path,sha256}` (nulls when package-derived),
+   `expected_projection{...}`, `binding{path,sha256}`, `example_cases`,
+   `canonical_ir_validator`, and a non-authority block whose `answers_authored_by_importer` is
+   `false` for operator answers and `true` for the package-derived projection. It exists because
+   the binding is closed by the Misegraph verifier and cannot carry these facts.
 
 Determinism: the four files are a pure function of (package bytes, answers bytes, case
 selection, resolved outdir path). `intent.json` and `inputs.json` are identical across outdirs;
@@ -185,6 +217,90 @@ not a runtime step.
   `authored_fixture_replay` in the lineage's `commands-run.txt` and in any evidence document,
   and do not present the resulting `program_oracle_semantic.json` as an analytical finding. This
   import does not change that; it only makes the intent/inputs side reproducible and hash-bound.
+
+## Honest loop additions (AK-5362, 2026-09-04)
+
+### Live Oracle semantic backend on the typed port
+
+`program_oracle_semantic_backend.TypedProviderOracleSemanticBackend` restores a live backend
+inside the Decision 118 boundary: `provider_registry.create` restricted to `openai-compatible`
+(`DSPX_ORACLE_SEMANTIC_BACKEND=live`, `DSPX_ORACLE_SEMANTIC_PROVIDER=openai-compatible`,
+`DSPX_OPENAI_COMPAT_API_BASE|MODEL|TIMEOUT`, optional `DSPX_ORACLE_SEMANTIC_MODEL` which must be
+a `local/` id; any credential env rejects). One `DSPyTypedLMAdapter` invocation carries the
+existing `_analysis_prompt`; `_parse_analysis_text` is strict (one JSON object, no unknown
+fields, `uniqueItems`, and every `items.enum` of `_analysis_response_format` — codebook codes and
+the request-derived `evidence_refs` — is closed, so a model cannot cite a ref the request did not
+offer). Results: `execution_status ∈ {succeeded, failed_before_live_success,
+failed_after_live_response}`, `configured_*` from env, `executed_*` from the provider's observed
+attempt, `live_call_succeeded` from the effect disposition. An `effect_indeterminate` disposition
+raises and latches the backend (terminal; the runtime sidecar records `indeterminate`, foundry
+reports `blocked_indeterminate`). Preflight validates configuration only and never dispatches.
+`model_roles.ModelRole` accepts `local/` ids and labels them `provider=openai-compatible,
+auth_route=loopback_credential_free` instead of `dspy-lm-auth`.
+
+Observed 2026-09-04 against the loopback vLLM 0.27 (`local/Qwen3.8-27B-AEON-NVFP4-FP8`): the
+typed port's response validator (`openai_compatible_provider._validated_response`, outside the
+AK-5362 edit scope) classifies every reply as `completed_failure` because vLLM adds null message
+keys (`refusal`, `annotations`, `audio`, `function_call`, `reasoning`) and
+`usage.prompt_tokens_details`. The live-marked test records this as an `xfail` with the reason;
+the fake-transport tests prove the backend contract. Until the port accepts that shape, a live
+lineage over this server terminates at `failed_before_live_success` — recorded, not papered over.
+
+### Metric honesty for GEPA
+
+- `program_foundry_gepa_proposal._SUPPORTED_METRICS` adds `concept_coverage`; the plan binds it
+  to the intent's criteria (`concept_coverage_binding{criterion_ids, criteria_sha256,
+  optimizer_backend_metric: exact}`) and refuses `exact`/`exact_match` for a `concept_coverage`
+  intent (`--gepa-metric concept_coverage` is the honest choice). The executor contract accepts
+  the metric.
+- `program_refinement_gepa` writes `_gepa_inputs/concept_coverage_program.py`, a wrapper that
+  re-exports the candidate program and whose `normalize_output` projects gold/pred onto a
+  `concept_coverage[<ids>]:passed|failed (...)` verdict so the optimizer's `exact` backend scores
+  1.0 only when every declared criterion passes; feedback names the missing groups. The result
+  records `metric_honesty{intent_metric, optimizer_metric, aligned}` and the binding hashes.
+- `program_refinement` (and `program_refinement_comparison`) emit `differs:<field>` instead of
+  the blocking `mismatch:<field>` when the intent metric is not exact; `differs` never selects the
+  `tighten_output_mapping` change or the "failed exact_match" rationale.
+
+### Provider evidence labelling
+
+`program_foundry_provider_evidence.py` derives the closed `provider_evidence_kind`
+(`live` | `authored_fixture_replay` | `stub_echo`; absent/null = unknown) from the actual runtime:
+`openai-compatible` and the task-local jury families → `live`; `stub` / `stub/echo` →
+`stub_echo`; Oracle `fixture-replay` → `authored_fixture_replay`. A lineage label is the weakest
+link (stub_echo < authored_fixture_replay < live; an unknown link keeps the lineage unknown
+unless a weaker known link decides it). It is written to: the Oracle sidecar
+(`program_oracle_semantic.json.provider_evidence_kind`), `foundry.json.provider_evidence`
+(`links{program_run, oracle_semantic, gepa}` + `lineage`) and its stage blocks, the GEPA
+`execution-receipt.json`, `candidate-comparison.json.interpretation` (plus
+`provider_evidence_links` and a `limits` line), and the comparison-jury attempt/receipt
+`execution_request.provider_evidence_kind` (weakest of comparison, GEPA receipt, Oracle sidecar,
+and the jury's own provider). The jury receipt keeps `schema_version
+dspx-program-foundry-gepa-comparison-jury-v1`; the field is additive and optional, retained
+AK-5346/5352/5358/5360/5361 receipts (see `docs/project/*-evidence.json`) still revalidate, and
+Misegraph's `receipt.rs` reads absent as `unknown`.
+
+### Honest lineage run (2026-09-04, `$ROOT = $TMPDIR/misegraph-foundry-honest-5362.NtdPDD`)
+
+Prescribed env (`DSPX_PROVIDER=openai-compatible`, loopback vLLM, `DSPX_ORACLE_SEMANTIC_BACKEND=live`,
+no `DSPX_REPLAY_FIXTURE_JSON`, no fixture path) plus two recorded additions:
+`DSPX_POLICY_ALLOW_NETWORK_MUTATE=1` (the typed port preflight-rejects dispatch without it) and
+`DSPX_PROGRAM_HARNESS_TIMEOUT=600` (program-gen's `eval_examples.py` hit the 60 s default while the
+27B model was still generating). Every command and rc is in `$ROOT/commands-run.txt`.
+
+- export rc=0 (`package_sha256 0be06d8d…4905`), import rc=0 (`answers.origin=package_derived`),
+  program-gen rc=0, program-run rc=0 with behavior `error`: the port classified the model's reply
+  as `completed_failure` (response-shape rejection above); `foundry.json` was therefore never
+  written by a successful foundry run.
+- foundry rc=2: the live Oracle stage ended `effect_indeterminate` (typed-port read timeout at
+  `DSPX_OPENAI_COMPAT_TIMEOUT=180` while the model was still generating); the sidecar is terminal,
+  so no GEPA proposal exists and `execute-foundry-gepa` did not run. A deliberate second attempt
+  into a **new** sidecar (`program_oracle_semantic.retry-600s.json`, 600 s timeout) let the model
+  finish, and the typed port then classified the reply as `completed_failure`
+  (`failed_before_live_success`, `executed_model` observed, zero recommended experiments); the
+  canonical sidecar was never replayed.
+- The quality-proposal envelope is still the AK-5346 injected test double re-bound to the emitted
+  intent (recorded as a remaining hollow link); consume and jury were not run (task scope).
 
 ## Validation performed (2026-09-03)
 

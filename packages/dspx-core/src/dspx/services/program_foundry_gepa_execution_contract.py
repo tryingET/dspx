@@ -26,7 +26,7 @@ from dspx.services.program_oracle_secret_policy import (
 )
 from dspx.services.run_replay_service import check_run_receipt
 
-_SUPPORTED_METRICS = {"exact", "contains", "f1"}
+_SUPPORTED_METRICS = {"exact", "contains", "f1", "concept_coverage"}
 
 
 class ProgramFoundryGepaExecutionError(ValueError):

@@ -1,21 +1,30 @@
-# summary: "Deterministic import of a Misegraph evidence package into a program-intent-v2 intent, runtime inputs, and a dspx-misegraph-evidence-binding-v1 record."
+# summary: "Deterministic import of a Misegraph evidence package into a program-intent-v2 intent (package-derived concept groups), runtime inputs, and a dspx-misegraph-evidence-binding-v1 record."
 # read_when:
-#   - "Changing what `dspx foundry import-misegraph-evidence` emits or how the binding is derived."
+#   - "Changing what `dspx foundry import-misegraph-evidence` emits, how the expected projection is derived, or how the binding is derived."
 #   - "Authoring the misegraph_source projection of a foundry evidence document."
 
 """Misegraph evidence package import (consumer side).
 
 Input: a verified `misegraph-evidence-package-v1` directory (see
-``program_foundry_misegraph_evidence_package``) and an operator-authored
-answers file. Output: ``intent.json`` (program-intent-v2), ``inputs.json``,
-``misegraph-evidence-binding.json`` (``dspx-misegraph-evidence-binding-v1``,
-byte-for-byte the shape Misegraph's ``evidence verify-receipt`` deserializes
-with ``deny_unknown_fields``), and ``misegraph-import-provenance.json``
-carrying the answers-file hash and importer facts the closed binding cannot.
+``program_foundry_misegraph_evidence_package``) and optionally an
+operator-authored answers file. Output: ``intent.json`` (program-intent-v2),
+``inputs.json``, ``misegraph-evidence-binding.json``
+(``dspx-misegraph-evidence-binding-v1``, byte-for-byte the shape Misegraph's
+``evidence verify-receipt`` deserializes with ``deny_unknown_fields``), and
+``misegraph-import-provenance.json`` carrying the answers origin, the derived
+expected projection, and importer facts the closed binding cannot.
 
-The output is a pure function of (package bytes, answers bytes, case
-selection, outdir path). The importer never writes into the package dir, never
-writes under a Misegraph repo root, and never invents an expected answer.
+The quality criterion's ``required_concept_groups`` are derived from the
+package itself (``canonical.json`` recipe id tokens, ingredients, equipment,
+bake temperature/duration; ``check.json`` error count) by
+``derive_misegraph_expected``. When no answers file is supplied, the example
+answer is the deterministic canonical projection string of those same facts
+and provenance records ``answers.origin = "package_derived"``; an operator
+answers file records ``answers.origin = "operator"``.
+
+The output is a pure function of (package bytes, answers bytes or absence,
+case selection, outdir path). The importer never writes into the package dir
+and never writes under a Misegraph repo root.
 """
 
 from __future__ import annotations
@@ -39,11 +48,21 @@ from dspx.services.program_foundry_misegraph_evidence_package import (
     sha256_hex,
 )
 from dspx.services.program_intent import ProgramIntent
+from dspx.services.program_quality_evaluation import (
+    evaluate_declared_quality,
+    normalize_quality_criteria,
+)
 
 BINDING_SCHEMA_VERSION = "dspx-misegraph-evidence-binding-v1"
 ANSWERS_SCHEMA_VERSION = "dspx-misegraph-example-answers-v1"
 PROVENANCE_SCHEMA_VERSION = "dspx-misegraph-import-provenance-v1"
 IMPORTER_SCHEMA_VERSION = "dspx-misegraph-evidence-import-v1"
+EXPECTED_PROJECTION_SCHEMA_VERSION = "dspx-misegraph-expected-projection-v1"
+ANSWERS_ORIGIN_OPERATOR = "operator"
+ANSWERS_ORIGIN_PACKAGE_DERIVED = "package_derived"
+QUALITY_CRITERION_ID = "misegraph_recipe_fidelity"
+_MAX_CONCEPT_GROUPS = 20
+_MAX_TERMS_PER_GROUP = 10
 DEFAULT_EXAMPLE_CASES: tuple[str, ...] = ("render-text", "check-json")
 
 INTENT_FILE = "intent.json"
@@ -216,21 +235,333 @@ def build_example_evidence(package: MisegraphEvidencePackage, case_id: str) -> s
     return compact_canonical_json(evidence)
 
 
+def _number_text(value: object) -> str:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise MisegraphEvidenceImportError("canonical amount value must be numeric")
+    number = float(value)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:g}"
+
+
+def _amount_text(amount: Mapping[str, Any]) -> tuple[str, list[str]]:
+    """Return (display, alternative bound texts) for an exact or range amount."""
+
+    kind = str(amount.get("kind") or "")
+    if kind == "exact":
+        value = _number_text(amount.get("value"))
+        return value, [value]
+    if kind == "range":
+        low = _number_text(amount.get("min"))
+        high = _number_text(amount.get("max"))
+        return f"{low}-{high}", [low, high, f"{low}-{high}", f"{low}..{high}"]
+    raise MisegraphEvidenceImportError(
+        f"canonical amount kind `{kind or 'missing'}` is not supported by the projection"
+    )
+
+
+def _unique_terms(terms: Sequence[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for term in terms:
+        text = " ".join(str(term).split())
+        key = text.casefold()
+        if not text or key in seen:
+            continue
+        seen.add(key)
+        unique.append(text)
+    if len(unique) > _MAX_TERMS_PER_GROUP:
+        unique = unique[:_MAX_TERMS_PER_GROUP]
+    return unique
+
+
+def _id_alternatives(identifier: str, name: object) -> list[str]:
+    terms = [identifier, identifier.replace("_", " ")]
+    if isinstance(name, str) and name.strip():
+        terms.append(name)
+    return _unique_terms(terms)
+
+
+def _error_count(check_payload: Mapping[str, Any]) -> int:
+    diagnostics = check_payload.get("diagnostics")
+    if not isinstance(diagnostics, list):
+        raise MisegraphEvidenceImportError("check.json diagnostics must be a list")
+    count = 0
+    for item in diagnostics:
+        if not isinstance(item, Mapping):
+            raise MisegraphEvidenceImportError(
+                "check.json diagnostic must be an object"
+            )
+        level = str(item.get("level") or item.get("severity") or "").strip().lower()
+        if level == "error":
+            count += 1
+    return count
+
+
+def derive_misegraph_expected(
+    package: MisegraphEvidencePackage, case_id: str
+) -> dict[str, Any]:
+    """Derive the expected concept groups and canonical projection from the package.
+
+    Everything comes from ``canonical.json`` (recipe id tokens, ingredient
+    ids/names, equipment, bake step temperature/duration), ``check.json``
+    (error count) and the behavior case. Nothing is invented: the projection
+    string is a deterministic restatement that the derived criterion accepts.
+    """
+
+    try:
+        case = package.case(case_id)
+    except MisegraphEvidencePackageError as exc:
+        raise MisegraphEvidenceImportError(
+            f"case `{case_id}` is not a behavior case of the package"
+        ) from exc
+    canonical = package.json(CANONICAL_FILE)
+    if not isinstance(canonical, Mapping):
+        raise MisegraphEvidenceImportError("canonical.json must be an object")
+    check_payload = package.json(CHECK_FILE)
+    if not isinstance(check_payload, Mapping):
+        raise MisegraphEvidenceImportError("check.json must be an object")
+    recipe_id = str(canonical.get("id") or "").strip()
+    title = str(canonical.get("title") or "").strip()
+    if not recipe_id:
+        raise MisegraphEvidenceImportError("canonical.json lacks a recipe id")
+    groups: list[list[str]] = []
+    id_tokens = [token for token in recipe_id.split("_") if len(token) >= 2]
+    for token in id_tokens:
+        groups.append(_unique_terms([token]))
+
+    ingredient_facts: list[dict[str, str]] = []
+    for item in canonical.get("ingredients") or []:
+        if not isinstance(item, Mapping):
+            raise MisegraphEvidenceImportError("canonical ingredient must be an object")
+        identifier = str(item.get("id") or "").strip()
+        if not identifier:
+            raise MisegraphEvidenceImportError("canonical ingredient lacks an id")
+        name = item.get("name")
+        quantity = item.get("quantity")
+        quantity_text = ""
+        if isinstance(quantity, Mapping) and isinstance(
+            quantity.get("amount"), Mapping
+        ):
+            display, _ = _amount_text(quantity["amount"])
+            unit = str(quantity.get("unit") or "").strip()
+            quantity_text = f"{display} {unit}".strip()
+        ingredient_facts.append(
+            {
+                "id": identifier,
+                "name": str(name or identifier),
+                "quantity": quantity_text,
+            }
+        )
+        groups.append(_id_alternatives(identifier, name))
+
+    equipment_facts: list[dict[str, str]] = []
+    for item in canonical.get("equipment") or []:
+        if not isinstance(item, Mapping):
+            raise MisegraphEvidenceImportError("canonical equipment must be an object")
+        identifier = str(item.get("id") or "").strip()
+        if not identifier:
+            raise MisegraphEvidenceImportError("canonical equipment lacks an id")
+        name = item.get("name")
+        equipment_facts.append({"id": identifier, "name": str(name or identifier)})
+        groups.append(_id_alternatives(identifier, name))
+
+    bake_facts: list[dict[str, str]] = []
+    for step in canonical.get("steps") or []:
+        if not isinstance(step, Mapping):
+            raise MisegraphEvidenceImportError("canonical step must be an object")
+        temperature = step.get("temperature")
+        duration = step.get("duration")
+        if not isinstance(temperature, Mapping) and not isinstance(duration, Mapping):
+            continue
+        step_id = str(step.get("id") or "").strip() or str(step.get("action") or "step")
+        fact = {"step": step_id, "action": str(step.get("action") or "")}
+        if isinstance(temperature, Mapping) and isinstance(
+            temperature.get("amount"), Mapping
+        ):
+            display, bounds = _amount_text(temperature["amount"])
+            unit = str(temperature.get("unit") or "").strip()
+            fact["temperature"] = f"{display} {unit}".strip()
+            terms: list[str] = []
+            for bound in bounds:
+                terms.extend(
+                    [
+                        f"{bound} {unit}",
+                        f"{bound}{unit}",
+                        f"{bound} °{unit}",
+                        f"{bound}°{unit}",
+                        f"{bound} degrees {unit}",
+                    ]
+                )
+            groups.append(_unique_terms(terms))
+        if isinstance(duration, Mapping) and isinstance(
+            duration.get("amount"), Mapping
+        ):
+            display, bounds = _amount_text(duration["amount"])
+            unit = str(duration.get("unit") or "").strip()
+            fact["duration"] = f"{display} {unit}".strip()
+            terms = []
+            for bound in bounds:
+                terms.extend([f"{bound} {unit}", f"{bound}{unit}"])
+            groups.append(_unique_terms(terms))
+        bake_facts.append(fact)
+
+    error_count = _error_count(check_payload)
+    if error_count == 0:
+        groups.append(
+            _unique_terms(
+                [
+                    "0 errors",
+                    "zero errors",
+                    "no errors",
+                    "error_count 0",
+                    "error_count: 0",
+                    "0 diagnostics",
+                    "zero diagnostics",
+                    "no diagnostics",
+                ]
+            )
+        )
+    else:
+        groups.append(
+            _unique_terms(
+                [
+                    f"{error_count} errors",
+                    f"{error_count} error",
+                    f"error_count {error_count}",
+                    f"error_count: {error_count}",
+                ]
+            )
+        )
+    if not groups or len(groups) > _MAX_CONCEPT_GROUPS:
+        raise MisegraphEvidenceImportError(
+            f"derived concept groups must number 1-{_MAX_CONCEPT_GROUPS}; got {len(groups)}"
+        )
+
+    diagnostics = check_payload.get("diagnostics")
+    diagnostic_count = len(diagnostics) if isinstance(diagnostics, list) else 0
+    conformance = package.manifest.get("conformance")
+    conformance_map = dict(conformance) if isinstance(conformance, Mapping) else {}
+    yield_value = canonical.get("yield")
+    yield_text = ""
+    if isinstance(yield_value, Mapping) and yield_value.get("amount") is not None:
+        yield_text = (
+            f"{_number_text(yield_value.get('amount'))} "
+            f"{str(yield_value.get('unit') or '').strip()}"
+        ).strip()
+    sentences = [
+        f"Misegraph evidence projection for case {case.id} (exit code {case.exit_code}).",
+        f"Recipe {recipe_id}"
+        + (f" '{title}'" if title else "")
+        + (f" with id tokens {', '.join(id_tokens)}" if id_tokens else "")
+        + (f"; yield {yield_text}" if yield_text else "")
+        + ".",
+    ]
+    if ingredient_facts:
+        sentences.append(
+            "Ingredients: "
+            + "; ".join(
+                f"{fact['name']} ({fact['id']})"
+                + (f" {fact['quantity']}" if fact["quantity"] else "")
+                for fact in ingredient_facts
+            )
+            + "."
+        )
+    if equipment_facts:
+        sentences.append(
+            "Equipment: "
+            + "; ".join(f"{fact['name']} ({fact['id']})" for fact in equipment_facts)
+            + "."
+        )
+    for fact in bake_facts:
+        parts = []
+        if fact.get("temperature"):
+            parts.append(f"temperature {fact['temperature']}")
+        if fact.get("duration"):
+            parts.append(f"duration {fact['duration']}")
+        sentences.append(
+            f"Step {fact['step']} ({fact['action']}): " + ", ".join(parts) + "."
+        )
+    sentences.append(
+        f"Check: {error_count} errors, {diagnostic_count} diagnostics; "
+        f"conformance status {conformance_map.get('status')}, "
+        f"error_count {conformance_map.get('error_count')}, "
+        f"warning_count {conformance_map.get('warning_count')}, "
+        f"deny_warnings {str(bool(conformance_map.get('deny_warnings'))).lower()}."
+    )
+    sentences.append(
+        "Source, canonical IR, and text render are hash-bound in the evidence; "
+        "this projection is a deterministic restatement, not a judgment."
+    )
+    projection = " ".join(sentences)
+    criterion = quality_criterion_for_groups(groups)
+    evaluation = evaluate_declared_quality(
+        normalize_quality_criteria([criterion], outputs=["answer"]),
+        {"answer": projection},
+    )
+    if evaluation.get("status") != "passed":  # pragma: no cover - internal invariant
+        raise MisegraphEvidenceImportError(
+            "derived projection does not satisfy its own derived concept groups"
+        )
+    return {
+        "schema_version": EXPECTED_PROJECTION_SCHEMA_VERSION,
+        "case_id": case.id,
+        "required_concept_groups": groups,
+        "projection": projection,
+        "projection_sha256": sha256_hex(projection.encode("utf-8")),
+        "derived_from": [CANONICAL_FILE, CHECK_FILE, "manifest.json", "behavior.json"],
+        "facts": {
+            "recipe_id": recipe_id,
+            "id_tokens": id_tokens,
+            "ingredients": ingredient_facts,
+            "equipment": equipment_facts,
+            "bake_steps": bake_facts,
+            "error_count": error_count,
+            "diagnostic_count": diagnostic_count,
+        },
+    }
+
+
+def quality_criterion_for_groups(groups: Sequence[Sequence[str]]) -> dict[str, Any]:
+    """The template criterion with package-derived required concept groups."""
+
+    template = REFERENCE_INTENT_TEMPLATE["quality_criteria"][0]
+    criterion = json.loads(json.dumps(template))
+    criterion["required_concept_groups"] = [list(group) for group in groups]
+    return criterion
+
+
 def build_misegraph_intent(
     package: MisegraphEvidencePackage,
-    answers: MisegraphAnswers,
+    answers: MisegraphAnswers | None = None,
     cases: Sequence[str] | None = None,
 ) -> dict[str, Any]:
-    """Build the program-intent-v2 payload; answers come only from the operator."""
+    """Build the program-intent-v2 payload with package-derived concept groups.
+
+    ``outputs.answer`` is the operator's answer when an answers file is given,
+    otherwise the deterministic package-derived projection for the case.
+    """
 
     selected = select_example_cases(package, cases)
     examples: list[dict[str, Any]] = []
+    groups: list[list[str]] | None = None
     for case_id in selected:
-        answer = answers.answers.get(case_id)
-        if answer is None:
+        expected = derive_misegraph_expected(package, case_id)
+        derived_groups = [list(group) for group in expected["required_concept_groups"]]
+        if groups is None:
+            groups = derived_groups
+        elif groups != derived_groups:  # pragma: no cover - package invariant
             raise MisegraphEvidenceImportError(
-                f"answers file has no entry for selected case `{case_id}`"
+                "derived concept groups differ across selected cases"
             )
+        if answers is not None:
+            answer = answers.answers.get(case_id)
+            if answer is None:
+                raise MisegraphEvidenceImportError(
+                    f"answers file has no entry for selected case `{case_id}`"
+                )
+        else:
+            answer = str(expected["projection"])
         examples.append(
             {
                 "inputs": {"evidence": build_example_evidence(package, case_id)},
@@ -238,6 +569,7 @@ def build_misegraph_intent(
             }
         )
     intent = json.loads(json.dumps(REFERENCE_INTENT_TEMPLATE))
+    intent["quality_criteria"] = [quality_criterion_for_groups(groups or [])]
     intent["examples"] = examples
     ProgramIntent.model_validate(intent)
     return intent
@@ -364,8 +696,8 @@ def _write_new_file(root_fd: int, name: str, data: bytes) -> None:
 def write_import_bundle(
     *,
     package_dir: Path,
-    answers_path: Path,
     outdir: Path,
+    answers_path: Path | None = None,
     cases: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Verify, build, and write intent/inputs/binding/provenance without clobbering."""
@@ -374,15 +706,19 @@ def write_import_bundle(
         package = load_misegraph_evidence_package(package_dir)
     except MisegraphEvidencePackageError as exc:
         raise MisegraphEvidenceImportError(f"package rejected: {exc}") from exc
-    answers = load_misegraph_answers(answers_path)
+    answers = load_misegraph_answers(answers_path) if answers_path is not None else None
     root = preflight_import_outdir(outdir, package=package)
-    if answers.path == root or root in answers.path.parents:
+    if answers is not None and (answers.path == root or root in answers.path.parents):
         raise MisegraphEvidenceImportError(
             "answers file must be outside the import outdir"
         )
     intent = build_misegraph_intent(package, answers, cases)
     inputs = build_misegraph_inputs(intent)
     selected = [str(item) for item in select_example_cases(package, cases)]
+    expected_by_case = {
+        case_id: derive_misegraph_expected(package, case_id) for case_id in selected
+    }
+    derived_groups = intent["quality_criteria"][0]["required_concept_groups"]
     intent_bytes = _pretty(intent)
     inputs_bytes = _pretty(inputs)
     intent_path = root / INTENT_FILE
@@ -401,10 +737,31 @@ def write_import_bundle(
         "importer_schema_version": IMPORTER_SCHEMA_VERSION,
         "package_sha256": package.package_sha256,
         "manifest_sha256": package.manifest_sha256,
-        "answers": {
-            "schema_version": ANSWERS_SCHEMA_VERSION,
-            "path": str(answers.path),
-            "sha256": answers.sha256,
+        "answers": (
+            {
+                "origin": ANSWERS_ORIGIN_OPERATOR,
+                "schema_version": ANSWERS_SCHEMA_VERSION,
+                "path": str(answers.path),
+                "sha256": answers.sha256,
+            }
+            if answers is not None
+            else {
+                "origin": ANSWERS_ORIGIN_PACKAGE_DERIVED,
+                "schema_version": None,
+                "path": None,
+                "sha256": None,
+            }
+        ),
+        "expected_projection": {
+            "schema_version": EXPECTED_PROJECTION_SCHEMA_VERSION,
+            "quality_criterion_id": QUALITY_CRITERION_ID,
+            "required_concept_groups": derived_groups,
+            "derived_from": list(expected_by_case[selected[0]]["derived_from"]),
+            "projection_sha256_by_case": {
+                case_id: expected["projection_sha256"]
+                for case_id, expected in expected_by_case.items()
+            },
+            "used_as_example_answer": answers is None,
         },
         "binding": {
             "path": str(root / BINDING_FILE),
@@ -415,7 +772,9 @@ def write_import_bundle(
         "non_authority": {
             "misegraph_mutated": False,
             "acceptance_authority": False,
-            "answers_authored_by_importer": False,
+            # A package-derived answer is a mechanical projection of package
+            # facts authored by the importer, never an operator judgment.
+            "answers_authored_by_importer": answers is None,
         },
     }
     root.mkdir(parents=True, exist_ok=True)

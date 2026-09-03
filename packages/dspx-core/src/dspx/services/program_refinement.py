@@ -515,10 +515,29 @@ def _output_fields(
     return []
 
 
+_EXACT_METRICS = frozenset({"", "exact", "exact_match"})
+
+
+def metric_is_exact(metric: object) -> bool:
+    """True when the intent metric (or its absence) means verbatim comparison."""
+
+    return str(metric or "").strip().lower() in _EXACT_METRICS
+
+
+def comparison_signal_kind(metric: object) -> str:
+    """``mismatch`` (blocking) for exact metrics, ``differs`` (non-blocking) otherwise."""
+
+    return "mismatch" if metric_is_exact(metric) else "differs"
+
+
 def _failure_signals_from_behavior(
-    behavior: Mapping[str, Any] | None, *, output_fields: list[str]
+    behavior: Mapping[str, Any] | None,
+    *,
+    output_fields: list[str],
+    exact_metric: bool = True,
 ) -> list[str]:
     signals: list[str] = []
+    comparison_signal = "mismatch" if exact_metric else "differs"
     for record in _behavior_examples(behavior):
         status = str(record.get("status") or "unknown")
         expected = _safe_mapping(record.get("expected_outputs"))
@@ -535,14 +554,14 @@ def _failure_signals_from_behavior(
                 and field in observed
                 and str(expected[field]) != str(observed[field])
             ):
-                signals.append(f"mismatch:{field}")
+                signals.append(f"{comparison_signal}:{field}")
             if field not in observed and status != "error":
                 signals.append(f"missing_observed:{field}")
         for note in _string_list(record.get("notes")):
             if "output mismatch" in note:
                 for field in output_fields:
                     if field in note:
-                        signals.append(f"mismatch:{field}")
+                        signals.append(f"{comparison_signal}:{field}")
     unique: list[str] = []
     for signal in signals:
         if signal not in unique:
@@ -555,8 +574,11 @@ def _failure_signals(
     behavior: Mapping[str, Any] | None,
     oracle_record: Mapping[str, Any] | None,
     output_fields: list[str],
+    exact_metric: bool = True,
 ) -> list[str]:
-    signals = _failure_signals_from_behavior(behavior, output_fields=output_fields)
+    signals = _failure_signals_from_behavior(
+        behavior, output_fields=output_fields, exact_metric=exact_metric
+    )
     if oracle_record is not None:
         for signal in _string_list(oracle_record.get("failure_signals")):
             if signal not in signals:
@@ -638,7 +660,7 @@ def _limitations_for_sources(source_kinds: list[str]) -> list[str]:
 def _target_surface_for_status(
     status: str, signals: list[str]
 ) -> tuple[str | None, str | None]:
-    if status == "failed" or any(signal.startswith("mismatch:") for signal in signals):
+    if any(signal.startswith("mismatch:") for signal in signals):
         fields = [
             signal.split(":", 1)[1]
             for signal in signals
@@ -646,6 +668,18 @@ def _target_surface_for_status(
         ]
         field_text = ", ".join(fields) if fields else "declared outputs"
         return "module", f"Observed local behavior output mismatch for {field_text}."
+    if status == "failed":
+        differs = [
+            signal.split(":", 1)[1]
+            for signal in signals
+            if signal.startswith("differs:")
+        ]
+        field_text = ", ".join(differs) if differs else "declared outputs"
+        return (
+            "module",
+            f"Observed local behavior quality failure for {field_text}; outputs "
+            "differ from example answers under a non-exact metric (non-blocking signal).",
+        )
     if any(signal.startswith("missing_observed:") for signal in signals):
         fields = [
             signal.split(":", 1)[1]
@@ -715,6 +749,25 @@ def _bounded_refinement(
             "Preserve declared inputs and outputs.",
             f"Focus on correcting observed {focus} mismatch.",
         ]
+    elif status == "failed" and any(
+        signal.startswith("differs:") for signal in signals
+    ):
+        differs_fields = [
+            signal.split(":", 1)[1]
+            for signal in signals
+            if signal.startswith("differs:")
+        ]
+        focus = ", ".join(differs_fields) if differs_fields else "declared outputs"
+        change_type = "improve_declared_quality_coverage"
+        rationale = (
+            f"The current local behavior failed the declared quality criteria for {focus}; "
+            "example answers differ, but the intent metric is not exact, so wording "
+            "differences alone are not a defect."
+        )
+        constraints = [
+            "Preserve declared inputs and outputs.",
+            f"Cover the declared required concept groups for {focus}.",
+        ]
     elif status == "error" or any(signal.startswith("error:") for signal in signals):
         change_type = "debug_execution_surface"
         rationale = "The current local behavior produced an execution error; debug runtime/materialized harness behavior before semantic changes."
@@ -776,10 +829,12 @@ def build_program_refinement_proposal(
     summary = _behavior_summary(behavior) if behavior is not None else episode_summary
     behavior_status = str(summary.get("status") or "insufficient_behavior_evidence")
     output_fields = _output_fields(manifest, behavior)
+    intent_metric = _safe_mapping(manifest.get("intent")).get("metric")
     signals = _failure_signals(
         behavior=behavior,
         oracle_record=oracle_record,
         output_fields=output_fields,
+        exact_metric=metric_is_exact(intent_metric),
     )
     proposal_status = _status_for_evidence(behavior, episode_summary)
     example_count = (
@@ -814,6 +869,8 @@ def build_program_refinement_proposal(
             "behavior_source_kinds": source_kinds,
             "status_counts": status_counts,
             "failure_signals": signals,
+            "intent_metric": str(intent_metric).strip() if intent_metric else None,
+            "comparison_signal_kind": comparison_signal_kind(intent_metric),
             "oracle_report_status": report.get("status"),
             "oracle_report_total_records": int(report.get("total_records") or 0),
             "oracle_report_record_matched": oracle_matched,

@@ -21,12 +21,14 @@ def register_foundry_import_misegraph_command(app: typer.Typer) -> None:
             "--package",
             help="misegraph-evidence-package-v1 directory (opened read-only, never written)",
         ),
-        answers: Path = typer.Option(
-            ...,
+        answers: Optional[Path] = typer.Option(
+            None,
             "--answers",
             help=(
-                "Operator-authored dspx-misegraph-example-answers-v1 JSON: "
-                '{"schema_version": ..., "answers": {"<case-id>": "<expected answer>"}}'
+                "Optional operator-authored dspx-misegraph-example-answers-v1 JSON: "
+                '{"schema_version": ..., "answers": {"<case-id>": "<expected answer>"}}. '
+                "Without it the example answer is the package-derived canonical "
+                "projection (provenance answers.origin=package_derived)."
             ),
         ),
         outdir: Path = typer.Option(
