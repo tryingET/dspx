@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-03T16:09:38.800243873+00:00",
+  "task_id": 5359,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/**",
+      "docs/project/2026-09-03-foundry-jury-preflight.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury*.py",
+      "tests/**"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_foundry_gepa_comparison_jury_child.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
