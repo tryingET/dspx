@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-03T15:11:05.696350186+00:00",
+  "task_id": 5355,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/**",
+      "docs/learnings/**",
+      "docs/project/**",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_foundry_misegraph*.py",
+      "packages/dspx-core/src/dspx/cli/dspx.py",
+      "packages/dspx-core/src/dspx/services/program_foundry_misegraph*.py",
+      "tests/**"
+    ],
+    "required_paths": [
+      "packages/dspx-core/src/dspx/services/program_foundry_misegraph_evidence.py"
+    ],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
