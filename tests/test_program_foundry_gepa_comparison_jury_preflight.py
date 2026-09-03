@@ -17,6 +17,7 @@ import pytest
 from typer.testing import CliRunner
 
 import dspx.services.program_foundry_gepa_comparison_jury as comparison_jury
+import dspx.services.program_foundry_gepa_comparison_jury_receipt_validation as receipt_validation
 import dspx.services.program_foundry_gepa_comparison_jury_preflight as preflight
 from dspx.cli.dspx import app
 from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
@@ -53,6 +54,13 @@ def github_copilot_base_url(token):
         return "https://api.other.githubcopilot.com"
     return GITHUB_COPILOT_API_BASE
 """
+
+
+@pytest.fixture(autouse=True)
+def _in_process_jury(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run task-local juries in this process so patched fakes stay reachable."""
+
+    monkeypatch.setattr(comparison_jury, "_CHILD_ARGV", None)
 
 
 class _Catalog:
@@ -554,7 +562,7 @@ def test_live_run_json_carries_unbound_preflight_facts(
         lambda slot, **kwargs: _model_result(validated),
     )
     monkeypatch.setattr(
-        comparison_jury,
+        receipt_validation,
         "_validate_jury_result",
         lambda *, result_path, **kwargs: (
             json.loads(result_path.read_text(encoding="utf-8")),

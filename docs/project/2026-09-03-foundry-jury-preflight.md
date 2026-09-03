@@ -125,5 +125,48 @@ to `777388ad...` afterwards. That is pre-existing pin drift, not a preflight eff
 
 ## Deferred
 
-- Item 8 (fresh subprocess per jury) is not implemented in this pass.
+- Item 8 (fresh subprocess per jury) landed in slice D; see "Fresh subprocess" below.
 - No unbound preflight sidecar file is written; facts surface through CLI output only.
+
+## Fresh subprocess (item 8, slice D)
+
+Every task-local jury now runs in its own interpreter. After the parent has taken the foundry
+lock, passed the preflight, taken the in-process model-jury slot and written
+`comparison-jury-attempt.json`, it runs
+
+```
+sys.executable -I -B -m dspx.services.program_foundry_gepa_comparison_jury_child
+```
+
+with one closed request object on stdin (`dspx-foundry-jury-child-request-v1`: the normalized
+`execution_request`, `experiment_root`, `attempt_sha256`, the candidate manifest and comparison
+paths, and the pre-marker input hashes). The child re-normalizes the request with
+`revalidate_execution_request`, takes its own task-local and model-jury process slots, builds the
+task-local runtime binding (owner verification, AK revalidation, provider journals under
+`<experiment_root>/provider-outcomes`) and runs `build_comparison_model_jury_result` exactly as the
+in-process path did. It prints one JSON object (`dspx-foundry-jury-child-result-v1`) on stdout and
+nothing else.
+
+Parent-side bounds: stdin is the request, stdout is capped at 16 MiB, stderr goes to `/dev/null`,
+the environment is scrubbed to `HOME PATH LANG LC_ALL SSL_CERT_FILE SSL_CERT_DIR DSPX_CACHE_DIR`
+plus fixed `DSPX_CACHE_ENABLE=0 MLFLOW_ENABLE=0 PYTHONDONTWRITEBYTECODE=1` and the family's endpoint
+variable (`DSPX_LOCAL_VLLM_BASE_URL`) when it is set, `start_new_session=True`, and the timeout is
+`selected_jurors * 60 s + 60 s`. On timeout the whole child session is killed with SIGKILL.
+
+Failure semantics are unchanged in spirit and stricter in mechanism: a nonzero exit, a timeout,
+unparsable stdout or a drifted result shape raises `ProgramFoundryGepaComparisonJuryChildError`
+(a `RuntimeError`, CLI exit 3). The attempt marker stays in place, so the next run answers
+`blocked_indeterminate`; no result or receipt is written. The parent validates the child's result
+and writes `comparison-jury-results.json` and `comparison-jury-receipt.json` exactly as before;
+retained artifact formats do not change and the AK-5346 / AK-5352 receipts revalidate
+byte-for-byte.
+
+What the child guarantees at start-up, and `--self-check` prints without reading any input:
+`sys.flags.isolated`, `sys.dont_write_bytecode is True`, and no `dspy_lm_auth*` module loaded. The
+child refuses to run a request when any of those is false. The parent process never imports the
+owner package during a task-local run; the old `preflight_task_local_request` `sys.modules` check
+is therefore enforced where it matters, in the process that will call the provider.
+
+Generic (registry) providers keep running in-process. `_CHILD_ARGV = None` on the orchestrator
+module is a test-only seam that restores the in-process path so fixtures can patch
+`build_comparison_model_jury_result`; it is never set in production.

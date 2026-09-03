@@ -83,3 +83,6 @@ re-validation and also wrote nothing.
   receipt-revalidation half into its own module is the obvious cut.
 - AK-5322 Codex receipt no longer revalidates against current owner pins; decide whether
   historical receipts should validate against their own bound pins.
+
+Follow-up: slice D and the module split landed in
+`diary/2026-09-03--implementation-foundry-jury-fresh-subprocess-and-split.md`.

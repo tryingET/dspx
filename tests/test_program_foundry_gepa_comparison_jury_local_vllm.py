@@ -11,6 +11,7 @@ import pytest
 from typer.testing import CliRunner
 
 import dspx.services.program_foundry_gepa_comparison_jury as comparison_jury
+import dspx.services.program_foundry_gepa_comparison_jury_receipt_validation as receipt_validation
 import dspx.services.program_model_jury_provider_runtime as jury_runtime
 from dspx.cli.dspx import app
 from dspx.provider_registry import SUPPORTED_PROVIDER_NAMES
@@ -72,6 +73,13 @@ ALT_ENDPOINT = "http://localhost:8000/v1"
 ROUTE_MODEL = "local:Qwen3.8-27B-AEON-NVFP4-FP8"
 REQUESTED_ROUTE = f"dspy-lm-auth:local-vllm:{ROUTE_MODEL}"
 RESOLVED_ROUTE = f"openai:{ROUTE_MODEL}:chat"
+
+
+@pytest.fixture(autouse=True)
+def _in_process_jury(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run task-local juries in this process so patched fakes stay reachable."""
+
+    monkeypatch.setattr(comparison_jury, "_CHILD_ARGV", None)
 
 
 def _rule(hostname: str, port: int) -> str:
@@ -547,7 +555,7 @@ def test_local_vllm_comparison_jury_binds_endpoint_into_attempt_and_receipt(
         return json.loads(result_path.read_text(encoding="utf-8")), _sha256(result_path)
 
     monkeypatch.setattr(comparison_jury, "build_comparison_model_jury_result", build)
-    monkeypatch.setattr(comparison_jury, "_validate_jury_result", validate_result)
+    monkeypatch.setattr(receipt_validation, "_validate_jury_result", validate_result)
     payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
         consumption_receipt_path=receipt,
         provider=LOCAL_VLLM_FAMILY.provider_name,

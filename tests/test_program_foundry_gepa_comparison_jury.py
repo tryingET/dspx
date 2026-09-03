@@ -12,7 +12,15 @@ from typer.testing import CliRunner
 
 from dspx.cli.dspx import app
 import dspx.services.program_foundry_gepa_comparison_jury as comparison_jury
+import dspx.services.program_foundry_gepa_comparison_jury_receipt_validation as receipt_validation
 import dspx.services.program_model_jury_provider_runtime as jury_runtime
+
+
+@pytest.fixture(autouse=True)
+def _in_process_jury(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run task-local juries in this process so patched fakes stay reachable."""
+
+    monkeypatch.setattr(comparison_jury, "_CHILD_ARGV", None)
 
 
 def _sha256(path: Path) -> str:
@@ -412,7 +420,7 @@ def test_task_local_comparison_jury_bypasses_registry_with_bound_runtime_factory
         "build_comparison_model_jury_result",
         build,
     )
-    monkeypatch.setattr(comparison_jury, "_validate_jury_result", validate_result)
+    monkeypatch.setattr(receipt_validation, "_validate_jury_result", validate_result)
 
     payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
         consumption_receipt_path=receipt,

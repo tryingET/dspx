@@ -16,6 +16,7 @@ from dspy import BaseLM
 from typer.testing import CliRunner
 
 import dspx.services.program_foundry_gepa_comparison_jury as comparison_jury
+import dspx.services.program_foundry_gepa_comparison_jury_receipt_validation as receipt_validation
 import dspx.services.program_model_jury_provider_runtime as jury_runtime
 from dspx.cli.dspx import app
 from dspx.dspy_typed_lm import DSPyTypedLMAdapter
@@ -85,6 +86,14 @@ from test_program_foundry_gepa_comparison_jury_provider import (
     _Receipt,
     _artifact,
 )
+
+
+@pytest.fixture(autouse=True)
+def _in_process_jury(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run task-local juries in this process so patched fakes stay reachable."""
+
+    monkeypatch.setattr(comparison_jury, "_CHILD_ARGV", None)
+
 
 FAMILIES = (CODEX_FAMILY, COPILOT_FAMILY)
 FORK_ROOT = Path("/home/tryinget/ai-society/softwareco/fork/dspy-lm-auth")
@@ -614,7 +623,7 @@ def test_copilot_comparison_jury_binds_runtime_and_records_model_key(
         return json.loads(result_path.read_text(encoding="utf-8")), _sha256(result_path)
 
     monkeypatch.setattr(comparison_jury, "build_comparison_model_jury_result", build)
-    monkeypatch.setattr(comparison_jury, "_validate_jury_result", validate_result)
+    monkeypatch.setattr(receipt_validation, "_validate_jury_result", validate_result)
 
     payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
         consumption_receipt_path=receipt,
