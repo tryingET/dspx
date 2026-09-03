@@ -48,8 +48,35 @@ def _proposal(tmp_path: Path, monkeypatch, *, name: str = "foundry") -> Path:
 
 
 def _completed_result(**kwargs: Any) -> dict[str, Any]:
+    """Fake a completed concept_coverage GEPA run: wrapper program + honesty block."""
+
     outdir = Path(kwargs["outdir"])
     outdir.mkdir(parents=True)
+    source_program = Path(kwargs["manifest_path"]).parent / "program.py"
+    source_sha256 = hashlib.sha256(source_program.read_bytes()).hexdigest()
+    wrapper = outdir / "source" / "concept_coverage_program.py"
+    wrapper.parent.mkdir(parents=True)
+    wrapper.write_text(
+        f"CANDIDATE_PROGRAM_SHA256 = {source_sha256!r}\n", encoding="utf-8"
+    )
+    wrapper_sha256 = hashlib.sha256(wrapper.read_bytes()).hexdigest()
+    criteria_sha256 = hashlib.sha256(b"criteria").hexdigest()
+    files = [
+        {
+            "path": "source/concept_coverage_program.py",
+            "sha256": wrapper_sha256,
+            "size_bytes": wrapper.stat().st_size,
+        }
+    ]
+    tree_text = json.dumps(
+        files, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    metric_honesty = {
+        "metric": "concept_coverage",
+        "wrapper_program_sha256": wrapper_sha256,
+        "source_program_sha256": source_sha256,
+        "criteria_sha256": criteria_sha256,
+    }
     optimizer_manifest = outdir / "manifest.json"
     optimizer_manifest.write_text(
         json.dumps(
@@ -58,18 +85,19 @@ def _completed_result(**kwargs: Any) -> dict[str, Any]:
                 "dspy_version": "test",
                 "dspx_version": "test",
                 "python": {},
-                "program": {},
+                "program": {"path": str(wrapper), "sha256": wrapper_sha256},
                 "dataset": {},
                 "io": {},
-                "gepa": {},
+                "gepa": {"metric": "exact"},
                 "gepa_version": "0.1.1",
                 "providers": {},
                 "output_payload": {
                     "hash_algorithm": "sha256",
-                    "tree_hash": hashlib.sha256(b"[]").hexdigest(),
-                    "files": [],
+                    "tree_hash": hashlib.sha256(tree_text.encode("utf-8")).hexdigest(),
+                    "files": files,
                     "excludes": ["manifest.json"],
                 },
+                "metric_honesty": metric_honesty,
             }
         ),
         encoding="utf-8",
@@ -78,7 +106,17 @@ def _completed_result(**kwargs: Any) -> dict[str, Any]:
     return {
         "schema_version": "program-refinement-gepa-result-v1",
         "status": "degraded",
-        "gepa": {"attempted": True, "status": "completed"},
+        "gepa": {
+            "attempted": True,
+            "status": "completed",
+            "metric": "concept_coverage",
+            "concept_coverage_binding": {
+                "candidate_program_sha256": source_sha256,
+                "wrapper_program_sha256": wrapper_sha256,
+                "criteria_sha256": criteria_sha256,
+                "metric_honesty": metric_honesty,
+            },
+        },
         "gepa_output": {
             "root_path": str(outdir),
             "manifest_path": str(optimizer_manifest),
@@ -154,6 +192,67 @@ def test_reviewed_foundry_gepa_executes_once_and_reuses_terminal_receipt(
     assert receipt["effect"]["winner_selected"] is False
     assert receipt["non_authority"]["promotion_authority"] is False
     optimizer_manifest = root / "optimizer-output" / "manifest.json"
+    manifest = json.loads(optimizer_manifest.read_text(encoding="utf-8"))
+    assert receipt["metric_honesty"] == manifest["metric_honesty"]
+    assert set(receipt["metric_honesty"]) == {
+        "metric",
+        "wrapper_program_sha256",
+        "source_program_sha256",
+        "criteria_sha256",
+    }
+    # A receipt whose mirrored block drifts from the manifest is rejected.
+    receipt_path = root / "execution-receipt.json"
+    tampered = dict(receipt)
+    tampered["metric_honesty"] = {
+        **receipt["metric_honesty"],
+        "source_program_sha256": "0" * 64,
+    }
+    receipt_path.write_text(json.dumps(tampered), encoding="utf-8")
+    with pytest.raises(
+        execution.ProgramFoundryGepaExecutionError, match="bound output drifted"
+    ):
+        execution.execute_reviewed_program_foundry_gepa(
+            proposal_path=proposal_path,
+            declared_reviewed=proposal["proposal_id"],
+            operator_label="local-operator",
+        )
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    # A manifest block that no longer matches the result binding is rejected,
+    # as is a concept_coverage run whose manifest carries no block at all.
+    gepa_result = json.loads((root / "gepa-result.json").read_text(encoding="utf-8"))
+    validated = {"optimizer_metric": "concept_coverage"}
+    assert (
+        execution._validate_metric_honesty(
+            manifest, gepa=gepa_result["gepa"], validated=validated
+        )
+        == receipt["metric_honesty"]
+    )
+    drifted = json.loads(json.dumps(manifest))
+    drifted["metric_honesty"]["wrapper_program_sha256"] = "1" * 64
+    with pytest.raises(
+        execution.ProgramFoundryGepaExecutionError,
+        match="metric_honesty does not match the result binding",
+    ):
+        execution._validate_metric_honesty(
+            drifted, gepa=gepa_result["gepa"], validated=validated
+        )
+    with pytest.raises(
+        execution.ProgramFoundryGepaExecutionError,
+        match="must carry a metric_honesty block",
+    ):
+        execution._validate_metric_honesty(
+            {k: v for k, v in manifest.items() if k != "metric_honesty"},
+            gepa=gepa_result["gepa"],
+            validated=validated,
+        )
+    assert (
+        execution._validate_metric_honesty(
+            {k: v for k, v in manifest.items() if k != "metric_honesty"},
+            gepa={"attempted": True, "status": "completed"},
+            validated={"optimizer_metric": "exact"},
+        )
+        is None
+    )
     optimizer_manifest.write_text("{}", encoding="utf-8")
     with pytest.raises(
         execution.ProgramFoundryGepaExecutionError,

@@ -30,6 +30,11 @@ from dspx.services.program_refinement_gepa_candidate_contracts import (
     _sha256_file,
     _surface_path,
 )
+from dspx.services.program_refinement_gepa_metric_honesty import (
+    METRIC_HONESTY_FIELD,
+    MetricHonestyError,
+    validate_metric_honesty_block,
+)
 
 
 def _render_gepa_program_code(
@@ -315,11 +320,18 @@ def _update_manifest_for_gepa_candidate(
     gepa_result_hash: str,
     optimizer_manifest_hash: str,
     optimizer_payload_inventory: Mapping[str, Any],
+    metric_honesty: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     manifest_path = candidate_root / "manifest.json"
     manifest = _load_json_object(manifest_path, label="GEPA candidate manifest")
     intent = _safe_mapping(manifest.get("intent"))
     program_path = candidate_root / "program.py"
+    if metric_honesty is not None and (
+        _sha256_file(program_path) == metric_honesty["wrapper_program_sha256"]
+    ):
+        raise ProgramRefinementGepaCandidateError(
+            "GEPA candidate program must be the source program, not the concept_coverage wrapper"
+        )
     base_program_code = program_path.read_text(encoding="utf-8")
     program_path.write_text(
         _render_gepa_program_code(intent, base_program_code=base_program_code),
@@ -349,6 +361,8 @@ def _update_manifest_for_gepa_candidate(
             "external_mutation": False,
         },
     }
+    if metric_honesty is not None:
+        lineage[METRIC_HONESTY_FIELD] = dict(metric_honesty)
     lineage_path.write_text(_json_text(lineage), encoding="utf-8")
 
     candidate_assembly = _safe_mapping(manifest.get("candidate_assembly"))
@@ -436,6 +450,8 @@ def _update_manifest_for_gepa_candidate(
             "external_mutation": False,
         },
     }
+    if metric_honesty is not None:
+        manifest["gepa_refinement"][METRIC_HONESTY_FIELD] = dict(metric_honesty)
     receipt_bundle = _safe_mapping(manifest.get("receipt_bundle"))
     evidence = _safe_mapping(receipt_bundle.get("evidence"))
     evidence.update(
@@ -821,7 +837,17 @@ def materialize_gepa_refinement_candidate(
         gepa_result_path,
         source_identity=source_identity,
         source_program_hash=source_program_hash,
+        source_manifest=source_manifest,
+        source_program_path=source_program,
     )
+    metric_honesty: dict[str, str] | None = None
+    if optimizer_manifest.get(METRIC_HONESTY_FIELD) is not None:
+        try:
+            metric_honesty = validate_metric_honesty_block(
+                optimizer_manifest.get(METRIC_HONESTY_FIELD)
+            )
+        except MetricHonestyError as exc:
+            raise ProgramRefinementGepaCandidateError(str(exc)) from exc
     _preflight_paths(
         source_root=source_root,
         optimizer_root=optimizer_root,
@@ -896,6 +922,7 @@ def materialize_gepa_refinement_candidate(
             gepa_result_hash=_sha256_file(gepa_result_path),
             optimizer_manifest_hash=optimizer_manifest_hash,
             optimizer_payload_inventory=optimizer_payload_inventory,
+            metric_honesty=metric_honesty,
         )
         behavior_refresh = _refresh_gepa_candidate_behavior_evidence(artifact_root)
         updated_manifest = _load_json_object(
@@ -926,6 +953,7 @@ def materialize_gepa_refinement_candidate(
             "optimizer_manifest_program_sha256": str(
                 _safe_mapping(optimizer_manifest.get("program")).get("sha256")
             ),
+            METRIC_HONESTY_FIELD: metric_honesty,
         },
         "behavior_refresh": behavior_refresh,
         "candidate": {

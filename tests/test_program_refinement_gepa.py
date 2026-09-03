@@ -54,8 +54,13 @@ def _ticket_rows(count: int) -> list[dict[str, object]]:
 
 
 def _fake_gepa(
-    monkeypatch: pytest.MonkeyPatch, *, output_manifest: object = "default"
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    output_manifest: object = "default",
+    hash_program: bool = False,
 ) -> list[dict[str, Any]]:
+    """Replace run_gepa_optimize; ``hash_program`` mimics the real manifest's
+    program/output_payload hash binding (copying the program into ``source/``)."""
     import dspx.services.program_refinement_gepa as gepa_service
 
     calls: list[dict[str, Any]] = []
@@ -84,7 +89,41 @@ def _fake_gepa(
     def fake_run_gepa_optimize(**kwargs: Any) -> FakeResult:
         out_dir = Path(kwargs["out_dir"])
         out_dir.mkdir(parents=True, exist_ok=True)
-        if output_manifest != "missing":
+        if hash_program:
+            program_path = Path(kwargs["program_path"]).resolve()
+            copied = out_dir / "source" / program_path.name
+            copied.parent.mkdir(parents=True, exist_ok=True)
+            copied.write_bytes(program_path.read_bytes())
+            files = [
+                {
+                    "path": path.relative_to(out_dir).as_posix(),
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "size_bytes": path.stat().st_size,
+                }
+                for path in sorted(out_dir.rglob("*"))
+                if path.is_file() and path.name != "manifest.json"
+            ]
+            tree_text = json.dumps(
+                files, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            manifest_payload: object = {
+                "created_by": "fake_gepa_for_test",
+                "program": {
+                    "path": str(program_path),
+                    "sha256": hashlib.sha256(program_path.read_bytes()).hexdigest(),
+                    "copied_to": str(copied),
+                },
+                "gepa": {"metric": kwargs["metric"]},
+                "output_payload": {
+                    "hash_algorithm": "sha256",
+                    "tree_hash": hashlib.sha256(tree_text.encode("utf-8")).hexdigest(),
+                    "files": files,
+                    "excludes": ["manifest.json"],
+                },
+            }
+            text = json.dumps(manifest_payload, indent=2, sort_keys=True) + "\n"
+            (out_dir / "manifest.json").write_text(text, encoding="utf-8")
+        elif output_manifest != "missing":
             manifest_payload = (
                 {
                     "created_by": "fake_gepa_for_test",

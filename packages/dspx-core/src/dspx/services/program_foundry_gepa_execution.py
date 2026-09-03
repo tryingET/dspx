@@ -28,6 +28,12 @@ from dspx.services.program_foundry_gepa_proposal_io import (
 )
 from dspx.services.program_foundry_io import foundry_lock
 from dspx.services.program_refinement_gepa import build_program_refinement_gepa_result
+from dspx.services.program_refinement_gepa_metric_honesty import (
+    CONCEPT_COVERAGE_METRIC,
+    METRIC_HONESTY_FIELD,
+    MetricHonestyError,
+    validate_metric_honesty_block,
+)
 
 PROGRAM_FOUNDRY_GEPA_ATTEMPT_SCHEMA = "dspx-program-foundry-gepa-attempt-v1"
 PROGRAM_FOUNDRY_GEPA_EXECUTION_SCHEMA = "dspx-program-foundry-gepa-execution-v1"
@@ -168,6 +174,7 @@ def _validate_result(
         )
     tree_sha256: str | None = None
     manifest_sha256: str | None = None
+    metric_honesty: dict[str, str] | None = None
     terminal_ok = (
         completed and readiness.get("ready_for_future_candidate_materializer") is True
     )
@@ -181,7 +188,7 @@ def _validate_result(
             label="optimizer output manifest",
         )
         if (
-            set(manifest_payload)
+            set(manifest_payload) - {METRIC_HONESTY_FIELD}
             != {
                 "created_at",
                 "dspy_version",
@@ -220,13 +227,61 @@ def _validate_result(
             raise ProgramFoundryGepaExecutionError(
                 "GEPA optimizer output binding is invalid"
             )
+        metric_honesty = _validate_metric_honesty(
+            manifest_payload, gepa=gepa, validated=validated
+        )
     return {
         "terminal_ok": terminal_ok,
         "gepa": gepa,
         "readiness": readiness,
         "optimizer_manifest_sha256": manifest_sha256,
         "optimizer_tree_sha256": tree_sha256,
+        METRIC_HONESTY_FIELD: metric_honesty,
     }
+
+
+def _validate_metric_honesty(
+    manifest_payload: Mapping[str, Any],
+    *,
+    gepa: Mapping[str, Any],
+    validated: Mapping[str, Any],
+) -> dict[str, str] | None:
+    """Cross-check the manifest metric_honesty block against the GEPA result binding.
+
+    Exact/contains/f1 runs carry no block and no wrapper binding. concept_coverage
+    runs must carry both, and the hashes must agree, so the execution receipt can
+    mirror one closed block that the consume step re-verifies against the source.
+    """
+
+    block = manifest_payload.get(METRIC_HONESTY_FIELD)
+    binding = mapping(gepa.get("concept_coverage_binding"))
+    concept_coverage = validated.get("optimizer_metric") == CONCEPT_COVERAGE_METRIC
+    if block is None:
+        if binding or concept_coverage:
+            raise ProgramFoundryGepaExecutionError(
+                "concept_coverage GEPA output must carry a metric_honesty block"
+            )
+        return None
+    try:
+        expected = validate_metric_honesty_block(block)
+    except MetricHonestyError as exc:
+        raise ProgramFoundryGepaExecutionError(
+            f"GEPA optimizer manifest metric_honesty is invalid: {exc}"
+        ) from exc
+    program = mapping(manifest_payload.get("program"))
+    if (
+        not concept_coverage
+        or not binding
+        or binding.get(METRIC_HONESTY_FIELD) != expected
+        or binding.get("wrapper_program_sha256") != expected["wrapper_program_sha256"]
+        or binding.get("candidate_program_sha256") != expected["source_program_sha256"]
+        or binding.get("criteria_sha256") != expected["criteria_sha256"]
+        or program.get("sha256") != expected["wrapper_program_sha256"]
+    ):
+        raise ProgramFoundryGepaExecutionError(
+            "GEPA optimizer manifest metric_honesty does not match the result binding"
+        )
+    return expected
 
 
 def _build_receipt(
@@ -250,6 +305,11 @@ def _build_receipt(
         "optimizer_output_readiness": checked["readiness"],
         "optimizer_manifest_sha256": checked["optimizer_manifest_sha256"],
         "optimizer_tree_sha256": checked["optimizer_tree_sha256"],
+        **(
+            {METRIC_HONESTY_FIELD: checked[METRIC_HONESTY_FIELD]}
+            if checked[METRIC_HONESTY_FIELD] is not None
+            else {}
+        ),
         PROVIDER_EVIDENCE_KIND_FIELD: provider_evidence_kind_from_gepa_result(result),
         "effect": {
             "gepa_invoked": gepa.get("attempted") is True,

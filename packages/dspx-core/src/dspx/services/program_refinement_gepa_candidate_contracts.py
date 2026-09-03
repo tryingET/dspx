@@ -9,6 +9,14 @@ import shutil
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from dspx.services.program_refinement_gepa_metric_honesty import (
+    CONCEPT_COVERAGE_METRIC,
+    METRIC_HONESTY_FIELD,
+    MetricHonestyError,
+    validate_metric_honesty_block,
+    verify_concept_coverage_metric_honesty,
+)
+
 PROGRAM_REFINEMENT_GEPA_CANDIDATE_RESULT_SCHEMA = (
     "program-refinement-gepa-candidate-result-v1"
 )
@@ -389,8 +397,93 @@ def _copy_optimizer_output(
     return before
 
 
+def _source_metric_context(
+    source_manifest: Mapping[str, Any] | None,
+) -> tuple[str | None, list[dict[str, Any]], list[str]]:
+    intent = _safe_mapping(_safe_mapping(source_manifest).get("intent"))
+    metric = str(intent.get("metric") or "").strip() or None
+    criteria = [
+        dict(item)
+        for item in _safe_list(intent.get("quality_criteria"))
+        if isinstance(item, Mapping)
+    ]
+    outputs = [str(item) for item in _safe_list(intent.get("outputs"))]
+    return metric, criteria, outputs
+
+
+def _verify_manifest_program_binding(
+    *,
+    payload: Mapping[str, Any],
+    optimizer_root: Path,
+    source_program_hash: str,
+    source_manifest: Mapping[str, Any] | None,
+    source_program_path: Path | None,
+) -> dict[str, str] | None:
+    """Bind the optimizer's program to the source candidate.
+
+    Exact/contains/f1 runs hand GEPA the source program itself, so the manifest
+    program hash must equal the source hash. concept_coverage runs hand GEPA a
+    generated wrapper; the manifest program hash is the wrapper hash and the
+    closed ``metric_honesty`` block must bind that wrapper to the source program
+    and the intent criteria. Supplying the source manifest and program path
+    additionally re-derives the wrapper byte-for-byte.
+    """
+
+    program = _safe_mapping(payload.get("program"))
+    program_hash = str(program.get("sha256") or "").strip()
+    if not program_hash:
+        raise ProgramRefinementGepaCandidateError(
+            "GEPA optimizer manifest must hash-bind the source program"
+        )
+    block = payload.get(METRIC_HONESTY_FIELD)
+    source_metric, criteria, outputs = _source_metric_context(source_manifest)
+    if block is None:
+        if (
+            source_metric == CONCEPT_COVERAGE_METRIC
+            and program_hash != source_program_hash
+        ):
+            raise ProgramRefinementGepaCandidateError(
+                "GEPA optimizer manifest for a concept_coverage intent must carry a "
+                "metric_honesty block binding the wrapper to the source candidate"
+            )
+        if program_hash != source_program_hash:
+            raise ProgramRefinementGepaCandidateError(
+                "GEPA optimizer manifest source program hash does not match source candidate"
+            )
+        return None
+    try:
+        if source_manifest is None or source_program_path is None:
+            return verify_concept_coverage_metric_honesty(
+                optimizer_manifest=payload,
+                source_program_sha256=source_program_hash,
+            )
+        if source_metric != CONCEPT_COVERAGE_METRIC:
+            raise MetricHonestyError(
+                "metric_honesty block present but the source intent metric is not concept_coverage"
+            )
+        if not criteria or not outputs:
+            raise MetricHonestyError(
+                "metric_honesty verification requires intent quality_criteria and outputs"
+            )
+        return verify_concept_coverage_metric_honesty(
+            optimizer_manifest=payload,
+            source_program_sha256=source_program_hash,
+            optimizer_root=optimizer_root,
+            source_program_path=source_program_path,
+            criteria=criteria,
+            output_fields=outputs,
+        )
+    except MetricHonestyError as exc:
+        raise ProgramRefinementGepaCandidateError(str(exc)) from exc
+
+
 def _load_optimizer_manifest(
-    *, optimizer_root: Path, expected_manifest_hash: str, source_program_hash: str
+    *,
+    optimizer_root: Path,
+    expected_manifest_hash: str,
+    source_program_hash: str,
+    source_manifest: Mapping[str, Any] | None = None,
+    source_program_path: Path | None = None,
 ) -> tuple[dict[str, Any], Path]:
     manifest_path = optimizer_root / "manifest.json"
     try:
@@ -409,17 +502,14 @@ def _load_optimizer_manifest(
         raise ProgramRefinementGepaCandidateError(
             "GEPA optimizer manifest hash does not match refinement sidecar"
         )
-    program = _safe_mapping(payload.get("program"))
-    program_hash = str(program.get("sha256") or "").strip()
-    if not program_hash:
-        raise ProgramRefinementGepaCandidateError(
-            "GEPA optimizer manifest must hash-bind the source program"
-        )
-    if program_hash != source_program_hash:
-        raise ProgramRefinementGepaCandidateError(
-            "GEPA optimizer manifest source program hash does not match source candidate"
-        )
     _validate_optimizer_payload_inventory(optimizer_root, payload)
+    _verify_manifest_program_binding(
+        payload=payload,
+        optimizer_root=optimizer_root,
+        source_program_hash=source_program_hash,
+        source_manifest=source_manifest,
+        source_program_path=source_program_path,
+    )
     return payload, manifest_path
 
 
@@ -488,6 +578,8 @@ def validate_program_refinement_gepa_result_contract(
     label: str = "program GEPA refinement result",
     error_type: type[Exception] = ProgramRefinementGepaCandidateError,
     source_program_hash: str | None = None,
+    source_manifest: Mapping[str, Any] | None = None,
+    source_program_path: Path | None = None,
 ) -> dict[str, Any]:
     """Validate a GEPA refinement sidecar before a final consumer trusts it.
 
@@ -542,6 +634,8 @@ def validate_program_refinement_gepa_result_contract(
                     optimizer_root=optimizer_root,
                     expected_manifest_hash=expected_hash,
                     source_program_hash=source_program_hash,
+                    source_manifest=source_manifest,
+                    source_program_path=source_program_path,
                 )
         return {
             "source_identity": source_identity,
@@ -704,6 +798,39 @@ def validate_program_refinement_gepa_candidate_result_contract(
             raise ProgramRefinementGepaCandidateError(
                 f"{label} copied optimizer manifest hash is stale"
             )
+        copied_optimizer_manifest = _load_json_object(
+            optimizer_manifest_path, label="copied GEPA optimizer manifest"
+        )
+        manifest_block = copied_optimizer_manifest.get(METRIC_HONESTY_FIELD)
+        lineage_block = gepa_refinement.get(METRIC_HONESTY_FIELD)
+        if manifest_block is None:
+            if lineage_block is not None:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} candidate lineage claims metric_honesty the optimizer manifest lacks"
+                )
+        else:
+            try:
+                expected_block = validate_metric_honesty_block(manifest_block)
+            except MetricHonestyError as exc:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} copied optimizer manifest metric_honesty is invalid: {exc}"
+                ) from exc
+            if lineage_block != expected_block:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} candidate lineage metric_honesty does not match optimizer manifest"
+                )
+            if (
+                gepa_output.get("source_program_sha256")
+                != expected_block["source_program_sha256"]
+            ):
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} metric_honesty source program hash does not match materialized source"
+                )
+            program_hash = _sha256_file(candidate_root / "program.py")
+            if program_hash == expected_block["wrapper_program_sha256"]:
+                raise ProgramRefinementGepaCandidateError(
+                    f"{label} candidate program must be the source program, not the metric wrapper"
+                )
         if gepa_refinement.get("gepa_optimizer_manifest_sha256") != gepa_output.get(
             "manifest_sha256"
         ):
@@ -797,12 +924,16 @@ def _load_ready_gepa_result(
     *,
     source_identity: Mapping[str, str | None],
     source_program_hash: str,
+    source_manifest: Mapping[str, Any] | None = None,
+    source_program_path: Path | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], Path]:
     payload = _load_json_object(path, label="program GEPA refinement result")
     validation = validate_program_refinement_gepa_result_contract(
         payload,
         expected_identities=[source_identity],
         source_program_hash=source_program_hash,
+        source_manifest=source_manifest,
+        source_program_path=source_program_path,
     )
     if validation["ready_for_future_candidate_materializer"] is not True:
         gepa_output = _safe_mapping(payload.get("gepa_output"))

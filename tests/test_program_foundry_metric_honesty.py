@@ -1,14 +1,16 @@
-# summary: "Tests AK-5362 metric honesty: concept_coverage GEPA binding, exact-metric refusal, and non-blocking differs signals for non-exact intents."
+# summary: "Tests AK-5362/5366 metric honesty: concept_coverage GEPA binding, the optimizer-manifest metric_honesty block, consume-time wrapper verification, exact-metric refusal, and non-blocking differs signals."
 # read_when:
-#   - "Changing program_foundry_gepa_proposal._metric_plan, program_refinement_gepa concept-coverage wrapping, or refinement comparison signals."
+#   - "Changing program_foundry_gepa_proposal._metric_plan, program_refinement_gepa concept-coverage wrapping, the metric_honesty block, or refinement comparison signals."
 
 from __future__ import annotations
 
+import glob
+import hashlib
 import importlib.util
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pytest
 
@@ -30,9 +32,27 @@ from dspx.services.program_refinement import (
 from dspx.services.program_refinement_gepa import (
     CONCEPT_COVERAGE_PROGRAM_NAME,
     build_program_refinement_gepa_result,
+    write_program_refinement_gepa_result,
+)
+from dspx.services.program_refinement_gepa_candidate import (
+    materialize_gepa_refinement_candidate,
+)
+from dspx.services.program_refinement_gepa_candidate_contracts import (
+    ProgramRefinementGepaCandidateError,
+    _identity_from_manifest,
+    validate_program_refinement_gepa_candidate_result_contract,
+    validate_program_refinement_gepa_result_contract,
+)
+from dspx.services.program_refinement_gepa_metric_honesty import (
+    METRIC_HONESTY_KEYS,
+    criteria_sha256,
+    render_concept_coverage_program,
+    wrapper_binding_line,
 )
 from dspx.services.program_service import materialize_program_from_intent
 from test_program_refinement_gepa import _fake_gepa, _setup_env
+
+DOCS_PROJECT = Path(__file__).resolve().parents[1] / "docs" / "project"
 
 _CRITERIA = [
     {
@@ -279,3 +299,396 @@ def test_gepa_result_records_metric_misalignment_for_exact_over_concept_coverage
     assert calls[0]["metric"] == "exact"
     assert result["gepa"]["metric_honesty"]["aligned"] is False
     assert "concept_coverage_binding" not in result["gepa"]
+
+
+# --- metric_honesty block: manifest, receipt mirror, consume verification --------
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _concept_coverage_lineage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, metric: str = "concept_coverage"
+) -> tuple[Path, Path, Path, dict[str, Any]]:
+    """Materialize a source candidate and one fake, hash-bound GEPA run over it."""
+
+    _setup_env(tmp_path, monkeypatch)
+    monkeypatch.setenv(
+        "DSPX_REPLAY_FIXTURE_JSON",
+        json.dumps({"reasoning": "bounded", "answer": "Espresso brownies at 170 C."}),
+    )
+    _fake_gepa(monkeypatch, hash_program=True)
+    artifact = materialize_program_from_intent(
+        ProgramIntent(
+            name="RecipeFidelityProgram",
+            objective="Assess a recipe evidence package.",
+            inputs=["evidence"],
+            outputs=["answer"],
+            metric=metric,
+            quality_criteria=_CRITERIA,
+            examples=[
+                {
+                    "inputs": {"evidence": "espresso brownies bake at 170 C"},
+                    "outputs": {"answer": "Espresso brownies bake at 170 °C."},
+                }
+            ],
+        ),
+        outdir=tmp_path / "program",
+    )
+    program_root = Path(artifact.root_path)
+    optimizer_root = tmp_path / "program-gepa"
+    result_path = tmp_path / "refinement" / "gepa_refinement_result.json"
+    result = build_program_refinement_gepa_result(
+        manifest_path=program_root / "manifest.json",
+        outdir=optimizer_root,
+        metric=metric,
+        max_metric_calls=2,
+        result_out=result_path,
+    )
+    write_program_refinement_gepa_result(result, result_path)
+    return program_root, optimizer_root, result_path, result
+
+
+def _validate_with_source(program_root: Path, result_path: Path) -> dict[str, Any]:
+    manifest = json.loads((program_root / "manifest.json").read_text(encoding="utf-8"))
+    return validate_program_refinement_gepa_result_contract(
+        json.loads(result_path.read_text(encoding="utf-8")),
+        expected_identities=[_identity_from_manifest(manifest)],
+        source_program_hash=_sha256(program_root / "program.py"),
+        source_manifest=manifest,
+        source_program_path=program_root / "program.py",
+    )
+
+
+def _rewrite_manifest(
+    optimizer_root: Path,
+    result_path: Path,
+    mutate: Callable[[dict[str, Any]], None],
+) -> None:
+    """Mutate the optimizer manifest and rebind the sidecar to the new manifest hash."""
+
+    manifest_path = optimizer_root / "manifest.json"
+    pristine = optimizer_root.parent / "manifest.pristine.json"
+    if not pristine.exists():
+        pristine.write_bytes(manifest_path.read_bytes())
+    manifest = json.loads(pristine.read_text(encoding="utf-8"))
+    mutate(manifest)
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    sidecar = json.loads(result_path.read_text(encoding="utf-8"))
+    sidecar["gepa_output"]["manifest_sha256"] = _sha256(manifest_path)
+    result_path.write_text(json.dumps(sidecar, indent=2, sort_keys=True) + "\n")
+
+
+def test_gepa_concept_coverage_stamps_closed_metric_honesty_block(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, optimizer_root, _, result = _concept_coverage_lineage(
+        tmp_path, monkeypatch
+    )
+    assert result["status"] == "degraded"
+    assert result["gepa"]["status"] == "completed"
+    manifest = json.loads((optimizer_root / "manifest.json").read_text("utf-8"))
+    block = manifest["metric_honesty"]
+    binding = result["gepa"]["concept_coverage_binding"]
+    source_sha256 = _sha256(program_root / "program.py")
+    wrapper = optimizer_root / "_gepa_inputs" / CONCEPT_COVERAGE_PROGRAM_NAME
+    intent = json.loads((program_root / "manifest.json").read_text("utf-8"))["intent"]
+    assert set(block) == METRIC_HONESTY_KEYS
+    assert block == binding["metric_honesty"]
+    assert block == {
+        "metric": "concept_coverage",
+        "wrapper_program_sha256": _sha256(wrapper),
+        "source_program_sha256": source_sha256,
+        "criteria_sha256": criteria_sha256(intent["quality_criteria"]),
+    }
+    assert manifest["program"]["sha256"] == block["wrapper_program_sha256"]
+    assert block["wrapper_program_sha256"] != source_sha256
+    assert binding["criteria_sha256"] == block["criteria_sha256"]
+    # The wrapper carries the source hash binding and is byte-reproducible.
+    wrapper_text = wrapper.read_text(encoding="utf-8")
+    assert wrapper_binding_line(source_sha256) in wrapper_text.splitlines()
+    assert wrapper_text == render_concept_coverage_program(
+        candidate_program=(program_root / "program.py").resolve(),
+        candidate_program_sha256=source_sha256,
+        criteria=intent["quality_criteria"],
+        output_fields=intent["outputs"],
+    )
+    assert (optimizer_root / "source" / CONCEPT_COVERAGE_PROGRAM_NAME).read_bytes() == (
+        wrapper.read_bytes()
+    )
+    # Loading the wrapper over a drifted source program refuses.
+    module = _load_module(wrapper)
+    assert callable(module.build_student)
+    (program_root / "program.py").write_text(
+        (program_root / "program.py").read_text(encoding="utf-8") + "\n# drift\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="hash drifted"):
+        _load_module(wrapper)
+
+
+def test_consume_contract_accepts_and_materializes_concept_coverage_lineage(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, optimizer_root, result_path, _ = _concept_coverage_lineage(
+        tmp_path, monkeypatch
+    )
+    validation = _validate_with_source(program_root, result_path)
+    manifest = json.loads((optimizer_root / "manifest.json").read_text("utf-8"))
+    block = manifest["metric_honesty"]
+    assert validation["ready_for_future_candidate_materializer"] is True
+    assert validation["optimizer_manifest"]["metric_honesty"] == block
+    # Hash-only verification (no source context) still binds the source hash.
+    payload = json.loads(result_path.read_text(encoding="utf-8"))
+    identity = _identity_from_manifest(
+        json.loads((program_root / "manifest.json").read_text("utf-8"))
+    )
+    validate_program_refinement_gepa_result_contract(
+        payload,
+        expected_identities=[identity],
+        source_program_hash=_sha256(program_root / "program.py"),
+    )
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError, match="source_program_sha256"
+    ):
+        validate_program_refinement_gepa_result_contract(
+            payload, expected_identities=[identity], source_program_hash="0" * 64
+        )
+
+    outdir = tmp_path / "program-gepa-candidate"
+    result_out = tmp_path / "refinement" / "gepa_candidate_result.json"
+    result = materialize_gepa_refinement_candidate(
+        manifest_path=program_root / "manifest.json",
+        gepa_result_path=result_path,
+        outdir=outdir,
+        result_out=result_out,
+    )
+    assert result["status"] == "materialized"
+    assert result["gepa_output"]["metric_honesty"] == block
+    assert (
+        result["gepa_output"]["source_program_sha256"]
+        == (block["source_program_sha256"])
+    )
+    assert (
+        result["gepa_output"]["optimizer_manifest_program_sha256"]
+        == (block["wrapper_program_sha256"])
+    )
+    # The candidate program is the source program plus the optimizer loader,
+    # never the metric wrapper.
+    candidate_program = (outdir / "program.py").read_text(encoding="utf-8")
+    source_program = (program_root / "program.py").read_text(encoding="utf-8")
+    source_lines = [
+        line
+        for line in source_program.splitlines()
+        if line.strip() and not line.startswith("CONSTRAINTS = ")
+    ]
+    candidate_lines = candidate_program.splitlines()
+    assert source_lines and all(line in candidate_lines for line in source_lines)
+    assert "GEPA metric wrapper" not in candidate_program
+    assert "CANDIDATE_PROGRAM_SHA256" not in candidate_program
+    assert _sha256(outdir / "program.py") != block["wrapper_program_sha256"]
+    candidate_manifest = json.loads((outdir / "manifest.json").read_text("utf-8"))
+    assert candidate_manifest["gepa_refinement"]["metric_honesty"] == block
+    lineage = json.loads((outdir / "gepa_candidate_lineage.json").read_text("utf-8"))
+    assert lineage["metric_honesty"] == block
+    validate_program_refinement_gepa_candidate_result_contract(
+        result,
+        expected_source_manifest_path=program_root / "manifest.json",
+        expected_gepa_result_path=result_path,
+    )
+    # Lineage that drops or alters the block no longer validates.
+    candidate_manifest["gepa_refinement"]["metric_honesty"] = {
+        **block,
+        "source_program_sha256": "0" * 64,
+    }
+    (outdir / "manifest.json").write_text(json.dumps(candidate_manifest), "utf-8")
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError,
+        match="lineage metric_honesty does not match",
+    ):
+        validate_program_refinement_gepa_candidate_result_contract(
+            result,
+            expected_source_manifest_path=program_root / "manifest.json",
+            expected_gepa_result_path=result_path,
+        )
+
+
+def test_consume_contract_rejects_tampered_wrapper_hash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, optimizer_root, result_path, _ = _concept_coverage_lineage(
+        tmp_path, monkeypatch
+    )
+
+    def tamper(manifest: dict[str, Any]) -> None:
+        manifest["metric_honesty"]["wrapper_program_sha256"] = "1" * 64
+
+    _rewrite_manifest(optimizer_root, result_path, tamper)
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError,
+        match="wrapper_program_sha256 does not match the GEPA optimizer manifest",
+    ):
+        _validate_with_source(program_root, result_path)
+
+    def tamper_both(manifest: dict[str, Any]) -> None:
+        manifest["metric_honesty"]["wrapper_program_sha256"] = "1" * 64
+        manifest["program"]["sha256"] = "1" * 64
+
+    _rewrite_manifest(optimizer_root, result_path, tamper_both)
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError,
+        match="does not match the wrapper re-derived",
+    ):
+        _validate_with_source(program_root, result_path)
+    with pytest.raises(ProgramRefinementGepaCandidateError):
+        materialize_gepa_refinement_candidate(
+            manifest_path=program_root / "manifest.json",
+            gepa_result_path=result_path,
+            outdir=tmp_path / "program-gepa-candidate",
+        )
+    assert not (tmp_path / "program-gepa-candidate").exists()
+
+
+def test_consume_contract_rejects_tampered_source_hash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, optimizer_root, result_path, _ = _concept_coverage_lineage(
+        tmp_path, monkeypatch
+    )
+
+    def tamper(manifest: dict[str, Any]) -> None:
+        manifest["metric_honesty"]["source_program_sha256"] = "2" * 64
+
+    _rewrite_manifest(optimizer_root, result_path, tamper)
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError,
+        match="source_program_sha256 does not match source candidate",
+    ):
+        _validate_with_source(program_root, result_path)
+
+    def tamper_criteria(manifest: dict[str, Any]) -> None:
+        manifest["metric_honesty"]["criteria_sha256"] = "3" * 64
+
+    _rewrite_manifest(optimizer_root, result_path, tamper_criteria)
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError, match="criteria_sha256 does not match"
+    ):
+        _validate_with_source(program_root, result_path)
+
+    def drop_block(manifest: dict[str, Any]) -> None:
+        del manifest["metric_honesty"]
+
+    _rewrite_manifest(optimizer_root, result_path, drop_block)
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError, match="must carry a metric_honesty block"
+    ):
+        _validate_with_source(program_root, result_path)
+
+    def open_block(manifest: dict[str, Any]) -> None:
+        manifest["metric_honesty"]["extra"] = True
+
+    _rewrite_manifest(optimizer_root, result_path, open_block)
+    with pytest.raises(ProgramRefinementGepaCandidateError, match="exactly metric"):
+        _validate_with_source(program_root, result_path)
+
+
+def test_consume_contract_rejects_wrapper_not_derived_from_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A wrapper with consistent hashes but foreign bytes is still rejected."""
+
+    program_root, optimizer_root, result_path, _ = _concept_coverage_lineage(
+        tmp_path, monkeypatch
+    )
+    wrapper = optimizer_root / "source" / CONCEPT_COVERAGE_PROGRAM_NAME
+    wrapper.write_text(
+        wrapper.read_text(encoding="utf-8").replace(
+            "OUTPUT_FIELDS = ", "SCORE_ALWAYS = True\nOUTPUT_FIELDS = "
+        ),
+        encoding="utf-8",
+    )
+    wrapper_sha256 = _sha256(wrapper)
+
+    def rebind(manifest: dict[str, Any]) -> None:
+        manifest["program"]["sha256"] = wrapper_sha256
+        manifest["metric_honesty"]["wrapper_program_sha256"] = wrapper_sha256
+        for item in manifest["output_payload"]["files"]:
+            if item["path"] == f"source/{CONCEPT_COVERAGE_PROGRAM_NAME}":
+                item["sha256"] = wrapper_sha256
+                item["size_bytes"] = wrapper.stat().st_size
+        files = manifest["output_payload"]["files"]
+        tree_text = json.dumps(
+            files, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+        manifest["output_payload"]["tree_hash"] = hashlib.sha256(
+            tree_text.encode("utf-8")
+        ).hexdigest()
+
+    _rewrite_manifest(optimizer_root, result_path, rebind)
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError,
+        match="does not match the wrapper re-derived",
+    ):
+        _validate_with_source(program_root, result_path)
+
+
+def test_exact_metric_optimizer_manifest_carries_no_metric_honesty_block(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    program_root, optimizer_root, result_path, result = _concept_coverage_lineage(
+        tmp_path, monkeypatch, metric="exact_match"
+    )
+    manifest = json.loads((optimizer_root / "manifest.json").read_text("utf-8"))
+    assert "metric_honesty" not in manifest
+    assert "concept_coverage_binding" not in result["gepa"]
+    assert manifest["program"]["sha256"] == _sha256(program_root / "program.py")
+    validation = _validate_with_source(program_root, result_path)
+    assert validation["ready_for_future_candidate_materializer"] is True
+    assert "metric_honesty" not in validation["optimizer_manifest"]
+
+    def tamper(manifest: dict[str, Any]) -> None:
+        manifest["program"]["sha256"] = "4" * 64
+
+    _rewrite_manifest(optimizer_root, result_path, tamper)
+    with pytest.raises(
+        ProgramRefinementGepaCandidateError,
+        match="source program hash does not match source candidate",
+    ):
+        _validate_with_source(program_root, result_path)
+
+
+def test_retained_execution_receipts_predate_metric_honesty_and_keep_shape() -> None:
+    expected_keys = {
+        "schema_version",
+        "status",
+        "proposal_id",
+        "proposal_sha256",
+        "attempt_sha256",
+        "result_path",
+        "result_sha256",
+        "gepa_status",
+        "optimizer_output_readiness",
+        "optimizer_manifest_sha256",
+        "optimizer_tree_sha256",
+        "effect",
+        "non_authority",
+    }
+    receipts = 0
+    for path in sorted(glob.glob(str(DOCS_PROJECT / "*-evidence.json"))):
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+        artifacts = document.get("artifacts") or {}
+        execution_receipt = artifacts.get("execution_receipt")
+        if not isinstance(execution_receipt, dict):
+            continue
+        projection = execution_receipt.get("projection")
+        if not isinstance(projection, dict):
+            continue
+        receipts += 1
+        assert "metric_honesty" not in projection, path
+        assert set(projection) - {"provider_evidence_kind"} == expected_keys, path
+        assert projection["status"] == "ok", path
+    assert receipts >= 5, "retained foundry GEPA execution receipts must be present"
