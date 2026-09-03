@@ -399,3 +399,33 @@ label: the adapter's own latch now reports `adapter_session_terminal`; `adapter_
 is reserved for an actual `dspy.settings.lm` identity mismatch. Earlier retained evidence
 (`2026-09-02-foundry-codex-sol*-terminal-failure-evidence.json`) carries the old label for the
 same latch and is left as recorded.
+
+## 2026-09-03: first live local vLLM jury (AK-5352)
+
+AK task 5352 (done; AK evidence 8251) executed the first live receipt-bound comparison jury
+through `foundry-dspy-lm-auth-local-vllm` with `local/Qwen3.8-27B-AEON-NVFP4-FP8` at endpoint
+origin `http://127.0.0.1:2456` (base URL `/v1`), owner commit
+`777388ad9c692b0657e6b6e1d4820b15fcb6641d`, DSPx commit
+`1c120c3b07b4e9b191089413673d7e64dc95affd`. This lineage ran after the bare-judgment tolerance
+fix `caf9a1abb528eb947cb448242ba2699334cec9ce` (an ancestor of that DSPx commit); the preceding
+one-shot AK-5350 (evidence 8248, lineage `misegraph-foundry-local-vllm-5350.DoLQk8`) had failed on
+exactly that gap after one completed HTTP 200 call and zero judgments.
+
+The lineage under `misegraph-foundry-local-vllm-5352.5V8vH2` was built offline (stub provider,
+fixture-replay Oracle with a per-run authored fixture entry, `DSPX_REPLAY_FIXTURE_JSON` derived
+from the intent examples); the consume step used the operator-run hash-bound GEPA pickle opt-in
+(`optimizer_manifest_sha256`
+`0af3fe4127acbcc1d894ff9749ad7cdc183b2001fe7215f758538dad437e0019`). All three provider calls
+were loopback-only with no credential (`auth_provider: none`, `credential_mode: no-refresh`), and
+all three journals terminate in `provider_response_completed` with HTTP 200, no replay, no
+fallback, zero retries. Three jurors judged `supports_review_evidence`, recommendation
+`supports_review_evidence_only`, deterministic adjudication `promote_locally` /
+`eligible_local_candidate`, reason `all_jurors_support_review_evidence`. `promote_locally` is a
+bounded local disposition over the validated jury receipt: it grants no Misegraph acceptance,
+release, or activation and selects no winner. Secret-free projection:
+`docs/project/2026-09-03-misegraph-foundry-local-vllm-full-dogfood-evidence.json`.
+
+The same day, the xAI one-shot AK-5349 (`grok-4.6`, lineage `misegraph-foundry-xai-5349.QscXoP`,
+evidence 8250) ended after one provider call at HTTP 429 (`remote_http_error_final`,
+`remote_http_status`; xAI capacity), zero judgments, no replay, no secrets in evidence. A fresh xAI
+lineage is staged under AK-5353 and waits for stable capacity.
