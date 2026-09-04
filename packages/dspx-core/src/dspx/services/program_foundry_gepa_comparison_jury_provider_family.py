@@ -19,6 +19,12 @@ from dspx.services.soomfon_provider_outcome_receipt_contract import (
 # Codex family reproduces the historical pinned constant byte-for-byte.
 ENDPOINT_ORIGIN_DOMAIN = b"dspx-oracle-semantic-v11-endpoint-origin-v1\0"
 CREDENTIAL_MODE = "no-refresh"
+# Owner ``ChatProviderProfile.auth_mode`` values the preflight probe understands:
+# OAuth entries are read through the owner's no-refresh reader and re-checked
+# for expiry; ``pi-api-key`` entries carry no expiry and are read read-only.
+AUTH_MODE_PI_OAUTH = "pi-oauth-no-refresh"
+AUTH_MODE_PI_API_KEY = "pi-api-key"
+AUTH_MODE_NONE = "none"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 IMPLEMENTATION_TASK_ID = 5308
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "[::1]"})
@@ -140,6 +146,9 @@ class FoundryJuryProviderFamily:
     # the preflight and the fresh-child timeout. Reasoning models that
     # regularly exceed the shared default carry their own value.
     default_timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
+    # How the owner backend reads its credential (mirrors the owner profile's
+    # ``auth_mode``); the preflight probe selects its reader from this.
+    auth_mode: str = AUTH_MODE_PI_OAUTH
 
     def requested_route(self, model: str) -> str:
         return self.requested_route_template.format(model=_route_model(model))
@@ -276,6 +285,9 @@ class FoundryJuryProviderFamily:
 CODEX_ENDPOINT_ORIGIN = "https://chatgpt.com/backend-api/codex"
 COPILOT_ENDPOINT_ORIGIN = "https://api.individual.githubcopilot.com"
 XAI_ENDPOINT_ORIGIN = "https://api.x.ai"
+# The owner fixes ``https://opencode.ai/zen/go/v1``; the origin excludes the
+# path so ``catalog_path`` composes the exact read-only listing URL.
+OPENCODE_GO_ENDPOINT_ORIGIN = "https://opencode.ai"
 LOCAL_VLLM_ENDPOINT_ENV = "DSPX_LOCAL_VLLM_BASE_URL"
 LOCAL_VLLM_DEFAULT_ENDPOINT = "http://127.0.0.1:2456/v1"
 _CHAT_CONTRACT_MODULE = "dspy_lm_auth.chat_backend_contract"
@@ -370,6 +382,40 @@ XAI_FAMILY = FoundryJuryProviderFamily(
     default_timeout_seconds=180.0,
 )
 
+# OpenCode Go serves lower-case vendor-neutral ids (kimi-k2.7-code, qwen3.8-max,
+# glm-5.3, ...) behind Pi's ``opencode-go`` api_key entry: no OAuth, no expiry.
+OPENCODE_GO_FAMILY = FoundryJuryProviderFamily(
+    provider_name="foundry-dspy-lm-auth-opencode-go",
+    auth_provider="opencode-go",
+    model_re=re.compile(r"^[a-z0-9][a-z0-9.-]{0,63}$"),
+    default_model="kimi-k2.7-code",
+    allowed_reasoning_efforts=None,
+    default_reasoning_effort=None,
+    execution_task_title=(
+        "Execute one receipt-bound foundry comparison jury with dspy-lm-auth "
+        "OpenCode Go"
+    ),
+    endpoint_origin=OPENCODE_GO_ENDPOINT_ORIGIN,
+    endpoint_origin_sha256=(
+        "49a9f205011074eef3fbd38c759a8389feeab6133037dad880ac96a5063d3513"
+    ),
+    requested_route_template="dspy-lm-auth:opencode-go:{model}",
+    resolved_route_template="openai:{model}:chat",
+    backend_module="dspy_lm_auth.opencode_go_backend",
+    backend_class="OpencodeGoBackend",
+    contract_module=_CHAT_CONTRACT_MODULE,
+    message_class="ChatBackendMessage",
+    request_class="ChatBackendRequest",
+    response_class="ChatBackendResponse",
+    allowed_roles=_CHAT_ROLES,
+    model_key="model",
+    strict_observed_model=False,
+    catalog_path="/zen/go/v1/models",
+    # Coding models on the Go tier reason before answering, like grok-4.6.
+    default_timeout_seconds=180.0,
+    auth_mode=AUTH_MODE_PI_API_KEY,
+)
+
 LOCAL_VLLM_FAMILY = FoundryJuryProviderFamily(
     provider_name="foundry-dspy-lm-auth-local-vllm",
     auth_provider="none",
@@ -398,12 +444,14 @@ LOCAL_VLLM_FAMILY = FoundryJuryProviderFamily(
     endpoint_env=LOCAL_VLLM_ENDPOINT_ENV,
     endpoint_key="local_vllm_base_url",
     catalog_path="/models",
+    auth_mode=AUTH_MODE_NONE,
 )
 
 FAMILIES: Mapping[str, FoundryJuryProviderFamily] = {
     CODEX_FAMILY.provider_name: CODEX_FAMILY,
     COPILOT_FAMILY.provider_name: COPILOT_FAMILY,
     XAI_FAMILY.provider_name: XAI_FAMILY,
+    OPENCODE_GO_FAMILY.provider_name: OPENCODE_GO_FAMILY,
     LOCAL_VLLM_FAMILY.provider_name: LOCAL_VLLM_FAMILY,
 }
 TASK_LOCAL_PROVIDER_NAMES = frozenset(FAMILIES)
@@ -434,6 +482,9 @@ def family_for_request(request: Mapping[str, Any]) -> FoundryJuryProviderFamily 
 
 
 __all__ = [
+    "AUTH_MODE_NONE",
+    "AUTH_MODE_PI_API_KEY",
+    "AUTH_MODE_PI_OAUTH",
     "CODEX_FAMILY",
     "COPILOT_FAMILY",
     "CREDENTIAL_MODE",
@@ -444,6 +495,8 @@ __all__ = [
     "LOCAL_VLLM_DEFAULT_ENDPOINT",
     "LOCAL_VLLM_ENDPOINT_ENV",
     "LOCAL_VLLM_FAMILY",
+    "OPENCODE_GO_ENDPOINT_ORIGIN",
+    "OPENCODE_GO_FAMILY",
     "TASK_LOCAL_PROVIDER_NAMES",
     "XAI_FAMILY",
     "FoundryJuryProviderFamily",

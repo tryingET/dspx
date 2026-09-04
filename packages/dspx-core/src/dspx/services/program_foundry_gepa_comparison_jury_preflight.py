@@ -38,6 +38,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
     canonical_ak_task_revalidator,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
+    AUTH_MODE_PI_API_KEY,
     FoundryJuryProviderFamily,
     family_for_request,
 )
@@ -54,6 +55,8 @@ from dspx.services.soomfon_provider_outcome_receipt_identity import _record_dige
 PREFLIGHT_SCHEMA = "dspx-foundry-jury-preflight-v1"
 _OWNER_AUTH_RELATIVE = "src/dspy_lm_auth/auth.py"
 _OWNER_AUTH_SHA256 = _EXTRA_OWNER_FILES[_OWNER_AUTH_RELATIVE]
+_OWNER_CREDENTIAL_RELATIVE = "src/dspy_lm_auth/_chat_credential.py"
+_OWNER_CREDENTIAL_SHA256 = _EXTRA_OWNER_FILES[_OWNER_CREDENTIAL_RELATIVE]
 _PROBE_PATH = Path(__file__).with_name(
     "program_foundry_gepa_comparison_jury_preflight_probe.py"
 )
@@ -192,14 +195,21 @@ def _probe_config(
     model: str,
     auth_path: Path | None,
 ) -> dict[str, Any]:
-    return {
+    config: dict[str, Any] = {
         "auth_provider": family.auth_provider,
+        "auth_mode": family.auth_mode,
         "model": model,
         "catalog_url": family.catalog_url,
         "auth_module_path": str(owner_source_root / _OWNER_AUTH_RELATIVE),
         "auth_module_sha256": _OWNER_AUTH_SHA256,
         "auth_path": None if auth_path is None else str(auth_path),
     }
+    if family.auth_mode == AUTH_MODE_PI_API_KEY:
+        config["credential_module_path"] = str(
+            owner_source_root / _OWNER_CREDENTIAL_RELATIVE
+        )
+        config["credential_module_sha256"] = _OWNER_CREDENTIAL_SHA256
+    return config
 
 
 def run_probe(config: Mapping[str, Any]) -> dict[str, Any]:
@@ -256,7 +266,7 @@ def probe_credential_and_catalog(
             auth_path=auth_path,
         )
     )
-    probed = family.auth_provider != "none"
+    probed = family.auth_mode != "none"
     credential = {
         "probed": probed,
         "credential_present": bool(facts["credential_present"]),

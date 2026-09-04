@@ -28,6 +28,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
     LOCAL_VLLM_DEFAULT_ENDPOINT,
     LOCAL_VLLM_ENDPOINT_ENV,
     LOCAL_VLLM_FAMILY,
+    OPENCODE_GO_FAMILY,
     XAI_FAMILY,
     family_for_request,
     loopback_endpoint_origin_sha256,
@@ -867,11 +868,18 @@ def test_local_vllm_family_is_distinct_from_the_other_families() -> None:
         CODEX_FAMILY,
         COPILOT_FAMILY,
         XAI_FAMILY,
+        OPENCODE_GO_FAMILY,
         LOCAL_VLLM_FAMILY,
     )
-    assert len({f.provider_name for f in families}) == 4
-    assert len({f.execution_task_title for f in families}) == 4
-    assert len({f.requested_route("m") for f in families}) == 4
-    assert len({f.backend_module for f in families}) == 4
-    assert len({f.endpoint_origin_sha256 for f in families}) == 4
-    assert [f.endpoint_resolved for f in families] == [False, False, False, True]
+    assert len({f.provider_name for f in families}) == 5
+    assert len({f.execution_task_title for f in families}) == 5
+    assert len({f.requested_route("m") for f in families}) == 5
+    assert len({f.backend_module for f in families}) == 5
+    assert len({f.endpoint_origin_sha256 for f in families}) == 5
+    assert [f.endpoint_resolved for f in families] == [
+        False,
+        False,
+        False,
+        False,
+        True,
+    ]

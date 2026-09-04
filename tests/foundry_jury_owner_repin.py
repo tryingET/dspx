@@ -52,6 +52,7 @@ REQUIRED_EXTRA_OWNER_FILES: tuple[str, ...] = (
     "src/dspy_lm_auth/_chat_credential.py",
     "src/dspy_lm_auth/xai_backend.py",
     "src/dspy_lm_auth/local_vllm_backend.py",
+    "src/dspy_lm_auth/opencode_go_backend.py",
 )
 
 

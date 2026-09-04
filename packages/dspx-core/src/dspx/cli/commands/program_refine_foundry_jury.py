@@ -23,6 +23,7 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
                 "Explicit provider for program-specific juror calls; task-local "
                 "families: foundry-dspy-lm-auth-codex, "
                 "foundry-dspy-lm-auth-github-copilot, foundry-dspy-lm-auth-xai, "
+                "foundry-dspy-lm-auth-opencode-go, "
                 "foundry-dspy-lm-auth-local-vllm (endpoint from "
                 "DSPX_LOCAL_VLLM_BASE_URL, default http://127.0.0.1:2456/v1)"
             ),
@@ -68,8 +69,8 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
             help=(
                 "Reviewed model for the task-local provider family "
                 "(Codex default gpt-5.4; GitHub Copilot default gemini-3.7-flash; "
-                "xAI default grok-4.6; local vLLM default "
-                "local/Qwen3.8-27B-AEON-NVFP4-FP8)"
+                "xAI default grok-4.6; OpenCode Go default kimi-k2.7-code; "
+                "local vLLM default local/Qwen3.8-27B-AEON-NVFP4-FP8)"
             ),
         ),
         codex_model: str | None = typer.Option(
@@ -82,7 +83,8 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
             "--reasoning-effort",
             help=(
                 "Bounded Codex reasoning effort (default xhigh); "
-                "not applicable to the GitHub Copilot, xAI, or local vLLM families"
+                "not applicable to the GitHub Copilot, xAI, OpenCode Go, or local "
+                "vLLM families"
             ),
         ),
         preflight_only: bool = typer.Option(

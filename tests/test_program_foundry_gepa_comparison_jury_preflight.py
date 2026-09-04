@@ -24,6 +24,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
     CODEX_FAMILY,
     COPILOT_FAMILY,
     LOCAL_VLLM_FAMILY,
+    OPENCODE_GO_FAMILY,
     XAI_FAMILY,
 )
 from test_program_foundry_gepa_comparison_jury import _fixture, _model_result
@@ -143,6 +144,7 @@ def _probe_config(
     root, digest = _fake_owner(tmp_path)
     return {
         "auth_provider": auth_provider,
+        "auth_mode": "none" if auth_provider == "none" else "pi-oauth-no-refresh",
         "model": model,
         "catalog_url": catalog_url,
         "auth_module_path": str(root / "src" / "dspy_lm_auth" / "auth.py"),
@@ -833,6 +835,7 @@ def test_credential_probe_child_runs_isolated_without_bytecode(tmp_path: Path) -
         (CODEX_FAMILY, None),
         (COPILOT_FAMILY, "https://api.individual.githubcopilot.com/models"),
         (XAI_FAMILY, "https://api.x.ai/v1/models"),
+        (OPENCODE_GO_FAMILY, "https://opencode.ai/zen/go/v1/models"),
         (LOCAL_VLLM_FAMILY, "http://127.0.0.1:2456/v1/models"),
     ],
 )

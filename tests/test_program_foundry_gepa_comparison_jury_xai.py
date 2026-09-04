@@ -45,6 +45,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_evidence import
 from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
     FAMILIES,
     LOCAL_VLLM_FAMILY,
+    OPENCODE_GO_FAMILY,
     XAI_FAMILY,
     family_for_request,
 )
@@ -78,7 +79,13 @@ from test_program_foundry_gepa_comparison_jury import (
 from test_program_foundry_gepa_comparison_jury_copilot import _completed_with
 from test_program_foundry_gepa_comparison_jury_provider import _Owner, _artifact
 
-ALL_FAMILIES = (CODEX_FAMILY, COPILOT_FAMILY, XAI_FAMILY, LOCAL_VLLM_FAMILY)
+ALL_FAMILIES = (
+    CODEX_FAMILY,
+    COPILOT_FAMILY,
+    XAI_FAMILY,
+    OPENCODE_GO_FAMILY,
+    LOCAL_VLLM_FAMILY,
+)
 XAI_MODEL = "grok-4.6"
 XAI_ENDPOINT_ORIGIN_SHA256 = (
     "b1cca9c83dc27a51b9887f2a66a651bea19f23ac4d86dccc456fab2141f5e40d"
@@ -135,7 +142,7 @@ def test_xai_family_literals_are_pinned() -> None:
     assert family_for_provider(XAI_FAMILY.provider_name) is XAI_FAMILY
     assert FAMILIES[XAI_FAMILY.provider_name] is XAI_FAMILY
     assert XAI_FAMILY.provider_name in TASK_LOCAL_PROVIDER_NAMES
-    assert len(TASK_LOCAL_PROVIDER_NAMES) == 4
+    assert len(TASK_LOCAL_PROVIDER_NAMES) == 5
     assert XAI_FAMILY.provider_name not in SUPPORTED_PROVIDER_NAMES
     assert task_local_execution_request_keys(XAI_FAMILY.provider_name) == frozenset(
         {
@@ -165,7 +172,7 @@ def test_xai_endpoint_origin_constant_uses_the_v11_rule() -> None:
     assert XAI_FAMILY.endpoint_origin_sha256 == XAI_ENDPOINT_ORIGIN_SHA256 == expected
     assert endpoint_origin_sha256("https://api.x.ai/v1") == expected
     assert endpoint_origin_sha256(XAI_FAMILY.endpoint_origin) == expected
-    assert len({family.endpoint_origin_sha256 for family in ALL_FAMILIES}) == 4
+    assert len({family.endpoint_origin_sha256 for family in ALL_FAMILIES}) == 5
 
 
 @pytest.mark.parametrize(
@@ -309,7 +316,7 @@ def test_xai_custodian_binds_routes_and_origin_into_journals(
     ]
     _stub_owner_source(monkeypatch)
     assert _validate(evidence, tmp_path, XAI_FAMILY, XAI_MODEL) == evidence
-    for other in (CODEX_FAMILY, COPILOT_FAMILY, LOCAL_VLLM_FAMILY):
+    for other in (CODEX_FAMILY, COPILOT_FAMILY, OPENCODE_GO_FAMILY, LOCAL_VLLM_FAMILY):
         with pytest.raises(
             FoundryJuryProviderConfigurationError, match="journal binding drifted"
         ):
@@ -791,11 +798,12 @@ def test_xai_configure_rejects_invalid_model_before_owner_load(
 def test_family_timeouts_are_pinned_and_enforced_before_owner_load(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """xAI carries 180 s per call; the other three families keep 60 s."""
+    """xAI and OpenCode Go carry 180 s per call; the other three keep 60 s."""
 
     assert [family.default_timeout_seconds for family in ALL_FAMILIES] == [
         60.0,
         60.0,
+        180.0,
         180.0,
         60.0,
     ]
@@ -851,7 +859,7 @@ def _loaded_owner(
 
 
 @pytest.mark.parametrize("family", ALL_FAMILIES, ids=lambda item: item.auth_provider)
-def test_loaded_owner_rules_apply_to_all_four_families(
+def test_loaded_owner_rules_apply_to_all_five_families(
     family: FoundryJuryProviderFamily, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(

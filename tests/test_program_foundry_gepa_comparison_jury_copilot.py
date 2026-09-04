@@ -54,6 +54,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_custody import 
 )
 from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
     LOCAL_VLLM_FAMILY,
+    OPENCODE_GO_FAMILY,
     XAI_FAMILY,
 )
 from dspx.services.program_foundry_gepa_comparison_jury_provider_evidence import (
@@ -137,6 +138,7 @@ def test_family_literals_and_codex_aliases_are_pinned() -> None:
             CODEX_FAMILY.provider_name,
             COPILOT_FAMILY.provider_name,
             XAI_FAMILY.provider_name,
+            OPENCODE_GO_FAMILY.provider_name,
             LOCAL_VLLM_FAMILY.provider_name,
         }
     )

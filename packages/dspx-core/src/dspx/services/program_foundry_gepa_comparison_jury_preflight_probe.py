@@ -5,6 +5,10 @@ It imports only the standard library and ``httpx``; it never imports ``dspx``
 or the ``dspy_lm_auth`` package. The owner's hash-pinned ``auth.py`` is loaded
 from a file location under a non-package alias so the bearer token is read
 through the owner's own no-refresh reader and never leaves this process.
+``pi-api-key`` families (OpenCode Go) read one ``{"type": "api_key"}`` entry
+with a verbatim copy of the owner's ``_chat_credential.read_existing_api_key_credential``
+rules (that module imports the owner package, so it cannot be aliased in);
+the owner file's hash is still verified before the copy is used.
 
 Output is exactly one closed JSON object on stdout:
 
@@ -41,7 +45,10 @@ COPILOT_CATALOG_HEADERS: dict[str, str] = {
 CATALOG_TIMEOUT_SECONDS = 10.0
 CATALOG_MAX_BODY_BYTES = 1024 * 1024
 _AUTH_ALIAS = "_dspx_foundry_preflight_owner_auth"
-_BEARER_PROVIDERS = frozenset({"github-copilot", "xai"})
+_BEARER_PROVIDERS = frozenset({"github-copilot", "xai", "opencode-go"})
+AUTH_MODE_PI_OAUTH = "pi-oauth-no-refresh"
+AUTH_MODE_PI_API_KEY = "pi-api-key"
+AUTH_MODE_NONE = "none"
 
 
 def _load_owner_auth(path: Path, expected_sha256: str) -> ModuleType:
@@ -84,6 +91,36 @@ def _read_credential(
             endpoint_fixed = False
     expires_ms = int(expires) if isinstance(expires, (int, float)) else 0
     return token, expiry_ok, expires_ms, endpoint_fixed
+
+
+def _verify_owner_file(path: Path, expected_sha256: str) -> None:
+    if hashlib.sha256(path.read_bytes()).hexdigest() != expected_sha256:
+        raise ValueError("owner credential module hash drift")
+
+
+def _read_api_key_credential(*, auth_path: str | None, auth_entry: str) -> str | None:
+    """Mirror ``read_existing_api_key_credential``: read-only, no refresh, no expiry.
+
+    Returns the key only inside this process; the caller reduces it to booleans.
+    """
+
+    target = Path("~/.pi/agent/auth.json") if auth_path is None else Path(auth_path)
+    try:
+        with target.expanduser().open("r", encoding="utf-8") as handle:
+            current = json.load(handle)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    credential = current.get(auth_entry) if isinstance(current, dict) else None
+    if not isinstance(credential, dict) or credential.get("type") != "api_key":
+        return None
+    key = credential.get("key")
+    if (
+        not isinstance(key, str)
+        or not key
+        or not all(0x21 <= ord(char) <= 0x7E for char in key)
+    ):
+        return None
+    return key
 
 
 def _catalog_ids(body: bytes) -> list[str]:
@@ -154,6 +191,7 @@ def fetch_catalog(
 
 def run(config: dict[str, Any]) -> dict[str, Any]:
     auth_provider = str(config["auth_provider"])
+    auth_mode = str(config["auth_mode"])
     model = str(config["model"])
     catalog_url = config.get("catalog_url")
     token: str | None = None
@@ -163,7 +201,22 @@ def run(config: dict[str, Any]) -> dict[str, Any]:
         "expires_ms": 0,
         "endpoint_fixed": False,
     }
-    if auth_provider != "none":
+    if auth_mode == AUTH_MODE_PI_API_KEY:
+        _verify_owner_file(
+            Path(str(config["credential_module_path"])),
+            str(config["credential_module_sha256"]),
+        )
+        token = _read_api_key_credential(
+            auth_path=config.get("auth_path"), auth_entry=auth_provider
+        )
+        # Pi api_key entries carry no expiry and the owner endpoint is fixed.
+        credential = {
+            "credential_present": token is not None,
+            "expiry_ok": token is not None,
+            "expires_ms": 0,
+            "endpoint_fixed": token is not None,
+        }
+    elif auth_mode == AUTH_MODE_PI_OAUTH:
         auth = _load_owner_auth(
             Path(str(config["auth_module_path"])),
             str(config["auth_module_sha256"]),
@@ -179,13 +232,15 @@ def run(config: dict[str, Any]) -> dict[str, Any]:
             "expires_ms": expires_ms,
             "endpoint_fixed": endpoint_fixed,
         }
-    else:
+    elif auth_mode == AUTH_MODE_NONE:
         credential = {
             "credential_present": True,
             "expiry_ok": True,
             "expires_ms": 0,
             "endpoint_fixed": True,
         }
+    else:
+        raise ValueError("unknown auth mode")
     catalog: dict[str, Any] | None = None
     credential_ok = (
         credential["credential_present"]

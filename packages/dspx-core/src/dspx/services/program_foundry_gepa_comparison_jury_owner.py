@@ -36,15 +36,15 @@ from dspx.services.soomfon_provider_outcome_receipt_identity import (
 # source_identity (provider_outcome_receipt_contract); every other reviewed
 # owner file is hash-pinned through _EXTRA_OWNER_FILES.
 # ---------------------------------------------------------------------------
-OWNER_COMMIT = "80cc409da976028263da884ed633bef0806cd986"
-OWNER_TREE = "552f2f6675cb770776a329bb3cd5c6e8073844f5"
+OWNER_COMMIT = "80c970c92845c79afeb825fb17d7e8a0649f7474"
+OWNER_TREE = "22fc8646b4b5a032b4db2462ae7ba9167055a09d"
 OWNER_VERSION = "0.1.6"
 OWNER_LOCK_SHA256 = "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648"
 
 _OWNER_MODULES: dict[str, tuple[str, str]] = {
     "package_init": (
         "src/dspy_lm_auth/__init__.py",
-        "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a",
+        "d8d53cae72fcfe334de6770a203eeccf71aedc5bdb021d701c46d6ebb1469e78",
     ),
     "lm": (
         "src/dspy_lm_auth/lm.py",
@@ -89,13 +89,14 @@ _EXTRA_OWNER_FILES = {
     "src/dspy_lm_auth/copilot_receipt_runtime.py": "888f993678e9183dfcd622f8df8dcdaad7b4b2a4d86576af8df65b0069739241",
     "src/dspy_lm_auth/_route_policy.py": "7dece27cc0bf8e3cad087f6d476ea44f9db6331195fe606c50c688a40b80ec12",
     "src/dspy_lm_auth/auth.py": "b46b390a292ddb8eb6ab22c6a26958644047ca31cc121d773af3bf9cc7f75e7e",
-    "src/dspy_lm_auth/chat_backend.py": "b005830503592bc44677a59ce9e945dbc5b42d032705e8e92fa19756bff0f78e",
-    "src/dspy_lm_auth/chat_backend_contract.py": "ec6396c5bedd8cf1e9484914bedb5b25b3161cb1bdf09c090c1c891a691b5bc5",
+    "src/dspy_lm_auth/chat_backend.py": "d907e2cbef270f49e8cc26bdffd8628195ea9e1d59bb739b774bd9eab7a41c9d",
+    "src/dspy_lm_auth/chat_backend_contract.py": "fa0db50ef75591e66dc1cc9ddb1b1bac78570228ca221ef07ff820c502218f63",
     "src/dspy_lm_auth/chat_backend_runtime.py": "a53a8184237d38c68b6ddaa77f4e522e97b9717804165dd827d0e76a3bb2e479",
     "src/dspy_lm_auth/chat_backend_transport.py": "552175ee9bb009e2075b5f5e339704630ee06489743e7df976c472e81bba8fa8",
-    "src/dspy_lm_auth/_chat_credential.py": "09c42dc17e010e4c9b3ffd8ead7ea20c0361243d50a4789940512b0eb017bed5",
+    "src/dspy_lm_auth/_chat_credential.py": "e34c49e76ae94b129e190549959780126750e0faf5eff831c6ae90648f4648f5",
     "src/dspy_lm_auth/xai_backend.py": "a3c30358b3b669a250aa58fe3e5b3b2fc48a2210dddb4321935a093b2f49767a",
     "src/dspy_lm_auth/local_vllm_backend.py": "992108f9895ddfc09c09ec4993c6fd69d37c91887466e71faeda05717481172d",
+    "src/dspy_lm_auth/opencode_go_backend.py": "8337aee715f1dcada81b8d25bb8ca6eca2edbae00d218705df0039a7285c723d",
 }
 # ---------------------------------------------------------------------------
 # END OWNER PIN BLOCK

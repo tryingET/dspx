@@ -540,3 +540,52 @@ whose contract rejected an optimizer manifest hashing the generated concept-cove
 instead of the source program (fixed by AK-5366 `e629be74`). Nothing in this loop grants Misegraph
 acceptance, release, or activation. Secret-free projection:
 `docs/project/2026-09-04-misegraph-foundry-live-loop-dogfood-evidence.json`.
+
+## 2026-09-04: OpenCode Go provider family and owner repin to 80c970c9 (AK-5368)
+
+The task-local seam now carries five reviewed provider families. The maintained fork at
+`80c970c92845c79afeb825fb17d7e8a0649f7474` (tree `22fc8646b4b5a032b4db2462ae7ba9167055a09d`,
+release `0.1.6`, `uv.lock` hash unchanged at `d24ee392...`) added
+`dspy_lm_auth.opencode_go_backend.OpencodeGoBackend`, a `pi-api-key` auth mode in
+`chat_backend_contract.py`, and `read_existing_api_key_credential` in `_chat_credential.py`. The
+owner pin block was regenerated with `tests/foundry_jury_owner_repin.py --print-pins` on that
+clean commit: `package_init`, `chat_backend.py`, `chat_backend_contract.py`, and
+`_chat_credential.py` hashes moved, and `src/dspy_lm_auth/opencode_go_backend.py`
+(`8337aee7...`) joined `_EXTRA_OWNER_FILES` and the repin helper's required list.
+
+| | OpenCode Go family |
+| --- | --- |
+| `--provider` | `foundry-dspy-lm-auth-opencode-go` |
+| auth provider / mode | `opencode-go` (Pi `api_key` entry, read-only, no refresh, no expiry) |
+| backend | `dspy_lm_auth.opencode_go_backend.OpencodeGoBackend` |
+| model rule | `^[a-z0-9][a-z0-9.-]{0,63}$`, default `kimi-k2.7-code` |
+| reasoning effort | not applicable |
+| request key | `model` |
+| routes | `dspy-lm-auth:opencode-go:{model}` / `openai:{model}:chat` |
+| endpoint origin | fixed `https://opencode.ai` (owner api_base `https://opencode.ai/zen/go/v1`) |
+| catalog | GET `https://opencode.ai/zen/go/v1/models` (`catalog_path` `/zen/go/v1/models`) |
+| per-call timeout | 180 s (as xAI) |
+| execution task title | `... with dspy-lm-auth OpenCode Go` |
+| observed model | recorded, not enforced |
+
+Endpoint-origin constant pinned by test, same v11 derivation over
+`{"scheme": "https", "hostname": "opencode.ai"}` (the path is not part of the origin):
+`49a9f205011074eef3fbd38c759a8389feeab6133037dad880ac96a5063d3513`.
+
+`FoundryJuryProviderFamily` gained `auth_mode` (`pi-oauth-no-refresh` for Codex, Copilot, xAI;
+`pi-api-key` for OpenCode Go; `none` for local vLLM), mirroring the owner profile's field. The
+isolated preflight probe selects its reader from it: OAuth families still load the hash-pinned
+`auth.py` under a non-package alias; the api-key family verifies the hash of the owner's
+`_chat_credential.py` (that module imports the owner package, so it is never loaded in the child)
+and reads the `{"type": "api_key", "key": ...}` entry with a verbatim copy of the owner's rules
+plus the printable-ASCII gate, reporting `credential_present`/`expiry_ok`/`endpoint_fixed` as one
+boolean each (`expires_ms` is `0`; the key has no expiry and the endpoint is fixed). The catalog
+GET sends the key as a bearer. Only booleans, counts, and hashes leave the child; the key never
+does. Unknown auth modes fail the probe closed. Everything else (custody, metadata, receipt
+validation, the fresh child, the runtime binding) is family-generic and unchanged; the CLI help
+lists the fifth name and default.
+
+Credential-free verification: `tests/test_program_foundry_gepa_comparison_jury_opencode_go.py`
+(62 tests) plus the count/pin updates in the xAI, Copilot, local vLLM, and preflight suites.
+No live OpenCode Go jury has run yet; the first live run needs a claimed AK task with the exact
+title above and Pi's `opencode-go` api_key entry present.
