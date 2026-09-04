@@ -493,3 +493,50 @@ recommendation `request_more_evidence`, deterministic adjudication `require_revi
 `held_for_local_review`, reason `jury_requests_more_evidence`. The credential is not recorded
 anywhere in the lineage or the projection. Secret-free projection:
 `docs/project/2026-09-03-misegraph-foundry-xai-full-dogfood-evidence.json`.
+
+## 2026-09-04: first fully live Misegraph loop (AK-5365)
+
+AK task 5365 (done; AK evidence 8265) closed the Misegraph foundry loop once with
+`provider_evidence_kind: live` at every link. Lineage `misegraph-foundry-honest-5366.RZzphH`
+(DSPx `d8348fce` plus the then-uncommitted AK-5366 fix, later `e629be74`; jury and consume at
+`2ccfbe65`): the committed Misegraph CLI exported package `0be06d8d5617...`;
+`dspx foundry import-misegraph-evidence` ran without `--answers`, so the expected projection
+and example answers are package-derived (`answers.origin: package_derived`, binding
+`e97f0080...`, intent `6acb0d91...`, cases `render-text` and `check-json`); program-gen and
+program-run executed the generated program against the loopback vLLM
+`local/Qwen3.8-27B-AEON-NVFP4-FP8` through the typed openai-compatible port (no replay fixture);
+the Oracle semantic stage ran the live typed backend (`execution_status: succeeded`,
+`fixture_sha256: null`, one recommended experiment, `request_sha256` `548c5028...`); the GEPA
+proposal bound the `concept_coverage` metric to the package-derived criterion
+`misegraph_recipe_fidelity` (`criteria_sha256` `57e44042...`); `execute-foundry-gepa` completed
+with four metric calls and a closed `metric_honesty` block (`wrapper_program_sha256`
+`2454e901...`, `source_program_sha256` `ecbb8c7c...`, byte-equal in the optimizer manifest
+`8d5701c2...`, the execution receipt and the candidate lineage); the operator-run consume verified
+those hashes and re-derived the wrapper; the live jury (owner release 0.1.6, commit `80cc409d`,
+`owner_tree` `552f2f66`, preflight then isolated child) made three calls, all
+`provider_response_completed` with HTTP 200, no replay, zero retries. Three jurors judged
+`supports_review_evidence` at `medium` confidence; recommendation
+`supports_review_evidence_only`; deterministic adjudication `promote_locally` /
+`eligible_local_candidate`, reason `all_jurors_support_review_evidence` (jury receipt
+`634a9fe4...`, adjudication `7745f747...`). Misegraph's `evidence verify-receipt` wrote the
+non-deciding live record (`misegraph-jury-recommendation-v1`, policy
+`live_evidence_required_v1`, `review_recommended`, `decision: null`,
+`requires_owner_action: true`) at
+`misegraph/docs/project/evidence/espresso-brownies-0be06d8d5617-jury-recommendation-live.json`
+(`9c880c61...`, Misegraph commit `12fd8810`), superseding the stub-lineage record for review.
+
+Caveats recorded in the projection: GEPA proposed no new candidate at the four-call budget
+(one candidate retained, nothing accepted, every score 1.0), so the materialized candidate is a
+loader wrapper over the unchanged base program and the jury compared the source program's live
+evidence to itself; the quality-proposal envelope's `model_execution` is still the AK-5346
+injected test double re-bound to the package-derived intent (`stub/misegraph-quality`), the one
+remaining hollow link; the comparison carries the non-blocking `differs:answer` signal on both
+sides with `needs_more_evidence: true`. Two attempts preceded this run and are bound by path and
+sha256: AK-5362's lineage `misegraph-foundry-honest-5362.NtdPDD` was blocked at the Oracle stage
+(canonical sidecar indeterminate on a 180 s read timeout; a deliberate 600 s retry sidecar completed
+the call but the typed port rejected the vLLM 0.27 reply shape, fixed by AK-5364 `c9a52177`), and
+lineage `misegraph-foundry-honest-5365.uMYFWr` completed every stage live but burned at consume,
+whose contract rejected an optimizer manifest hashing the generated concept-coverage wrapper
+instead of the source program (fixed by AK-5366 `e629be74`). Nothing in this loop grants Misegraph
+acceptance, release, or activation. Secret-free projection:
+`docs/project/2026-09-04-misegraph-foundry-live-loop-dogfood-evidence.json`.

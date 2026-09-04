@@ -1,0 +1,2258 @@
+{
+  "artifacts": {
+    "adjudication": {
+      "projection": {
+        "bindings": {
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "3415469d86e391cf3e8be296d6e17198318723828b54240f1b1b55c5b24ec6aa",
+          "comparison_jury_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-jury-receipt.json",
+          "comparison_jury_receipt_sha256": "634a9fe4aeab7cc14d2172788af1c3b20e9ed7a9d901c828c0631247b94457de",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "420e0ec145a87892a4020623e696ee82f62146eae270c2305100c4bbb61b2fd0",
+          "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/consumption-receipt.json",
+          "consumption_receipt_sha256": "c2db0bee856797b9b929e6af9f31b6d59192bc9d2e9aff96c0b40f6a6fc9d794",
+          "jury_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-jury-results.json",
+          "jury_results_sha256": "61e4ce725db1cb962b0926679632608da2d3e1763e5061d83867314681630718",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "77edb4d097e0a13678d4a5dd67f1da9f1fcb390e159d6682c43d2fd2d19f999d"
+        },
+        "disposition": "promote_locally",
+        "effect": {
+          "ak_called": false,
+          "bounded_local_disposition_recorded": true,
+          "candidate_files_mutated": false,
+          "comparison_mutated": false,
+          "external_authority_mutated": false,
+          "gepa_reexecuted": false,
+          "governance_mutated": false,
+          "models_rerun": false,
+          "production_activation_applied": false,
+          "winner_applied": false
+        },
+        "jury_snapshot": {
+          "aggregate": {
+            "blocking_concerns_present": false,
+            "judgment_counts": {
+              "failed": 0,
+              "reject": 0,
+              "request_more_evidence": 0,
+              "supports_review_evidence": 3,
+              "withhold": 0
+            },
+            "recommendation": "supports_review_evidence_only",
+            "unique_improvement_requests": [
+              "Add at least 3 additional edge-case examples covering ambiguous inputs, empty strings, and malformed structures to test answer stability.",
+              "Document which module or prompt change was intended to fix the discrepancy and how it should behave on boundary conditions.",
+              "Expand runtime comparison to more examples to confirm answer stability",
+              "Include additional behavioral examples to validate consistency beyond the current 2-example set.",
+              "Include explicit failure-mode logs or assertions that make it easy to debug why an answer differs from expected.",
+              "Provide a minimal reproduction script for the 'differs:answer' signal so reviewers can isolate the exact condition that triggers it.",
+              "Provide detailed diff analysis for the 'differs:answer' signal to clarify whether the variation is beneficial or detrimental.",
+              "Provide detailed diff explanation for the 'differs:answer' signal"
+            ]
+          },
+          "jury_status": "executed"
+        },
+        "local_candidate_state": "eligible_local_candidate",
+        "non_authority": {
+          "activation_authority": false,
+          "bounded_local_disposition_only": true,
+          "external_authority_apply": false,
+          "external_winner_selection": false,
+          "governance_authority": false,
+          "production_promotion_authority": false
+        },
+        "policy": {
+          "deterministic": true,
+          "id": "foundry-gepa-comparison-jury-disposition-v1",
+          "input_mode": "validated_comparison_jury_receipt_only",
+          "models_rerun": false,
+          "unknown_or_mixed_outcomes_fail_to_review": true
+        },
+        "proposal_id": "721e404015b1a2721caa8b773514f4d6b602e26a7c0d38ce8cf040fbfc77e2d6",
+        "reason_codes": [
+          "all_jurors_support_review_evidence"
+        ],
+        "schema_version": "dspx-program-foundry-gepa-comparison-adjudication-v1",
+        "status": "recorded"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "7745f7477ee4f012b57d140caa067492d548c5003b854b2f288fc692c90b1c7d",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-adjudication.json"
+    },
+    "candidate_comparison": {
+      "projection": {
+        "behavior_comparison": {
+          "candidate": {
+            "behavior_episode_present": true,
+            "behavior_evidence_kind": "behavior_results",
+            "behavior_evidence_present": true,
+            "behavior_results_present": true,
+            "behavior_status": "passed",
+            "example_count": 2,
+            "failure_signals": [
+              "differs:answer"
+            ],
+            "source_count": 1,
+            "status_counts": {
+              "passed": 2
+            }
+          },
+          "delta": {
+            "candidate_degraded_count": 0,
+            "candidate_error_count": 0,
+            "candidate_failed_count": 0,
+            "degraded_count_delta": 0,
+            "error_count_delta": 0,
+            "failed_count_delta": 0,
+            "failure_signals_added": [],
+            "failure_signals_persisted": [
+              "differs:answer"
+            ],
+            "failure_signals_removed": [],
+            "source_degraded_count": 0,
+            "source_error_count": 0,
+            "source_failed_count": 0,
+            "status_changed": false
+          },
+          "source": {
+            "behavior_episode_present": true,
+            "behavior_evidence_kind": "behavior_results",
+            "behavior_evidence_present": true,
+            "behavior_results_present": true,
+            "behavior_status": "passed",
+            "example_count": 2,
+            "failure_signals": [
+              "differs:answer"
+            ],
+            "source_count": 1,
+            "status_counts": {
+              "passed": 2
+            }
+          }
+        },
+        "candidate_identity": {
+          "assembly_id": "prog-asm-1d58dcc2ac05",
+          "candidate_id": "prog-cand-aee54ef70361",
+          "episode_id": "prog-ep-adfc9aae581f",
+          "receipt_bundle_id": "prog-rb-9bcd42b31f31",
+          "request_id": "prog-req-b671b0093d7c"
+        },
+        "created_from": {
+          "candidate_behavior_episode_hash": "23930eadf3a7a1b15cbb7c2293db0a986bc17d46e3d58f8d390d36adae5b5ff8",
+          "candidate_behavior_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/behavior_episode.json",
+          "candidate_behavior_results_hash": "0e3caf3362a7066ca0515b5e14875d298ce61483be83c8982c0af42e142c6928",
+          "candidate_behavior_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/behavior_results.json",
+          "candidate_manifest_hash": "3415469d86e391cf3e8be296d6e17198318723828b54240f1b1b55c5b24ec6aa",
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_schema_version": "program-candidate-assembly-v1",
+          "candidate_runtime_episode_hash": "63f738f2c06603a4ea377cc6757a970944bfdae32446e45b8af3998ed69b7822",
+          "candidate_runtime_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-runtime/runtime_episode.json",
+          "decision_record_path": null,
+          "refinement_proposal_path": null,
+          "source_behavior_episode_hash": "7b420e8bcbf54d87c1dcff85fdf2ef4c935b16fbeb986dad8fb12acf6bc16cee",
+          "source_behavior_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/candidate/behavior_episode.json",
+          "source_behavior_results_hash": "42c537c4b2dd5f271affac055eb8d546518a92092ccf796a0205b2331c0df5f7",
+          "source_behavior_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/candidate/behavior_results.json",
+          "source_manifest_hash": "77edb4d097e0a13678d4a5dd67f1da9f1fcb390e159d6682c43d2fd2d19f999d",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/candidate/manifest.json",
+          "source_manifest_schema_version": "program-candidate-assembly-v1",
+          "source_runtime_episode_hash": "7902ce6723badecd5d042f5fd6a05fc8559bcf4fd03b4b3432761cb3a3e2ff15",
+          "source_runtime_episode_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/runtime/runtime_episode.json"
+        },
+        "effect": {
+          "candidate_program_files_mutated": false,
+          "external_authority_mutated": false,
+          "governance_mutated": false,
+          "local_comparison_only": true,
+          "new_candidate_generated": false,
+          "source_program_files_mutated": false
+        },
+        "interpretation": {
+          "evidence_basis": "generated_behavior",
+          "evidence_conflict": false,
+          "generated_evidence_compared": true,
+          "improvement_observed": false,
+          "limits": [
+            "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+            "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+            "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+            "This comparison is not a promotion, ranking, winner-selection, or approval decision.",
+            "interpretation.provider_evidence_kind labels what produced the compared behavior (live, authored_fixture_replay, stub_echo); absent or null means unknown, and stub_echo or authored_fixture_replay evidence cannot support a review recommendation."
+          ],
+          "needs_more_evidence": true,
+          "provider_evidence_kind": "live",
+          "provider_evidence_links": {
+            "candidate_generated_behavior": "live",
+            "candidate_runtime_behavior": "live",
+            "source_generated_behavior": "live",
+            "source_runtime_behavior": "live"
+          },
+          "runtime_evidence_compared": true,
+          "summary": "The second candidate did not remove the observed local behavior signal."
+        },
+        "lineage": {
+          "candidate_declares_refinement_lineage": false,
+          "decision_outcome": null,
+          "decision_record_input_present": false,
+          "proposal_input_present": false,
+          "refinement_proposal_id": null,
+          "source_identity_matches_candidate_lineage": null
+        },
+        "non_authority": {
+          "automatic_promotion": false,
+          "external_mutation": false,
+          "governance_authority": false,
+          "local_comparison_only": true,
+          "new_candidate_generation": false,
+          "oracle_promotion": false,
+          "oracle_pruning": false,
+          "oracle_ranking": false,
+          "program_mutation": false,
+          "winner_selection": false
+        },
+        "runtime_evidence_comparison": {
+          "candidate": {
+            "artifact_hashes": {
+              "behavior_results_hash": "39770412ec1571ded98d4638166e5f43081f84d4b982b3c5a10daca59834bb2e",
+              "oracle_evidence_hash": "b63998ad09839ee90689cf4aebd4aa1f0ccdff7cd163cc44a66af9a3d1e1bdf0",
+              "program_runtime_traces_hash": "c3503dbe4b434bf328f0543dfa149d7ca5c53ce0dc8ecfc85e8fb6f58dc231cb",
+              "runtime_inputs_hash": "0aee8c5222b752649c009f8c2f3a7cf460d440c164ce6f4b5840639982bc2570"
+            },
+            "behavior_evidence_kind": "runtime_episode",
+            "behavior_evidence_present": true,
+            "behavior_status": "executed_quality_passed",
+            "contract_mode": "none",
+            "example_count": 1,
+            "failure_signals": [],
+            "runtime_episode_id": "prog-run-f845c3382b8885ec",
+            "runtime_evidence_present": true,
+            "runtime_status": "executed_quality_passed",
+            "status_counts": {
+              "executed_quality_passed": 1
+            }
+          },
+          "compared": true,
+          "delta": {
+            "candidate_degraded_count": 0,
+            "candidate_error_count": 0,
+            "candidate_failed_count": 0,
+            "degraded_count_delta": 0,
+            "error_count_delta": 0,
+            "failed_count_delta": 0,
+            "failure_signals_added": [],
+            "failure_signals_persisted": [],
+            "failure_signals_removed": [],
+            "source_degraded_count": 0,
+            "source_error_count": 0,
+            "source_failed_count": 0,
+            "status_changed": false
+          },
+          "interpretation": {
+            "improvement_observed": false,
+            "limits": [
+              "Comparison includes generated local behavior evidence: behavior_episode.json and, when present, example-backed behavior_results.json.",
+              "Optional program-run runtime episodes may be compared only after final-consumer validation rebinds their manifest, inputs, behavior, runtime traces, and Oracle-readable evidence to current files.",
+              "Dataset split evidence is summarized from the bounded eval_behavior.py orchestration; no extra dataset, model jury, topology, or custom-module execution is run by comparison.",
+              "This comparison is not a promotion, ranking, winner-selection, or approval decision.",
+              "interpretation.provider_evidence_kind labels what produced the compared behavior (live, authored_fixture_replay, stub_echo); absent or null means unknown, and stub_echo or authored_fixture_replay evidence cannot support a review recommendation."
+            ],
+            "needs_more_evidence": true,
+            "provider_evidence_kind": "live",
+            "summary": "The second candidate behavior status is unchanged on the available local evidence."
+          },
+          "limits": [
+            "Runtime episodes are already-produced local program-run evidence; comparison never reruns candidates.",
+            "Runtime success, trace coverage, or Oracle-readable evidence is not promotion, activation, ranking, or owner acceptance."
+          ],
+          "source": {
+            "artifact_hashes": {
+              "behavior_results_hash": "2743d2f6bed585f6a4a54d8090a34f347d50e48a3e2db1381e02bcad7292032a",
+              "oracle_evidence_hash": "75801d4252d5b8f524fe62962409470ccbaaf13c28e4590f838c62ac550bdf8b",
+              "program_runtime_traces_hash": "414dad2022fcf3ab5b37a4b7bf46784a5aa4c8daa7c33fc6892cac76156eddf9",
+              "runtime_inputs_hash": "0aee8c5222b752649c009f8c2f3a7cf460d440c164ce6f4b5840639982bc2570"
+            },
+            "behavior_evidence_kind": "runtime_episode",
+            "behavior_evidence_present": true,
+            "behavior_status": "executed_quality_passed",
+            "contract_mode": "none",
+            "example_count": 1,
+            "failure_signals": [],
+            "runtime_episode_id": "prog-run-aa95b2fe73589ea4",
+            "runtime_evidence_present": true,
+            "runtime_status": "executed_quality_passed",
+            "status_counts": {
+              "executed_quality_passed": 1
+            }
+          }
+        },
+        "schema_version": "program-refinement-candidate-comparison-v1",
+        "source_identity": {
+          "assembly_id": "prog-asm-4632f218c9e8",
+          "candidate_id": "prog-cand-6b732d42ebba",
+          "episode_id": "prog-ep-b31a0a358ec4",
+          "receipt_bundle_id": "prog-rb-9cdbc79f83c2",
+          "request_id": "prog-req-b093c0792d74"
+        },
+        "status": "compared"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "420e0ec145a87892a4020623e696ee82f62146eae270c2305100c4bbb61b2fd0",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-comparison.json"
+    },
+    "consumption_receipt": {
+      "projection": {
+        "bindings": {
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "3415469d86e391cf3e8be296d6e17198318723828b54240f1b1b55c5b24ec6aa",
+          "candidate_result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-result.json",
+          "candidate_result_sha256": "6afa5fef9c1d29dc2d237a47525dfe841792e0ebef7b25426ba4527698eb4b93",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "420e0ec145a87892a4020623e696ee82f62146eae270c2305100c4bbb61b2fd0",
+          "consumption_attempt_sha256": "d01e766d1f63079c4b4ec00fc08bb190d8d1d7f1fb6eb2313b654fe2c4d8c766",
+          "execution_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/execution-receipt.json",
+          "execution_receipt_sha256": "88846fec9e4987a5b17a9746c2675cf5be7c49d3499191fde2a13633b167233f",
+          "gepa_result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/gepa-result.json",
+          "gepa_result_sha256": "fbc59be8108b1af3265206060e89b372418565c8bfa439522b6f6bdf7956d75b",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "77edb4d097e0a13678d4a5dd67f1da9f1fcb390e159d6682c43d2fd2d19f999d",
+          "workflow_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialize-and-compare-result.json",
+          "workflow_sha256": "401108dcfcfa70bf06226ba7f9323bfdf0f90ecf84c2367d22ec60eb8a0f3d64"
+        },
+        "comparison_status": "compared",
+        "effect": {
+          "ak_called": false,
+          "external_authority_mutated": false,
+          "gepa_reexecuted": false,
+          "local_comparison_recorded": true,
+          "one_local_candidate_materialized": true,
+          "promotion_applied": false,
+          "winner_selected": false
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_candidate_and_comparison_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "721e404015b1a2721caa8b773514f4d6b602e26a7c0d38ce8cf040fbfc77e2d6",
+        "schema_version": "dspx-program-foundry-gepa-consumption-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "c2db0bee856797b9b929e6af9f31b6d59192bc9d2e9aff96c0b40f6a6fc9d794",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/consumption-receipt.json"
+    },
+    "execution_receipt": {
+      "projection": {
+        "attempt_sha256": "a9ba230dacbc025df5dadf4f9e17439dba4df8204015bc2c83d229a95eeca2a9",
+        "effect": {
+          "ak_called": false,
+          "candidate_materialized": false,
+          "external_authority_mutated": false,
+          "gepa_invoked": true,
+          "promotion_applied": false,
+          "terminal_result_recorded": true,
+          "winner_selected": false
+        },
+        "gepa_status": "completed",
+        "metric_honesty": {
+          "criteria_sha256": "57e44042144cbb3f174afb172dde9d32bf3652a717dd9c92c4963479da4d0486",
+          "metric": "concept_coverage",
+          "source_program_sha256": "ecbb8c7cdbf9c641526304b31a9448c5c16c038c1bc7c98009f3c67e1e637981",
+          "wrapper_program_sha256": "2454e90137360a17790fb117d9bd17a2ea166f6e288ba39811d1bef3b68d6cbc"
+        },
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_optimizer_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "optimizer_manifest_sha256": "8d5701c2c6fb452aaec9c9712a6fe6f02bb76966062c82a4d0ac148668ec1acc",
+        "optimizer_output_readiness": {
+          "blockers": [
+            "no_program_candidate_assembly_materializer_in_this_command",
+            "candidate_field_remains_null_until_explicit_materializer_lands"
+          ],
+          "ready_for_future_candidate_materializer": true,
+          "status": "optimizer_output_hash_bound_not_candidate"
+        },
+        "optimizer_tree_sha256": "ab279709eff0c7375cd4b2263e6f18d8ed650a900a5a7865d250acc05555505c",
+        "proposal_id": "721e404015b1a2721caa8b773514f4d6b602e26a7c0d38ce8cf040fbfc77e2d6",
+        "proposal_sha256": "84a7feeabb014495a3e25ba210fc8919a2e560dd34ddee31ba55ea1bc8d39d99",
+        "provider_evidence_kind": "live",
+        "result_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/gepa-result.json",
+        "result_sha256": "fbc59be8108b1af3265206060e89b372418565c8bfa439522b6f6bdf7956d75b",
+        "schema_version": "dspx-program-foundry-gepa-execution-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "88846fec9e4987a5b17a9746c2675cf5be7c49d3499191fde2a13633b167233f",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/execution-receipt.json"
+    },
+    "jury_attempt": {
+      "projection": {
+        "attempt_id": "b8b5667958655ef37c846a9ac9061bda169847f7b21087c4cd97b9a4156baf47",
+        "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/consumption-receipt.json",
+        "consumption_receipt_sha256": "c2db0bee856797b9b929e6af9f31b6d59192bc9d2e9aff96c0b40f6a6fc9d794",
+        "effect_disposition": "indeterminate_until_comparison_jury_receipt",
+        "execution_request": {
+          "adjudicator_id": "local_foundry_adjudicator",
+          "adjudicator_kind": "local_foundry_adjudicator",
+          "adjudicator_repo": null,
+          "execution_claimant": "claude-code:508c6e1b",
+          "execution_task_id": 5365,
+          "local_vllm_base_url": "http://127.0.0.1:2456/v1",
+          "max_jurors": null,
+          "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+          "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-IuUs/dspy-lm-auth",
+          "provider": "foundry-dspy-lm-auth-local-vllm",
+          "provider_evidence_kind": "live"
+        },
+        "jury_input_snapshots": [
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-comparison.json",
+            "sha256": "420e0ec145a87892a4020623e696ee82f62146eae270c2305100c4bbb61b2fd0"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/jury.json",
+            "sha256": "ec9abb41495188d8a8d3b1bbcc810975c9924cffc91a2755411ad02b74b4eb78"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/jury_rubric.json",
+            "sha256": "ae0fae8981379fa8dfb9d3456b1f84111b0967b548b8a9acc25074f0a06f8178"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/jury_selection.json",
+            "sha256": "fabb07852cdf12e6cf74a398ed50f0b468f473364b76ebc4fb9070b620a874b6"
+          },
+          {
+            "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/manifest.json",
+            "sha256": "3415469d86e391cf3e8be296d6e17198318723828b54240f1b1b55c5b24ec6aa"
+          }
+        ],
+        "no_replay_after_marker": true,
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "721e404015b1a2721caa8b773514f4d6b602e26a7c0d38ce8cf040fbfc77e2d6",
+        "schema_version": "dspx-program-foundry-gepa-comparison-jury-attempt-v1",
+        "status": "provider_effect_possible"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-jury-attempt.json"
+    },
+    "jury_receipt": {
+      "projection": {
+        "aggregate": {
+          "blocking_concerns_present": false,
+          "judgment_counts": {
+            "failed": 0,
+            "reject": 0,
+            "request_more_evidence": 0,
+            "supports_review_evidence": 3,
+            "withhold": 0
+          },
+          "recommendation": "supports_review_evidence_only",
+          "unique_improvement_requests": [
+            "Add at least 3 additional edge-case examples covering ambiguous inputs, empty strings, and malformed structures to test answer stability.",
+            "Document which module or prompt change was intended to fix the discrepancy and how it should behave on boundary conditions.",
+            "Expand runtime comparison to more examples to confirm answer stability",
+            "Include additional behavioral examples to validate consistency beyond the current 2-example set.",
+            "Include explicit failure-mode logs or assertions that make it easy to debug why an answer differs from expected.",
+            "Provide a minimal reproduction script for the 'differs:answer' signal so reviewers can isolate the exact condition that triggers it.",
+            "Provide detailed diff analysis for the 'differs:answer' signal to clarify whether the variation is beneficial or detrimental.",
+            "Provide detailed diff explanation for the 'differs:answer' signal"
+          ]
+        },
+        "bindings": {
+          "attempt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-jury-attempt.json",
+          "attempt_sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+          "candidate_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "candidate_manifest_sha256": "3415469d86e391cf3e8be296d6e17198318723828b54240f1b1b55c5b24ec6aa",
+          "comparison_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-comparison.json",
+          "comparison_sha256": "420e0ec145a87892a4020623e696ee82f62146eae270c2305100c4bbb61b2fd0",
+          "consumption_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/consumption-receipt.json",
+          "consumption_receipt_sha256": "c2db0bee856797b9b929e6af9f31b6d59192bc9d2e9aff96c0b40f6a6fc9d794",
+          "execution_receipt_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/execution-receipt.json",
+          "execution_receipt_sha256": "88846fec9e4987a5b17a9746c2675cf5be7c49d3499191fde2a13633b167233f",
+          "jury_results_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-jury-results.json",
+          "jury_results_sha256": "61e4ce725db1cb962b0926679632608da2d3e1763e5061d83867314681630718",
+          "source_manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/candidate/manifest.json",
+          "source_manifest_sha256": "77edb4d097e0a13678d4a5dd67f1da9f1fcb390e159d6682c43d2fd2d19f999d"
+        },
+        "effect": {
+          "activation_applied": false,
+          "ak_called": true,
+          "ak_mutated": false,
+          "candidate_mutated": false,
+          "comparison_mutated": false,
+          "external_authority_mutated": false,
+          "program_specific_jury_executed": true,
+          "promotion_applied": false,
+          "provider_calls_may_have_occurred": true,
+          "winner_selected": false
+        },
+        "execution_request": {
+          "adjudicator_id": "local_foundry_adjudicator",
+          "adjudicator_kind": "local_foundry_adjudicator",
+          "adjudicator_repo": null,
+          "execution_claimant": "claude-code:508c6e1b",
+          "execution_task_id": 5365,
+          "local_vllm_base_url": "http://127.0.0.1:2456/v1",
+          "max_jurors": null,
+          "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+          "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-IuUs/dspy-lm-auth",
+          "provider": "foundry-dspy-lm-auth-local-vllm",
+          "provider_evidence_kind": "live"
+        },
+        "jury_status": "executed",
+        "non_authority": {
+          "activation_authority": false,
+          "governance_authority": false,
+          "local_jury_evidence_only": true,
+          "promotion_authority": false,
+          "winner_selection": false
+        },
+        "proposal_id": "721e404015b1a2721caa8b773514f4d6b602e26a7c0d38ce8cf040fbfc77e2d6",
+        "schema_version": "dspx-program-foundry-gepa-comparison-jury-v1",
+        "status": "ok"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "634a9fe4aeab7cc14d2172788af1c3b20e9ed7a9d901c828c0631247b94457de",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-jury-receipt.json"
+    },
+    "jury_results": {
+      "projection": {
+        "adjudicator": {
+          "authority": "downstream_domain_review_recommendation_only",
+          "id": "local_foundry_adjudicator",
+          "kind": "local_foundry_adjudicator",
+          "promotion_authority": false,
+          "repo": null
+        },
+        "aggregate": {
+          "blocking_concerns_present": false,
+          "judgment_counts": {
+            "failed": 0,
+            "reject": 0,
+            "request_more_evidence": 0,
+            "supports_review_evidence": 3,
+            "withhold": 0
+          },
+          "recommendation": "supports_review_evidence_only",
+          "unique_improvement_requests": [
+            "Add at least 3 additional edge-case examples covering ambiguous inputs, empty strings, and malformed structures to test answer stability.",
+            "Document which module or prompt change was intended to fix the discrepancy and how it should behave on boundary conditions.",
+            "Expand runtime comparison to more examples to confirm answer stability",
+            "Include additional behavioral examples to validate consistency beyond the current 2-example set.",
+            "Include explicit failure-mode logs or assertions that make it easy to debug why an answer differs from expected.",
+            "Provide a minimal reproduction script for the 'differs:answer' signal so reviewers can isolate the exact condition that triggers it.",
+            "Provide detailed diff analysis for the 'differs:answer' signal to clarify whether the variation is beneficial or detrimental.",
+            "Provide detailed diff explanation for the 'differs:answer' signal"
+          ]
+        },
+        "created_from": {
+          "evidence_paths": [
+            "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-comparison.json"
+          ],
+          "jury_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/jury.json",
+          "jury_rubric_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/jury_rubric.json",
+          "jury_rubric_sha256": "ae0fae8981379fa8dfb9d3456b1f84111b0967b548b8a9acc25074f0a06f8178",
+          "jury_selection_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/jury_selection.json",
+          "jury_selection_sha256": "fabb07852cdf12e6cf74a398ed50f0b468f473364b76ebc4fb9070b620a874b6",
+          "jury_sha256": "ec9abb41495188d8a8d3b1bbcc810975c9924cffc91a2755411ad02b74b4eb78",
+          "manifest_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/manifest.json",
+          "manifest_schema_version": "program-candidate-assembly-v1",
+          "manifest_sha256": "3415469d86e391cf3e8be296d6e17198318723828b54240f1b1b55c5b24ec6aa"
+        },
+        "effect": {
+          "ak_mutated": false,
+          "external_authority_mutated": false,
+          "governance_mutated": false,
+          "model_jury_evidence_only": true,
+          "new_candidate_generated": false,
+          "oracle_index_mutated": false,
+          "program_files_mutated": false,
+          "promotion_review_mutated": false
+        },
+        "evidence": {
+          "default_behavior": {
+            "entry_count": 0,
+            "kinds": [],
+            "present": false
+          },
+          "entries": [
+            {
+              "kind": "explicit_evidence",
+              "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/candidate-comparison.json",
+              "schema_version": "program-refinement-candidate-comparison-v1",
+              "sha256": "420e0ec145a87892a4020623e696ee82f62146eae270c2305100c4bbb61b2fd0",
+              "summary": null
+            }
+          ],
+          "entry_count": 1,
+          "extra_evidence_count": 1,
+          "prompt_sha256": "af118038708ffaaf29c2e42d8a95cced963632cba3024ad8cd4c08324667b506"
+        },
+        "identity": {
+          "assembly_id": "prog-asm-1d58dcc2ac05",
+          "candidate_id": "prog-cand-aee54ef70361",
+          "episode_id": "prog-ep-adfc9aae581f",
+          "receipt_bundle_id": "prog-rb-9bcd42b31f31",
+          "request_id": "prog-req-b671b0093d7c"
+        },
+        "interpretation": {
+          "limits": [
+            "This command calls provider-backed juror models but does not mutate generated program outputs.",
+            "It does not improve files in place; improvement_requests are explicit follow-up evidence.",
+            "It does not promote, activate, rank winners, export authority, mutate AK, or mutate governance."
+          ],
+          "next_step": "Route aggregate critique to the declared target-repo adjudicator or run an explicit refinement pass.",
+          "ready_for_promotion_decision": false,
+          "summary": "Model-backed jury results are review evidence only and may request extraction refinement."
+        },
+        "juror_results": [
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "Failure signal 'differs:answer' is persisted but not explained in evidence",
+                "Only 1 runtime example compared, limiting coverage of correctness variance"
+              ],
+              "confidence": "medium",
+              "evidence_strengths": [
+                "Behavior status passed with 2 examples and no failures",
+                "Live provider evidence confirmed for both candidate and source",
+                "No degradation or error signals in delta comparison"
+              ],
+              "improvement_requests": [
+                "Provide detailed diff explanation for the 'differs:answer' signal",
+                "Expand runtime comparison to more examples to confirm answer stability"
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "Behavior and runtime evidence show stable passing results with live provider evidence and no degradation versus source, supporting review but requiring verification of the persisted answer-difference signal."
+            },
+            "juror_id": "inferred_correctness",
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "perspective": "correctness",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "status": "judged"
+          },
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "Failure signal 'differs:answer' persisted from source to candidate, suggesting the core edge case or answer-quality issue was not resolved.",
+                "Only 2 examples and 1 source were used for behavior evaluation, limiting coverage of edge cases.",
+                "No explicit failure-mode diagnostics or debuggable error paths are documented in the evidence.",
+                "Interpretation notes 'needs_more_evidence': true, indicating the current evidence is insufficient for a robustness guarantee."
+              ],
+              "confidence": "medium",
+              "evidence_strengths": [
+                "Both behavior_results and behavior_episode show 2/2 passed with 0 errors or degraded runs.",
+                "Runtime traces were captured and executed with quality_passed status.",
+                "Provider evidence kind is confirmed as 'live' for all four evidence links, reducing ambiguity about stub or fixture replay.",
+                "Comparison delta shows zero new failure signals and zero regressions relative to source."
+              ],
+              "improvement_requests": [
+                "Add at least 3 additional edge-case examples covering ambiguous inputs, empty strings, and malformed structures to test answer stability.",
+                "Include explicit failure-mode logs or assertions that make it easy to debug why an answer differs from expected.",
+                "Provide a minimal reproduction script for the 'differs:answer' signal so reviewers can isolate the exact condition that triggers it.",
+                "Document which module or prompt change was intended to fix the discrepancy and how it should behave on boundary conditions."
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "The evidence shows the candidate passed both behavior and runtime tests with live provider evidence, but the persisted failure signal 'differs:answer' indicates the candidate did not fully resolve the original behavioral discrepancy. The comparison explicitly states that no improvement was observed and more evidence is needed to confirm robustness across edge cases. This supports a review of the specific edge-case handling and failure mode visibility without claiming promotion or domain acceptance."
+            },
+            "juror_id": "inferred_robustness",
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "perspective": "robustness",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "status": "judged"
+          },
+          {
+            "execution_mode": "provider_backed_model",
+            "judgment": {
+              "concerns": [
+                "A persisted failure signal 'differs:answer' exists, suggesting the answer content differs from the source, which may impact quality despite structural pass status.",
+                "No improvement was observed in the comparison; the candidate is equivalent but not superior to the source."
+              ],
+              "confidence": "medium",
+              "evidence_strengths": [
+                "Behavior results show 2 out of 2 examples passed with no degraded, error, or failed counts.",
+                "Runtime evidence comparison shows identical status (executed_quality_passed) between candidate and source, indicating stability.",
+                "Field contract adherence is supported by the presence of all expected surfaces and consistent schema versions."
+              ],
+              "improvement_requests": [
+                "Provide detailed diff analysis for the 'differs:answer' signal to clarify whether the variation is beneficial or detrimental.",
+                "Include additional behavioral examples to validate consistency beyond the current 2-example set."
+              ],
+              "outcome": "supports_review_evidence",
+              "rationale": "The candidate adheres to the objective and field contract as evidenced by passed behavior results and stable runtime comparison against the source. The instruction-following perspective confirms that the output maintains the required structure and does not drift from the stated goal, though the persisted 'differs:answer' signal indicates a qualitative difference that warrants downstream review rather than rejection."
+            },
+            "juror_id": "inferred_instruction_following",
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "perspective": "instruction_following",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "status": "judged"
+          }
+        ],
+        "jury": {
+          "execution_mode": "provider_backed_model",
+          "planned_jury_schema_version": "program-jury-v1",
+          "provider_backed_model_calls": true,
+          "provider_config": {
+            "auth_provider": "none",
+            "cache": false,
+            "credential_mode": "no-refresh",
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "endpoint_origin": "http://127.0.0.1:2456/v1",
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "execution_claimant": "claude-code:508c6e1b",
+            "execution_task_id": 5365,
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+            "num_retries": 0,
+            "owner_commit": "80cc409da976028263da884ed633bef0806cd986",
+            "owner_tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+            "owner_version": "0.1.6",
+            "provider": "foundry-dspy-lm-auth-local-vllm",
+            "reasoning_effort": null,
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4",
+            "status": "configured",
+            "sync_only": true,
+            "timeout_seconds": 60.0
+          },
+          "provider_outcome_evidence": {
+            "artifact_verification": "accepted_exact",
+            "call_records": [
+              {
+                "call_ordinal": 1,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "6759277d410120758fc663ef3b0378b2c42ee549ffcd95766146121202cd192f",
+                "juror_id": "inferred_correctness",
+                "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+                "semantic_request_sha256": "44759ad28e0145d00988a9d270fe4169277f6fb8beb27b20aab1d08662b6a9f4",
+                "status_class": 2,
+                "status_code": 200
+              },
+              {
+                "call_ordinal": 2,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "c4fddc549447c1a25a81f3c6e8bc3761498c1fbfdc07c41e6256467d3ac597a3",
+                "juror_id": "inferred_robustness",
+                "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+                "semantic_request_sha256": "eb34c2b58e63222a1994678f42658ce411c9e94d0e769ec7d66997c12dee9c49",
+                "status_class": 2,
+                "status_code": 200
+              },
+              {
+                "call_ordinal": 3,
+                "empirical_disposition": "not_evaluated",
+                "external_effect_possible": true,
+                "journal_sha256": "63e2ee855498dff53afb2c0993171a78fc04823525217385585b626e3c9c466f",
+                "juror_id": "inferred_instruction_following",
+                "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+                "producer_terminal": "provider_response_completed",
+                "provider_outcome_receipt": "accepted",
+                "reason": "attributable_completion_not_evaluated",
+                "request_acknowledged": true,
+                "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+                "semantic_request_sha256": "957648c7d06279c28be020552bf5be8efaa8acc34d0cc16f1ed08a21d7afae17",
+                "status_class": 2,
+                "status_code": 200
+              }
+            ],
+            "fallback_allowed": false,
+            "health_probe_allowed": false,
+            "logical_call_total": 3,
+            "maximum_logical_calls": 3,
+            "maximum_provider_transports": 3,
+            "retry_count": 0,
+            "schema_version": "dspx-foundry-jury-provider-outcome-evidence-v1",
+            "session_disposition": "complete",
+            "stop_reason": null,
+            "stopped_after_call": null,
+            "sync_only": true
+          },
+          "rubric_schema_version": "program-jury-rubric-v1",
+          "selected_juror_count": 3,
+          "selected_perspectives": [
+            "correctness",
+            "robustness",
+            "instruction_following"
+          ],
+          "selection_schema_version": "program-jury-selection-v1"
+        },
+        "non_authority": {
+          "canonical_mutation": false,
+          "domain_acceptance": false,
+          "external_authority_apply": false,
+          "promotion_approval": false,
+          "ranking_or_winner_selection": false
+        },
+        "schema_version": "program-model-jury-results-v1",
+        "status": "executed"
+      },
+      "serialization": "json_utf8_indent2_sort_keys_trailing_newline",
+      "sha256": "61e4ce725db1cb962b0926679632608da2d3e1763e5061d83867314681630718",
+      "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/comparison-jury-results.json"
+    }
+  },
+  "custody": {
+    "ak_evidence": {
+      "live_foundry_jury": 8265,
+      "note": "evidence 8265 records this run (check_type live_foundry_jury, result pass; details carry lineage_root, package_sha256, binding_sha256, oracle 'succeeded, 1 recommended experiment', gepa 'completed, 4 metric calls, no new candidate proposed', owner_commit, dspx_commit, jurors_called 3, comparison_jury_receipt_sha256, comparison_adjudication_sha256 and the caveat 'candidate equals source (GEPA proposed nothing); jury compared A to A'); no correction record"
+    },
+    "all_bound_json_artifacts_embedded": true,
+    "bound_manifests": {
+      "materialized_candidate_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/manifest.json",
+        "sha256": "3415469d86e391cf3e8be296d6e17198318723828b54240f1b1b55c5b24ec6aa"
+      },
+      "source_candidate_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/candidate/manifest.json",
+        "sha256": "77edb4d097e0a13678d4a5dd67f1da9f1fcb390e159d6682c43d2fd2d19f999d"
+      }
+    },
+    "caveats": [
+      "GEPA proposed no new candidate at the four-metric-call budget (one base validation eval plus subsample evals, every score 1.0 on the package-derived concept-coverage criterion); the materialized candidate is a loader wrapper over an optimizer output that holds only the unchanged base program, so the jury compared the source program's live evidence to itself and attests that evidence, not an improvement",
+      "the quality-proposal envelope's model_execution is the AK-5346 injected test double re-bound to the package-derived intent (reported_model stub/misegraph-quality); the criteria are package-derived, but the acceptance envelope itself is not a live quality-criteria model call: this is the one remaining hollow link in the loop",
+      "the behavior comparison carries the persisted non-blocking signal differs:answer on both sides (concept-coverage metric downgrades exact mismatch to differs); needs_more_evidence is true",
+      "promote_locally / eligible_local_candidate is a bounded local disposition; no Misegraph acceptance, release or activation is granted"
+    ],
+    "cli_outputs": {
+      "adjudicate_foundry_gepa_comparison": {
+        "path": "/home/tryinget/.claude/jobs/508c6e1b/tmp/adjudication-honest.json",
+        "sha256": "fb9fdaae9cdba1a1f0a34d9c12e3ebd2096bf3deca1e6fc87f3f21cab6a7bdf3"
+      },
+      "jury_foundry_gepa_comparison": {
+        "path": "/home/tryinget/.claude/jobs/508c6e1b/tmp/jury-honest.json",
+        "sha256": "23b9052e13f07bf3f818e43b0721a88ea6a5af4737b99341d4a221e410c01c7f"
+      },
+      "jury_output_note": "the live --json output carries a dspx-foundry-jury-preflight-v1 block (booleans, counts and hashes only) unbound from the attempt and receipt payloads; projected under custody.execution_path.preflight"
+    },
+    "contains_bounded_judgment_outputs": true,
+    "contains_credentials": false,
+    "contains_headers": false,
+    "contains_raw_provider_responses": false,
+    "dspx_commit": "2ccfbe65688b21a0a2f07b8ab95ffcd3580da496",
+    "dspx_commit_source": "AK evidence 8265; equals the DSPx HEAD at projection time; the lineage was constructed at d8348fce plus the uncommitted AK-5366 fix (see lineage_construction.dspx_source_at_construction)",
+    "execution_claimant": "claude-code:508c6e1b",
+    "execution_path": {
+      "isolated_child_subprocess": true,
+      "note": "pre-marker preflight (DSPx 54568ce2d6b50e31428995faf6c0ce650044823f) fails closed before the attempt marker; after the marker the provider jury runs in a fresh -I -B child with a scrubbed environment (DSPx 1ce51274cb06f510b12b779985b186ab4decd11d); the parent never imports the owner package and validates and writes results and receipt unchanged",
+      "pre_marker_preflight": true,
+      "preflight": {
+        "ak_authority_active": true,
+        "ak_minimum_lease_seconds": 210.0,
+        "ak_task_id": 5365,
+        "auth_provider": "none",
+        "bytecode_disabled": true,
+        "cache_dir_private": true,
+        "cannot_prove": [
+          "capacity_at_completion",
+          "entitlement_at_completion"
+        ],
+        "catalog": {
+          "catalog_count": 1,
+          "catalog_ids_sha256": "6ed482c3ec1b960bb4645ef3ed629905ebe799a4d9e3c7be8b52de7adddd1e97",
+          "checked": true,
+          "model_listed": true,
+          "status_class": "2xx"
+        },
+        "credential": {
+          "credential_present": true,
+          "endpoint_fixed": true,
+          "expires_ms": 0,
+          "expiry_ok": true,
+          "probed": false
+        },
+        "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+        "destination_private": true,
+        "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+        "expected_juror_count": 3,
+        "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+        "owner_commit": "80cc409da976028263da884ed633bef0806cd986",
+        "owner_not_preloaded": true,
+        "owner_source_verified": true,
+        "proves": [
+          "reachability",
+          "credential_validity_at_t0",
+          "catalog_membership"
+        ],
+        "provider": "foundry-dspy-lm-auth-local-vllm",
+        "provider_completion_calls": 0,
+        "provider_outcomes_absent": true,
+        "schema_version": "dspx-foundry-jury-preflight-v1"
+      },
+      "preflight_commit": "54568ce2d6b50e31428995faf6c0ce650044823f",
+      "subprocess_commit": "1ce51274cb06f510b12b779985b186ab4decd11d"
+    },
+    "gepa_execution": {
+      "candidate_equals_source": true,
+      "candidate_equals_source_evidence": {
+        "behavior_delta_status_changed": false,
+        "gepa_candidate_lineage": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/materialized-candidate/gepa_candidate_lineage.json",
+          "sha256": "7c44c10c03bfd00450e2f867ea822aff934bed9c796285e645cdb89ab9e21405"
+        },
+        "materialized_candidate_program_sha256": "aaa97c66874182d70d7c4faed3624516763835946845271de0680041e30f1192",
+        "materialized_module_py_byte_identical_to_source": true,
+        "note": "GEPA retained exactly one candidate component (the unchanged base program, best_candidate_index 0, candidates_accepted 0, proposal_starts 0); the materialized candidate's program.py is the assembly's loader wrapper over that optimizer output (CONSTRAINTS 'load local GEPA optimizer output as the candidate program implementation'), so the candidate is behaviourally the source program although the two program.py files are not byte-identical; the comparison observed no status change and the same persisted signal on both sides",
+        "retained_candidate_count": 1,
+        "source_program_sha256": "ecbb8c7cdbf9c641526304b31a9448c5c16c038c1bc7c98009f3c67e1e637981"
+      },
+      "max_metric_calls": 4,
+      "metric_honesty": {
+        "criteria_sha256": "57e44042144cbb3f174afb172dde9d32bf3652a717dd9c92c4963479da4d0486",
+        "metric": "concept_coverage",
+        "source_program_sha256": "ecbb8c7cdbf9c641526304b31a9448c5c16c038c1bc7c98009f3c67e1e637981",
+        "wrapper_program_sha256": "2454e90137360a17790fb117d9bd17a2ea166f6e288ba39811d1bef3b68d6cbc"
+      },
+      "metric_honesty_cross_checks": {
+        "criteria_sha256_equals_proposal_concept_coverage_binding": true,
+        "execution_receipt_block_equals_manifest_block": true,
+        "source_program_sha256_equals_candidate_program_py": true,
+        "wrapper_program_sha256_equals_manifest_program_sha256": true
+      },
+      "no_new_candidate_proposed": true,
+      "operator_label": "ak-5366-honest-live-lineage",
+      "optimizer_backend_metric": "exact",
+      "optimizer_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/optimizer-output/manifest.json",
+        "sha256": "8d5701c2c6fb452aaec9c9712a6fe6f02bb76966062c82a4d0ac148668ec1acc"
+      },
+      "optimizer_metric": "concept_coverage",
+      "proposal": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa_experiment_proposal.json",
+        "sha256": "84a7feeabb014495a3e25ba210fc8919a2e560dd34ddee31ba55ea1bc8d39d99"
+      },
+      "run_stats": {
+        "best_validation_score": 1.0,
+        "candidate_count": 1,
+        "candidates_accepted": 0,
+        "candidates_rejected": 0,
+        "num_full_val_evals": 1,
+        "proposal_starts": 0,
+        "schema_version": "dspx-gepa-run-stats-v1",
+        "total_metric_calls": 4
+      }
+    },
+    "lineage_construction": {
+      "command_log": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/commands-run.txt",
+        "sha256": "04af2ebdc1a32dcc165c88c7d24d8902f12a6a2942d98a017bfa1463244912ac"
+      },
+      "command_log_note": "commands-run.txt (written by run_all.sh) records the package export, the package-derived import, program-gen, program-run, the quality-proposal derivation, the foundry command with the live Oracle stage and GEPA proposal, execute-foundry-gepa, and a read-only post-run verification block; it ends before the operator-run consume step and the live jury, which are recorded by the consume-output and CLI output bindings above",
+      "consume_step": {
+        "consume_output": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/consume-output.json",
+          "sha256": "2febcaa0c0e25aca01f5153bbf163707950401cd4a9b28194665fe5f54170cc6"
+        },
+        "gepa_pickle_optin": "DSPX_ALLOW_UNSAFE_GEPA_PICKLE_SHA256 bound to this run's optimizer_manifest_sha256 for the operator-run consume only (never set during lineage construction)",
+        "metric_honesty_verified_by_consume": true,
+        "operator_run": true,
+        "optimizer_manifest_sha256": "8d5701c2c6fb452aaec9c9712a6fe6f02bb76966062c82a4d0ac148668ec1acc"
+      },
+      "dspx_source_at_construction": {
+        "commit": "d8348fce8d02af21864017e1c37371d513ef4c0e",
+        "note": "commands-run.txt records HEAD d8348fce plus the then-uncommitted AK-5366 wrapper-binding fix in the working tree; that fix was committed as e629be74 and the scope refresh as 2ccfbe65 before the consume step and the jury ran",
+        "uncommitted_fix_later_committed_as": "e629be7474eb14ce134163e96173075d24f264a7"
+      },
+      "env_record": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/env.sh",
+        "sha256": "dfc8d7b771e9450c41c0ca188f6b6932a256ee957dd3d569e5625e299a7b2c73"
+      },
+      "env_record_note": "env.sh carries provider, loopback base URL, model, timeouts, live Oracle backend selection, policy allowlist, trusted program roots and a private cache dir; DSPX_OPENAI_COMPAT_API_KEY, DSPX_REPLAY_FIXTURE_JSON, DSPX_ORACLE_SEMANTIC_FIXTURE_PATH and DSPX_ALLOW_UNSAFE_GEPA_PICKLE_SHA256 are explicitly unset; no credential is present",
+      "input_pins": {
+        "inputs_sha256": "0aee8c5222b752649c009f8c2f3a7cf460d440c164ce6f4b5840639982bc2570",
+        "intent_sha256": "6acb0d91f3fb16c5344ff72b28affa02cb019165c2298a95ecd94ebe72b298bc",
+        "note": "no import-sha256.txt in this root; the emitted intent and inputs hashes are those recorded by the importer in import-output.json and re-derived here"
+      },
+      "intent": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/import/intent.json",
+        "sha256": "6acb0d91f3fb16c5344ff72b28affa02cb019165c2298a95ecd94ebe72b298bc"
+      },
+      "intent_note": "intent.json and inputs.json are the importer's emitted files under import/ (no hand-assembled intent, no operator answers file in this root)",
+      "mode": "live_end_to_end_lineage",
+      "network_used_before_jury": true,
+      "network_used_before_jury_note": "loopback only: program-gen, program-run, the live Oracle semantic stage and GEPA all called the local vLLM at http://127.0.0.1:2456 through DSPx's typed openai-compatible port (DSPX_PROVIDER=openai-compatible); no other egress",
+      "oracle_semantic_backend": "live (TypedProviderOracleSemanticBackend over the typed openai-compatible port)",
+      "oracle_semantic_fixture": null,
+      "oracle_semantic_fixture_note": "no fixture: DSPX_ORACLE_SEMANTIC_FIXTURE_PATH unset; semantic_result.fixture_sha256 is null in the sidecar",
+      "program_provider": "openai-compatible (loopback vLLM)",
+      "replay_fixture_env": null,
+      "replay_fixture_env_note": "no replay fixture: DSPX_REPLAY_FIXTURE_JSON unset; program-run executed the generated program live",
+      "run_script": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/run_all.sh",
+        "sha256": "7b32e70f0ab623f5752a96ed6aed7506eff1cac5e57dc2d17a71f16270ebee0a"
+      },
+      "run_script_log": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/run_all.log",
+        "sha256": "3f0e5a916f0179b474468fd36da1cca26f57b3f5cca520f90a38480b3db5f59d"
+      },
+      "superseded_attempts_note": "no superseded attempts inside this root; the two preceding hollow/burned lineages are separate roots bound under custody.preceding_attempts",
+      "superseded_attempts_retained_under": null,
+      "trusted_program_roots": "DSPX_TRUSTED_PROGRAM_ROOTS bound to the lineage root"
+    },
+    "live_jury": {
+      "artifact_verification": "accepted_exact",
+      "auth_provider": "none",
+      "credential_mode": "no-refresh",
+      "credential_presented": false,
+      "endpoint_base_url": "http://127.0.0.1:2456/v1",
+      "endpoint_origin": "http://127.0.0.1:2456",
+      "endpoint_origin_sha256_as_recorded": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+      "endpoint_origin_sha256_recorded_in": [
+        "jury_results.jury.provider_config",
+        "preflight",
+        "provider_journal_reservations"
+      ],
+      "http_status_codes_observed": [
+        200
+      ],
+      "network": "loopback_only",
+      "no_replay_after_marker": true,
+      "observed_models": [
+        "local/Qwen3.8-27B-AEON-NVFP4-FP8"
+      ],
+      "producer_terminals": [
+        "provider_response_completed"
+      ],
+      "provider_calls": 3,
+      "replay": false,
+      "session_disposition": "complete"
+    },
+    "misegraph_import": {
+      "answers": {
+        "note": "no operator answers file: the importer derived the expected projection and the example answers from the package itself (recipe id tokens, ingredients, equipment, bake parameters, diagnostics count); provenance answers.origin package_derived, answers_authored_by_importer true",
+        "origin": "package_derived",
+        "path": null,
+        "schema_version": null,
+        "sha256": null
+      },
+      "binding": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/import/misegraph-evidence-binding.json",
+        "sha256": "e97f0080ee11aaac82a0a5e5b9b14d802a4df7102564a3d6bf827802ad829602"
+      },
+      "binding_schema_version": "dspx-misegraph-evidence-binding-v1",
+      "example_cases": [
+        "render-text",
+        "check-json"
+      ],
+      "expected_projection": {
+        "derived_from": [
+          "canonical.json",
+          "check.json",
+          "manifest.json",
+          "behavior.json"
+        ],
+        "projection_sha256_by_case": {
+          "check-json": "825fd4374359b5826def42a4f2239f8a063716023832e408ef1d07de372a0219",
+          "render-text": "c94153c711f22e567abd80f2805f69ce0614e844f2f1ed0a334ae8b18c618953"
+        },
+        "quality_criterion_id": "misegraph_recipe_fidelity",
+        "required_concept_group_count": 15,
+        "schema_version": "dspx-misegraph-expected-projection-v1",
+        "used_as_example_answer": true
+      },
+      "import_output": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/import-output.json",
+        "sha256": "982822c52af514e5c8ca5fbb0c06f01223d0f427133396caab28b561b9e8e6b5"
+      },
+      "importer": "dspx foundry import-misegraph-evidence --package <root>/package --outdir <root>/import --json (rc 0; no --answers)",
+      "importer_commits": {
+        "importer": "ff4b7af3b34a54b674442456e9a16c193e126e2f",
+        "package_derived_expectations": "c617826cb1e0d47e8ce57a4fbae5d92e48fe84fc"
+      },
+      "importer_schema_version": "dspx-misegraph-evidence-import-v1",
+      "inputs": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/import/inputs.json",
+        "sha256": "0aee8c5222b752649c009f8c2f3a7cf460d440c164ce6f4b5840639982bc2570"
+      },
+      "intent": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/import/intent.json",
+        "sha256": "6acb0d91f3fb16c5344ff72b28affa02cb019165c2298a95ecd94ebe72b298bc"
+      },
+      "package_export": "misegraph evidence export examples/espresso-brownies.mise --out <root>/package --formats text,svg --deny-warnings (Misegraph committed CLI at d5ed389c, run from the Misegraph repository)",
+      "package_manifest": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/package/manifest.json",
+        "sha256": "5c1fd0f581e738efeaaa87a0a3007768b1f30dd0e45e5ed35a4dd6ecd6c5c5e4"
+      },
+      "package_manifest_sha256_as_bound": "5c1fd0f581e738efeaaa87a0a3007768b1f30dd0e45e5ed35a4dd6ecd6c5c5e4",
+      "package_sha256_as_bound": "0be06d8d561751e9be26f43ada7e0c20ee4fbc7982194c7396986add07114905",
+      "provenance": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/import/misegraph-import-provenance.json",
+        "sha256": "fd5a7cf4184fb7daaf05622cad37f261a9703837d969f2b67922ee64c212efa7"
+      },
+      "validation": {
+        "artifact_hashes_ok": true,
+        "canonical_ir_schema_valid": true,
+        "freshness": {
+          "check": "manifest_sha256_matches_at_import",
+          "mode": "hash_bound"
+        },
+        "unknown_manifest_keys": []
+      }
+    },
+    "misegraph_recommendation_record": {
+      "json": {
+        "path": "/home/tryinget/ai-society/softwareco/owned/misegraph/docs/project/evidence/espresso-brownies-0be06d8d5617-jury-recommendation-live.json",
+        "sha256": "9c880c61225e4d020b50998c43cf90cf89b485089261046b288303725ae66e6b"
+      },
+      "markdown": {
+        "path": "/home/tryinget/ai-society/softwareco/owned/misegraph/docs/project/evidence/espresso-brownies-0be06d8d5617-jury-recommendation-live.md",
+        "sha256": "02954c159625b50bf1045dc18e58e9c3fc8ba59f3a5a0e6abd7d7aec4e9419c0"
+      },
+      "misegraph_commit": "12fd88109ea6424d63bfb504c9e0c6733a8fa3e4",
+      "misegraph_head_at_projection": "267e17ed1267c1fe361fc32b1a021ba359dee5dc",
+      "note": "Misegraph-side non-deciding record written by `misegraph evidence verify-receipt` over this run's jury receipt, adjudication and binding under policy live_evidence_required_v1; recommendation review_recommended, kind live (dspx.provider_evidence_kind live), decision null, requires_owner_action true; it grants no acceptance, release or activation and supersedes the AK-5360 stub-lineage record for review purposes",
+      "recommendation": "review_recommended",
+      "recommendation_policy": "live_evidence_required_v1",
+      "schema_version": "misegraph-jury-recommendation-v1"
+    },
+    "oracle_semantic": {
+      "backend_kind": "live",
+      "configured_provider": "openai-compatible",
+      "effect_disposition": "terminal_result_recorded",
+      "executed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+      "executed_provider": "openai-compatible",
+      "execution_status": "succeeded",
+      "fixture_sha256": null,
+      "live_call_succeeded": true,
+      "note": "the sidecar's semantic_result.analysis (observations, hypotheses, failure attractors, recommended experiments) is model-authored text and is bound by path and sha256 only, not embedded",
+      "preferred_model": "codex/gpt-5.6-sol",
+      "provider_evidence_kind": "live",
+      "recommended_experiment_count": 1,
+      "recommended_experiment_index_used": 0,
+      "request_sha256": "548c502814918aad7f23ba421caeb004899341b1133f645a2af8961a39bba04d",
+      "schema_version": "program-runtime-oracle-semantic-v1",
+      "sidecar": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/runtime/program_oracle_semantic.json",
+        "sha256": "e91b09ff81273f04599e5aaee60805a87e43ff63b4ce8298a9759833b56d6062"
+      },
+      "status": "ok"
+    },
+    "owner_commit": "80cc409da976028263da884ed633bef0806cd986",
+    "owner_commit_note": "dspy-lm-auth release 0.1.6 (repinned by DSPx eb10a086); owner_version 0.1.6 in provider_config and every journal producer block",
+    "owner_source_root": "/home/tryinget/.local/state/pi-quests/tmp/dspy-lm-auth-owner-IuUs/dspy-lm-auth",
+    "owner_source_root_record": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/exact-owner-source-root.txt",
+      "sha256": "86e605f8963254453116d17d2ff2a20d53c28cc97d6944d3cd5c29591dadc02e"
+    },
+    "owner_tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+    "owner_version": "0.1.6",
+    "preceding_attempts": [
+      {
+        "ak_evidence": 8258,
+        "ak_task": 5360,
+        "cause_class": "hollow_lineage_pre_jury",
+        "kind": "completed_but_hollow",
+        "lineage_root_name": "misegraph-foundry-imported-vllm.RByYoY",
+        "projection": {
+          "path": "/home/tryinget/ai-society/softwareco/owned/dspx/docs/project/2026-09-03-misegraph-foundry-imported-package-dogfood-evidence.json",
+          "sha256": "fcd848274532dc5fe01ec600590ba357ad3d952ffc9d110e3cff8b8195c0b876"
+        },
+        "summary": "first jury on an imported Misegraph package, but every link before the jury was hollow: stub program provider, fixture-replay Oracle semantic backend, operator-supplied answers file, exact-match GEPA metric; the jury itself was live; Misegraph's earlier record for that run is superseded for review purposes by the live record bound below"
+      },
+      {
+        "ak_task": 5362,
+        "blocked_stage": "oracle_semantic",
+        "canonical_sidecar": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5362.NtdPDD/foundry/runtime/program_oracle_semantic.json",
+          "sha256": "b2fa905a8eac18589f5b93ffc6ff7e772df3a9f5eafe7d5e9d33a3f06ba70194"
+        },
+        "canonical_sidecar_terminal": {
+          "effect_disposition": "indeterminate",
+          "provider_evidence_kind": null,
+          "status": "degraded"
+        },
+        "cause_class": "typed_port_response_shape_rejected",
+        "command_log": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5362.NtdPDD/commands-run.txt",
+          "sha256": "7c9926bc27adbd6b2655e2ef64bf2e69c559aa24967e6e02151bf260c2ee8cad"
+        },
+        "fixed_by": {
+          "ak_task": 5364,
+          "dspx_commit": "c9a52177a3e404c7bbc0cd0b783ee7ad825a8085"
+        },
+        "kind": "blocked",
+        "lineage_root_name": "misegraph-foundry-honest-5362.NtdPDD",
+        "retry_sidecar": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5362.NtdPDD/foundry/runtime/program_oracle_semantic.retry-600s.json",
+          "sha256": "e646397e2deb6f7e56bcbfebce56af2c6f558c9ed08e15ddc4d2df6c801491a8"
+        },
+        "retry_sidecar_terminal": {
+          "execution_status": "failed_before_live_success",
+          "live_call_succeeded": false,
+          "status": "degraded"
+        },
+        "summary": "first honest lineage (DSPx c617826c working tree): program-gen/program-run succeeded live after a harness-timeout retry, the canonical live Oracle sidecar ended indeterminate (typed-port read timeout at 180 s), the foundry command exited 2 ('GEPA proposal requires a terminal valid Oracle semantic contract'), no GEPA proposal was written; a deliberate second Oracle attempt into a separate sidecar at 600 s completed the call but the typed openai-compatible port rejected the vLLM 0.27 reply shape (failed_before_live_success, completed_failure); nothing replayed; fixed by AK-5364"
+      },
+      {
+        "ak_task": 5365,
+        "blocked_stage": "consume_foundry_gepa_receipt",
+        "cause_class": "optimizer_manifest_source_mismatch",
+        "command_log": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5365.uMYFWr/commands-run.txt",
+          "sha256": "782aa5297baef4d649ecbc22e86d701a3c9ae66f6a245933bc0ea41f052992d9"
+        },
+        "consume_output_bytes": 0,
+        "consumption_attempt": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5365.uMYFWr/foundry/gepa-experiment/consumption-attempt.json",
+          "sha256": "3522ce4ce6dbebea40b0ef5a3326d75bf970dc8c5b59002e5b1b3559e67d7cce"
+        },
+        "consumption_attempt_terminal": {
+          "effect_disposition": "indeterminate_until_consumption_receipt",
+          "status": "effect_possible"
+        },
+        "consumption_receipt_written": false,
+        "execution_receipt": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5365.uMYFWr/foundry/gepa-experiment/execution-receipt.json",
+          "sha256": "7fad3f4c4daf8a91c82bb144788fca632644726a955c405f8d6e990d07da6b65"
+        },
+        "execution_receipt_facts": {
+          "gepa_status": "completed",
+          "metric_honesty_present": false,
+          "optimizer_manifest_sha256": "92ca1ad4a4c1917b41215bcd14384bd50d55df78b2506917b2ba5f534423f516",
+          "provider_evidence_kind": "live"
+        },
+        "fixed_by": {
+          "ak_task": 5366,
+          "dspx_commit": "e629be7474eb14ce134163e96173075d24f264a7"
+        },
+        "kind": "burned_at_consume",
+        "lineage_root_name": "misegraph-foundry-honest-5365.uMYFWr",
+        "optimizer_manifest": {
+          "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5365.uMYFWr/foundry/gepa-experiment/optimizer-output/manifest.json",
+          "sha256": "92ca1ad4a4c1917b41215bcd14384bd50d55df78b2506917b2ba5f534423f516"
+        },
+        "optimizer_manifest_program_sha256": "7af6f3fe2e53e85b0ce31bd02c3391b25c573f3ca0d8f94671865e7e4011e0f1",
+        "source_program_sha256": "ecbb8c7cdbf9c641526304b31a9448c5c16c038c1bc7c98009f3c67e1e637981",
+        "summary": "first lineage after AK-5364 (DSPx d8348fce): import, program-gen, program-run, live Oracle (3 recommended experiments) and GEPA (4 metric calls, no new candidate) all completed live; the operator-run consume wrote its attempt marker and then the consume contract rejected the optimizer manifest, whose program.sha256 was the generated concept-coverage wrapper rather than the source candidate program; no consumption receipt, no jury; nothing replayed; fixed by AK-5366 (closed metric_honesty block, wrapper bound to the source hash, consume re-derives the wrapper byte-for-byte)"
+      }
+    ],
+    "projection_is_self_contained": true,
+    "projection_written_at_dspx_commit": "2ccfbe65688b21a0a2f07b8ab95ffcd3580da496",
+    "provider_evidence_kind": {
+      "closed_values": [
+        "live",
+        "authored_fixture_replay",
+        "stub_echo"
+      ],
+      "comparison": "live",
+      "comparison_links": {
+        "candidate_generated_behavior": "live",
+        "candidate_runtime_behavior": "live",
+        "source_generated_behavior": "live",
+        "source_runtime_behavior": "live"
+      },
+      "foundry_links_at_proposal_time": {
+        "gepa": null,
+        "oracle_semantic": "live",
+        "program_run": "live"
+      },
+      "foundry_links_note": "foundry.json is written before GEPA executes, so its gepa link is null (absent_means unknown); the GEPA execution receipt, the comparison and the jury execution_request each record live",
+      "gepa_execution_receipt": "live",
+      "jury_execution_request": "live",
+      "oracle_semantic": "live",
+      "program_run": "live",
+      "schema_version": "dspx-provider-evidence-kind-v1",
+      "weakest_link": "live"
+    },
+    "quality_proposal_derivation": {
+      "base_proposal": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-imported-vllm.RByYoY/quality-proposal.json",
+        "sha256": "9888173cbec669144c124f21d51030816f528e372a7ecbe432d749313634033d"
+      },
+      "base_proposal_lineage": "misegraph-foundry-imported-vllm.RByYoY (itself re-bound from misegraph-foundry-copilot-5346.DVXv7O)",
+      "derivation_output": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/quality-proposal-derivation.json",
+        "sha256": "c167949b6982070bced447ed8ffb204b81ae958bb1bcd62c0a09443111245d84"
+      },
+      "derivation_script": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/derive_quality_proposal.py",
+        "sha256": "a35761434790483e197f309158a04d305783b75d5166b66f9479da1ba67772df"
+      },
+      "fields_changed": [
+        "candidate_intent.examples",
+        "candidate_intent.quality_criteria",
+        "decision.source_envelope_sha256",
+        "identity.candidate_intent_sha256",
+        "identity.envelope_sha256",
+        "identity.proposal_sha256",
+        "proposal.quality_criteria"
+      ],
+      "hollow_link": {
+        "execution_mode": "injected_test_double",
+        "is_live_quality_criteria_model_call": false,
+        "reported_model": "stub/misegraph-quality",
+        "requested_model": "codex/gpt-5.6-sol",
+        "response_sha256": "8474ab92478ff7e4af83665260f85751794914611b5da6fb66f562b050f93591"
+      },
+      "note": "no repo tool emits a quality proposal for an existing intent offline (program-gen quality-chat is prompt-to-model bound); the AK-5360 proposal was copied, candidate_intent set to import/intent.json, proposal.metric and proposal.quality_criteria set to the emitted intent's package-derived values (concept_coverage, criterion misegraph_recipe_fidelity), and identity.candidate_intent_sha256 / identity.proposal_sha256 / identity.envelope_sha256 / decision.source_envelope_sha256 recomputed with the repo's program_quality_contract.identity_for / _derived_pending_envelope_sha256 and validated with validate_quality_proposal; model_execution stays the injected test double and is recorded as the remaining hollow link",
+      "quality_proposal": {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/quality-proposal.json",
+        "sha256": "7fc15dd338300fc0e92394b42f45edad3f1b92d70dc33e92e086b17a936ed62e"
+      }
+    },
+    "source_kind": "operator_owned_session_scratch",
+    "source_root": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH"
+  },
+  "dogfood_subject": "misegraph/espresso-brownies",
+  "evidence_kind": "durable_secret_free_live_projection",
+  "execution_task_id": 5365,
+  "execution_task_status": "done",
+  "misegraph_source": {
+    "canonical": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/package/canonical.json",
+      "sha256": "068e4890ab5b278cecc3e27998ddf508c12b5b1b4c801ff704879c4915b75210"
+    },
+    "package": {
+      "binding_schema_version": "dspx-misegraph-evidence-binding-v1",
+      "dir": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/package",
+      "example_cases": [
+        "render-text",
+        "check-json"
+      ],
+      "manifest_sha256": "5c1fd0f581e738efeaaa87a0a3007768b1f30dd0e45e5ed35a4dd6ecd6c5c5e4",
+      "package_sha256": "0be06d8d561751e9be26f43ada7e0c20ee4fbc7982194c7396986add07114905",
+      "schema_version": "misegraph-evidence-package-v1"
+    },
+    "render": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/package/render.text.txt",
+      "sha256": "e0b343d04b2d5d3988a72574ca2532dcd2905016762da896c36e95cbbdb5de9b"
+    },
+    "source": {
+      "path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/package/source.mise",
+      "sha256": "b3d210c1e1acc1778f67a2c42f3a76b66f19a4ac864bdbb0331bc23d2b6b6cef"
+    }
+  },
+  "non_authority": {
+    "activation_authority": false,
+    "external_authority": false,
+    "misegraph_acceptance_granted": false,
+    "misegraph_activation_granted": false,
+    "misegraph_recommendation_is_non_deciding": true,
+    "misegraph_release_granted": false,
+    "promote_locally_is_bounded_local_disposition": true,
+    "promote_locally_note": "promote_locally / eligible_local_candidate is a deterministic, bounded local disposition over the validated comparison-jury receipt; it grants no Misegraph acceptance, release, or activation, selects no winner, applies nothing, and mutates no external authority",
+    "promotion_authority": false,
+    "winner_selection": false
+  },
+  "outcome": {
+    "adjudication_disposition": "promote_locally",
+    "adjudication_local_candidate_state": "eligible_local_candidate",
+    "adjudication_reason_codes": [
+      "all_jurors_support_review_evidence"
+    ],
+    "adjudication_status": "recorded",
+    "judgment_counts": {
+      "failed": 0,
+      "reject": 0,
+      "request_more_evidence": 0,
+      "supports_review_evidence": 3,
+      "withhold": 0
+    },
+    "juror_outcomes": {
+      "inferred_correctness": {
+        "confidence": "medium",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      },
+      "inferred_instruction_following": {
+        "confidence": "medium",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      },
+      "inferred_robustness": {
+        "confidence": "medium",
+        "outcome": "supports_review_evidence",
+        "status": "judged"
+      }
+    },
+    "jury_recommendation": "supports_review_evidence_only",
+    "jury_status": "executed"
+  },
+  "provider_journals": [
+    {
+      "directory_name": "01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "529586631542f1c6dcd4ba2c5f8375188425f1475a55af87ea8be487c618e1e0",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "529586631542f1c6dcd4ba2c5f8375188425f1475a55af87ea8be487c618e1e0",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "ddfc6d350d570b61e6393923d6a411d1f5d24e580d19e7c00257ba4cfc143d08",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "ddfc6d350d570b61e6393923d6a411d1f5d24e580d19e7c00257ba4cfc143d08",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "744ba25ec9ec38042dbf24dd4f40f1f46d05da542a88619ade2711cec8610b30",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "744ba25ec9ec38042dbf24dd4f40f1f46d05da542a88619ade2711cec8610b30",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "7cf3b5bf0ec9d3b30cab80d00412945ed5b07f20bc55a7228fa5d8cd4d885884",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "7cf3b5bf0ec9d3b30cab80d00412945ed5b07f20bc55a7228fa5d8cd4d885884",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "e8433d932201ae28185a07b2bc943bd5372f3c4911ff9fbcb519513b7c269d13",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "d7b08d6052be3b36d565faf7ab599162ed1f2d63bc697a60f976d73ee83c6b3a",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "e8433d932201ae28185a07b2bc943bd5372f3c4911ff9fbcb519513b7c269d13",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "e07f6809d7221bf85991fd2975495f38cbb593a7f32820d92a404c385a1f6923",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+              "protocol_event": null,
+              "response_id_sha256": "d7b08d6052be3b36d565faf7ab599162ed1f2d63bc697a60f976d73ee83c6b3a",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "e07f6809d7221bf85991fd2975495f38cbb593a7f32820d92a404c385a1f6923",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "10d06158ec109bc5ac3c5d78b5632f5d36e07f5aea36d20f61fd3b0d2c6d2c35",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-1",
+            "consumer_task_id": 5365,
+            "contract_sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "ledger_sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+            "logical_request_id": "1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0",
+            "mode": "sync",
+            "process_id": "67e53e674e94e8ea0146c4bdf62f14470417fb85e0533e5b82061f0b10c78e10",
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "44759ad28e0145d00988a9d270fe4169277f6fb8beb27b20aab1d08662b6a9f4",
+            "source_identity": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "lock_sha256": "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "transport_gate_id": "a344f096831ee78b73b76bea84163903abcb96e246c25124ad19287407517a17"
+          },
+          "reservation_id": "444ad668ef78cf9cc0a74f6152e9641fcfc1e595e3002b8030d2515c39d3fdb8",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "91f5e4a64b93297c07fdfe0b9a58d7ed0f8a7b8530a1a60affad9875b31f0e7f",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/01-1a03225182a51237e9369f23b3c2f8f8dba4f81d82feffe2cfe64461c53dd2a0/reservation.json"
+      }
+    },
+    {
+      "directory_name": "02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "0037edbfffe2a7de3f1d996e04d0c65d06ad42bc3e1d57be0e7f234ecbc48847",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "0037edbfffe2a7de3f1d996e04d0c65d06ad42bc3e1d57be0e7f234ecbc48847",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "f7a85e8efb525e940e8c721388a4f1d9d6c43e89b40ead56e630997f6312180f",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "f7a85e8efb525e940e8c721388a4f1d9d6c43e89b40ead56e630997f6312180f",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "ac39cfeb13bd9a1a68dc95e1429878b02959c954d26fd08c286f33747a3a417c",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "ac39cfeb13bd9a1a68dc95e1429878b02959c954d26fd08c286f33747a3a417c",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "3d392afae57417eb89fdcd49ea00b4e1ba720f3531df78393519aca74bbcdaf3",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "3d392afae57417eb89fdcd49ea00b4e1ba720f3531df78393519aca74bbcdaf3",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "2f47777aca5a4b5cab86e2c01616bbd1a4e44245c13de987f837fc25a2850efa",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "c669373bee0788a9098be64374bfd229f37c318014e7373ff8c36ef463701389",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "2f47777aca5a4b5cab86e2c01616bbd1a4e44245c13de987f837fc25a2850efa",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "6cef74bb4897c43052744d2f2bd816569b0e27c75c06ad77f309735f270eea79",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+              "protocol_event": null,
+              "response_id_sha256": "c669373bee0788a9098be64374bfd229f37c318014e7373ff8c36ef463701389",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "6cef74bb4897c43052744d2f2bd816569b0e27c75c06ad77f309735f270eea79",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "4fb08b4be95cc362b22d13180ad66c4e438cc331ae4334e06d0e7c9c2946c36f",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-2",
+            "consumer_task_id": 5365,
+            "contract_sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "ledger_sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+            "logical_request_id": "fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98",
+            "mode": "sync",
+            "process_id": "67e53e674e94e8ea0146c4bdf62f14470417fb85e0533e5b82061f0b10c78e10",
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "eb34c2b58e63222a1994678f42658ce411c9e94d0e769ec7d66997c12dee9c49",
+            "source_identity": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "lock_sha256": "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "transport_gate_id": "3f5605ee135312d82fed09b3fc256be342caa65dcdd02d885158ccb0d2cdb70f"
+          },
+          "reservation_id": "a0810d640e8fdd71aa8c16601866213d6ae8c2c4817bae1b2c82b4dd4c9a0d32",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "735ae61ef9e7bd1595328b6803bd5d180ba851f6f8e72f260b99ff025a47f7cc",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/02-fe871ab5b2a04f8b0d81b8fcec834f294847b7514e1868bc203ef64864b9db98/reservation.json"
+      }
+    },
+    {
+      "directory_name": "03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43",
+      "events": [
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "wrapper_request_accepted",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": null,
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 0,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "7f95b8015280e226a090738a4577a4f7fac6513486b20eec432a58871aa14458",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/events/000000.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_gate_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "7f95b8015280e226a090738a4577a4f7fac6513486b20eec432a58871aa14458",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 1,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "c05a9afaeee17257a1d263e79ad5647774faaed6508f12f64b0b31bc33d3780c",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/events/000001.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_effect_pending",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "c05a9afaeee17257a1d263e79ad5647774faaed6508f12f64b0b31bc33d3780c",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 2,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "15bece98f819a9c7d9be72f68165fc40c4d30d9c5d717114906de75bff911f48",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/events/000002.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "transport_entered",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "15bece98f819a9c7d9be72f68165fc40c4d30d9c5d717114906de75bff911f48",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 3,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "84bf897e80d5fa8280afe4be4a4c28ab8e2fb523d04a3dbaec76e64e05180b14",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/events/000003.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": 1,
+              "kind": "http_response_observed",
+              "observed_model": null,
+              "protocol_event": null,
+              "response_id_sha256": null,
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "84bf897e80d5fa8280afe4be4a4c28ab8e2fb523d04a3dbaec76e64e05180b14",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 4,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "7cc65300998b4114bf930ce48b6baa390e399e8c6c6679dac589cda1d673ed46",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/events/000004.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "parsed_protocol_event_observed",
+              "observed_model": null,
+              "protocol_event": "response.completed",
+              "response_id_sha256": "d8652e91764033fc881b2641591e75da34815aa08e0dc9af4ac475dd6a562744",
+              "status_class": null,
+              "status_code": null
+            },
+            "previous_event_sha256": "7cc65300998b4114bf930ce48b6baa390e399e8c6c6679dac589cda1d673ed46",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 5,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "5164a5815db61e18a6d74c39ae171552a40962e2352b8ce4da1544e4e91bc4d9",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/events/000005.json"
+        },
+        {
+          "projection": {
+            "dependency_identity_sha256": "91129cb9f1fd158f0f9f62d30cee3b4fdc8dccc58233211eebb65cbfc2a30e20",
+            "event": {
+              "error_class": null,
+              "gate_ordinal": null,
+              "kind": "provider_response_completed",
+              "observed_model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+              "protocol_event": null,
+              "response_id_sha256": "d8652e91764033fc881b2641591e75da34815aa08e0dc9af4ac475dd6a562744",
+              "status_class": 2,
+              "status_code": 200
+            },
+            "previous_event_sha256": "5164a5815db61e18a6d74c39ae171552a40962e2352b8ce4da1544e4e91bc4d9",
+            "producer": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+            "schema_version": "dspx-soomfon-provider-outcome-consumption-event-v2",
+            "sequence": 6,
+            "source_identity_sha256": "a3f9b81ce89d2c582932338d8101d32d1e7c9ac48095e4a32f504ef0e732d6f4"
+          },
+          "serialization": "canonical_compact_json",
+          "sha256": "003402c1221114ef4854b8b752abf8a80dbf48337317c0af727b46e34de9ed92",
+          "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/events/000006.json"
+        }
+      ],
+      "reservation": {
+        "projection": {
+          "artifact_verification": "accepted_exact",
+          "reservation": {
+            "case_id": "jury-3",
+            "consumer_task_id": 5365,
+            "contract_sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+            "dependency_identity": {
+              "dspy": {
+                "locked_wheel_sha256": "250049f565f52c014609ce2d3ca0de17a6c9449ac961492d61a009aa30dceabf",
+                "payload_count": 157,
+                "payload_sha256": "a8bb038956606f4bf85b274c9d24daf5b1b59a2f598541c15e926793e629ee0c",
+                "record_sha256": "4f79ddd18e0a8280dce2d38904d430c18be4d067d759fe78725996e989d66489",
+                "version": "3.3.1"
+              },
+              "httpcore": {
+                "locked_wheel_sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55",
+                "payload_count": 32,
+                "payload_sha256": "bb0e6120792945054384bc9e1fa7721211f903245c79c029a648cbf6ff2b0829",
+                "record_sha256": "67cb4644d84fef1df8c5a0862c57c3380eff058a153bac7a4ba2722779982554",
+                "version": "1.0.9"
+              },
+              "httpx": {
+                "locked_wheel_sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad",
+                "payload_count": 24,
+                "payload_sha256": "07414d29fb1941459875ce8779ba8b64ffb35df39b38cccbb81db96aceb23ed3",
+                "record_sha256": "b71ee1676eeed3f56f5f9a0f3fe50f1247dd856618d6782b8384574da3d31450",
+                "version": "0.28.1"
+              },
+              "litellm": {
+                "locked_wheel_sha256": "a9ec3fe42eccb1611883caaf8b1bf33c9f4e12163f94c7d1004095b14c379eb2",
+                "payload_count": 2532,
+                "payload_sha256": "b7b99502fcf3b3a78271d973233b8f25d3b812b92a060b58eb68964f8fa3a025",
+                "record_sha256": "09836432e6f009684a7d6d43cf088ead28217f28974417c60b1002f01bbac353",
+                "version": "1.82.1"
+              }
+            },
+            "endpoint_origin_sha256": "ba556a06889d35554dd17c01d1aa4f421082aefb8602d915919c4920872eb3bb",
+            "ledger_sha256": "9bbca42b6e88f6d727f067f72a168c264167034cec91665d81e67d359cf4f79a",
+            "logical_request_id": "8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43",
+            "mode": "sync",
+            "process_id": "67e53e674e94e8ea0146c4bdf62f14470417fb85e0533e5b82061f0b10c78e10",
+            "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+            "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+            "schema_version": "dspx-provider-outcome-reservation-v1",
+            "semantic_request_sha256": "957648c7d06279c28be020552bf5be8efaa8acc34d0cc16f1ed08a21d7afae17",
+            "source_identity": {
+              "commit": "80cc409da976028263da884ed633bef0806cd986",
+              "lock_sha256": "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648",
+              "module_sha256": {
+                "codex_stream": "edb153d6f6e4615624c9688716f4b2bd02e32ac1d9794b1355190e62af1be3c4",
+                "codex_stream_support": "a8804500abbf481346e833da727679472b477fcc8a6c39c3ba299c51e2f632cd",
+                "lm": "debdc961e777c12fcdfecdbdd5291e47c05af8fcb14acaa057197ce2676f7794",
+                "outcome_receipt": "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+                "outcome_receipt_runtime": "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+                "outcome_receipt_state": "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+                "outcome_receipt_transport": "e8e03c81ffb0f767233b4f1ae8c0b750c5284c13b20eafafbdb9fa268d43b34a",
+                "package_init": "b68103dbc26717f140f438c8c3a6f88b88ffacfaab75c0ec987d0c1760a9dc7a"
+              },
+              "owner": "tryinget-dspy-lm-auth",
+              "tree": "552f2f6675cb770776a329bb3cd5c6e8073844f5",
+              "version": "0.1.6"
+            },
+            "transport_gate_id": "50291309f7f9cb7455736e25c660bb7233a1d6809209184dc4c6ad665b7cb3c0"
+          },
+          "reservation_id": "42238a3bc9cd9008e74700fc8618f8979ecc90bdd37d4feca9c25ac0322103e3",
+          "schema_version": "dspx-soomfon-provider-outcome-consumption-v2"
+        },
+        "serialization": "canonical_compact_json",
+        "sha256": "a9de4264be8a5246770601e5be97313943bac0af6faa474675f455ec1bcf1331",
+        "source_path": "/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-honest-5366.RZzphH/foundry/gepa-experiment/provider-outcomes/03-8e5589affa0f5b2db77e9fd7cc19e2585926d2c69ce4ddcf36afd093e75fda43/reservation.json"
+      }
+    }
+  ],
+  "request": {
+    "fallback_allowed": false,
+    "health_probe_allowed": false,
+    "local_vllm_base_url": "http://127.0.0.1:2456/v1",
+    "model": "local/Qwen3.8-27B-AEON-NVFP4-FP8",
+    "provider": "foundry-dspy-lm-auth-local-vllm",
+    "reasoning_effort": null,
+    "requested_route": "dspy-lm-auth:local-vllm:local:Qwen3.8-27B-AEON-NVFP4-FP8",
+    "resolved_route": "openai:local:Qwen3.8-27B-AEON-NVFP4-FP8:chat",
+    "response_format": null,
+    "response_format_note": "the local-vllm family builds the owner request without reasoning_effort or response_format",
+    "retry_count": 0,
+    "selected_juror_count": 3,
+    "sync_only": true,
+    "timeout_seconds": 60.0
+  },
+  "schema_version": "dspx-misegraph-foundry-full-dogfood-evidence-v2"
+}
