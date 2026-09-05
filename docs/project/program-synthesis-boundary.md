@@ -429,3 +429,284 @@ Current dataset split support is deliberately evidence-only: it accepts JSONL or
 
 Do not start by stuffing richer synthesis behavior directly into `module_service`.
 Do not mistake `program_service` for the final ontology of the runtime.
+
+## Statechart-to-program-suite contract — AK5419 design
+
+**Status: proposed design, not implemented or activated.** AK5419 contract v3,
+guardrails v2 and operator-route evidence **8364** authorize only reconciliation
+in four existing documents. Core production readiness remains the priority;
+`SF-AUTONOMOUS-PROGRAM-FOUNDRY` remains paused. Existing bounded jury work does not
+reactivate its parent by implication. AK SF14/Decision140/task5210 and G7/task5281
+retain their own scope. No new strategic frame, direction transition or runtime
+owner is created here. Route approval is not acceptance of this design.
+
+### Operating boundary and portable binding
+
+Keep the entire behavioral machine above candidate-local computation. A versioned
+statechart may invoke several independently versioned DSPy programs, with shared
+review/cancellation/recovery protocols and separate receipt lineages. Existing
+program-topology DAGs can be invoked leaves; they cannot represent the parent
+machine's hierarchy, orthogonal regions or event-driven cycles.
+
+Proposed portable binding records contain: machine ID/version/content hash;
+state/region IDs; typed event schemas; named pure guard/assignment definitions;
+ordered named effect descriptors; named actor/program registry entries; exact
+candidate manifest and input/output schema hashes; input projections; budgets;
+timeout/cancellation/retry policies; and requirement/test IDs. The owner reviews
+this binding before a host may execute it. Neither a diagram nor a registry name
+is executable authority. Inline JavaScript, Python imports and serializable
+strings that name arbitrary code are not portable bindings.
+
+The visual editor owns presentation and explicit edit proposals. A future
+reviewed transition host owns event serialization, checkpoint/outbox and effect
+custody. DSPx owns candidate assemblies, bounded episodes and receipts; the
+source/knowledge owners own corpus disclosure and acceptance. AK owns canonical
+work, direction, decision and evidence. A browser snapshot, Forge manifest or
+Oracle verdict cannot replace any of those authorities. No host is selected or
+implemented by this task.
+
+### Semantic mapping and fail-closed support profile
+
+This table defines the **proposed admissible profile**, not current DSPx or
+installed XState support. An admission validator must reject an unsupported
+construct with its exact state/path, reason and owner action; it must never
+silently approximate it as a sequence.
+
+| Construct | Required mapping | Rejection / acceptance probe |
+|---|---|---|
+| Atomic/final states | Stable IDs, explicit initial/final states and typed completion output; no program call merely because a node is displayed | Unresolved target/final output rejects; final state cannot accept another work request |
+| Hierarchy | Preserve parent/child configuration, initial descent, ancestor event handling, entry/exit ordering and re-entry semantics | Test child-vs-parent priority, internal transition vs re-entry, and ancestor exit cascade; flattening rejects |
+| Parallel regions | Simultaneous active configuration, independent child lifetimes, deterministic shared-event ordering, explicit join/cancellation policy | One region finishing cannot finish all; late result from a cancelled sibling cannot satisfy join; conflicting context writes reject absent declared merge rule |
+| Events and cycles | Typed, identity-bound queued events with event ID, expected state revision and correlation; bounded eventless transitions and loop budgets | Duplicate key/body returns prior result; same key/different body conflicts; runaway eventless cycles reject rather than hang |
+| Guards/context | Named pure predicates and typed immutable assignments from supplied snapshot/event; data projection preserves null/absent and enum distinctions | Reject clock, random, I/O, arbitrary expressions or unknown guard names; compare transition trace for the same journal |
+| Entry/exit/named effects | Transition emits ordered descriptors; effect registry separately binds implementation, permissions and compensation policy | No external call during pure transition or display; unknown action/effect rejects before dispatch |
+| Invoked DSPy programs | Named actor source binds exact candidate, input contract, output contract, source snapshot and working-intent identity; completion carries episode/receipt and actor incarnation | Stale identity, missing required output, provider error or unknown incarnation cannot become success; assemblies remain interconnected, not inlined into one opaque program |
+| Timers | Stable timer ID and source address; host records accepted absolute deadline, handles cancellation and journals firing event | Restart cannot reset an accepted deadline; exited-state timer cannot advance new state; sleeping inline is not an interruptible timer |
+| Cancellation | Stop admission of new work, issue typed cancel request, distinguish requested/acknowledged/unconfirmed; retain completed outputs as historical evidence | UI close/timeout is not proof a provider stopped; unknown external effect enters reconciliation, never automatic retry |
+| Retry | Explicit bounded policy, immutable predecessor and new attempt identity; confirmed no-effect or reviewed idempotent replay only | HTTP status, missing receipt or XState batch rejection alone cannot authorize retry of effect-indeterminate work |
+| Persistence/recovery | Bind machine/runtime/binding versions, intent/source hashes, active configuration, child identities, next transition index, event journal, pending effects and timer deadlines | Restore mismatched code/schema/intent rejects unless separately reviewed migration preserves lineage; snapshot alone cannot prove an effect did not happen |
+| History/dynamic actors/remote placement | Preserve in the design vocabulary but initially unsupported unless separately specified and tested | Reject history pseudostates, unbounded spawning, executable closures, cross-host actor reconstruction and unsupported observation semantics; no silent downgrade |
+
+Proposed host commit protocol separates **pre-dispatch intent custody** from a
+**settled resumable checkpoint**:
+1. Serialize one entity and validate its event/expected revision. Durably bind
+   the event ID/body, predecessor checkpoint and computed effect intents before
+   dispatch. This transition/event/effect-intent ledger records requested work;
+   any computed next state there is provisional, **not a resumable snapshot**.
+2. Hand off effects in order through the reviewed adapter. With v6, do not call
+   `getPersistedSnapshot` until `executeEffects` resolves after all transitively
+   initiated operations are accepted. Persist that settled checkpoint with
+   `nextTransitionIndex`, machine ID/version and binding identity, consistently
+   retaining pending root-event, child/incarnation and timer/deadline custody.
+   Events arriving between acceptance and checkpoint must remain durably queued
+   for exactly correlated later consumption, never lost at suspension.
+3. Acceptance means the host took custody of an operation, not that its external
+   business effect completed. Record **requested / accepted / completed /
+   uncertain** separately from machine state and effect-owner acknowledgements.
+   A settled checkpoint may still reference accepted, incomplete work. It cannot
+   turn a missing response, timeout or cancellation request into completion.
+4. A custom host driving pure transitions instead of `executeEffects` must supply
+   transitive settlement, root-event capture/replay, ordered handoff and
+   batch-failure handling itself. Without those guarantees it cannot checkpoint.
+   Do not checkpoint a rejected/unsettled batch or blindly replay the batch:
+   already accepted operations may have executed or delivered child events.
+   Recover from the last settled checkpoint plus the durable intent/acceptance
+   ledger and owner receipts; unresolved effects require owner reconciliation.
+
+Crash before dispatch, after dispatch, during transitive acceptance and before
+checkpoint/acknowledgement remain distinct dispositions. Deterministic IDs do not
+prove exactly-once effects. A reused event key with another body is always a
+conflict. Rejected/malformed events leave an inspectable rejection, not a
+success-shaped empty transition. Queue limits, per-episode cost/time budgets,
+scope and privacy checks precede every newly admitted effect. This is a proposed
+host contract requiring future proof, not an implemented v6 adapter.
+
+### XState comparison: exact candidates, no dependency selection
+
+Source inspection on 2026-09-05 compared registry metadata for **6.0.0-alpha.52**
+and **5.32.6**, v5 tagged source, and v6 upstream commit
+`2c4eeb4881c7fab607ef2dd410e547c17f1bff87`. Both registry records have null
+`gitHead`: reviewed source and published package are separate evidence, not
+source-to-package equivalence proof. Nothing was installed or executed.
+
+| Requirement | Stable 5.32.6 source/metadata | v6 alpha.52 candidate source/metadata | Design consequence |
+|---|---|---|---|
+| Pure transition boundary | `transition.ts` exposes pure snapshot + executable-action results; v5 is not merely an imperative runtime | `createDurable` wraps pure initial/next transitions with ordered stable-ID effects | Compare actual semantics, not presence of a new export |
+| Actor/program boundary | `StateMachine.restoreSnapshot` reconstructs children from registered sources and persisted child state | Named `src`, serializable input and deterministic addresses support host-owned `runLogic`; named action descriptors carry type/args | Require typed registry/receipt bindings in either version; do not ship closures to Python |
+| Persistence/effect custody | `getPersistedSnapshot`/`restoreSnapshot` exist; no `xstate/durable` export in the exact registry metadata | Experimental durable adapter contract includes effects, timers, waits, child routing, machine version and `nextTransitionIndex` | Host transaction, effect reconciliation, remote deduplication and storage are still our integration obligations |
+| Retry/cancellation | Persistence API alone is not an external-effect journal | Rejected effect batches may redeliver all operations; `run()` is fresh-only, checkpoint resume uses explicit loop | Upstream retry ability does not override the no-indeterminate-retry rule |
+| Local visualization | No local renderer/editor compatibility run performed | `createDurable(..., {inspect})` documents actor/transition observations, not a verified editor | Both need a separately authorized offline local renderer/round-trip test with hierarchy, parallelism and resumed traces |
+| Adoption risk | Stable comparison baseline, not automatically safe or selected | Experimental API and source/package identity gap add migration and custody risk | Prefer v6 only as the next **evaluation candidate** for durable seams; retain v5 baseline and allow neither to pass |
+
+A dependency selection requires owner-reviewed proof of the semantic matrix,
+source/package/runtime identity, local-only visualization, cross-language JSON
+fidelity, failure recovery and maintenance cost. This task selects **neither**.
+A design can be accepted while the dependency remains unresolved. Do not bridge
+arbitrary XState JavaScript to arbitrary DSPy/Python execution.
+
+Source references (inspection, not runtime proof):
+- [v6 durable execution](https://github.com/statelyai/xstate/blob/2c4eeb4881c7fab607ef2dd410e547c17f1bff87/docs/durable-execution.md): Identity, effect contract, journaling rules, checkpoints and host adapters.
+- [v6 data/effects](https://github.com/statelyai/xstate/blob/2c4eeb4881c7fab607ef2dd410e547c17f1bff87/docs/data-and-effects.md) and [backend workflow](https://github.com/statelyai/xstate/blob/2c4eeb4881c7fab607ef2dd410e547c17f1bff87/docs/backend-workflows.md).
+- [v5 pure transitions](https://github.com/statelyai/xstate/blob/xstate%405.32.6/packages/core/src/transition.ts) and [persist/restore implementation](https://github.com/statelyai/xstate/blob/xstate%405.32.6/packages/core/src/StateMachine.ts).
+- Exact registry records: [v6 alpha.52](https://registry.npmjs.org/xstate/6.0.0-alpha.52), [v5 5.32.6](https://registry.npmjs.org/xstate/5.32.6).
+
+## Reading intent and six-level contract
+
+Method attribution: Richard Paul and Linda Elder, *How to Read a Paragraph*,
+original five levels of close reading. The task's source-qualified method is
+preserved below; **level 6 is our explicit application/transfer extension**, not
+a claim about the authors' original numbering. No private PDF/note was reopened
+for AK5419. Public article pages retrieved during design did not expose the full
+five-level text, so this is task-contract attribution, not a new primary-text
+verification claim.
+
+| Level | Required operation and output | Anti-collapse rule |
+|---|---|---|
+| 1 — Paraphrase | Restate sentences/paragraph meaning in one's own words, preserving qualifiers and source location | Not free association or a purpose-shaped rewrite of what the author says |
+| 2 — Explicate | State the main point, elaborate it, give an example and an analogy/illustration, separating supplied from generated examples | A headline alone is not explication |
+| 3 — Analyze | Reconstruct purpose, question, information, concepts, assumptions, inferences, implications and point of view | Reader purpose cannot replace author `purpose_in_source` |
+| 4 — Evaluate | Assess clarity, accuracy, precision, relevance, depth, breadth, logic, significance and fairness against cited evidence | Agreement with the selected puzzle is not evidence of truth |
+| 5 — Author-perspective examination | Answer questions by role-playing the author's reasoned position, with source support, uncertainty and clear simulation label | Not invented author testimony; not omitted or relabeled as application |
+| 6 — Added application/transfer | Propose a context-specific use, limits, counterexample and observable test, with uncertainty and a separate recipient/review boundary | Transfer is not filesystem apply, canonical acceptance or attribution to Paul/Elder |
+
+First map the whole source and its argumentative structure. A purpose-guided plan
+selects parts plus contrary evidence and explains exclusions. Paragraph outputs
+retain source ID/hash, page/section/paragraph locator, excerpt hash and exact vs
+approximate quotation status. Integrate the parts back into the whole; record
+contradictions and changed interpretation. Missing source support means
+`insufficient_evidence`, not an invented quotation or a completed level. Source
+meaning, reader intent, critique, application proposal, review and accepted
+knowledge stay separate objects even if shown on one screen.
+
+### Proposed intent propagation
+
+Reuse the Obsidian-owned provisional `working-reading-intent-v1` boundary:
+`intent_id`, integer `revision`, `hash`, `supersedes`, source/decision refs,
+candidate IDs/provenance, selected puzzle, `reader_purpose`, mode and explicit
+exception reason. `purpose_in_source` and canonical `primary_puzzle_id` are never
+aliases. Candidate provenance should bind the supplied puzzle-set snapshot,
+source evidence, producer identity/version, rationale, uncertainty and alternatives;
+no candidate is forced. A new manually suggested puzzle needs reviewed provenance
+before becoming selectable, not an invented canonical register entry.
+
+The current `reading_intent.producer_input` returns `source_input`, the complete
+`working_reading_intent`, and `reading_intent_binding = {intent_id, revision, hash}`.
+Its hash is SHA-256 over UTF-8, sorted-key compact JSON, non-ASCII preserved,
+non-finite numbers rejected, excluding the `hash` field itself. Preserve that
+exact producer convention; cross-language canonicalization requires golden-byte
+vectors before another implementation is admitted. Do not invent a different
+hash under the same schema name.
+
+Proposed sequence:
+1. An explicitly supplied source/puzzle snapshot feeds an automatic **proposal**
+   producer; first-review acceptance or correction creates immutable intent vN.
+   This proposal stage may inspect source structure but must not masquerade as
+   the already purpose-sensitive whole/part/whole reading result.
+2. The Obsidian intent owner supplies the full intent and independent binding.
+   A DSPx input adapter validates source, schema and content/hash before mapping
+   the envelope to **declared** DSPy signature fields; nested metadata alone is
+   insufficient. `program-intent-v2` describes a program, not a reading session.
+3. A future producer/run receipt binds the exact input hash, candidate manifest,
+   intent identity and observed output hashes. Machine-generated output may echo
+   intent for inspection, but the model is not trusted to certify which input ran.
+4. Every dependent reading plan, paragraph result, synthesis, draft/campaign,
+   review packet and downstream proposal carries that identity and producer
+   provenance. Source-only extraction can be reused only if separately
+   source-hash-bound and genuinely purpose-independent.
+5. Correction appends vN+1, preserves vN/history and invalidates all descendants
+   including in-flight completions. A completion for vN stays historical; it must
+   not be rebound to vN+1. New work requires new input/receipt identity and lawful
+   effect admission. Old approvals do not transfer to regenerated output.
+6. `defer` and `source_only` block purpose-sensitive production; Wiki/Atlas-direct
+   requires null puzzle plus explicit preservation purpose/reason. Direct is not
+   forced puzzle selection and never permission for canonical apply.
+
+The materializer must validate the independent producer receipt and the current
+intent-owner identity before publishing a new review bundle. Bindings must agree
+at bundle, campaign packet and dependent rows; copying the current UI identity
+onto old outputs is forbidden. The review consumer independently checks current
+intent, exact packet hash/revision and active prior RIGHT route. `/intent` and
+`revise_campaign` remain recorded requests until a separately authorized consumer
+exists. GET/render/gesture confirmation cannot invoke a producer.
+
+### Current producer evidence and bounded owner handoff
+
+Source baseline for this inspection: DSPx `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`.
+Obsidian safety implementation is `6930feec0d08b6e67d390132808a465855c1e6c5`, with
+closeout documentation `c37c019691942558e97ce8d2436df81f161f623f`, evidence8355/8356
+and transferred obligation8357. These are bounded safety/proposal evidence only.
+
+| Current source locator | Observed contract | Design consequence |
+|---|---|---|
+| `tests/fixtures/program_gen/pdf_transition/intent.yaml:11–24,87–94,121–123` | Four inputs: `source_package_manifest_json`, `marker_markdown`, `existing_wiki_index_json`, `declared_output_root`; eight output names, purpose rubric and focused-bundle option | A tracked producer **scenario/fixture exists**; purpose rubric is not a versioned working-intent or automatic-suggestion input contract |
+| `packages/dspx-core/src/dspx/services/program_intent.py:473–497` (`ProgramIntent`) | Structured program contract; `extra="forbid"`, declared IO/quality/runtime/options | A new top-level reading field cannot be assumed accepted; program and per-reading identity must remain distinct |
+| `packages/dspx-core/src/dspx/templates/module_templates.py:18–48` (`render_module_skeleton`) and `packages/dspx-core/src/dspx/services/program_surfaces.py:29–88` (`render_signature_surface`, `render_module_surface`) | Focused bundle renderer derives declared inputs and outputs from generation contracts | Enhance the declared signature and focused-bundle path together; metadata propagation alone cannot prove provider-visible purpose |
+| `packages/dspx-core/src/dspx/services/program_runtime_episode.py:272–276,1025–1080` (`_load_inputs`, `_validate_pdf_transition_review_outputs`) | Generic direct/nested input mapping; six required PDF JSON families and noncanonical flags | No checked versioned intent admission or semantic steering in this validator |
+| Obsidian `_System/pdf-pipeline/scripts/materialize_dspy_transition_review.py:20–29,55–84,493–545` (`OUTPUT_FILES`, `_load_observed_outputs_from_behavior`, `_load_generated_bundle`, `materialize`) | Requires eight families; fallback chooses a passed example; bundle uses `**parsed`, no independent top-level intent binding | Future adapter must select the exact reviewed run/example, validate provenance and propagate binding; passing example is not current-intent authority |
+| Obsidian `_System/review/mobile-routing-prototype/reading_intent.py` (`producer_input`, `freshness`, `campaign_approvable`) | Explicit noncanonical input helper and structural freshness gate; no executor | Reuse helper contract, not a claim of current live producer integration |
+
+The **six** runtime-required families are `section_units_json`,
+`distillation_frames_json`, `evidence_cards_json`, `merge_create_proposals_json`,
+`review_packet_json`, `artifact_contract_manifest_json`. The materializer also
+requires **`frontmatter_plans_json` and `wiki_note_drafts_json`**. Thus a runtime
+validation pass can still lack role-separated frontmatter or reviewable note
+content required by the adapter. Neither check proves the original fifth reading
+level, a substantive v2 mobile campaign, or actual purpose-sensitive behavior.
+The future contract must enumerate all required families and explicitly reject
+missing content; it cannot hide the mismatch by filling empty arrays.
+
+Bounded negative: inspection of current Core/Forge Python, the tracked PDF fixture,
+renderer/runtime and named Obsidian adapter found **no end-to-end contract for
+automatic puzzle/purpose suggestion plus version-bound purpose-sensitive reading**.
+This is not proof that no producer or historical experiment exists anywhere.
+The [May10 dogfood](2026-05-10-dogfood-how-to-read-paragraph-canonical-transition.md)
+and [May14 replay](2026-05-14-purpose-driven-codex-gpt55-replay.md) describe historical
+candidates, inputs and outcomes; their scratch/private source paths were not
+opened, replayed or accepted as current producer identity. The May14 timeout and
+later run remain historical facts, not precedent for retrying uncertain effects.
+
+Proposed separately reviewed implementation scopes, **not tasks launched here**:
+- **DSPx owner:** extend the PDF scenario's declared input/output contract,
+  focused renderer and runtime validation/receipt seam; add synthetic intent
+  propagation and six-level traceability tests. Design an automatic proposal
+  producer against supplied source/puzzle snapshots before introducing any live
+  model. Candidate paths are the fixture, `program_intent.py` only if a genuine
+  program-level field is needed, `program_surfaces.py`, `module_templates.py`,
+  `program_runtime_episode.py` and their focused tests. No generic foundry rewrite.
+- **Obsidian owner:** review changes to the named materializer and its validator
+  plus the prototype input/campaign consumer. Retain independent receipt and
+  current-intent verification, immutable packet generations, eight-family
+  completeness, explicit exact-example selection and stale admission rejection.
+  This design grants no write to those paths or to real review stores.
+- **Source/knowledge and runtime owners:** separately approve corpus disclosure,
+  provider/effect budgets, any installed host/PWA work and canonical acceptance.
+  Neither DSPx nor the adapter manufactures these permissions.
+
+### Requirements-to-binding and acceptance traceability
+
+All tests below are **required future acceptance probes**, except the explicitly
+observed prototype regression. A design review pass does not execute them.
+
+| Requirement / operating need | State/program binding | Falsifiable acceptance |
+|---|---|---|
+| R1: inspect the entire machine | Hierarchical `design` / `reading` / `review` regions, invoked assemblies and bounded revision cycles | T1: model/renderer round-trip retains IDs, nested/parallel configuration, guards, loops and input hashes; unknown construct rejects rather than flattens |
+| R2: first-review purpose correction | `proposal → intent_review → planning`; explicit correction from campaign to same intent owner | T2: two puzzles A/B, revise purposeA to purposeB; input to fake producer has v2/B/purposeB, old packets are stale and history/RIGHT remain unchanged |
+| R3: source-qualified five-plus-one reading | Whole map → per-paragraph L1–L5 → whole synthesis → added L6 proposal | T3: source rubric evaluates each level separately; omission of author-roleplay fails, unsupported author claims and fabricated quotes fail |
+| R4: purpose changes relevance, not truth | Version-bound planner, paragraph readers and synthesizer | T4: on the same declared public/synthetic source, two contrasting purposes change relevant questions/plans/outputs while preserving source claims and counterevidence; independent domain review rejects mere label copying |
+| R5: stale/forged outputs cannot become review | Receipt-bound completion → eight-family materializer → current-intent campaign gate | T5: reject forged echo binding, old in-flight completion, missing two adapter families, wrong example/run, malformed dependent row or missing substantive campaign |
+| R6: uncertain effects stay uncertain | Pre-dispatch intent ledger, ordered/transitive acceptance, independent effect acknowledgement and reconciliation | T6: crash at intent-write/dispatch/transitive-acceptance/checkpoint/ack boundaries; inject a child operation and root-event between acceptance and checkpoint. Recover without event loss, duplicate authorization or false business-effect completion; rejected batches and uncertain effects are not blindly replayed |
+| R7: resumes preserve semantics | Post-settlement checkpoint plus transition index, machine/binding identity and pending root-event/child/timer custody | T7: reject pre-settlement snapshots; restore hierarchy/parallel regions, queued root events and absolute deadlines consistently across a crash after acceptance. Preserve accepted-but-incomplete operations without reauthorization; changed machine/program/intent/schema rejects and old incarnation cannot finish a new run |
+| R8: no forced puzzle or canonical apply | `wiki_atlas_direct`, `defer`, `source_only`; separate owner acceptance boundary | T8: direct retains null puzzle/reason; defer/source-only cause zero producer calls; review/level6 never mutates canonical-note sentinels |
+| R9: independent assembly evolution | Suite registry plus per-candidate manifests, episodes and evaluation lineage | T9: changing one candidate invalidates its dependent bindings without silently rewriting siblings; budgets, jury independence and rollback are evaluated separately from semantic quality |
+| R10: preserve owners and the selected route | Core-first binding registry; no Forge dependency or Foundry activation | T10: source/dependency and direction checks retain owner boundaries, existing frames and no external apply; package selection remains separately owner-gated |
+
+**Observed T2 regression only:** reran existing
+`test_review_safety.ReviewSafety.test_two_puzzles_fake_producer_and_stale_approval`
+from the committed Obsidian prototype: **1 test passed**. It binds changed intent
+to a fake producer, rejects old approval and preserves historical receipts and
+canonical sentinels. It does not validate the proposed DSPx adapter, execute an
+XState machine, prove automatic suggestion, or satisfy empirical T4.
+
+Design closure requires owner review of this mapping and explicit disposition of
+the remaining dependency/host, producer implementation and empirical acceptance
+gates. No green document check can substitute for those future runtime proofs.

@@ -8,6 +8,11 @@ read_when:
 
 # DSPx Forge — Spec (Intent → Issues → Artifacts)
 
+> **Name boundary (AK5419 design):** Forge here is the optional WorkOrder/backlog
+> app, not the entire Autonomous Program Foundry. Core owns DSPy assemblies and
+> runtime evidence. The visual statechart/suite target below does not activate
+> GitLab apply, make Core depend on Forge, or reactivate the paused Foundry.
+
 Forge turns one freeform prompt into:
 - a durable WorkOrder (typed, reproducible),
 - a deterministic multi-project plan,
@@ -469,3 +474,78 @@ Open questions:
 - Embeddings-based overlap search (opt-in)
 - Packs: artifact generation + evidence packs (unit/golden/eval/perf)
 - TUI frontend + JSON automation mode
+
+## Visual design workbench and reuse disposition — AK5419
+
+**Proposed integration only.** Operator route evidence8364 keeps Core first and
+Foundry paused. The canonical target contract is the
+[statechart-to-program-suite boundary](project/program-synthesis-boundary.md#statechart-to-program-suite-contract--ak5419-design).
+No new WorkOrder schema, runtime, XState install, external issue, private-input
+inspection or activation is implemented by this section.
+
+### Design segment inside the full machine
+
+The workbench should expose operating concept, needs, constraints, requirements,
+acceptance scenarios and their exact state/program bindings before execution.
+Reuse WorkOrder's requirement IDs and Given/When/Then structure as a presentation
+input; do not let a WorkOrder create canonical AK tasks or execution authority.
+Review can revise the requirements/bindings and return to any affected design
+state. It is not a disposable front-end form followed by an opaque linear run.
+
+A conceptual reading suite includes an intake/source-map actor, a puzzle/purpose
+proposal actor, a first-review wait, a purpose-bound planner, paragraph-reading
+actors, a whole-source synthesizer, critique and transfer-proposal consumers,
+and a separate campaign review. The design, reading and review configurations
+may be hierarchical and parallel. Paragraph workers can proceed independently
+under bounded concurrency; source-grounding checks can run alongside synthesis,
+but neither branch's completion alone admits final review. The full suite also
+retains bounded evaluation/refinement/jury and recovery paths for program
+improvement; those are existing Core/Foundry concerns, not new Forge authority.
+
+At any time the operator must be able to see: active states/regions; the exact
+source and intent revisions; which programs would be invoked; pending/uncertain
+effects; missing evidence; budgets; and why a transition is blocked. Local
+visualization must retain hierarchy, parallel configuration, edge labels,
+invocation/receipt identities and stale-state markings across save/restore.
+An editor export is a proposed binding, never permission to run it. v5/v6 editor
+compatibility and local/offline identity remain unverified.
+
+### Reuse / enhance / retire from this target
+
+These are design dispositions, not deletions, rewrites or migration approvals.
+Source baseline is DSPx `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`.
+
+| Surface | Disposition | Evidence and reason |
+|---|---|---|
+| Core intent → assembly → episode → receipt spine | **Reuse; enhance through explicit bindings** | `program_intent.ProgramIntent`, `program_service` and `program_runtime_episode` already separate program shape from execution/evidence. Add reviewed state/program references rather than a second generator |
+| Core foundry orchestration | **Reuse custody/identity contracts; enhance only under a later owner gate** | `services/program_foundry.py:94–137` `_accepted_intent_binding` compares accepted quality proposal and exact candidate intent; `:326–391` `_run_program_foundry_locked` uses existing stage artifacts/receipts and rejects partial uncertain stages. Program-generation intent acceptance is not reading intent or canonical knowledge acceptance |
+| WorkOrder clarifier and UX events | **Reuse requirements/review affordances** | This v0 spec has reversible questions, requirement IDs, acceptance tests and capability posture. It does not prove a durable hierarchical statechart host; GitLab apply remains a separately gated optional app behavior |
+| Mermaid parser/generator | **Reuse as legacy diagram/scaffold tooling; retire as semantic compiler for this target** | `services/mermaid_workflow_service.py:43–150` `parse_mermaid`/`_toposort` extract graph nodes/edges, with cycle fallback to node order; `:553–566` `generate_programs` does not use computed order. No faithful hierarchy/parallel/timer/cancellation lowering is established. Keep historical artifacts and current callers; reject statecharts instead of pretending this path preserves them |
+| Tracked PDF-transition fixture and focused renderer | **Reuse source/proposal boundaries; enhance input/outputs** | Four declared source/context inputs and eight JSON output families exist; versioned working intent and independent receipt binding are missing. Exact seams and six-vs-eight mismatch are in the boundary contract |
+| Recovered May10/May14 artifacts | **Reuse as historical design/evidence references only** | Existing dated dogfood/replay docs record source context, purpose rubric and non-authority. Scratch paths and past provider outcomes do not establish a current executable contract; no historical input/receipt was reopened or replayed |
+| Obsidian swipe-review client | **Reuse repaired review/custody behavior; enhance explicit producer handoff later** | AK5427 commit `6930feec0d08b6e67d390132808a465855c1e6c5` and8355/8356 support receipt safety and revisable intent with synthetic tests. Gestures and campaign detail are not program execution, canonical apply, installed PWA identity or real steering |
+| Second-resolution overwrite and display-as-authority assumptions | **Retire assumptions, preserve evidence** | AK5427 repaired the prototype paths; preserve predecessor failure evidence and lock quarantine. Do not reintroduce these assumptions in the future host or adapter |
+
+### Review experience and authority boundaries
+
+Preserve Stage1 meanings: LEFT source-only, RIGHT attach-to-puzzle review, UP
+Wiki/Atlas-direct review, DOWN defer. Stage2 cancel/approve/revise/defer-campaign
+are typed review requests, not arbitrary statechart events or apply permissions.
+Intent correction from Stage2 must stay on the same card/campaign, retain active
+RIGHT and receipt history, and visibly invalidate old output. It must not require
+routing undo. Uncertain submissions retain the original key/body until exact
+acknowledgement or owner-proven no-effect; token refresh is not reconciliation.
+
+The proposed first review belongs **before purpose-sensitive reading**. The
+current prototype starts with already-generated routing material, so an editable
+purpose card does not by itself satisfy this ordering. Keep source-derived
+proposal evidence available for inspection, but mark it distinctly from
+purpose-bound reading results. Automatic suggestions must include alternatives
+and an explicit no-fit/direct/defer path. Local edit/render must make zero
+producer calls; any subsequent execution requires a separately bound consumer.
+
+A future local workbench acceptance demonstration must cover the full R1–R10
+matrix in the boundary document, including revision while parallel work is in
+flight and a crash with an unresolved external effect. A pretty graph or a
+linear happy-path demo is insufficient. Owner review of this design grants no
+Foundry reactivation, XState selection, privacy disclosure or live acceptance.

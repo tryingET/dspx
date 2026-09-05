@@ -39,6 +39,52 @@ A DSPx user can:
 - compare candidate assemblies and execution episodes without confusing empirical promise with approval,
 - and trust that every important decision remains inspectable, reproducible, and governable.
 
+## Visual statecharts and interconnected DSPy suites — design target
+
+AK5419 reconciles this ambition into the existing runtime objects, not a new
+strategic frame. Operator route evidence **8364** permits design reconciliation
+with **Core production readiness first and Autonomous Program Foundry paused**.
+It does not select an XState dependency or activate the target described here.
+
+A user should be able to inspect and revise a complete visual behavioral machine:
+hierarchical states, parallel regions, event-driven re-entry, typed program
+invocations, review waits, cancellation, recovery, and bounded refinement. One
+machine may coordinate several interconnected DSPy candidate assemblies; each
+assembly retains its own input contract, runtime conditions, evaluation and
+receipt lineage. A linear diagram or one generated Python program is not the
+whole product. Statechart control semantics must not be flattened into the
+existing bounded program-topology DAG.
+
+The design segment is part of that machine: operating concept → needs and
+requirements → candidate bindings → verification and semantic acceptance design
+→ owner review. Revision can return to earlier decisions without erasing history.
+The machine explains which transition is available; only the owning runtime and
+accepted authority can execute it. Core remains independent of Forge and any
+visual editor. See the [statechart contract](program-synthesis-boundary.md#statechart-to-program-suite-contract--ak5419-design).
+
+### Reading as the concrete operating concept
+
+Given an explicitly supplied source package and puzzle context, propose a working
+puzzle and reader purpose with evidence, uncertainty and alternatives. The first
+review can correct either, choose Wiki/Atlas-direct preservation, defer, or retain
+source-only. Working intent is noncanonical: it is neither the author's purpose
+nor a merged canonical puzzle assignment.
+
+Reading then moves whole → part → whole: map the work and its argument; select
+paragraphs for the declared question while retaining contrary evidence; examine
+them through Paul/Elder's original five levels; integrate the result back into
+the whole before an explicitly added sixth application/transfer level. Purpose
+controls relevance and questions, not what the source is allowed to mean.
+Corrections supersede intent, invalidate dependent plans and packets, and require
+new purpose-sensitive work before review can resume. Applications are proposals,
+not filesystem operations or accepted knowledge.
+
+Success requires both faithful source interpretation and a demonstrable response
+to changed reader purpose. Showing a purpose label, recording revision text,
+copying a binding, or passing a fake-producer regression does not prove this
+behavior. The [reading contract and acceptance matrix](program-synthesis-boundary.md#reading-intent-and-six-level-contract)
+keep structural checks, semantic evaluation, review and canonical acceptance separate.
+
 ## Scope boundaries
 
 DSPx is:

@@ -21,7 +21,45 @@ Use it as an **active work artifact**:
 
 This file is a dated projection, not live authority, a task list, or a changelog. Active direction, tasks, decisions, and evidence live in Agent Kernel (AK). Shipped behavior lives in code and its current executable proof. Historical posture snapshots remain available in Git history; do not append implementation diaries here.
 
-## Current snapshot — 2026-09-02
+## AK5419 design posture — 2026-09-05
+
+Operator route evidence **8364** permits **Core-priority design reconciliation
+with Autonomous Program Foundry paused**. Done contract v3 and four-document scope
+are unchanged; guardrails v2 reconcile only the route prerequisite. This is not
+Foundry activation, dependency selection or product-runtime acceptance. The
+broader implementation snapshot below is retained, not revalidated by this task.
+
+The proposed [statechart/suite and six-level reading contract](program-synthesis-boundary.md#statechart-to-program-suite-contract--ak5419-design)
+preserves the full hierarchical/parallel machine, interconnected DSPy assemblies,
+revisable intent and separate source/review/knowledge authorities. The
+[Forge reuse disposition](../FORGE.md#visual-design-workbench-and-reuse-disposition--ak5419)
+keeps Core independent of the optional WorkOrder/backlog app and rejects Mermaid
+scaffolding as a substitute for faithful statechart semantics.
+
+| Question | Observed / proposed disposition |
+|---|---|
+| Is there a producer? | A tracked PDF-transition fixture, focused renderer and runtime validator exist at DSPx `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`. This is current source/scenario evidence, not an observation of deployed producer use |
+| Does it bind working reader intent? | The inspected four-field fixture and Core/Forge code do not expose the required end-to-end automatic suggestion/versioned reading-intent contract. Generic program intent and purpose-quality prose are not that contract |
+| Is the adapter ready? | Obsidian's named materializer demands eight output families while the runtime PDF validator requires six; frontmatter plans and Wiki drafts are the difference. Independent intent/run binding is also missing. Proposed owner-native changes are specified, not implemented |
+| What carries forward from AK5427? | Commit `6930feec0d08b6e67d390132808a465855c1e6c5`,8355/8356 and handoff8357 support bounded receipt safety and noncanonical intent. The existing A→B fake-producer regression independently passed once here; no real steering, deployment or PWA proof |
+| What do May artifacts establish? | Historical source/quality-rubric experiments only. Their private/generated inputs were not inspected or replayed; no current automatic producer is inferred from scratch locators |
+| Which XState is selected? | Neither. Exact v6 alpha.52 source/metadata and stable5.32.6 were compared. v6 is a proposed evaluation candidate; host/effect/renderer proof and owner dependency selection remain open |
+| What remains before real reading? | Separately reviewed DSPx producer and Obsidian adapter scopes, independent receipt binding, semantic source-fidelity/A–B evaluation, privacy/effect admission and runtime-owner proof; no successor execution is authorized here |
+
+Validation limits: this is a documentation design slice. Native targeted source
+reads replaced unavailable cross-repository SCI (the Pi session is bound to
+Obsidian). The pinned engineering guidance helper could not fetch its release
+under offline/no-install constraints; local engineering/workflow guidance was
+read, but full upstream guidance or full engineering validation is not claimed.
+The method preserves the task's Paul/Elder original levels1–5, including author
+role-play, plus an explicitly added sixth transfer level; public page retrieval
+did not independently verify the complete original method text.
+
+Owner review and exact task completion remain AK facts, not consequences of this
+paragraph. Future runtime tests in the contract remain unexecuted except the
+explicitly identified prototype regression.
+
+## Retained implementation snapshot — 2026-09-02
 
 ### Posture in one sentence
 
