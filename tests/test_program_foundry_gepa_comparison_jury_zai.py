@@ -1,4 +1,4 @@
-# summary: "Credential-free tests for the OpenCode Go foundry jury provider family."
+# summary: "Credential-free tests for the Z.ai Coding Plan foundry jury provider family."
 from __future__ import annotations
 
 import hashlib
@@ -53,8 +53,8 @@ from dspx.services.program_foundry_gepa_comparison_jury_provider_family import (
     AUTH_MODE_PI_OAUTH,
     FAMILIES,
     LOCAL_VLLM_FAMILY,
-    OPENCODE_GO_ENDPOINT_ORIGIN,
-    OPENCODE_GO_FAMILY,
+    ZAI_ENDPOINT_ORIGIN,
+    ZAI_FAMILY,
     XAI_FAMILY,
     family_for_request,
 )
@@ -100,15 +100,15 @@ ALL_FAMILIES = (
     CODEX_FAMILY,
     COPILOT_FAMILY,
     XAI_FAMILY,
-    OPENCODE_GO_FAMILY,
+    ZAI_FAMILY,
     LOCAL_VLLM_FAMILY,
 )
-GO_MODEL = "kimi-k2.7-code"
+GO_MODEL = "glm-5.3"
 GO_ENDPOINT_ORIGIN_SHA256 = (
-    "49a9f205011074eef3fbd38c759a8389feeab6133037dad880ac96a5063d3513"
+    "784fab9bbd73a8bc4fd132a14aa3a30437e9d94c19ffc8cbd24854c0a02f07d9"
 )
-GO_OBSERVED = "kimi-k2.7-code-0904"
-SECRET = "sk-opencode-go-SECRET-0123456789"
+GO_OBSERVED = "glm-5.3-0904"
+SECRET = "sk-zai-SECRET-0123456789"
 FAKE_CREDENTIAL_MODULE = "# fake owner _chat_credential.py; never loaded by the probe\n"
 
 
@@ -122,7 +122,7 @@ def _in_process_jury(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.fixture
 def go_catalog_server() -> Iterator[tuple[_Catalog, str]]:
     catalog = _Catalog(
-        200, json.dumps({"data": [{"id": GO_MODEL}, {"id": "glm-5.3"}]}).encode()
+        200, json.dumps({"data": [{"id": GO_MODEL}, {"id": "glm-5.3-flash"}]}).encode()
     )
     generator = _serve(catalog)
     base = next(generator)
@@ -140,52 +140,45 @@ def _other(family: FoundryJuryProviderFamily) -> FoundryJuryProviderFamily:
 # --- family literals ------------------------------------------------------------
 
 
-def test_opencode_go_family_literals_are_pinned() -> None:
-    assert OPENCODE_GO_FAMILY.provider_name == "foundry-dspy-lm-auth-opencode-go"
-    assert OPENCODE_GO_FAMILY.auth_provider == "opencode-go"
-    assert OPENCODE_GO_FAMILY.auth_mode == AUTH_MODE_PI_API_KEY == "pi-api-key"
-    assert OPENCODE_GO_FAMILY.model_re.pattern == r"^[a-z0-9][a-z0-9.-]{0,63}$"
-    assert OPENCODE_GO_FAMILY.default_model == GO_MODEL
-    assert OPENCODE_GO_FAMILY.allowed_reasoning_efforts is None
-    assert OPENCODE_GO_FAMILY.default_reasoning_effort is None
-    assert OPENCODE_GO_FAMILY.execution_task_title == (
+def test_zai_family_literals_are_pinned() -> None:
+    assert ZAI_FAMILY.provider_name == "foundry-dspy-lm-auth-zai"
+    assert ZAI_FAMILY.auth_provider == "zai"
+    assert ZAI_FAMILY.auth_mode == AUTH_MODE_PI_API_KEY == "pi-api-key"
+    assert ZAI_FAMILY.model_re.pattern == r"^glm-[a-z0-9][a-z0-9.-]{0,63}$"
+    assert ZAI_FAMILY.default_model == GO_MODEL
+    assert ZAI_FAMILY.allowed_reasoning_efforts is None
+    assert ZAI_FAMILY.default_reasoning_effort is None
+    assert ZAI_FAMILY.execution_task_title == (
         "Execute one receipt-bound foundry comparison jury with dspy-lm-auth "
-        "OpenCode Go"
+        "Z.ai Coding Plan"
     )
-    assert OPENCODE_GO_FAMILY.endpoint_origin == OPENCODE_GO_ENDPOINT_ORIGIN
-    assert OPENCODE_GO_ENDPOINT_ORIGIN == "https://opencode.ai"
-    assert OPENCODE_GO_FAMILY.catalog_path == "/zen/go/v1/models"
-    assert OPENCODE_GO_FAMILY.catalog_url == "https://opencode.ai/zen/go/v1/models"
+    assert ZAI_FAMILY.endpoint_origin == ZAI_ENDPOINT_ORIGIN
+    assert ZAI_ENDPOINT_ORIGIN == "https://api.z.ai"
+    assert ZAI_FAMILY.catalog_path == "/api/coding/paas/v4/models"
+    assert ZAI_FAMILY.catalog_url == "https://api.z.ai/api/coding/paas/v4/models"
+    assert ZAI_FAMILY.requested_route(GO_MODEL) == "dspy-lm-auth:zai:glm-5.3"
+    assert ZAI_FAMILY.resolved_route(GO_MODEL) == "openai:glm-5.3:chat"
+    assert ZAI_FAMILY.backend_module == "dspy_lm_auth.zai_backend"
+    assert ZAI_FAMILY.backend_class == "ZaiBackend"
+    assert ZAI_FAMILY.contract_module == "dspy_lm_auth.chat_backend_contract"
     assert (
-        OPENCODE_GO_FAMILY.requested_route(GO_MODEL)
-        == "dspy-lm-auth:opencode-go:kimi-k2.7-code"
-    )
-    assert OPENCODE_GO_FAMILY.resolved_route(GO_MODEL) == "openai:kimi-k2.7-code:chat"
-    assert OPENCODE_GO_FAMILY.backend_module == "dspy_lm_auth.opencode_go_backend"
-    assert OPENCODE_GO_FAMILY.backend_class == "OpencodeGoBackend"
-    assert OPENCODE_GO_FAMILY.contract_module == "dspy_lm_auth.chat_backend_contract"
-    assert (
-        OPENCODE_GO_FAMILY.message_class,
-        OPENCODE_GO_FAMILY.request_class,
-        OPENCODE_GO_FAMILY.response_class,
+        ZAI_FAMILY.message_class,
+        ZAI_FAMILY.request_class,
+        ZAI_FAMILY.response_class,
     ) == ("ChatBackendMessage", "ChatBackendRequest", "ChatBackendResponse")
-    assert OPENCODE_GO_FAMILY.allowed_roles == frozenset(
-        {"system", "user", "assistant"}
-    )
-    assert OPENCODE_GO_FAMILY.model_key == "model"
-    assert OPENCODE_GO_FAMILY.strict_observed_model is False
-    assert OPENCODE_GO_FAMILY.endpoint_env is None
-    assert OPENCODE_GO_FAMILY.endpoint_key is None
-    assert OPENCODE_GO_FAMILY.endpoint_resolved is False
-    assert OPENCODE_GO_FAMILY.default_timeout_seconds == 180.0
-    assert family_for_provider(OPENCODE_GO_FAMILY.provider_name) is OPENCODE_GO_FAMILY
-    assert FAMILIES[OPENCODE_GO_FAMILY.provider_name] is OPENCODE_GO_FAMILY
-    assert OPENCODE_GO_FAMILY.provider_name in TASK_LOCAL_PROVIDER_NAMES
+    assert ZAI_FAMILY.allowed_roles == frozenset({"system", "user", "assistant"})
+    assert ZAI_FAMILY.model_key == "model"
+    assert ZAI_FAMILY.strict_observed_model is False
+    assert ZAI_FAMILY.endpoint_env is None
+    assert ZAI_FAMILY.endpoint_key is None
+    assert ZAI_FAMILY.endpoint_resolved is False
+    assert ZAI_FAMILY.default_timeout_seconds == 180.0
+    assert family_for_provider(ZAI_FAMILY.provider_name) is ZAI_FAMILY
+    assert FAMILIES[ZAI_FAMILY.provider_name] is ZAI_FAMILY
+    assert ZAI_FAMILY.provider_name in TASK_LOCAL_PROVIDER_NAMES
     assert len(TASK_LOCAL_PROVIDER_NAMES) == 6
-    assert OPENCODE_GO_FAMILY.provider_name not in SUPPORTED_PROVIDER_NAMES
-    assert task_local_execution_request_keys(
-        OPENCODE_GO_FAMILY.provider_name
-    ) == frozenset(
+    assert ZAI_FAMILY.provider_name not in SUPPORTED_PROVIDER_NAMES
+    assert task_local_execution_request_keys(ZAI_FAMILY.provider_name) == frozenset(
         {
             "provider",
             "adjudicator_id",
@@ -215,9 +208,9 @@ def test_auth_modes_are_pinned_per_family() -> None:
     )
 
 
-def test_opencode_go_endpoint_origin_constant_uses_the_v11_rule() -> None:
+def test_zai_endpoint_origin_constant_uses_the_v11_rule() -> None:
     canonical = json.dumps(
-        {"scheme": "https", "hostname": "opencode.ai"},
+        {"scheme": "https", "hostname": "api.z.ai"},
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -225,36 +218,28 @@ def test_opencode_go_endpoint_origin_constant_uses_the_v11_rule() -> None:
     expected = hashlib.sha256(
         b"dspx-oracle-semantic-v11-endpoint-origin-v1\0" + canonical
     ).hexdigest()
-    assert (
-        OPENCODE_GO_FAMILY.endpoint_origin_sha256
-        == GO_ENDPOINT_ORIGIN_SHA256
-        == expected
-    )
+    assert ZAI_FAMILY.endpoint_origin_sha256 == GO_ENDPOINT_ORIGIN_SHA256 == expected
     # The owner's fixed api_base carries the path; the origin hash ignores it.
-    assert endpoint_origin_sha256("https://opencode.ai/zen/go/v1") == expected
-    assert endpoint_origin_sha256(OPENCODE_GO_FAMILY.endpoint_origin) == expected
+    assert endpoint_origin_sha256("https://api.z.ai/api/coding/paas/v4") == expected
+    assert endpoint_origin_sha256(ZAI_FAMILY.endpoint_origin) == expected
     assert len({family.endpoint_origin_sha256 for family in ALL_FAMILIES}) == 5
 
 
 @pytest.mark.parametrize(
     "model",
     [
-        "kimi-k2.7-code",
-        "qwen3.8-max",
         "glm-5.3",
-        "deepseek-v4-pro",
-        "minimax-m2.7",
-        "grok-4.6",
-        "gpt-5.6-luna",
-        "a",
-        "0",
-        "a" * 64,
+        "glm-5.3-flash",
+        "glm-5.3-highspeed",
+        "glm-5.2",
+        "glm-5-turbo",
+        "glm-4.7",
     ],
 )
-def test_opencode_go_model_rule_accepts_lowercase_vendor_neutral_ids(
+def test_zai_model_rule_accepts_lowercase_vendor_neutral_ids(
     model: str,
 ) -> None:
-    assert OPENCODE_GO_FAMILY.model_allowed(model)
+    assert ZAI_FAMILY.model_allowed(model)
 
 
 @pytest.mark.parametrize(
@@ -273,26 +258,23 @@ def test_opencode_go_model_rule_accepts_lowercase_vendor_neutral_ids(
         2.7,
     ],
 )
-def test_opencode_go_model_rule_rejects_other_ids(model: object) -> None:
-    assert not OPENCODE_GO_FAMILY.model_allowed(model)
+def test_zai_model_rule_rejects_other_ids(model: object) -> None:
+    assert not ZAI_FAMILY.model_allowed(model)
 
 
-def test_opencode_go_reasoning_effort_is_not_applicable() -> None:
-    assert OPENCODE_GO_FAMILY.reasoning_effort_allowed(None)
-    assert not OPENCODE_GO_FAMILY.reasoning_effort_allowed("xhigh")
-    assert OPENCODE_GO_FAMILY.resolve_reasoning_effort(None) is None
-    assert OPENCODE_GO_FAMILY.resolve_model(None) == GO_MODEL
-    assert OPENCODE_GO_FAMILY.resolve_model("glm-5.3") == "glm-5.3"
+def test_zai_reasoning_effort_is_not_applicable() -> None:
+    assert ZAI_FAMILY.reasoning_effort_allowed(None)
+    assert not ZAI_FAMILY.reasoning_effort_allowed("xhigh")
+    assert ZAI_FAMILY.resolve_reasoning_effort(None) is None
+    assert ZAI_FAMILY.resolve_model(None) == GO_MODEL
+    assert ZAI_FAMILY.resolve_model("glm-5.3") == "glm-5.3"
 
 
-def test_opencode_go_endpoint_is_fixed() -> None:
-    assert OPENCODE_GO_FAMILY.with_endpoint(None) is OPENCODE_GO_FAMILY
+def test_zai_endpoint_is_fixed() -> None:
+    assert ZAI_FAMILY.with_endpoint(None) is ZAI_FAMILY
     with pytest.raises(ValueError, match="endpoint is fixed"):
-        OPENCODE_GO_FAMILY.with_endpoint("https://opencode.ai")
-    assert (
-        family_for_request({"provider": OPENCODE_GO_FAMILY.provider_name})
-        is OPENCODE_GO_FAMILY
-    )
+        ZAI_FAMILY.with_endpoint("https://api.z.ai")
+    assert family_for_request({"provider": ZAI_FAMILY.provider_name}) is ZAI_FAMILY
 
 
 # --- revalidator, custodian, metadata ------------------------------------------
@@ -377,10 +359,10 @@ def _stub_owner_source(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_opencode_go_custodian_binds_routes_and_origin_into_journals(
+def test_zai_custodian_binds_routes_and_origin_into_journals(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    custodian = _custodian(tmp_path, OPENCODE_GO_FAMILY, GO_MODEL)
+    custodian = _custodian(tmp_path, ZAI_FAMILY, GO_MODEL)
     for juror_id, semantic in (("quality", "c" * 64), ("authority", "d" * 64)):
         custodian.invoke(
             juror_id=juror_id,
@@ -394,7 +376,7 @@ def test_opencode_go_custodian_binds_routes_and_origin_into_journals(
         GO_OBSERVED,
     ]
     _stub_owner_source(monkeypatch)
-    assert _validate(evidence, tmp_path, OPENCODE_GO_FAMILY, GO_MODEL) == evidence
+    assert _validate(evidence, tmp_path, ZAI_FAMILY, GO_MODEL) == evidence
     for other in (CODEX_FAMILY, COPILOT_FAMILY, XAI_FAMILY, LOCAL_VLLM_FAMILY):
         with pytest.raises(
             FoundryJuryProviderConfigurationError, match="journal binding drifted"
@@ -402,10 +384,10 @@ def test_opencode_go_custodian_binds_routes_and_origin_into_journals(
             _validate(evidence, tmp_path, other, GO_MODEL)
 
 
-def test_opencode_go_provider_metadata_validates_and_rejects_other_families() -> None:
+def test_zai_provider_metadata_validates_and_rejects_other_families() -> None:
     artifact = _artifact()
     metadata = provider_metadata(
-        family=OPENCODE_GO_FAMILY,
+        family=ZAI_FAMILY,
         model=GO_MODEL,
         reasoning_effort=None,
         timeout_seconds=180.0,
@@ -414,12 +396,12 @@ def test_opencode_go_provider_metadata_validates_and_rejects_other_families() ->
         source_identity=artifact.source_identity,
         dependency_identity=artifact.dependency_identity,
     )
-    assert metadata["provider"] == OPENCODE_GO_FAMILY.provider_name
-    assert metadata["auth_provider"] == "opencode-go"
+    assert metadata["provider"] == ZAI_FAMILY.provider_name
+    assert metadata["auth_provider"] == "zai"
     assert metadata["credential_mode"] == "no-refresh"
     assert metadata["timeout_seconds"] == 180.0
-    assert metadata["requested_route"] == "dspy-lm-auth:opencode-go:kimi-k2.7-code"
-    assert metadata["resolved_route"] == "openai:kimi-k2.7-code:chat"
+    assert metadata["requested_route"] == "dspy-lm-auth:zai:glm-5.3"
+    assert metadata["resolved_route"] == "openai:glm-5.3:chat"
     assert metadata["owner_commit"] == OWNER_COMMIT
     assert "endpoint_origin" not in metadata
     assert "endpoint_origin_sha256" not in metadata
@@ -430,12 +412,12 @@ def test_opencode_go_provider_metadata_validates_and_rejects_other_families() ->
             execution_claimant="pi:test",
             model=GO_MODEL,
             reasoning_effort=None,
-            family=OPENCODE_GO_FAMILY,
+            family=ZAI_FAMILY,
         )
         == metadata
     )
     for other in ALL_FAMILIES:
-        if other is OPENCODE_GO_FAMILY:
+        if other is ZAI_FAMILY:
             continue
         with pytest.raises(FoundryJuryProviderConfigurationError, match="drifted"):
             validate_foundry_jury_provider_metadata(
@@ -453,7 +435,7 @@ def test_opencode_go_provider_metadata_validates_and_rejects_other_families() ->
 
 def _request(tmp_path: Path, **overrides: Any) -> dict[str, Any]:
     arguments: dict[str, Any] = {
-        "provider": OPENCODE_GO_FAMILY.provider_name,
+        "provider": ZAI_FAMILY.provider_name,
         "adjudicator_id": "local",
         "adjudicator_kind": "local",
         "adjudicator_repo": None,
@@ -466,7 +448,7 @@ def _request(tmp_path: Path, **overrides: Any) -> dict[str, Any]:
     return execution_request(**arguments)
 
 
-def test_opencode_go_execution_request_uses_model_key_without_effort_or_endpoint(
+def test_zai_execution_request_uses_model_key_without_effort_or_endpoint(
     tmp_path: Path,
 ) -> None:
     request = _request(tmp_path)
@@ -474,11 +456,9 @@ def test_opencode_go_execution_request_uses_model_key_without_effort_or_endpoint
     assert "codex_model" not in request
     assert "reasoning_effort" not in request
     assert "local_vllm_base_url" not in request
-    assert set(request) == task_local_execution_request_keys(
-        OPENCODE_GO_FAMILY.provider_name
-    )
+    assert set(request) == task_local_execution_request_keys(ZAI_FAMILY.provider_name)
     assert revalidate_execution_request(request) == request
-    assert task_local_family(request) is OPENCODE_GO_FAMILY
+    assert task_local_family(request) is ZAI_FAMILY
     explicit = _request(tmp_path, model="glm-5.3")
     assert explicit["model"] == "glm-5.3"
     assert revalidate_execution_request(explicit) == explicit
@@ -491,11 +471,11 @@ def test_opencode_go_execution_request_uses_model_key_without_effort_or_endpoint
         ({"model": "local/Qwen3.8-27B-AEON-NVFP4-FP8"}, "requires owner source"),
         ({"reasoning_effort": "xhigh"}, "requires owner source"),
         ({"codex_model": "gpt-5.4"}, "codex_model is only"),
-        ({"endpoint": "https://opencode.ai/zen/go/v1"}, "loopback"),
+        ({"endpoint": "https://api.z.ai/api/coding/paas/v4"}, "loopback"),
         ({"execution_task_id": 5308}, "requires owner source"),
     ],
 )
-def test_opencode_go_execution_request_rejects_invalid_inputs(
+def test_zai_execution_request_rejects_invalid_inputs(
     overrides: dict[str, Any], match: str, tmp_path: Path
 ) -> None:
     with pytest.raises(
@@ -504,7 +484,7 @@ def test_opencode_go_execution_request_rejects_invalid_inputs(
         _request(tmp_path, **overrides)
 
 
-def test_opencode_go_revalidate_rejects_foreign_keys(tmp_path: Path) -> None:
+def test_zai_revalidate_rejects_foreign_keys(tmp_path: Path) -> None:
     request = _request(tmp_path)
     for key, value in (
         ("reasoning_effort", "xhigh"),
@@ -525,7 +505,7 @@ def test_opencode_go_revalidate_rejects_foreign_keys(tmp_path: Path) -> None:
 # --- CLI ------------------------------------------------------------------------
 
 
-def test_opencode_go_comparison_jury_cli_forwards_provider_and_model(
+def test_zai_comparison_jury_cli_forwards_provider_and_model(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     receipt = tmp_path / "consumption-receipt.json"
@@ -549,7 +529,7 @@ def test_opencode_go_comparison_jury_cli_forwards_provider_and_model(
             "--receipt",
             str(receipt),
             "--provider",
-            "foundry-dspy-lm-auth-opencode-go",
+            "foundry-dspy-lm-auth-zai",
             "--owner-source-root",
             str(owner_root),
             "--execution-task-id",
@@ -557,7 +537,7 @@ def test_opencode_go_comparison_jury_cli_forwards_provider_and_model(
             "--execution-claimant",
             "pi:test",
             "--model",
-            "kimi-k2.7-code",
+            "glm-5.3",
             "--json",
         ],
     )
@@ -565,7 +545,7 @@ def test_opencode_go_comparison_jury_cli_forwards_provider_and_model(
     assert calls == [
         {
             "consumption_receipt_path": receipt,
-            "provider": "foundry-dspy-lm-auth-opencode-go",
+            "provider": "foundry-dspy-lm-auth-zai",
             "adjudicator_id": "local_foundry_adjudicator",
             "adjudicator_kind": "local_foundry_adjudicator",
             "adjudicator_repo": None,
@@ -575,7 +555,7 @@ def test_opencode_go_comparison_jury_cli_forwards_provider_and_model(
             "execution_claimant": "pi:test",
             "codex_model": None,
             "reasoning_effort": None,
-            "model": "kimi-k2.7-code",
+            "model": "glm-5.3",
         }
     ]
     help_result = CliRunner().invoke(
@@ -583,12 +563,12 @@ def test_opencode_go_comparison_jury_cli_forwards_provider_and_model(
     )
     assert help_result.exit_code == 0
     compact = "".join(help_result.output.split())
-    assert "foundry-dspy-lm-auth-opencode-go" in compact
+    assert "foundry-dspy-lm-auth-zai" in compact
     for name in TASK_LOCAL_PROVIDER_NAMES:
         assert name in compact
 
 
-def test_opencode_go_comparison_jury_binds_runtime_and_records_model_key(
+def test_zai_comparison_jury_binds_runtime_and_records_model_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     receipt, validated = _fixture(tmp_path)
@@ -617,7 +597,7 @@ def test_opencode_go_comparison_jury_binds_runtime_and_records_model_key(
     monkeypatch.setattr(receipt_validation, "_validate_jury_result", validate_result)
     payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
         consumption_receipt_path=receipt,
-        provider=OPENCODE_GO_FAMILY.provider_name,
+        provider=ZAI_FAMILY.provider_name,
         owner_source_root=owner_root,
         execution_task_id=6000,
         execution_claimant="pi:test",
@@ -625,17 +605,17 @@ def test_opencode_go_comparison_jury_binds_runtime_and_records_model_key(
     )
     assert payload["status"] == "ok"
     assert payload["effect"]["ak_called"] is True
-    assert payload["execution_request"]["provider"] == OPENCODE_GO_FAMILY.provider_name
+    assert payload["execution_request"]["provider"] == ZAI_FAMILY.provider_name
     assert payload["execution_request"]["model"] == GO_MODEL
     assert "reasoning_effort" not in payload["execution_request"]
-    assert calls[0]["provider"] == OPENCODE_GO_FAMILY.provider_name
+    assert calls[0]["provider"] == ZAI_FAMILY.provider_name
     assert isinstance(
         calls[0]["provider_runtime_binding"],
         jury_runtime.ProgramModelJuryProviderRuntimeBinding,
     )
     reused = comparison_jury.execute_program_foundry_gepa_comparison_jury(
         consumption_receipt_path=receipt,
-        provider=OPENCODE_GO_FAMILY.provider_name,
+        provider=ZAI_FAMILY.provider_name,
         owner_source_root=owner_root,
         execution_task_id=6000,
         execution_claimant="pi:test",
@@ -648,33 +628,33 @@ def test_opencode_go_comparison_jury_binds_runtime_and_records_model_key(
 # --- credential-free end to end -------------------------------------------------
 
 
-class _OpencodeGoBackend(_XaiBackend):
-    """Fake OpencodeGoBackend: keyword-only auth_path, fixed endpoint, api_key."""
+class _ZaiBackend(_XaiBackend):
+    """Fake ZaiBackend: keyword-only auth_path, fixed endpoint, api_key."""
 
     observed_model = GO_OBSERVED
     constructed: list[Any] = []
 
 
-def test_opencode_go_construct_backend_hook_uses_keyword_auth_path_only() -> None:
-    owner = _ChatOwner(_OpencodeGoBackend)
-    _OpencodeGoBackend.constructed.clear()
-    default = OPENCODE_GO_FAMILY.construct_backend(owner)
-    assert type(default) is _OpencodeGoBackend
+def test_zai_construct_backend_hook_uses_keyword_auth_path_only() -> None:
+    owner = _ChatOwner(_ZaiBackend)
+    _ZaiBackend.constructed.clear()
+    default = ZAI_FAMILY.construct_backend(owner)
+    assert type(default) is _ZaiBackend
     assert default.auth_path == "<default-pi-auth>"
-    explicit = OPENCODE_GO_FAMILY.construct_backend(owner, auth_path="/tmp/auth.json")
+    explicit = ZAI_FAMILY.construct_backend(owner, auth_path="/tmp/auth.json")
     assert explicit.auth_path == "/tmp/auth.json"
-    same = OPENCODE_GO_FAMILY.construct_backend(owner, endpoint="https://opencode.ai")
-    assert type(same) is _OpencodeGoBackend
+    same = ZAI_FAMILY.construct_backend(owner, endpoint="https://api.z.ai")
+    assert type(same) is _ZaiBackend
     with pytest.raises(ValueError, match="endpoint is fixed"):
-        OPENCODE_GO_FAMILY.construct_backend(
-            owner, endpoint="https://opencode.ai/zen/go/v1"
+        ZAI_FAMILY.construct_backend(
+            owner, endpoint="https://api.z.ai/api/coding/paas/v4"
         )
-    assert len(_OpencodeGoBackend.constructed) == 3
+    assert len(_ZaiBackend.constructed) == 3
 
 
-def test_opencode_go_build_backend_request_omits_effort_and_format() -> None:
-    owner = _ChatOwner(_OpencodeGoBackend)
-    request = OPENCODE_GO_FAMILY.build_backend_request(
+def test_zai_build_backend_request_omits_effort_and_format() -> None:
+    owner = _ChatOwner(_ZaiBackend)
+    request = ZAI_FAMILY.build_backend_request(
         owner,
         model=GO_MODEL,
         messages=(_ChatMessage("user", "hi"),),
@@ -688,24 +668,24 @@ def test_opencode_go_build_backend_request_omits_effort_and_format() -> None:
     assert not hasattr(request, "response_format")
 
 
-def test_opencode_go_family_runs_end_to_end_through_configure_adapter_and_custody(
+def test_zai_family_runs_end_to_end_through_configure_adapter_and_custody(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     previous_lm = getattr(dspy.settings, "lm", None)
     previous_adapter = getattr(dspy.settings, "adapter", None)
-    _OpencodeGoBackend.constructed.clear()
+    _ZaiBackend.constructed.clear()
     metadata, result, evidence, _ = run_configured_jury(
         tmp_path,
         monkeypatch,
-        family=OPENCODE_GO_FAMILY,
-        backend_type=_OpencodeGoBackend,
+        family=ZAI_FAMILY,
+        backend_type=_ZaiBackend,
         model=GO_MODEL,
     )
     assert getattr(dspy.settings, "lm", None) is previous_lm
     assert getattr(dspy.settings, "adapter", None) is previous_adapter
     assert result["outcome"] == "supports_review_evidence"
-    backend = _OpencodeGoBackend.constructed[-1]
-    assert type(backend) is _OpencodeGoBackend
+    backend = _ZaiBackend.constructed[-1]
+    assert type(backend) is _ZaiBackend
     assert backend.auth_path == "<default-pi-auth>"
     request = backend.requests[0]
     assert request.model == GO_MODEL
@@ -713,9 +693,9 @@ def test_opencode_go_family_runs_end_to_end_through_configure_adapter_and_custod
     assert metadata["timeout_seconds"] == 180.0
     assert not hasattr(request, "reasoning_effort")
     assert not hasattr(request, "response_format")
-    assert metadata["provider"] == OPENCODE_GO_FAMILY.provider_name
+    assert metadata["provider"] == ZAI_FAMILY.provider_name
     assert metadata["model"] == GO_MODEL
-    assert metadata["auth_provider"] == "opencode-go"
+    assert metadata["auth_provider"] == "zai"
     assert metadata["reasoning_effort"] is None
     assert "endpoint_origin_sha256" not in metadata
     assert validate_foundry_jury_provider_metadata(
@@ -724,26 +704,24 @@ def test_opencode_go_family_runs_end_to_end_through_configure_adapter_and_custod
         execution_claimant="pi:test",
         model=GO_MODEL,
         reasoning_effort=None,
-        family=OPENCODE_GO_FAMILY,
+        family=ZAI_FAMILY,
     )
     assert evidence["session_disposition"] == "complete"
     record = evidence["call_records"][0]
     assert record["semantic_request_sha256"] == backend.semantic_hashes[0]
     assert record["observed_model"] == GO_OBSERVED
     _stub_owner_source(monkeypatch)
-    validated = _validate(
-        evidence, tmp_path, OPENCODE_GO_FAMILY, GO_MODEL, ("quality",)
-    )
+    validated = _validate(evidence, tmp_path, ZAI_FAMILY, GO_MODEL, ("quality",))
     assert validated == evidence
     journal = sorted((tmp_path / "provider-outcomes").iterdir())[0]
     wrapper = json.loads((journal / "reservation.json").read_text("utf-8"))
     reservation = wrapper["reservation"]
     assert reservation["endpoint_origin_sha256"] == GO_ENDPOINT_ORIGIN_SHA256
-    assert reservation["requested_route"] == "dspy-lm-auth:opencode-go:kimi-k2.7-code"
-    assert reservation["resolved_route"] == "openai:kimi-k2.7-code:chat"
+    assert reservation["requested_route"] == "dspy-lm-auth:zai:glm-5.3"
+    assert reservation["resolved_route"] == "openai:glm-5.3:chat"
 
 
-def test_opencode_go_configure_rejects_invalid_model_or_timeout_before_owner_load(
+def test_zai_configure_rejects_invalid_model_or_timeout_before_owner_load(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def verify(root: Path, bound: FoundryJuryProviderFamily) -> Any:
@@ -751,7 +729,7 @@ def test_opencode_go_configure_rejects_invalid_model_or_timeout_before_owner_loa
 
     monkeypatch.setattr(provider_module, "verify_loaded_foundry_jury_owner", verify)
     for model, effort in (("Kimi-K2.7-Code", None), (GO_MODEL, "xhigh")):
-        with pytest.raises(FoundryJuryProviderConfigurationError, match="opencode-go"):
+        with pytest.raises(FoundryJuryProviderConfigurationError, match="zai"):
             configure_foundry_jury_provider(
                 owner_source_root=tmp_path,
                 journal_parent=tmp_path / "provider-outcomes",
@@ -762,7 +740,7 @@ def test_opencode_go_configure_rejects_invalid_model_or_timeout_before_owner_loa
                 expected_juror_ids=("quality",),
                 model=model,
                 reasoning_effort=effort,
-                family=OPENCODE_GO_FAMILY,
+                family=ZAI_FAMILY,
             )
     with pytest.raises(
         FoundryJuryProviderConfigurationError, match="timeout must match"
@@ -776,7 +754,7 @@ def test_opencode_go_configure_rejects_invalid_model_or_timeout_before_owner_loa
             contract_sha256="a" * 64,
             expected_juror_ids=("quality",),
             timeout_seconds=60.0,
-            family=OPENCODE_GO_FAMILY,
+            family=ZAI_FAMILY,
         )
 
 
@@ -802,7 +780,7 @@ def _fake_owner(tmp_path: Path) -> tuple[Path, str, str]:
 
 def _api_key_auth_json(tmp_path: Path, entry: dict[str, Any] | None) -> Path:
     path = tmp_path / "auth.json"
-    payload = {} if entry is None else {"opencode-go": entry}
+    payload = {} if entry is None else {"zai": entry}
     path.write_text(json.dumps(payload), encoding="utf-8")
     return path
 
@@ -818,7 +796,7 @@ def _api_key_probe_config(
     if entry is None:
         entry = {"type": "api_key", "key": SECRET}
     return {
-        "auth_provider": "opencode-go",
+        "auth_provider": "zai",
         "auth_mode": "pi-api-key",
         "model": model,
         "catalog_url": catalog_url,
@@ -836,11 +814,11 @@ def test_preflight_probe_config_carries_credential_module_only_for_api_key(
     tmp_path: Path,
 ) -> None:
     go = preflight._probe_config(
-        OPENCODE_GO_FAMILY, owner_source_root=tmp_path, model=GO_MODEL, auth_path=None
+        ZAI_FAMILY, owner_source_root=tmp_path, model=GO_MODEL, auth_path=None
     )
     assert go["auth_mode"] == "pi-api-key"
-    assert go["auth_provider"] == "opencode-go"
-    assert go["catalog_url"] == "https://opencode.ai/zen/go/v1/models"
+    assert go["auth_provider"] == "zai"
+    assert go["catalog_url"] == "https://api.z.ai/api/coding/paas/v4/models"
     assert go["credential_module_path"] == str(
         tmp_path / "src/dspy_lm_auth/_chat_credential.py"
     )
@@ -946,7 +924,7 @@ def test_api_key_probe_fails_closed_on_unknown_auth_mode(tmp_path: Path) -> None
         preflight.run_probe(config)
 
 
-def test_opencode_go_probe_through_family_binds_owner_hashes(
+def test_zai_probe_through_family_binds_owner_hashes(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     go_catalog_server: tuple[_Catalog, str],
@@ -958,7 +936,7 @@ def test_opencode_go_probe_through_family_binds_owner_hashes(
     # Point the fixed family's listing at the loopback catalog; the origin hash
     # is irrelevant to the probe, which only composes ``catalog_url``.
     family = replace(
-        OPENCODE_GO_FAMILY,
+        ZAI_FAMILY,
         endpoint_origin=base.removesuffix("/v1"),
         catalog_path="/v1/models",
     )
@@ -989,7 +967,7 @@ def test_opencode_go_probe_through_family_binds_owner_hashes(
     _api_key_auth_json(tmp_path, None)
     with pytest.raises(
         comparison_jury.ProgramFoundryGepaComparisonJuryError,
-        match="opencode-go credential is absent, expired, or misrouted",
+        match="zai credential is absent, expired, or misrouted",
     ):
         preflight.probe_credential_and_catalog(
             family, owner_source_root=root, model=GO_MODEL, auth_path=auth_path
@@ -1019,22 +997,22 @@ def _loaded_owner(
     )
 
 
-def test_loaded_owner_rules_bind_the_opencode_go_backend_type(
+def test_loaded_owner_rules_bind_the_zai_backend_type(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    family = OPENCODE_GO_FAMILY
+    family = ZAI_FAMILY
     monkeypatch.setattr(
         "dspx.services.program_foundry_gepa_comparison_jury_owner.verify_foundry_jury_owner_source",
         lambda root: {},
     )
-    expected = tmp_path / "src" / "dspy_lm_auth" / "opencode_go_backend.py"
+    expected = tmp_path / "src" / "dspy_lm_auth" / "zai_backend.py"
     expected.parent.mkdir(parents=True, exist_ok=True)
-    expected.write_text("class OpencodeGoBackend: ...\n", encoding="utf-8")
+    expected.write_text("class ZaiBackend: ...\n", encoding="utf-8")
     monkeypatch.setattr(
         "dspx.services.program_foundry_gepa_comparison_jury_owner.inspect.getsourcefile",
         lambda item: str(expected),
     )
-    exact = type("OpencodeGoBackend", (), {"__module__": family.backend_module})
+    exact = type("ZaiBackend", (), {"__module__": family.backend_module})
     assert "dspy_lm_auth.lm" not in sys.modules
     _loaded_owner(family, exact, tmp_path).revalidate()
     for other in ALL_FAMILIES:
@@ -1044,7 +1022,7 @@ def test_loaded_owner_rules_bind_the_opencode_go_backend_type(
         with pytest.raises(ProviderOutcomeConsumerError) as foreign_drift:
             _loaded_owner(family, foreign, tmp_path).revalidate()
         assert foreign_drift.value.reason == "loaded_owner_backend_type_drift"
-    renamed = type("OpencodeBackend", (), {"__module__": family.backend_module})
+    renamed = type("ZaiOtherBackend", (), {"__module__": family.backend_module})
     with pytest.raises(ProviderOutcomeConsumerError) as rename_drift:
         _loaded_owner(family, renamed, tmp_path).revalidate()
     assert rename_drift.value.reason == "loaded_owner_backend_type_drift"
@@ -1118,7 +1096,7 @@ def test_runtime_binding_accepts_six_task_local_provider_names() -> None:
             candidate_identity={},
             evidence_json="{}",
             adjudicator={},
-            provider="opencode-go",
+            provider="zai",
             configure_provider=lambda name: {},
             run_juror=lambda **kwargs: {},
             sanitize_diagnostic=lambda exc: "",
@@ -1131,7 +1109,7 @@ def test_runtime_binding_accepts_six_task_local_provider_names() -> None:
 # --- owner repin ----------------------------------------------------------------
 
 
-def test_owner_is_repinned_to_the_opencode_go_fork_commit() -> None:
+def test_owner_is_repinned_to_the_zai_fork_commit() -> None:
     assert OWNER_COMMIT == "6c3473ca17bf03325698e3e1a8419a8abc915938"
     assert OWNER_TREE == "dc9098779ec5b500d82ed914d8bba7857d276b85"
     assert OWNER_VERSION == "0.1.6"
@@ -1139,7 +1117,7 @@ def test_owner_is_repinned_to_the_opencode_go_fork_commit() -> None:
         "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648"
     )
     for relative in (
-        "src/dspy_lm_auth/opencode_go_backend.py",
+        "src/dspy_lm_auth/zai_backend.py",
         "src/dspy_lm_auth/_chat_credential.py",
         "src/dspy_lm_auth/chat_backend_contract.py",
         "src/dspy_lm_auth/chat_backend.py",
@@ -1147,7 +1125,7 @@ def test_owner_is_repinned_to_the_opencode_go_fork_commit() -> None:
     ):
         assert relative in REQUIRED_EXTRA_OWNER_FILES
         assert relative in _EXTRA_OWNER_FILES
-    assert _EXTRA_OWNER_FILES["src/dspy_lm_auth/opencode_go_backend.py"] == (
-        "8337aee715f1dcada81b8d25bb8ca6eca2edbae00d218705df0039a7285c723d"
+    assert _EXTRA_OWNER_FILES["src/dspy_lm_auth/zai_backend.py"] == (
+        "c993c6bbea73f153fbc8a82b6fc86d602349f5a6e9039b00016cd9a0552cac35"
     )
     assert missing_required_extra_files() == ()

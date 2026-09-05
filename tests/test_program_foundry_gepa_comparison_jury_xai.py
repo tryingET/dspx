@@ -142,7 +142,7 @@ def test_xai_family_literals_are_pinned() -> None:
     assert family_for_provider(XAI_FAMILY.provider_name) is XAI_FAMILY
     assert FAMILIES[XAI_FAMILY.provider_name] is XAI_FAMILY
     assert XAI_FAMILY.provider_name in TASK_LOCAL_PROVIDER_NAMES
-    assert len(TASK_LOCAL_PROVIDER_NAMES) == 5
+    assert len(TASK_LOCAL_PROVIDER_NAMES) == 6
     assert XAI_FAMILY.provider_name not in SUPPORTED_PROVIDER_NAMES
     assert task_local_execution_request_keys(XAI_FAMILY.provider_name) == frozenset(
         {

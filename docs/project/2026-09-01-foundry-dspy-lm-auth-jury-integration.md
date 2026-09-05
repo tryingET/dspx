@@ -589,3 +589,30 @@ Credential-free verification: `tests/test_program_foundry_gepa_comparison_jury_o
 (62 tests) plus the count/pin updates in the xAI, Copilot, local vLLM, and preflight suites.
 No live OpenCode Go jury has run yet; the first live run needs a claimed AK task with the exact
 title above and Pi's `opencode-go` api_key entry present.
+
+
+## 2026-09-05: Z.ai Coding Plan provider family and owner repin to 6c3473ca (AK-5376)
+
+`foundry-dspy-lm-auth-zai` runs the jury over the owner's
+`dspy_lm_auth.zai_backend.ZaiBackend` (fork AK-5375): `pi-api-key` auth mode on
+Pi's `zai` entry, fixed subscription endpoint `https://api.z.ai/api/coding/paas/v4`
+(the metered default endpoint refuses Coding Plan keys with 429 / code 1113),
+`glm-*` model contract, default `glm-5.3`, 180 s per call, read-only catalog
+`/api/coding/paas/v4/models`. Owner pins move to `6c3473ca` (0.1.6 line with the
+Z.ai backend); `src/dspy_lm_auth/zai_backend.py` joins the hash-pinned owner
+files. 392 jury-suite tests; ruff and ty clean.
+
+| | Z.ai Coding Plan family |
+|---|---|
+| `--provider` | `foundry-dspy-lm-auth-zai` |
+| `--model` | `glm-5.3` (default), any `glm-*` id listed by the catalog |
+| execution task title | `Execute one receipt-bound foundry comparison jury with dspy-lm-auth Z.ai Coding Plan` |
+| credential | Pi `zai` api_key entry, read-only, no expiry |
+
+Live proof (AK-5377, lineage root `/home/tryinget/.local/state/pi-quests/tmp/misegraph-foundry-zai-5377.g5VbYl`): fresh package of the promoted family
+recipe Pfannenradieschen (package `baad82caf504…`), live Oracle and GEPA on the
+typed local vLLM port, `consume`, preflight (credential present, catalog 10 ids,
+`glm-5.3` listed, AK authority active), jury executed in 182 s with three
+`request_more_evidence` judgments, adjudication `require_review`, Misegraph
+`evidence verify-receipt` record `pfannenradieschen-baad82caf504-jury-recommendation-live.json`
+= `insufficient_evidence`, `provider_evidence_kind: live`, `decision: null`.

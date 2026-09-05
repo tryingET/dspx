@@ -5,7 +5,7 @@ It imports only the standard library and ``httpx``; it never imports ``dspx``
 or the ``dspy_lm_auth`` package. The owner's hash-pinned ``auth.py`` is loaded
 from a file location under a non-package alias so the bearer token is read
 through the owner's own no-refresh reader and never leaves this process.
-``pi-api-key`` families (OpenCode Go) read one ``{"type": "api_key"}`` entry
+``pi-api-key`` families (OpenCode Go, Z.ai Coding Plan) read one ``{"type": "api_key"}`` entry
 with a verbatim copy of the owner's ``_chat_credential.read_existing_api_key_credential``
 rules (that module imports the owner package, so it cannot be aliased in);
 the owner file's hash is still verified before the copy is used.
@@ -45,7 +45,7 @@ COPILOT_CATALOG_HEADERS: dict[str, str] = {
 CATALOG_TIMEOUT_SECONDS = 10.0
 CATALOG_MAX_BODY_BYTES = 1024 * 1024
 _AUTH_ALIAS = "_dspx_foundry_preflight_owner_auth"
-_BEARER_PROVIDERS = frozenset({"github-copilot", "xai", "opencode-go"})
+_BEARER_PROVIDERS = frozenset({"github-copilot", "xai", "opencode-go", "zai"})
 AUTH_MODE_PI_OAUTH = "pi-oauth-no-refresh"
 AUTH_MODE_PI_API_KEY = "pi-api-key"
 AUTH_MODE_NONE = "none"

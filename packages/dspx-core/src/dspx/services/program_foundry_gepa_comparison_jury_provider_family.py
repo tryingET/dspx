@@ -288,6 +288,9 @@ XAI_ENDPOINT_ORIGIN = "https://api.x.ai"
 # The owner fixes ``https://opencode.ai/zen/go/v1``; the origin excludes the
 # path so ``catalog_path`` composes the exact read-only listing URL.
 OPENCODE_GO_ENDPOINT_ORIGIN = "https://opencode.ai"
+# The owner fixes the Z.ai Coding Plan endpoint ``https://api.z.ai/api/coding/paas/v4``
+# (the metered default endpoint refuses Coding Plan keys with 429 / code 1113).
+ZAI_ENDPOINT_ORIGIN = "https://api.z.ai"
 LOCAL_VLLM_ENDPOINT_ENV = "DSPX_LOCAL_VLLM_BASE_URL"
 LOCAL_VLLM_DEFAULT_ENDPOINT = "http://127.0.0.1:2456/v1"
 _CHAT_CONTRACT_MODULE = "dspy_lm_auth.chat_backend_contract"
@@ -416,6 +419,40 @@ OPENCODE_GO_FAMILY = FoundryJuryProviderFamily(
     auth_mode=AUTH_MODE_PI_API_KEY,
 )
 
+# Z.ai Coding Plan serves GLM ids only (glm-5.3, glm-5.3-flash, glm-5.2, ...)
+# behind Pi's ``zai`` api_key entry: no OAuth, no expiry, subscription endpoint.
+ZAI_FAMILY = FoundryJuryProviderFamily(
+    provider_name="foundry-dspy-lm-auth-zai",
+    auth_provider="zai",
+    model_re=re.compile(r"^glm-[a-z0-9][a-z0-9.-]{0,63}$"),
+    default_model="glm-5.3",
+    allowed_reasoning_efforts=None,
+    default_reasoning_effort=None,
+    execution_task_title=(
+        "Execute one receipt-bound foundry comparison jury with dspy-lm-auth "
+        "Z.ai Coding Plan"
+    ),
+    endpoint_origin=ZAI_ENDPOINT_ORIGIN,
+    endpoint_origin_sha256=(
+        "784fab9bbd73a8bc4fd132a14aa3a30437e9d94c19ffc8cbd24854c0a02f07d9"
+    ),
+    requested_route_template="dspy-lm-auth:zai:{model}",
+    resolved_route_template="openai:{model}:chat",
+    backend_module="dspy_lm_auth.zai_backend",
+    backend_class="ZaiBackend",
+    contract_module=_CHAT_CONTRACT_MODULE,
+    message_class="ChatBackendMessage",
+    request_class="ChatBackendRequest",
+    response_class="ChatBackendResponse",
+    allowed_roles=_CHAT_ROLES,
+    model_key="model",
+    strict_observed_model=False,
+    catalog_path="/api/coding/paas/v4/models",
+    # glm-5.3 reasons before answering, like grok-4.6 and the Go tier.
+    default_timeout_seconds=180.0,
+    auth_mode=AUTH_MODE_PI_API_KEY,
+)
+
 LOCAL_VLLM_FAMILY = FoundryJuryProviderFamily(
     provider_name="foundry-dspy-lm-auth-local-vllm",
     auth_provider="none",
@@ -452,6 +489,7 @@ FAMILIES: Mapping[str, FoundryJuryProviderFamily] = {
     COPILOT_FAMILY.provider_name: COPILOT_FAMILY,
     XAI_FAMILY.provider_name: XAI_FAMILY,
     OPENCODE_GO_FAMILY.provider_name: OPENCODE_GO_FAMILY,
+    ZAI_FAMILY.provider_name: ZAI_FAMILY,
     LOCAL_VLLM_FAMILY.provider_name: LOCAL_VLLM_FAMILY,
 }
 TASK_LOCAL_PROVIDER_NAMES = frozenset(FAMILIES)
@@ -497,6 +535,8 @@ __all__ = [
     "LOCAL_VLLM_FAMILY",
     "OPENCODE_GO_ENDPOINT_ORIGIN",
     "OPENCODE_GO_FAMILY",
+    "ZAI_ENDPOINT_ORIGIN",
+    "ZAI_FAMILY",
     "TASK_LOCAL_PROVIDER_NAMES",
     "XAI_FAMILY",
     "FoundryJuryProviderFamily",

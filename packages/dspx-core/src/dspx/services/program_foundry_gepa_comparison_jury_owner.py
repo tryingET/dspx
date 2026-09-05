@@ -36,15 +36,15 @@ from dspx.services.soomfon_provider_outcome_receipt_identity import (
 # source_identity (provider_outcome_receipt_contract); every other reviewed
 # owner file is hash-pinned through _EXTRA_OWNER_FILES.
 # ---------------------------------------------------------------------------
-OWNER_COMMIT = "80c970c92845c79afeb825fb17d7e8a0649f7474"
-OWNER_TREE = "22fc8646b4b5a032b4db2462ae7ba9167055a09d"
+OWNER_COMMIT = "6c3473ca17bf03325698e3e1a8419a8abc915938"
+OWNER_TREE = "dc9098779ec5b500d82ed914d8bba7857d276b85"
 OWNER_VERSION = "0.1.6"
 OWNER_LOCK_SHA256 = "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648"
 
 _OWNER_MODULES: dict[str, tuple[str, str]] = {
     "package_init": (
         "src/dspy_lm_auth/__init__.py",
-        "d8d53cae72fcfe334de6770a203eeccf71aedc5bdb021d701c46d6ebb1469e78",
+        "5f180cf9f7c44a894b0b51c91ba4765b55d71c036b5f49ea2b0a97823803b844",
     ),
     "lm": (
         "src/dspy_lm_auth/lm.py",
@@ -97,6 +97,7 @@ _EXTRA_OWNER_FILES = {
     "src/dspy_lm_auth/xai_backend.py": "a3c30358b3b669a250aa58fe3e5b3b2fc48a2210dddb4321935a093b2f49767a",
     "src/dspy_lm_auth/local_vllm_backend.py": "992108f9895ddfc09c09ec4993c6fd69d37c91887466e71faeda05717481172d",
     "src/dspy_lm_auth/opencode_go_backend.py": "8337aee715f1dcada81b8d25bb8ca6eca2edbae00d218705df0039a7285c723d",
+    "src/dspy_lm_auth/zai_backend.py": "c993c6bbea73f153fbc8a82b6fc86d602349f5a6e9039b00016cd9a0552cac35",
 }
 # ---------------------------------------------------------------------------
 # END OWNER PIN BLOCK
