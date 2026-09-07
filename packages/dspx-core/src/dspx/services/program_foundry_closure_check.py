@@ -12,7 +12,14 @@ from pathlib import Path
 import sys
 import types
 
-MODULES = (
+PURE_MODULES = (
+    "program_runtime_trace_coverage",
+    "program_runtime_traces",
+    "program_quality_evaluation",
+    "program_refinement_gepa_metric_honesty",
+)
+MODULES = tuple(name + ".py" for name in PURE_MODULES) + (
+    "program_foundry_closure_runtime.py",
     "program_foundry_closure_check.py",
     "program_foundry_closure_core.py",
     "program_foundry_closure_contracts.py",
@@ -52,19 +59,23 @@ def load_modules(installed: dict) -> None:
     """Load only fixed, captured current code; never add installation to sys.path."""
     root = Path(__file__).resolve().parent
     hashes = {row["path"]: row["sha256"] for row in installed["modules"]}
-    for suffix in (
-        "io",
-        "profiles",
-        "import",
-        "reducers",
-        "contracts",
-        "comparison",
-        "core",
-        "gepa",
-        "journal",
-        "jury",
-    ):
-        name = "program_foundry_closure_" + suffix
+    names = [*PURE_MODULES] + [
+        "program_foundry_closure_" + suffix
+        for suffix in (
+            "io",
+            "profiles",
+            "import",
+            "reducers",
+            "runtime",
+            "contracts",
+            "comparison",
+            "core",
+            "gepa",
+            "journal",
+            "jury",
+        )
+    ]
+    for name in names:
         path = root / (name + ".py")
         with path.open("rb") as source:
             raw = source.read(51201)

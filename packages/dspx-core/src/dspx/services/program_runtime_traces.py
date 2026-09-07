@@ -8,11 +8,19 @@ import hashlib
 import json
 from typing import Any, Mapping
 
-from dspx.services.program_runtime_trace_coverage import (
-    source_record_coverage,
-    source_record_coverage_status,
-    source_record_coverage_valid,
-)
+if __package__:
+    from dspx.services.program_runtime_trace_coverage import (
+        source_record_coverage,
+        source_record_coverage_status,
+        source_record_coverage_valid,
+    )
+else:
+    # Captured, fixed current-code capsule; never a sys.path installation import.
+    from program_runtime_trace_coverage import (  # ty: ignore[unresolved-import]
+        source_record_coverage,
+        source_record_coverage_status,
+        source_record_coverage_valid,
+    )
 
 PROGRAM_RUNTIME_TRACES_SCHEMA = "program-runtime-traces-v1"
 PROGRAM_RUNTIME_MODULE_CALL_SCHEMA = "program-runtime-module-call-v1"

@@ -36,8 +36,8 @@ from dspx.services.soomfon_provider_outcome_receipt_identity import (
 # source_identity (provider_outcome_receipt_contract); every other reviewed
 # owner file is hash-pinned through _EXTRA_OWNER_FILES.
 # ---------------------------------------------------------------------------
-OWNER_COMMIT = "6c3473ca17bf03325698e3e1a8419a8abc915938"
-OWNER_TREE = "dc9098779ec5b500d82ed914d8bba7857d276b85"
+OWNER_COMMIT = "a893382e3a7abc06de0814f29709b9143b930826"
+OWNER_TREE = "a4c4b050e2bace57586119d2e8ae9865511484d8"
 OWNER_VERSION = "0.1.6"
 OWNER_LOCK_SHA256 = "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648"
 
@@ -60,15 +60,15 @@ _OWNER_MODULES: dict[str, tuple[str, str]] = {
     ),
     "outcome_receipt": (
         "src/dspy_lm_auth/outcome_receipt.py",
-        "dd8b2ff9279d0098e40d04d486a9aa550328650a57d5205971df240bcd4b4d0d",
+        "75f03052f5f4ca3cc7f35476fca213efead3622edf698a070cd432883ba581c4",
     ),
     "outcome_receipt_state": (
         "src/dspy_lm_auth/outcome_receipt_state.py",
-        "0f6686b3204df451044f391c66e48ab78a867d997f48fba958d0a1068b9a6f26",
+        "8bef689cd29fd201973ad357056b8f82a307e002e9d59c39e04f38dd65f1a06f",
     ),
     "outcome_receipt_runtime": (
         "src/dspy_lm_auth/outcome_receipt_runtime.py",
-        "637606bb8a4ce5da5843fae7130f829abf561c65dbafbb98eba4a356c6315338",
+        "fd6ce57588809547db492605b6b13c5ac2dd2f21df4796b156dff454816a3f29",
     ),
     "outcome_receipt_transport": (
         "src/dspy_lm_auth/outcome_receipt_transport.py",
@@ -91,8 +91,8 @@ _EXTRA_OWNER_FILES = {
     "src/dspy_lm_auth/auth.py": "b46b390a292ddb8eb6ab22c6a26958644047ca31cc121d773af3bf9cc7f75e7e",
     "src/dspy_lm_auth/chat_backend.py": "d907e2cbef270f49e8cc26bdffd8628195ea9e1d59bb739b774bd9eab7a41c9d",
     "src/dspy_lm_auth/chat_backend_contract.py": "fa0db50ef75591e66dc1cc9ddb1b1bac78570228ca221ef07ff820c502218f63",
-    "src/dspy_lm_auth/chat_backend_runtime.py": "a53a8184237d38c68b6ddaa77f4e522e97b9717804165dd827d0e76a3bb2e479",
-    "src/dspy_lm_auth/chat_backend_transport.py": "552175ee9bb009e2075b5f5e339704630ee06489743e7df976c472e81bba8fa8",
+    "src/dspy_lm_auth/chat_backend_runtime.py": "aea8be12952e13a8ce6de8a3bdb7c706ee1652e0e874e1d28b90066227f0c638",
+    "src/dspy_lm_auth/chat_backend_transport.py": "13f32784ce2b5f6422674f977bc3ab97c356d2e1eeede71a9501d490e27099fe",
     "src/dspy_lm_auth/_chat_credential.py": "e34c49e76ae94b129e190549959780126750e0faf5eff831c6ae90648f4648f5",
     "src/dspy_lm_auth/xai_backend.py": "a3c30358b3b669a250aa58fe3e5b3b2fc48a2210dddb4321935a093b2f49767a",
     "src/dspy_lm_auth/local_vllm_backend.py": "992108f9895ddfc09c09ec4993c6fd69d37c91887466e71faeda05717481172d",

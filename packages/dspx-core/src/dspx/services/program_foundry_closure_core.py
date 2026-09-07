@@ -41,6 +41,24 @@ def reference(s: Snapshot, block: dict, name: str) -> tuple[str, dict]:
 
 def meta(s: Snapshot, path: str, output: dict) -> dict:
     receipt = s.json(path + ".meta.json")
+    require(
+        {
+            "receipt_version",
+            "created_at",
+            "run_kind",
+            "provider",
+            "output_path",
+            "hash",
+            "template_version",
+            "cache_key",
+            "cache_file",
+            "cache_enabled",
+            "replay_inputs",
+        }
+        <= set(receipt),
+        "meta_required_fields",
+    )
+    require(type(receipt["cache_enabled"]) is bool, "meta_cache_enabled")
     equal(receipt["receipt_version"], "v2")
     equal(receipt["output_path"], path)
     equal(receipt["hash"], s.hash(path), "meta_output_hash")
@@ -54,6 +72,24 @@ def meta(s: Snapshot, path: str, output: dict) -> dict:
         payload = {"kind": "program", "intent": replay["intent"]}
     else:
         equal(receipt["run_kind"], "program-runtime")
+        require(
+            {
+                "candidate_manifest_path",
+                "candidate_manifest_sha256",
+                "candidate_receipt_path",
+                "candidate_receipt_sha256",
+                "runtime_inputs_sha256",
+                "replay_fixture_path",
+                "replay_fixture_sha256",
+                "contract_mode",
+                "skip_oracle_index",
+                "publication_preflight_requested",
+                "expected_episode",
+            }
+            <= set(replay),
+            "runtime_replay_required_fields",
+        )
+        require(receipt["cache_enabled"] is False, "runtime_cache_not_captured")
         payload = {"kind": "program-runtime", "replay_inputs": replay}
     cache_key = digest(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
@@ -62,6 +98,11 @@ def meta(s: Snapshot, path: str, output: dict) -> dict:
     require(
         PurePosixPath(receipt["cache_file"]).name == cache_key + ".json",
         "meta_cache_path",
+    )
+    equal(
+        PurePosixPath(receipt["cache_file"]).parent.name,
+        payload["kind"],
+        "meta_cache_kind",
     )
     policy = receipt["execution_replay"]
     equal(policy["schema_version"], "local-execution-replay-v2")
@@ -86,6 +127,9 @@ def meta(s: Snapshot, path: str, output: dict) -> dict:
 def candidate(s: Snapshot, path: str) -> tuple[dict, str]:
     manifest = s.json(path)
     equal(manifest["schema_version"], "program-candidate-assembly-v1")
+    from program_foundry_closure_contracts import candidate_declarations  # ty: ignore[unresolved-import]
+
+    candidate_declarations(s, path, manifest)
     declarations = manifest["candidate_assembly"]["surfaces"]
     require(
         isinstance(declarations, list) and 0 < len(declarations) <= 64,
@@ -197,8 +241,8 @@ def runtime(
         episode["status"]
         in {
             "executed_quality_passed",
-            "executed_quality_failed",
-            "executed_quality_not_evaluated",
+            "failed_quality",
+            "executed",
         },
         "runtime_status",
     )
@@ -233,6 +277,9 @@ def runtime(
     )
     equal(intent(rmanifest["intent"]), intent(s.json(manifest_path)["intent"]))
     receipt = meta(s, path, episode)
+    from program_foundry_closure_contracts import runtime_graph  # ty: ignore[unresolved-import]
+
+    runtime_graph(s, path, manifest_path, episode, behavior, receipt)
     replay = receipt["replay_inputs"]
     equal(replay["candidate_manifest_path"], manifest_path)
     equal(replay["candidate_manifest_sha256"], s.hash(manifest_path))

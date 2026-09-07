@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
+
+from program_refinement_gepa_metric_honesty import (  # ty: ignore[unresolved-import]
+    render_concept_coverage_program,
+    CONCEPT_COVERAGE_PROGRAM_NAME,
+)
+from program_foundry_closure_contracts import gepa_result, identity  # ty: ignore[unresolved-import]
 
 from program_foundry_closure_core import NONAUTH, candidate, origin, reference, runtime  # ty: ignore[unresolved-import]
 from program_foundry_closure_io import (  # ty: ignore[unresolved-import]
@@ -53,6 +59,7 @@ def verify_gepa(s: Snapshot, state: dict, report: dict) -> dict:
     result_path = eroot + "/gepa-result.json"
     result = s.json(result_path, execution["result_sha256"])
     equal(result["schema_version"], "program-refinement-gepa-result-v1")
+    gepa_result(result, identity(state["source"]))
     equal(result["gepa"]["status"], "completed")
     require(result["gepa"]["attempted"] is True, "gepa_not_attempted")
     manifest, tree_hash = optimizer(s, eroot + "/optimizer-output")
@@ -93,8 +100,29 @@ def verify_gepa(s: Snapshot, state: dict, report: dict) -> dict:
         equal(manifest["metric_honesty"], mh)
         equal(result["gepa"]["concept_coverage_binding"]["metric_honesty"], mh)
         equal(manifest["program"]["sha256"], mh["wrapper_program_sha256"])
+        expected_wrapper = render_concept_coverage_program(
+            candidate_program=Path(sibling(state["source_path"], "program.py")),
+            candidate_program_sha256=mh["source_program_sha256"],
+            criteria=state["imported"]["quality_criteria"],
+            output_fields=state["imported"]["outputs"],
+        ).encode("utf-8")
+        equal(
+            digest(expected_wrapper),
+            mh["wrapper_program_sha256"],
+            "metric_wrapper_reconstruction",
+        )
+        equal(
+            s.read(eroot + "/optimizer-output/source/" + CONCEPT_COVERAGE_PROGRAM_NAME),
+            expected_wrapper,
+            "metric_wrapper_payload",
+        )
     else:
         require(mh is None, "unexpected_metric_honesty")
+        equal(
+            manifest["program"]["sha256"],
+            s.hash(sibling(state["source_path"], "program.py")),
+            "optimizer_source_program",
+        )
     # Manifest points to its source wrapper and dataset files; read only their mapped bytes.
     for ref in [manifest["program"], *manifest["dataset"].values()]:
         if isinstance(ref, dict) and "path" in ref and "sha256" in ref:

@@ -148,6 +148,33 @@ def view(
 def verify_comparison(
     s, comparison: dict, source_path: str, candidate_path: str, owner: str
 ) -> None:
+    for section, keys in {
+        "effect": (
+            "source_program_files_mutated",
+            "candidate_program_files_mutated",
+            "new_candidate_generated",
+            "external_authority_mutated",
+            "governance_mutated",
+        ),
+        "non_authority": (
+            "oracle_ranking",
+            "oracle_pruning",
+            "oracle_promotion",
+            "winner_selection",
+            "automatic_promotion",
+            "program_mutation",
+            "new_candidate_generation",
+            "governance_authority",
+            "external_mutation",
+        ),
+    }.items():
+        equal(
+            comparison[section].get("local_comparison_only"),
+            True,
+            "comparison_" + section,
+        )
+        for key in keys:
+            equal(comparison[section].get(key), False, "comparison_" + section)
     styles = STYLES.get(owner)
     if styles is None:
         raise Rejected("comparison_owner_unsupported", "unsupported")

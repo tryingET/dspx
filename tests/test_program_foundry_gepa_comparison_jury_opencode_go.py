@@ -1137,8 +1137,8 @@ def test_runtime_binding_accepts_six_task_local_provider_names() -> None:
 
 
 def test_owner_is_repinned_to_the_opencode_go_fork_commit() -> None:
-    assert OWNER_COMMIT == "6c3473ca17bf03325698e3e1a8419a8abc915938"
-    assert OWNER_TREE == "dc9098779ec5b500d82ed914d8bba7857d276b85"
+    assert OWNER_COMMIT == "a893382e3a7abc06de0814f29709b9143b930826"
+    assert OWNER_TREE == "a4c4b050e2bace57586119d2e8ae9865511484d8"
     assert OWNER_VERSION == "0.1.6"
     assert OWNER_LOCK_SHA256 == (
         "d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648"

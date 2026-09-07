@@ -10,8 +10,9 @@ Implementation authorized by controller
 `misegraph/docs/project/2026-09-07-evidence-integrity-implementation-plan.md`, following
 second review SHIP of the bounded design. **Implementation/validation results are
 reported separately; this specification is not a passing proof.** No model call,
-acceptance, task completion, push/release, target/fork mutation or auth repin is
-included. Broad graphs, intermediate v2 versions, pre-jury context and deterministic
+acceptance, task completion, push/release or target/fork mutation is included.
+The controller subsequently authorized the exact current-execution auth repin
+recorded below; it is not historical verification or permission for a live call. Broad graphs, intermediate v2 versions, pre-jury context and deterministic
 quality acceptance are NOT this repair. Only `after_jury` is supported.
 
 ## Exact wire API (DSPx leads; consumer must not invent another protocol)
@@ -146,8 +147,8 @@ only, not original identity strings or historical hashes.
 
 ## Provisioning trust (outside the evidence bundle)
 
-Deploy only the fixed `program_foundry_closure_*.py` module set named by the
-entrypoint's installation manifest, as ordinary reviewed files in a separate
+Deploy only the fixed **16 files** named by the entrypoint's installation manifest
+below (not a wildcard glob), as ordinary reviewed files in a separate
 non-writable-by-untrusted-user directory. No package installation, pip/uv resolution,
 editable checkout/site hooks or model dependencies are needed. `-I -S -B` excludes
 user/site startup and bytecode writes; it is not an OS sandbox claim. The entrypoint
@@ -207,14 +208,14 @@ Generic code verifies identity/equality and metric binding. Misegraph owns recip
 IR/schema/fidelity semantics; lexical concept coverage is not culinary correctness.
 No new recipe-specific derivation algorithm is added to DSPx.
 
-## Finite owner profiles; no concurrent repin
+## Frozen historical profiles and separately authorized current execution pin
 
 Frozen old/current source tuples, dependency identities and supported family
 route/timeout/alias/reducer semantics are packaged as finite reviewed constants.
 History does not require current owner installation/task lease/catalog/credentials.
 Only current execution pin may authorize new calls after normal owner/AK checks.
 
-Current DSPx observation `8cedfb9d377e16643dc35041b40a9d2db0445083`, tree
+Pre-repair DSPx observation `8cedfb9d377e16643dc35041b40a9d2db0445083`, tree
 `2d64e6b1f52b3f38e06dd4a28c99c0c351faae5a`, owner 6c3473ca17bf03325698e3e1a8419a8abc915938.
 Pre-AK5512 owner policy blob `d6504369e69f2cd27fc60067cc7ee2886a823c8b`, SHA-256
 `5f52d12ca189abccd6c55e69d8d1d2f04f5384b454add886de8bfef114462087`;
@@ -227,8 +228,22 @@ owner blob 2e879cb5f9f5a7fe3f1bd28c92608b0612275e63) and
 777388ad9c692b0657e6b6e1d4820b15fcb6641d (owner blob
 f948cad2a472ac972e2ca6aca55933798cc2ad2b). Family policy recovered at exact
 originating DSPx commits, not arbitrary dynamic old code. Accepted historical
-identity cannot enable execution. AK-5512 repin waits for controller's reviewed
-exact commit; this work does not change current owner pin.
+identity cannot enable execution. Historical 6c3473ca/80cc409/777388a constants
+remain byte-for-byte unchanged. No new historical profile was added.
+
+Controller now explicitly authorizes AK-5512-reviewed implementation source commit
+`a893382e3a7abc06de0814f29709b9143b930826` (review `dispatch-1788781092679`), tree
+`a4c4b050e2bace57586119d2e8ae9865511484d8`, version `0.1.6`, lock
+`d24ee392e2846b3baac33e16a67ff3e9094b3b021c67e32e50a1f1d11b077648`.
+Current DSPx execution policy is repinned to these exact bytes. All eight receipt
+modules and all extra owner files were collected and checked from a clean detached
+local clone; later docs HEAD `15867b52` was not used as source authority. The default
+integration test consumes the local Git object store, checks out the exact source
+commit in test-owned scratch and verifies the complete source policy. It does not
+require mutable maintained HEAD to equal the source pin and makes no network fetch.
+Unavailable object store skips only this integration proof, never weakens runtime
+verification. Non-strict jury model projection preserves observed `None` for aliases
+or prefixed models; requested text is never substituted for an unknown observation.
 
 ## Saved proof target and validation
 
@@ -273,26 +288,35 @@ Independent HOLD `dispatch-1788781092681` invalidated the completeness claim for
 baseline `7fbb491a`: runtime-manifest, GEPA lineage and comparison semantic joins
 were missing. Do not bind the obsolete profile
 `0e891173b651032a74e720a88b649ebf895e369bc0d70c727e7154d538d15107`.
-The following corrected capsule still requires independent SHIP before target trust
-or auth repin. Wire versions and hash domains are unchanged.
+The next baseline `9e78cca2` / profile
+`dc27f425513ed616ffbc21ff80ed9460ea0f773628acebd0878e6dfad483b91e` also remained on
+HOLD: rehashed trace source and Oracle dependencies could pass direct `runtime()`.
+Both profiles are obsolete. The following capsule requires independent corrected
+SHIP before target trust. The separately authorized auth repin above is not that
+SHIP. Wire versions and hash domains are unchanged.
 
 Current pure-verifier profile:
-`dc27f425513ed616ffbc21ff80ed9460ea0f773628acebd0878e6dfad483b91e`.
-Module basenames below share prefix `program_foundry_closure_` and suffix `.py`:
+`e17c2ef0390b1c3783b477654c858672b4bd8c850b7014874ca9bf407ab7b7ea`.
+Exact module basenames (16, previously 11):
 
 | Module | Raw SHA-256 |
 |---|---|
-| check | `91a8300a418bb1cc70c5bdf79484cd3a8d76913103c4bf02f7adb8ef68aa5166` |
-| comparison | `c71c987db8fe37f15164c4a8632c47036b1643b0a216f2a15680cfe8adca66d1` |
-| contracts | `31c0f2d5ab32ef971c9ae04d98f83e4fc699ed54c98bc0f7f6ceda4c2290fe94` |
-| core | `744a10f3729a647d4853c57e0210085edbf0f78917dfbce3e9db26ec13c96e46` |
-| gepa | `2e855889a7c00102440db8596c0f512dcdac057ab15e94177be33eb1fd242098` |
-| import | `d603a4f0d7e0573a587211d7c7ed42c42be0b829c6455fa85168aee06633620c` |
-| io | `28a556f0b2fc30a55ed198a36cb091f342120698a92d99fd87e0b7ea42db535d` |
-| journal | `bc75534be0f3893229542e19f7a1958155ef63461d55fdc1720cc47a27010c35` |
-| jury | `bb1e65e00bfe00030a600b0e91728eafba6e1fcc4c74205c9b6359cc2f7396be` |
-| profiles | `58e745dc2bd2d61fc274112ddd89ff1a8c844477e26906a185f51f55e8d04a09` |
-| reducers | `3620e262692e187980bc88d66e1f07b3884ecef37479b9f2bd9892e237bfbfcc` |
+| program_foundry_closure_check.py | `511c59bf850ef0638a432468bc1ad00d9880c30899e60e744e1f738fe1d74db7` |
+| program_foundry_closure_comparison.py | `3992421d62059d7ec3740a20c4e4b8e4f712ff9723e83d51e9d5b70d589f24d5` |
+| program_foundry_closure_contracts.py | `3a5b99e510e3163352d45c34479d46e2a3a3f86de872c7a38011618695d18c25` |
+| program_foundry_closure_core.py | `f908d2a184ae3427682552e22e23ed40a2fba8bbda2c9419fa4c4cc27cfefd17` |
+| program_foundry_closure_gepa.py | `135ef2f93f827e92fdc3731aadac9d2865ce3e06e17889c4d3cea5d87965981c` |
+| program_foundry_closure_import.py | `d603a4f0d7e0573a587211d7c7ed42c42be0b829c6455fa85168aee06633620c` |
+| program_foundry_closure_io.py | `28a556f0b2fc30a55ed198a36cb091f342120698a92d99fd87e0b7ea42db535d` |
+| program_foundry_closure_journal.py | `bc75534be0f3893229542e19f7a1958155ef63461d55fdc1720cc47a27010c35` |
+| program_foundry_closure_jury.py | `bb1e65e00bfe00030a600b0e91728eafba6e1fcc4c74205c9b6359cc2f7396be` |
+| program_foundry_closure_profiles.py | `58e745dc2bd2d61fc274112ddd89ff1a8c844477e26906a185f51f55e8d04a09` |
+| program_foundry_closure_reducers.py | `3620e262692e187980bc88d66e1f07b3884ecef37479b9f2bd9892e237bfbfcc` |
+| program_foundry_closure_runtime.py | `b4656531db49d29ea0ccdd6b375ce8e27082e3d28737fe257b46aa8fd0fcfbff` |
+| program_quality_evaluation.py | `ead816876c7abc6b65e08858fd468fbfde175671bdc4a5ca43e9c540e5e2abf7` |
+| program_refinement_gepa_metric_honesty.py | `09ac15ec0f45a95be1203814c20541d60e83e93f84cd125a52b7887de0b93afc` |
+| program_runtime_trace_coverage.py | `950da6bb7ef8e546c1da67ee5fc757b0f6b77c7d687059c7b82c83b0577cca08` |
+| program_runtime_traces.py | `ac1bc69eead6cf34393eae5754d074131e8a057f8b5c47143a951629a43ce162` |
 
 Tested CPython real executable:
 `/home/tryinget/.local/share/uv/python/cpython-3.13.12-linux-x86_64-gnu/bin/python3.13`,
@@ -354,8 +378,8 @@ Validation observations and final deltas are recorded in the scoped HOLD-repair
 session diary. `just ci-quality` now passes, including the nine baseline type errors
 repaired with explicit test-double casts and type-narrowing assertions. The retained
 metric-honesty test now distinguishes and validates both legacy and extended v1
-projections without rewriting historical artifacts. The current auth pin/fork
-checkout disagreement remains visible and is not authorized for repair here.
+projections without rewriting historical artifacts. The subsequently authorized
+exact-source repin and detached-clone test repair the former owner-pin failure.
 The full offline heavy-job attempt was denied by workstation retained-run process
 reference inspection; no bypass or unrelated scratch cleanup was performed.
 `just verify-full` also includes live/infrastructure residual tests outside this
@@ -373,3 +397,91 @@ ignored unreviewed siblings/current-policy modules, strict JSON, aliases, FIFO/
 symlink and write permissions, substitutions/rehashed leaves, all-failed reduction,
 profile mismatch, streaming overflow and explicit wheel-independent context are
 covered. These tests do not replay consumed attempts or contact a provider.
+
+## Readback parity inventory — residual runtime-graph HOLD
+
+Audit basis: the complete `program_runtime_episode.py` readback validator
+(1663–2030), stable bundle loader (2031–2098), identity/path/provider helpers and
+pure Oracle/trace builders; `program_refinement_gepa_candidate_contracts.py`
+(400–921 and adjacent path/inventory helpers); and
+`program_refinement_comparison.py` (691–943 plus behavior loaders and reducers).
+The runtime remains unexecuted: this is parity of **captured readback dependencies
+for the finite supported closures**, not proof of replay, historical execution,
+quality acceptance, model authenticity or isolation. The inventory classifies
+coverage and intentional boundary differences rather than silently dropping checks.
+
+| ID | Existing dependency / check | Captured implementation and proof |
+|---|---|---|
+| R01 | Episode schema/status/execution status, nonempty id | `core.runtime`, `contracts.runtime_graph`; id additionally re-derived from source manifest hash, inputs hash and mode |
+| R02 | Candidate path/current source hash; runtime manifest path/schema | `runtime`, `runtime_manifest`; exact aliases to one captured snapshot, both runtimes' stripped-manifest capsule mutants |
+| R03 | Full manifest candidate identity, source ref path/hash, embedded episode schema/id/mode | `runtime_manifest`; direct and isolated rehashed field mutants |
+| R04 | Fixed input/behavior paths and hashes; all four runtime artifact hashes | `runtime_manifest` + `runtime`; normalized input bytes bound to import, not locator hashes alone |
+| R05 | Behavior schema/id/evidence-only authority, one record | `runtime_manifest` + `runtime_graph`; input/output fields and record inputs also joined to source intent/captured inputs |
+| R06 | Normalized criteria, top/record quality evaluation, execution/quality status and exact summary | Same current `program_quality_evaluation.py` pure functions as producer; record/quality/summary semantic mutants |
+| R07 | Behavior's nine false authority flags | `runtime_graph`; authority mutant, no new meaning assigned to the historical assertions |
+| R08 | Trace schema/counts/hash arrays, every trace hash, effects/trajectory/tool-intent/scheduler/linkage/non-authority, coverage and source-record coverage | Same current `validate_program_runtime_traces` and coverage code as producer; bounded source/count checks precede coverage loops; semantic trace mutants rehash per-record hashes too |
+| R09 | `traces.sources[].content_hash` to captured behavior | Exact source descriptor and full current pure trace reconstruction from captured behavior/module surfaces; failing-before/passing-after regressions for both runtimes with episode/meta/cache/replay rehashes |
+| R10 | Oracle schema/kind/authority, five candidate ids plus runtime id, false flags, complete source-artifact paths/hashes, behavior result ref/summary/statuses, facet status/counts | `runtime_graph` compares every current pure Oracle-builder output field. Mutants include each source artifact, missing inventory, identity, refs, summaries and facets |
+| R11 | Adjacent Oracle input evaluation-source refs, trace projection, runtime id/mode, IO/intent/text summaries | Same frozen pure Oracle builder, complete function-AST differential against current producer, plus exact field mutants; no Oracle request/response rerun |
+| R12 | Required receipt/replay fields, output bytes/hash, cache kind/basename/key, provider and saved replay identity hashes | `core.meta`; runtime cache-enabled receipts fail closed because caches are outside the captured closure. Cache-disabled existence is informational in original readback, not inspected here |
+| R13 | Runtime/behavior/receipt provider equality, metadata/effect envelope, capabilities, endpoint/model/timeout, attempt counts/truncation/dispatch/terminal, receipt details and legacy stub rule | `runtime_graph` + `runtime.provider`; direct receipt tests and 22 malformed-provider vectors also rejected by the original producer validator |
+| R14 | Bundle readback stability, confined paths | Descriptor-captured immutable `Snapshot` bytes replace original live double-read/resolve; budgets, relocation and alias/link/race boundaries retain their tests |
+| G01 | GEPA result schema/source identity/null candidate, effect/non-authority, readiness dependencies/completed attempt | `contracts.gepa_result` + `gepa.verify_gepa`; added exact base-contract mutants |
+| G02 | Optimizer manifest hash, no symlinks, exact inventory/size/count/tree, program binding | `Snapshot`, `optimizer`, `verify_gepa`; opaque payloads only, complete mapped inventory including copy equality |
+| G03 | Concept-coverage metric honesty, source/criteria/wrapper binding and byte-exact wrapper re-derivation | Same current pure `render_concept_coverage_program`; compare rendered bytes/hash with captured wrapper and copied optimizer payload, never import/execute the wrapper |
+| G04 | Materialization result schema/status, created-from paths, source/candidate ids, candidate root and not-promoted state | `materialization`, `candidate_declarations`, `verify_gepa`; prior materialization tests retained |
+| G05 | Candidate lineage schema/status/source ids/paths/hashes/GEPA result hash/non-authority | `materialization`; direct semantic and transitive outer-capsule mutants |
+| G06 | Copied optimizer confinement, metric block, manifest/tree/count cross-joins; wrapper not used as materialized program | `materialization` + optimizer copy inventory; payload hash excludes manifest, execution tree includes it |
+| G07 | Behavior-refresh paths/hash pairs, effect and non-authority | `materialization`; refreshed embedded execution episode stays distinct from the retained generated episode file; stale generated Oracle removal preserved |
+| C01 | Comparison schema/status, local-only effects and false authority flags | `verify_gepa` + `verify_comparison`; newly added authority mutants |
+| C02 | Both manifest schemas/identities/paths/hashes; declared generated behavior and behavior-episode schemas/paths/all redundant hashes | `candidate_declarations`, `candidate`, comparison created-from joins; request, embedded episode, artifact, receipt evidence and surfaces remain separately bound |
+| C03 | Both runtime bundle references/readback and hashes | `runtime` for both branches, then comparison runtime hash joins; not a summary-only shortcut |
+| C04 | Status plus exact behavior comparison, runtime comparison and interpretation | Nineteen shared reducers with finite historical dialects and saved/frozen differential vectors; no score or optimizer rerun |
+
+### Deliberate limits and maintenance membrane
+
+- Complete connected successful-execution, concept-coverage-quality historical
+  closures remain the supported runtime subset. Arbitrary failing/review-mode
+  executions, Soomfon-specific provider schemas, absent runtime evidence and new
+  historical owner tuples are not generalized; unsupported/malformed shapes cannot
+  return `verified`. Current auth execution repin does not expand historical profiles.
+- Current trace reconstruction is a deliberately stricter subset of old validators
+  that tolerated omitted optional coverage or unused fields. Future historical
+  dialects need reviewed vectors, not a permissive fallback.
+- Original materializer write-time checks (destination emptiness, copy permissions,
+  overlap with a mutable source worktree) become captured confinement/inventory
+  checks; no write/copy action is replayed. Non-ready GEPA results cannot represent
+  a complete materialized closure. Cache file contents, source-generation cache
+  availability and current-machine replay capability are outside the historical
+  byte claim. Source-generation cached code is not read or executed.
+- No static generated-code safety or OS sandbox proof is inferred from stored false
+  flags. Trace reconstruction establishes what the local producer would project
+  from saved records, not what a provider/network actually did.
+- Four existing current pure modules are shared by inclusion in the fixed capsule;
+  only their pure reducers are called. Oracle builder copies are guarded against
+  producer drift by full function-AST equality tests and frozen positive bytes.
+  Adding a new producer readback dependency requires updating this inventory and
+  a semantic mutant/differential vector before publishing another profile.
+
+### Proof separation and observed gates
+
+`test_program_foundry_closure_runtime_graph.py` first reproduced direct acceptance
+of the zeroed trace behavior-source hash in **both** runtime capsules after local
+locator/episode/receipt/cache/replay rehashing. It now checks exact semantic rejection
+both directly and through the isolated capsule with subject/seven expected roots
+unchanged. The reanchored annotation-positive tests separately pass local `runtime()`
+but fail the unchanged outer historical anchors: internally consistent fixture
+bytes are explicitly not original-root proof. Receipt/provider/base-GEPA tests are
+labelled direct contract tests, not substitutes for end-to-end custody validation.
+
+Observed final broad slice: **908 passed**, including foundry, closure, comparison,
+Oracle backend, runtime episodes/traces, GEPA candidate and quality evaluation tests.
+The focused closure/comparison slice had **248 passed**; optional imported-vLLM audit
+had **13 passed**. The broadened first attempt timed out and exposed two stale
+owner-tree assertions; these were updated to the exact reviewed tree and the full
+selected slice rerun. No partial/timed-out run is counted as a passing gate.
+Full offline heavy-job wrapper remains blocked by eight kernel-protected same-UID
+processes preventing retained-run reference inspection. No bypass or cleanup was
+performed. Final quality/fast/scope checks and commit evidence are recorded in the
+runtime-graph session diary; independent corrected SHIP and full-gate proof remain
+separate requirements before consumer trust/release decisions.

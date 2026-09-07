@@ -1,8 +1,21 @@
 """Captured-v1 runtime and materialization contracts, independent of orchestration."""
 
+import json
 from pathlib import PurePosixPath
+from types import SimpleNamespace
 
-from program_foundry_closure_io import equal, require, sibling  # ty: ignore[unresolved-import]
+from program_quality_evaluation import (  # ty: ignore[unresolved-import]
+    normalize_quality_criteria,
+    evaluate_declared_quality,
+    runtime_status_with_declared_quality,
+)
+from program_runtime_traces import (  # ty: ignore[unresolved-import]
+    build_program_runtime_traces,
+    validate_program_runtime_traces,
+)
+from program_foundry_closure_runtime import _oracle_evidence, provider  # ty: ignore[unresolved-import]
+
+from program_foundry_closure_io import digest, equal, require, sibling  # ty: ignore[unresolved-import]
 
 
 def identity(manifest: dict) -> dict:
@@ -31,6 +44,89 @@ def identity(manifest: dict) -> dict:
         result[key] = next((x for x in values if x), None)
         require(result[key] is not None, "missing_candidate_identity")
     return result
+
+
+def candidate_declarations(s, path: str, manifest: dict) -> None:
+    equal(
+        manifest["candidate_assembly"]["root_path"],
+        str(PurePosixPath(path).parent),
+        "candidate_root",
+    )
+    for role, schema, section, path_key, hash_key in (
+        (
+            "behavior_results",
+            "program-behavior-results-v1",
+            "behavior_results",
+            "path",
+            "content_hash",
+        ),
+        (
+            "behavior_episode",
+            "program-behavior-episode-v1",
+            "behavior_orchestration",
+            "result_artifact",
+            "result_hash",
+        ),
+    ):
+        local = role + ".json"
+        full = sibling(path, local)
+        equal(s.json(full)["schema_version"], schema, "candidate_" + role + "_schema")
+        blocks = [
+            (manifest["request"], role + "_hash"),
+            (manifest["receipt_bundle"]["evidence"], role + "_hash"),
+        ]
+        embedded = manifest["execution_episode"].get(section, {})
+        if embedded.get(path_key):
+            equal(embedded[path_key], local, "candidate_" + role + "_path")
+        blocks.append((embedded, hash_key))
+        artifact = manifest.get(role + "_artifact", {})
+        if artifact:
+            equal(artifact["path"], local, "candidate_" + role + "_path")
+            blocks.append((artifact, "content_hash"))
+        for block, key in blocks:
+            if block.get(key):
+                equal(block[key], s.hash(full), "candidate_" + role + "_declaration")
+
+
+def gepa_result(result: dict, expected_identity: dict) -> None:
+    equal(result["source_identity"], expected_identity, "gepa_result_identity")
+    equal(result["candidate"], None, "gepa_result_candidate")
+    require(result["status"] != "gepa_output_unverified", "gepa_result_status")
+    for key in (
+        "source_program_files_mutated",
+        "source_dataset_artifacts_mutated",
+        "local_gepa_candidate_generated",
+        "external_authority_mutated",
+        "governance_mutated",
+    ):
+        equal(result["effect"].get(key), False, "gepa_result_effect")
+    equal(
+        result["non_authority"].get("local_refinement_only"),
+        True,
+        "gepa_result_non_authority",
+    )
+    for key in (
+        "automatic_promotion",
+        "oracle_ranking",
+        "oracle_pruning",
+        "oracle_promotion",
+        "winner_selection",
+        "external_authority_export",
+        "governance_authority",
+        "external_mutation",
+    ):
+        equal(result["non_authority"].get(key), False, "gepa_result_non_authority")
+    readiness = result["gepa_output"]["readiness"]
+    equal(
+        readiness.get("ready_for_future_candidate_materializer"),
+        True,
+        "gepa_result_readiness",
+    )
+    equal(
+        readiness.get("status"),
+        "optimizer_output_hash_bound_not_candidate",
+        "gepa_result_readiness",
+    )
 
 
 def runtime_manifest(
@@ -71,6 +167,204 @@ def runtime_manifest(
     equal(behavior.get("schema_version"), "program-behavior-results-v1")
     equal(behavior.get("runtime_episode_id"), episode["runtime_episode_id"])
     equal(behavior.get("authority"), "behavior_evidence_only_non_authoritative")
+
+
+def runtime_graph(
+    s, path: str, source_path: str, episode: dict, behavior: dict, receipt: dict
+) -> None:
+    """Complete current readback joins over captured bytes, with finite runtime support."""
+    source = s.json(source_path)
+    hashes = episode["artifact_hashes"]
+    expected_id = (
+        "prog-run-"
+        + digest(
+            json.dumps(
+                {
+                    "manifest_hash": s.hash(source_path),
+                    "inputs_hash": hashes["runtime_inputs_sha256"],
+                    "contract_mode": episode["contract_mode"],
+                },
+                sort_keys=True,
+            ).encode()
+        )[:16]
+    )
+    equal(episode["runtime_episode_id"], expected_id, "runtime_identity")
+    intent = source["intent"]
+    criteria = normalize_quality_criteria(
+        intent.get("quality_criteria", []), outputs=intent["outputs"]
+    )
+    equal(
+        behavior["intent"].get("quality_criteria", []),
+        criteria,
+        "runtime_quality_criteria",
+    )
+    records = behavior["examples"]
+    require(
+        isinstance(records, list)
+        and len(records) == 1
+        and isinstance(records[0], dict),
+        "runtime_behavior_record_count",
+    )
+    record = records[0]
+    equal(
+        record["inputs"],
+        s.json(sibling(path, "runtime_inputs.json"))["inputs"],
+        "runtime_behavior_inputs",
+    )
+    equal(behavior["input_fields"], intent["inputs"], "runtime_behavior_input_fields")
+    equal(
+        behavior["output_fields"], intent["outputs"], "runtime_behavior_output_fields"
+    )
+    quality = evaluate_declared_quality(criteria, record["observed_outputs"])
+    equal(behavior["quality_evaluation"], quality, "runtime_quality_evaluation")
+    equal(record["quality_evaluation"], quality, "runtime_record_quality_evaluation")
+    status = runtime_status_with_declared_quality(
+        episode["execution_status"], quality["status"]
+    )
+    equal(episode["status"], status, "runtime_quality_status")
+    equal(record["status"], status, "runtime_record_status")
+    for block in (behavior, record):
+        equal(
+            block["execution_status"],
+            episode["execution_status"],
+            "runtime_behavior_execution_status",
+        )
+    summary = {
+        "total": 1,
+        "passed": int(status == "executed_quality_passed"),
+        "failed": int(status.startswith("failed") or status == "error"),
+        "error": int(status == "error"),
+        "degraded": int(status.startswith("degraded")),
+        "executed": int(
+            status
+            in {"executed", "executed_quality_passed", "executed_valid_review_only"}
+        ),
+        "status_counts": {status: 1},
+        "status": status,
+    }
+    equal(behavior["summary"], summary, "runtime_behavior_summary")
+    for key in (
+        "optimization_authority",
+        "promotion_authority",
+        "oracle_ranking",
+        "oracle_pruning",
+        "oracle_promotion",
+        "governance_authority",
+        "external_mutation",
+        "external_authority_mutated",
+        "winner_selection",
+    ):
+        equal(
+            behavior["non_authority"].get(key), False, "runtime_behavior_non_authority"
+        )
+    traces = s.json(sibling(path, "program_runtime_traces.json"))
+    equal(
+        traces["sources"],
+        [
+            {
+                "path": "behavior_results.json",
+                "content_hash": hashes["behavior_results_sha256"],
+                "kind": "examples",
+                "split": None,
+                "record_count": 1,
+                "summary": summary,
+            }
+        ],
+        "runtime_trace_source",
+    )
+    # Cap producer coverage loops before validating attacker-controlled counts.
+    require(
+        isinstance(traces["module_calls"], list)
+        and len(traces["module_calls"]) <= 64
+        and isinstance(traces["final_outputs"], list)
+        and len(traces["final_outputs"]) <= 32,
+        "runtime_trace_count",
+    )
+    require(validate_program_runtime_traces(traces), "runtime_trace_contract")
+    trace_intent = SimpleNamespace(
+        name=intent["name"], objective=intent["objective"], outputs=intent["outputs"]
+    )
+    surfaces = s.json(sibling(source_path, "module_surfaces.json"))
+    calls = record.get("runtime_trace", {}).get("module_calls", [])
+    require(
+        isinstance(calls, list) and len(calls) <= 64, "runtime_behavior_trace_bound"
+    )
+    require(
+        isinstance(surfaces["module_surfaces"], list)
+        and len(surfaces["module_surfaces"]) <= 64,
+        "runtime_module_bound",
+    )
+    rebuilt_traces = build_program_runtime_traces(
+        trace_intent,
+        module_surfaces=surfaces,
+        behavior_results=behavior,
+        behavior_results_hash=hashes["behavior_results_sha256"],
+    )
+    equal(traces, rebuilt_traces, "runtime_trace_reconstruction")
+    oracle = s.json(sibling(path, "oracle_evidence.json"))
+    expected_oracle = _oracle_evidence(
+        manifest_identity=identity(source),
+        runtime_episode_id=expected_id,
+        behavior_results=behavior,
+        behavior_results_hash=hashes["behavior_results_sha256"],
+        runtime_traces=traces,
+        runtime_traces_hash=hashes["program_runtime_traces_sha256"],
+        inputs_hash=hashes["runtime_inputs_sha256"],
+        contract_mode=episode["contract_mode"],
+        manifest=source,
+    )
+    for key, value in expected_oracle.items():
+        equal(oracle.get(key), value, "runtime_oracle_" + key)
+    replay = receipt["replay_inputs"]
+    equal(replay["contract_mode"], episode["contract_mode"], "runtime_replay_mode")
+    for key, value in {
+        "runtime_episode_id": expected_id,
+        "contract_mode": episode["contract_mode"],
+        "execution_status": episode["execution_status"],
+        "status": status,
+        "quality_status": quality["status"],
+    }.items():
+        equal(replay["expected_episode"][key], value, "runtime_replay_" + key)
+    run_summary = receipt["run_summary"]
+    for key, value in {
+        "runtime_episode_id": expected_id,
+        "runtime_status": status,
+        "evidence_only": True,
+        **{
+            k: hashes[k]
+            for k in (
+                "behavior_results_sha256",
+                "program_runtime_traces_sha256",
+                "oracle_evidence_sha256",
+            )
+        },
+    }.items():
+        equal(run_summary[key], value, "runtime_receipt_summary_" + key)
+    raw_provider = episode.get("provider")
+    if raw_provider is None:
+        legacy = behavior.get("provider", {})
+        unavailable = (
+            legacy.get("status") == "unavailable"
+            and set(legacy) == {"status", "error"}
+            and set(legacy["error"]) == {"type", "message"}
+            and all(isinstance(x, str) for x in legacy["error"].values())
+        )
+        require(
+            legacy == {"status": "configured", "provider": "stub/echo"} or unavailable,
+            "runtime_legacy_provider",
+        )
+        details = {
+            "provider": "stub",
+            "provider_family": "stub",
+            "model": "stub/echo",
+            "effect_contract": "dspx-provider-effect-v1",
+        }
+    else:
+        details = provider(raw_provider)
+        equal(behavior["provider"], raw_provider, "runtime_behavior_provider")
+        equal(run_summary["provider"], raw_provider, "runtime_receipt_provider")
+    equal(receipt["provider_details"], details, "runtime_provider_details")
+    equal(receipt["provider"], details["provider"], "runtime_provider_identity")
 
 
 def materialization(

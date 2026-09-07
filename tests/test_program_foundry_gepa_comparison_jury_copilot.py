@@ -912,14 +912,40 @@ def test_owner_pins_cover_copilot_modules_and_repin_helper_reproduces_them(
         assert f'    "{relative}": "' in block
 
 
-def test_pinned_owner_block_matches_fork_checkout_when_available() -> None:
+def test_pinned_owner_block_matches_exact_source_clone(tmp_path: Path) -> None:
     if not (FORK_ROOT / ".git").exists():
-        pytest.skip("maintained dspy-lm-auth fork checkout is not available")
-    pins = collect_pins(FORK_ROOT)
-    # File hashes are stable across docs-only fork commits; commit/tree are
-    # only asserted when the checkout sits on the pinned owner commit.
+        pytest.skip("local owner object store is unavailable; no network fallback")
+    # The maintained checkout may be on a later docs commit. Consume its object
+    # store only; verify a clean detached clone of the explicitly reviewed source.
+    root = tmp_path / "exact-owner"
+    for args in (
+        [
+            "clone",
+            "--quiet",
+            "--no-hardlinks",
+            "--no-checkout",
+            str(FORK_ROOT),
+            str(root),
+        ],
+        ["-C", str(root), "checkout", "--quiet", "--detach", OWNER_COMMIT],
+    ):
+        subprocess.run(
+            ["/usr/bin/git", *args],
+            check=True,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=30,
+        )
+    pins = collect_pins(root)
+    assert pins["commit"] == OWNER_COMMIT
+    assert pins["tree"] == OWNER_TREE
+    assert pins["dirty"] is False
     assert pins["lock_sha256"] == OWNER_LOCK_SHA256
     assert pins["modules"] == _OWNER_MODULES
     assert pins["extra_files"] == _EXTRA_OWNER_FILES
-    if pins["commit"] == OWNER_COMMIT:
-        assert pins["tree"] == OWNER_TREE
+    from dspx.services.program_foundry_gepa_comparison_jury_owner import (
+        verify_foundry_jury_owner_source,
+    )
+
+    assert verify_foundry_jury_owner_source(root)["commit"] == OWNER_COMMIT
