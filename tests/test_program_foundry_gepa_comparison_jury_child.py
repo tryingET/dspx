@@ -75,6 +75,7 @@ def _install(monkeypatch: pytest.MonkeyPatch, validated: dict[str, Any]) -> None
 
 def _execute(receipt: Path, owner_root: Path, provider: str) -> dict[str, Any]:
     return comparison_jury.execute_program_foundry_gepa_comparison_jury(
+        execution_repo_root=owner_root.parent,
         consumption_receipt_path=receipt,
         provider=provider,
         owner_source_root=owner_root,
@@ -145,6 +146,8 @@ def _cli(receipt: Path, owner_root: Path, provider: str) -> Any:
             str(receipt),
             "--provider",
             provider,
+            "--execution-repo",
+            str(owner_root.parent),
             "--owner-source-root",
             str(owner_root),
             "--execution-task-id",
@@ -229,6 +232,7 @@ def test_run_child_request_acquires_slot_and_binds_task_local_runtime(
         owner_source_root=owner_root,
         execution_task_id=6000,
         execution_claimant="pi:test",
+        execution_repo_root=tmp_path,
     )
     calls: list[dict[str, Any]] = []
 
@@ -441,6 +445,8 @@ def test_child_failure_exits_3_through_cli(
             str(receipt),
             "--provider",
             XAI_FAMILY.provider_name,
+            "--execution-repo",
+            str(tmp_path),
             "--owner-source-root",
             str(owner_root),
             "--execution-task-id",
@@ -779,6 +785,7 @@ def _child_payload(tmp_path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         owner_source_root=owner_root,
         execution_task_id=6000,
         execution_claimant="pi:test",
+        execution_repo_root=tmp_path,
     )
     manifest = Path(validated["candidate_manifest_path"])
     payload = jury_child.child_request_payload(

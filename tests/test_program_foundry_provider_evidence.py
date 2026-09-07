@@ -62,19 +62,17 @@ def _in_process_jury(monkeypatch: pytest.MonkeyPatch) -> None:
 # --- closed derivation -----------------------------------------------------------
 
 
-def test_kinds_are_closed_and_derived_from_actual_runtimes() -> None:
+def test_names_never_authenticate_live_execution() -> None:
     assert PROVIDER_EVIDENCE_KINDS == ("live", "authored_fixture_replay", "stub_echo")
-    assert provider_evidence_kind_for_provider("openai-compatible") == "live"
+    assert provider_evidence_kind_for_provider("openai-compatible") is None
     assert provider_evidence_kind_for_provider("stub") == "stub_echo"
     assert (
-        provider_evidence_kind_for_provider("foundry-dspy-lm-auth-local-vllm") == "live"
+        provider_evidence_kind_for_provider("foundry-dspy-lm-auth-local-vllm") is None
     )
     assert provider_evidence_kind_for_provider("fixture-provider") is None
     assert provider_evidence_kind_for_provider(None) is None
     assert provider_evidence_kind_for_model("stub/echo") == "stub_echo"
-    assert (
-        provider_evidence_kind_for_model("local/Qwen3.8-27B-AEON-NVFP4-FP8") == "live"
-    )
+    assert provider_evidence_kind_for_model("local/Qwen3.8-27B-AEON-NVFP4-FP8") is None
     assert provider_evidence_kind_for_model("codex/gpt-5.6-sol") is None
     runtime_stub = {
         "provider": {
@@ -90,7 +88,7 @@ def test_kinds_are_closed_and_derived_from_actual_runtimes() -> None:
     }
     generated_stub = {"provider": {"status": "configured", "provider": "stub/echo"}}
     assert provider_evidence_kind_from_behavior_results(runtime_stub) == "stub_echo"
-    assert provider_evidence_kind_from_behavior_results(runtime_live) == "live"
+    assert provider_evidence_kind_from_behavior_results(runtime_live) is None
     assert provider_evidence_kind_from_behavior_results(generated_stub) == "stub_echo"
     assert (
         provider_evidence_kind_from_behavior_results(
@@ -114,7 +112,7 @@ def test_kinds_are_closed_and_derived_from_actual_runtimes() -> None:
                 "executed_provider": "openai-compatible",
             }
         )
-        == "live"
+        is None
     )
     assert (
         provider_evidence_kind_from_oracle_result(
@@ -151,7 +149,7 @@ def test_kinds_are_closed_and_derived_from_actual_runtimes() -> None:
                 }
             }
         )
-        == "live"
+        is None
     )
     assert (
         provider_evidence_kind_from_gepa_result({"gepa": {"attempted": False}}) is None
@@ -382,7 +380,7 @@ def test_execution_request_accepts_absent_or_closed_label_only() -> None:
         revalidate_execution_request({**labelled, "extra": 1})
 
 
-def test_retained_pre_label_jury_receipts_still_revalidate() -> None:
+def test_retained_requests_and_synthetic_pre_label_projection_revalidate() -> None:
     receipts = 0
     for path in sorted(glob.glob(str(DOCS_PROJECT / "*-evidence.json"))):
         document = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -397,8 +395,10 @@ def test_retained_pre_label_jury_receipts_still_revalidate() -> None:
         if not isinstance(request, dict):
             continue
         receipts += 1
-        assert "provider_evidence_kind" not in request, path
         assert revalidate_execution_request(request) == request, path
+        # A synthetic absent-label projection, not a claim these saved bytes lack labels.
+        legacy = {k: v for k, v in request.items() if k != "provider_evidence_kind"}
+        assert revalidate_execution_request(legacy) == legacy, path
     assert receipts >= 5, "AK-5346/5352/5358/5360/5361 receipts must be present"
 
 

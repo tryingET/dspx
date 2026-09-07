@@ -53,7 +53,6 @@ _STARTUP_OWNER_MODULES: tuple[str, ...] = tuple(
 import json  # noqa: E402
 import os  # noqa: E402
 import re  # noqa: E402
-import signal  # noqa: E402
 import subprocess  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import Any, Mapping, Sequence, cast  # noqa: E402
@@ -187,17 +186,6 @@ def child_request_payload(
     }
 
 
-def _terminate_group(process: subprocess.Popen[bytes]) -> None:
-    try:
-        os.killpg(process.pid, signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
-        pass
-    try:
-        process.communicate(timeout=5)
-    except (subprocess.TimeoutExpired, OSError, ValueError):
-        pass
-
-
 def _valid_error_payload(value: object) -> bool:
     if not isinstance(value, dict):
         return False
@@ -245,33 +233,32 @@ def run_task_local_jury_child(
     """Spawn one jury child; return its closed envelope or fail indeterminate."""
 
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    from dspx.services.program_foundry_bounded_child import (
+        ChildOutputLimit,
+        run_bounded_child,
+    )
+
     try:
-        process = subprocess.Popen(
-            list(argv),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=dict(env),
-            close_fds=True,
-            start_new_session=True,
+        completed = run_bounded_child(
+            argv,
+            payload=encoded,
+            env=env,
+            timeout=timeout,
+            max_output=CHILD_MAX_STDOUT_BYTES,
         )
+    except ChildOutputLimit as exc:
+        raise ProgramFoundryGepaComparisonJuryChildError(
+            "output exceeds 16 MiB"
+        ) from exc
     except OSError as exc:
         raise ProgramFoundryGepaComparisonJuryChildError("could not start") from exc
-    try:
-        stdout, _ = process.communicate(encoded, timeout=timeout)
     except subprocess.TimeoutExpired as exc:
-        _terminate_group(process)
         raise ProgramFoundryGepaComparisonJuryChildError("timed out") from exc
-    except BaseException:
-        _terminate_group(process)
-        raise
-    returncode = process.returncode
+    stdout, returncode = completed.stdout, completed.returncode
     if returncode not in {code for code, _ in _ENVELOPE_SHAPES.values()}:
         raise ProgramFoundryGepaComparisonJuryChildError(
             f"exited with status {returncode}"
         )
-    if len(stdout) > CHILD_MAX_STDOUT_BYTES:
-        raise ProgramFoundryGepaComparisonJuryChildError("output exceeds 16 MiB")
     try:
         answer = json.loads(stdout.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:

@@ -251,6 +251,7 @@ def test_preflight_rejects_missing_cache_dir_before_marker(
         match="DSPX_CACHE_DIR must be set",
     ):
         comparison_jury.execute_program_foundry_gepa_comparison_jury(
+            execution_repo_root=tmp_path,
             consumption_receipt_path=receipt,
             provider=XAI_FAMILY.provider_name,
             owner_source_root=owner_root,
@@ -342,6 +343,7 @@ def test_preflight_rejects_zero_selected_jurors_before_marker(
         match="no selected jurors",
     ):
         comparison_jury.execute_program_foundry_gepa_comparison_jury(
+            execution_repo_root=tmp_path,
             consumption_receipt_path=receipt,
             provider=XAI_FAMILY.provider_name,
             owner_source_root=owner_root,
@@ -508,6 +510,7 @@ def test_preflight_facts_are_closed_and_json_canonical(
         "provider_completion_calls",
         "proves",
         "cannot_prove",
+        "checks",
     }
     assert facts["schema_version"] == "dspx-foundry-jury-preflight-v1"
     assert facts["provider_completion_calls"] == 0
@@ -600,6 +603,7 @@ def test_live_run_json_carries_unbound_preflight_facts(
         owner_source_root=owner_root,
         execution_task_id=6000,
         execution_claimant="pi:test",
+        execution_repo_root=tmp_path,
     )
     assert payload["status"] == "ok"
     assert payload["preflight"] == {"schema_version": "dspx-foundry-jury-preflight-v1"}
@@ -639,6 +643,7 @@ def test_preflight_only_writes_nothing_and_returns_facts(
         execution_task_id=6000,
         execution_claimant="pi:test",
         preflight_only=True,
+        execution_repo_root=tmp_path,
     )
     assert payload == {"status": "preflight_ok", "preflight": {"ok": 1}}
     assert sorted(p.name for p in receipt.parent.iterdir()) == [
@@ -996,14 +1001,16 @@ def test_probe_env_is_scrubbed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
     monkeypatch.setenv("XAI_API_KEY", "leak")
     monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid")
-    monkeypatch.setattr(preflight.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        "dspx.services.program_foundry_bounded_child.run_bounded_child", fake_run
+    )
     preflight.run_probe({"auth_provider": "none", "model": MODEL, "catalog_url": None})
     assert seen["argv"][:3] == [sys.executable, "-I", "-B"]
     assert seen["argv"][3] == str(preflight._PROBE_PATH)
     assert "XAI_API_KEY" not in seen["env"]
     assert "HTTPS_PROXY" not in seen["env"]
     assert seen["env"]["PYTHONDONTWRITEBYTECODE"] == "1"
-    assert seen["stdin"] is preflight.subprocess.DEVNULL
+    assert seen["payload"] == b""
     assert seen["timeout"] == 5.0
-    assert seen["start_new_session"] is True
+    assert seen["max_output"] == preflight._PROBE_MAX_OUTPUT_BYTES
     assert os.environ["XAI_API_KEY"] == "leak"

@@ -616,6 +616,7 @@ def test_opencode_go_comparison_jury_binds_runtime_and_records_model_key(
     monkeypatch.setattr(comparison_jury, "build_comparison_model_jury_result", build)
     monkeypatch.setattr(receipt_validation, "_validate_jury_result", validate_result)
     payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
+        execution_repo_root=tmp_path,
         consumption_receipt_path=receipt,
         provider=OPENCODE_GO_FAMILY.provider_name,
         owner_source_root=owner_root,
@@ -634,6 +635,7 @@ def test_opencode_go_comparison_jury_binds_runtime_and_records_model_key(
         jury_runtime.ProgramModelJuryProviderRuntimeBinding,
     )
     reused = comparison_jury.execute_program_foundry_gepa_comparison_jury(
+        execution_repo_root=tmp_path,
         consumption_receipt_path=receipt,
         provider=OPENCODE_GO_FAMILY.provider_name,
         owner_source_root=owner_root,

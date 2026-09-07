@@ -220,20 +220,22 @@ def run_probe(config: Mapping[str, Any]) -> dict[str, Any]:
         timeout += _PROBE_CATALOG_TIMEOUT_SECONDS
     env = {key: os.environ[key] for key in _PROBE_ENV_KEYS if key in os.environ}
     env.update({"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"})
+    from dspx.services.program_foundry_bounded_child import (
+        ChildOutputLimit,
+        run_bounded_child,
+    )
+
     try:
-        completed = subprocess.run(
+        completed = run_bounded_child(
             [sys.executable, "-I", "-B", str(_PROBE_PATH), json.dumps(config)],
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
+            payload=b"",
             env=env,
             timeout=timeout,
-            check=False,
-            close_fds=True,
-            start_new_session=True,
+            max_output=_PROBE_MAX_OUTPUT_BYTES,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except (OSError, subprocess.TimeoutExpired, ChildOutputLimit) as exc:
         raise _reject("credential probe did not complete") from exc
-    if completed.returncode != 0 or len(completed.stdout) > _PROBE_MAX_OUTPUT_BYTES:
+    if completed.returncode != 0:
         raise _reject("credential probe failed closed")
     try:
         facts = json.loads(completed.stdout.decode("utf-8"))
@@ -377,7 +379,15 @@ def run_task_local_preflight(
         "credential": credential,
         "catalog": catalog,
         "provider_completion_calls": 0,
-        "proves": ["reachability", "credential_validity_at_t0", "catalog_membership"],
+        "checks": {
+            "credential": "checked" if credential["probed"] else "not_applicable",
+            "catalog": "checked" if catalog["checked"] else "not_applicable",
+            "reachability": "checked" if catalog["checked"] else "not_checked",
+        },
+        "proves": (
+            (["credential_presence_and_expiry_at_t0"] if credential["probed"] else [])
+            + (["reachability", "catalog_membership"] if catalog["checked"] else [])
+        ),
         "cannot_prove": ["capacity_at_completion", "entitlement_at_completion"],
     }
 

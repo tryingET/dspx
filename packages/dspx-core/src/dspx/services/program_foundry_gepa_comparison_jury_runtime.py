@@ -57,7 +57,23 @@ COMMON_EXECUTION_REQUEST_KEYS = frozenset(
 TASK_LOCAL_EXECUTION_REQUEST_KEYS = CODEX_FAMILY.execution_request_keys(
     COMMON_EXECUTION_REQUEST_KEYS
 )
-_DSPX_REPO_ROOT = Path(__file__).resolve().parents[5]
+
+
+def execution_repository(request: Mapping[str, Any]) -> Path:
+    """Explicit execution context, independent of source/wheel layout and cwd."""
+    raw = request.get("execution_repo_root")
+    if not isinstance(raw, str) or not Path(raw).is_absolute():
+        raise ProgramFoundryGepaComparisonJuryError(
+            "explicit execution_repo_root is required"
+        )
+    root = Path(raw)
+    if not root.is_dir() or str(root.resolve()) != raw:
+        raise ProgramFoundryGepaComparisonJuryError(
+            "execution_repo_root must be a canonical directory"
+        )
+    return root
+
+
 _TASK_LOCAL_PROCESS_LOCK = threading.Lock()
 
 
@@ -144,6 +160,7 @@ def execution_request(
     model: str | None = None,
     endpoint: str | None = None,
     provider_evidence_kind: str | None = None,
+    execution_repo_root: Path | None = None,
 ) -> dict[str, Any]:
     normalized_provider = provider.strip()
     try:
@@ -202,6 +219,13 @@ def execution_request(
                 family.model_key: resolved_model,
             }
         )
+        if execution_repo_root is not None:
+            if not execution_repo_root.is_absolute():
+                raise ProgramFoundryGepaComparisonJuryError(
+                    "execution_repo_root must be absolute"
+                )
+            request["execution_repo_root"] = str(execution_repo_root)
+            execution_repository(request)
         if family.allowed_reasoning_efforts is not None:
             request["reasoning_effort"] = resolved_effort
         if family.endpoint_key is not None:
@@ -214,6 +238,7 @@ def execution_request(
         or reasoning_effort is not None
         or model is not None
         or endpoint is not None
+        or execution_repo_root is not None
     ):
         raise ProgramFoundryGepaComparisonJuryError(
             "owner source and execution task are only valid for the task-local provider"
@@ -245,6 +270,13 @@ def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, An
     provider = raw_request.get("provider")
     expected_keys = task_local_execution_request_keys(provider)
     family = family_for_provider(provider)
+    execution_repo = raw_request.get("execution_repo_root")
+    if family is not None and "execution_repo_root" in raw_request:
+        expected_keys = expected_keys | {"execution_repo_root"}
+        if not isinstance(execution_repo, str):
+            raise ProgramFoundryGepaComparisonJuryError(
+                "execution_repo_root must be a string"
+            )
     adjudicator_id = raw_request.get("adjudicator_id")
     adjudicator_kind = raw_request.get("adjudicator_kind")
     adjudicator_repo = raw_request.get("adjudicator_repo")
@@ -304,6 +336,9 @@ def revalidate_execution_request(raw_request: Mapping[str, Any]) -> dict[str, An
         model=model,
         endpoint=endpoint,
         provider_evidence_kind=evidence_kind,
+        execution_repo_root=Path(execution_repo)
+        if execution_repo is not None
+        else None,
     )
     if request != retained_request:
         raise ProgramFoundryGepaComparisonJuryError(
@@ -329,7 +364,7 @@ def preflight_task_local_request(request: Mapping[str, Any]) -> None:
         canonical_ak_task_revalidator(
             execution_task_id=int(request["execution_task_id"]),
             execution_claimant=str(request["execution_claimant"]),
-            repo_root=_DSPX_REPO_ROOT,
+            repo_root=execution_repository(request),
             minimum_lease_seconds=90.0,
             family=family,
         )()
@@ -349,6 +384,7 @@ def make_task_local_runtime_binding(
     if family is None:
         return None
     bound_family = family
+    repo_root = execution_repository(request)
 
     def make_provider_runtime(
         selected: Sequence[Mapping[str, Any]],
@@ -362,7 +398,7 @@ def make_task_local_runtime_binding(
             journal_parent=experiment_root / "provider-outcomes",
             execution_task_id=int(request["execution_task_id"]),
             execution_claimant=str(request["execution_claimant"]),
-            repo_root=_DSPX_REPO_ROOT,
+            repo_root=repo_root,
             contract_sha256=attempt_sha256,
             expected_juror_ids=juror_ids,
             model=str(request[bound_family.model_key]),

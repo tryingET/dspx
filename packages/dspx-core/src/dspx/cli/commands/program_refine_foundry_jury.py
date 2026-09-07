@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -52,6 +53,11 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
             None,
             "--owner-source-root",
             help="Exact maintained dspy-lm-auth source root for the task-local provider",
+        ),
+        execution_repo_root: Path | None = typer.Option(
+            None,
+            "--execution-repo",
+            help="Explicit canonical DSPx repository for task-local AK authority (not wheel location)",
         ),
         execution_task_id: int | None = typer.Option(
             None,
@@ -104,6 +110,9 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
             execute_program_foundry_gepa_comparison_jury,
         )
 
+        context_kwargs: dict[str, Any] = {}
+        if execution_repo_root is not None:
+            context_kwargs["execution_repo_root"] = execution_repo_root
         try:
             payload = execute_program_foundry_gepa_comparison_jury(
                 consumption_receipt_path=receipt,
@@ -115,6 +124,7 @@ def register_foundry_jury_command(app: typer.Typer) -> None:
                 owner_source_root=owner_source_root,
                 execution_task_id=execution_task_id,
                 execution_claimant=execution_claimant,
+                **context_kwargs,
                 codex_model=codex_model,
                 reasoning_effort=reasoning_effort,
                 model=model,

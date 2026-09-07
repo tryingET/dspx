@@ -558,6 +558,7 @@ def test_local_vllm_comparison_jury_binds_endpoint_into_attempt_and_receipt(
     monkeypatch.setattr(comparison_jury, "build_comparison_model_jury_result", build)
     monkeypatch.setattr(receipt_validation, "_validate_jury_result", validate_result)
     payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
+        execution_repo_root=tmp_path,
         consumption_receipt_path=receipt,
         provider=LOCAL_VLLM_FAMILY.provider_name,
         owner_source_root=owner_root,
@@ -585,6 +586,7 @@ def test_local_vllm_comparison_jury_binds_endpoint_into_attempt_and_receipt(
         comparison_jury.ProgramFoundryGepaComparisonJuryError, match="drifted"
     ):
         comparison_jury.execute_program_foundry_gepa_comparison_jury(
+            execution_repo_root=tmp_path,
             consumption_receipt_path=receipt,
             provider=LOCAL_VLLM_FAMILY.provider_name,
             owner_source_root=owner_root,
@@ -594,6 +596,7 @@ def test_local_vllm_comparison_jury_binds_endpoint_into_attempt_and_receipt(
         )
     monkeypatch.setenv(LOCAL_VLLM_ENDPOINT_ENV, ALT_ENDPOINT)
     reused = comparison_jury.execute_program_foundry_gepa_comparison_jury(
+        execution_repo_root=tmp_path,
         consumption_receipt_path=receipt,
         provider=LOCAL_VLLM_FAMILY.provider_name,
         owner_source_root=owner_root,
@@ -609,7 +612,7 @@ def test_runtime_binding_factory_configures_resolved_endpoint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv(LOCAL_VLLM_ENDPOINT_ENV, raising=False)
-    request = _request(tmp_path, endpoint=ALT_ENDPOINT)
+    request = _request(tmp_path, endpoint=ALT_ENDPOINT, execution_repo_root=tmp_path)
     seen: list[dict[str, Any]] = []
 
     def configure(**kwargs: Any) -> Any:

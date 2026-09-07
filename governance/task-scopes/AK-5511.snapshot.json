@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-07T09:59:17.356967821+00:00",
+  "task_id": 5511,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/2026-09-07--evidence-*",
+      "docs/project/2026-09-07-evidence-integrity-*.md",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/src/dspx/cli/commands/program_*.py",
+      "packages/dspx-core/src/dspx/services/program_*.py",
+      "tests/test_program_*.py"
+    ],
+    "required_paths": [
+      "docs/project/2026-09-07-evidence-integrity-design.md"
+    ],
+    "forbidden_paths": [
+      "docs/_core/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

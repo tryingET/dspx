@@ -42,7 +42,7 @@ from dspx.services.program_foundry_gepa_comparison_jury_runtime import (
     TASK_LOCAL_EXECUTION_REQUEST_KEYS,
     TASK_LOCAL_PROVIDER_NAME,
     TASK_LOCAL_PROVIDER_NAMES,
-    _DSPX_REPO_ROOT,
+    execution_repository,
     ProgramFoundryGepaComparisonJuryError,
     execution_request as _execution_request,
     family_for_provider,
@@ -346,6 +346,7 @@ def execute_program_foundry_gepa_comparison_jury(
     reasoning_effort: str | None = None,
     model: str | None = None,
     preflight_only: bool = False,
+    execution_repo_root: Path | None = None,
 ) -> dict[str, Any]:
     """Execute one program-specific jury against one receipt-bound comparison.
 
@@ -367,6 +368,7 @@ def execute_program_foundry_gepa_comparison_jury(
         codex_model=codex_model,
         reasoning_effort=reasoning_effort,
         model=model,
+        execution_repo_root=execution_repo_root,
     )
     with (
         task_local_process_slot(request["provider"]),
@@ -437,7 +439,7 @@ def execute_program_foundry_gepa_comparison_jury(
                 request,
                 experiment_root=experiment_root,
                 expected_juror_count=expected_juror_count,
-                repo_root=_DSPX_REPO_ROOT,
+                repo_root=execution_repository(request),
             )
         elif preflight_only:
             raise ProgramFoundryGepaComparisonJuryError(

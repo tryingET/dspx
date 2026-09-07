@@ -423,6 +423,7 @@ def test_task_local_comparison_jury_bypasses_registry_with_bound_runtime_factory
     monkeypatch.setattr(receipt_validation, "_validate_jury_result", validate_result)
 
     payload = comparison_jury.execute_program_foundry_gepa_comparison_jury(
+        execution_repo_root=tmp_path,
         consumption_receipt_path=receipt,
         provider=comparison_jury.TASK_LOCAL_PROVIDER_NAME,
         owner_source_root=owner_root,

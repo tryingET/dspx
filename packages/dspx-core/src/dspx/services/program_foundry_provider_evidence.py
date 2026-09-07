@@ -1,11 +1,13 @@
-# summary: "Derives the closed provider_evidence_kind label (live, authored_fixture_replay, stub_echo) from actual foundry runtimes."
+# summary: "Conservative provider labels; names never authenticate live execution."
 # read_when:
 #   - "Changing how foundry sidecars, GEPA receipts, comparisons, or jury receipts label the evidence their providers produced."
 #   - "Reading a provider_evidence_kind value in a foundry artifact or the Misegraph receipt consumer."
 
 """Provider evidence labelling for the foundry lineage.
 
-``provider_evidence_kind`` says what actually produced a piece of evidence:
+Retained ``provider_evidence_kind`` values are historical assertions, not proof.
+New name-only classification can identify a stub, never authenticate live execution.
+The retained closed vocabulary is:
 
 - ``live`` — a real model behind a supported provider port answered;
 - ``authored_fixture_replay`` — an operator-authored fixture entry was replayed;
@@ -32,12 +34,8 @@ PROVIDER_EVIDENCE_KINDS: tuple[str, ...] = (
 )
 PROVIDER_EVIDENCE_KIND_FIELD = "provider_evidence_kind"
 
-# Provider port names and task-local jury provider names that reach a model.
-_LIVE_PROVIDER_NAMES = frozenset({"openai-compatible"})
-_LIVE_PROVIDER_PREFIXES = ("foundry-dspy-lm-auth",)
 _STUB_PROVIDER_NAMES = frozenset({"stub"})
 _STUB_MODEL_IDS = frozenset({"stub/echo"})
-_LIVE_MODEL_PREFIXES = ("local/",)
 
 
 def is_provider_evidence_kind(value: object) -> bool:
@@ -54,8 +52,6 @@ def provider_evidence_kind_for_provider(provider: object) -> str | None:
         return None
     if name in _STUB_PROVIDER_NAMES:
         return PROVIDER_EVIDENCE_STUB_ECHO
-    if name in _LIVE_PROVIDER_NAMES or name.startswith(_LIVE_PROVIDER_PREFIXES):
-        return PROVIDER_EVIDENCE_LIVE
     return None
 
 
@@ -67,8 +63,6 @@ def provider_evidence_kind_for_model(model: object) -> str | None:
     text = model.strip()
     if text in _STUB_MODEL_IDS:
         return PROVIDER_EVIDENCE_STUB_ECHO
-    if text.startswith(_LIVE_MODEL_PREFIXES):
-        return PROVIDER_EVIDENCE_LIVE
     return None
 
 
