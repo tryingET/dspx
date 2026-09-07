@@ -47,7 +47,8 @@ def profile() -> dict:
     return json.loads(result.stdout)
 
 
-def saved_request(root: Path, limits: dict) -> dict:
+def saved_request(root: Path, limits: dict, original: Path | None = None) -> dict:
+    original = original or root
     names = {
         "package_manifest": "package/manifest.json",
         "import_binding": "import/misegraph-evidence-binding.json",
@@ -76,14 +77,14 @@ def saved_request(root: Path, limits: dict) -> dict:
                 "bytes": len(raw),
                 "root": 0,
                 "path": str(path.relative_to(root)),
-                "aliases": [str(path)],
+                "aliases": [str(original / path.relative_to(root))],
             }
         )
     by_alias = {x["aliases"][0]: x for x in locators}
     expected = {
         role: {
-            "original_path": str(root / name),
-            "sha256": by_alias[str(root / name)]["sha256"],
+            "original_path": str(original / name),
+            "sha256": by_alias[str(original / name)]["sha256"],
         }
         for role, name in names.items()
     }
@@ -105,13 +106,17 @@ def saved_request(root: Path, limits: dict) -> dict:
 
 
 @pytest.fixture
-def saved(pure):
+def saved(pure, tmp_path):
     raw = os.environ.get("DSPX_CLOSURE_SAVED_ROOT")
-    if not raw:
-        pytest.skip("requires explicitly selected immutable saved closure")
-    root = Path(raw)
-    request = saved_request(root, pure.LIMITS)
-    return root, request
+    if raw:
+        root = Path(raw)
+        return root, saved_request(root, pure.LIMITS)
+    from test_program_foundry_closure_fixture import ORIGINAL_ROOT, extract
+
+    root = tmp_path / "frozen-espresso"
+    root.mkdir(mode=0o700)
+    extract(root)
+    return root, saved_request(root, pure.LIMITS, Path(ORIGINAL_ROOT))
 
 
 @pytest.mark.parametrize(

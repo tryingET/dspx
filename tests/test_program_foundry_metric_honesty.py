@@ -149,8 +149,10 @@ def test_non_exact_metric_downgrades_mismatch_to_non_blocking_differs() -> None:
 
     surface, reason = _target_surface_for_status("failed", relaxed)
     assert surface == "module"
+    assert isinstance(reason, str)
     assert "non-blocking" in reason and "mismatch" not in reason.split(";")[0]
     exact_surface, exact_reason = _target_surface_for_status("failed", exact)
+    assert isinstance(exact_reason, str)
     assert exact_surface == "module" and "output mismatch for answer" in exact_reason
 
     bounded = _bounded_refinement(
@@ -661,7 +663,7 @@ def test_exact_metric_optimizer_manifest_carries_no_metric_honesty_block(
         _validate_with_source(program_root, result_path)
 
 
-def test_retained_execution_receipts_predate_metric_honesty_and_keep_shape() -> None:
+def test_retained_execution_receipts_preserve_legacy_and_extended_v1_shapes() -> None:
     expected_keys = {
         "schema_version",
         "status",
@@ -678,6 +680,7 @@ def test_retained_execution_receipts_predate_metric_honesty_and_keep_shape() -> 
         "non_authority",
     }
     receipts = 0
+    styles = set()
     for path in sorted(glob.glob(str(DOCS_PROJECT / "*-evidence.json"))):
         document = json.loads(Path(path).read_text(encoding="utf-8"))
         artifacts = document.get("artifacts") or {}
@@ -688,7 +691,29 @@ def test_retained_execution_receipts_predate_metric_honesty_and_keep_shape() -> 
         if not isinstance(projection, dict):
             continue
         receipts += 1
-        assert "metric_honesty" not in projection, path
-        assert set(projection) - {"provider_evidence_kind"} == expected_keys, path
+        optional = {"provider_evidence_kind"}
+        if "metric_honesty" in projection:
+            styles.add("extended")
+            block = projection["metric_honesty"]
+            assert set(block) == {
+                "metric",
+                "criteria_sha256",
+                "source_program_sha256",
+                "wrapper_program_sha256",
+            }, path
+            assert block["metric"] == "concept_coverage", path
+            for key in (
+                "criteria_sha256",
+                "source_program_sha256",
+                "wrapper_program_sha256",
+            ):
+                assert len(block[key]) == 64 and all(
+                    c in "0123456789abcdef" for c in block[key]
+                ), path
+            optional.add("metric_honesty")
+        else:
+            styles.add("legacy")
+        assert set(projection) - optional == expected_keys, path
         assert projection["status"] == "ok", path
     assert receipts >= 5, "retained foundry GEPA execution receipts must be present"
+    assert styles == {"legacy", "extended"}

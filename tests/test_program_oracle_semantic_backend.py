@@ -544,8 +544,10 @@ def test_typed_backend_indeterminate_effect_is_terminal(
     with pytest.raises(ProgramOracleSemanticBackendError, match="indeterminate"):
         backend.analyze(request)
     assert len(requests) == 1, "an indeterminate effect must never be retried"
-    assert backend.lm.provider.terminal_effect is not None
-    assert backend.lm.provider.terminal_effect.value == "effect_indeterminate"
+    provider = backend.lm.provider
+    assert isinstance(provider, OpenAICompatibleProvider)
+    assert provider.terminal_effect is not None
+    assert provider.terminal_effect.value == "effect_indeterminate"
 
 
 def test_parse_analysis_text_is_strict_about_shape_and_enums() -> None:

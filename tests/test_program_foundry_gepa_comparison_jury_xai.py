@@ -261,7 +261,10 @@ def _custodian(
 ) -> FoundryJuryCallCustodian:
     return FoundryJuryCallCustodian(
         journal_parent=tmp_path / "provider-outcomes",
-        owner=owner if owner is not None else _Owner(_artifact()),
+        owner=cast(
+            VerifiedFoundryJuryOwner,
+            owner if owner is not None else _Owner(_artifact()),
+        ),  # explicit fixture double
         execution_task_id=6000,
         contract_sha256="a" * 64,
         expected_juror_ids=juror_ids,

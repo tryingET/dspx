@@ -191,6 +191,18 @@ def verify_gepa(s: Snapshot, state: dict, report: dict) -> dict:
     copied_root = str(PurePosixPath(cp).parent) + "/gepa_optimizer_output"
     copied, _ = optimizer(s, copied_root)
     equal(copied, manifest, "optimizer_copy_mismatch")
+    from program_foundry_closure_contracts import materialization  # ty: ignore[unresolved-import]
+
+    materialization(
+        s,
+        cm,
+        cp,
+        state["source_path"],
+        result_path,
+        cr,
+        copied,
+        copied["output_payload"]["tree_hash"],
+    )
     if mh is not None:
         equal(cr["gepa_output"]["metric_honesty"], mh)
     comparison_path = eroot + "/candidate-comparison.json"
@@ -233,6 +245,16 @@ def verify_gepa(s: Snapshot, state: dict, report: dict) -> dict:
         )
     workflow = s.json(
         eroot + "/materialize-and-compare-result.json", cb["workflow_sha256"]
+    )
+    from program_foundry_closure_comparison import verify_comparison  # ty: ignore[unresolved-import]
+
+    jury_result = s.json(state["jury"]["bindings"]["jury_results_path"])
+    verify_comparison(
+        s,
+        comparison,
+        state["source_path"],
+        cp,
+        jury_result["jury"]["provider_config"]["owner_commit"],
     )
     equal(workflow["generation"], cr)
     equal(workflow["comparison_sidecar"]["path"], comparison_path)

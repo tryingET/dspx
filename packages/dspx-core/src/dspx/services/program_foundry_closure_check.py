@@ -15,6 +15,9 @@ import types
 MODULES = (
     "program_foundry_closure_check.py",
     "program_foundry_closure_core.py",
+    "program_foundry_closure_contracts.py",
+    "program_foundry_closure_reducers.py",
+    "program_foundry_closure_comparison.py",
     "program_foundry_closure_gepa.py",
     "program_foundry_closure_import.py",
     "program_foundry_closure_io.py",
@@ -49,7 +52,18 @@ def load_modules(installed: dict) -> None:
     """Load only fixed, captured current code; never add installation to sys.path."""
     root = Path(__file__).resolve().parent
     hashes = {row["path"]: row["sha256"] for row in installed["modules"]}
-    for suffix in ("io", "profiles", "import", "core", "gepa", "journal", "jury"):
+    for suffix in (
+        "io",
+        "profiles",
+        "import",
+        "reducers",
+        "contracts",
+        "comparison",
+        "core",
+        "gepa",
+        "journal",
+        "jury",
+    ):
         name = "program_foundry_closure_" + suffix
         path = root / (name + ".py")
         with path.open("rb") as source:

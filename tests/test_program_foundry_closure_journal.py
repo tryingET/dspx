@@ -17,9 +17,15 @@ pure = shared.pure
 
 def test_saved_copilot_family_only_and_profile_tamper(tmp_path, pure):
     raw = os.environ.get("DSPX_CLOSURE_JOURNAL_ROOT")
-    if not raw:
-        pytest.skip("requires explicit saved Copilot experiment root")
-    root = Path(raw)
+    if raw:
+        root = original = Path(raw)
+    else:
+        from test_program_foundry_closure_copilot_fixture import ORIGINAL_ROOT, extract
+
+        root = tmp_path / "frozen-copilot"
+        root.mkdir(mode=0o700)
+        extract(root)
+        original = Path(ORIGINAL_ROOT)
     request = small_request(pure, tmp_path)
     request["roots"].append(str(root))
     files = [
@@ -42,9 +48,10 @@ def test_saved_copilot_family_only_and_profile_tamper(tmp_path, pure):
                 "bytes": len(content),
                 "root": 1,
                 "path": str(path.relative_to(root)),
-                "aliases": [str(path)],
+                "aliases": [str(original / path.relative_to(root))],
             }
         )
+    root = original  # verification uses original aliases, never physical path inference
     module = importlib.import_module("program_foundry_closure_journal")
     s = pure.Snapshot(request)
     try:

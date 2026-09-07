@@ -267,22 +267,32 @@ Foundry subsets overlap: service/CLI net +6,433; three Misegraph-named source fi
 actual validation/commit outcomes are reported below and in the scoped diary,
 not inferred from this plan.
 
-## Implementation baseline observations (not acceptance or release)
+## Corrective capsule after implementation HOLD (review pending)
 
-Frozen pure-verifier profile:
+Independent HOLD `dispatch-1788781092681` invalidated the completeness claim for
+baseline `7fbb491a`: runtime-manifest, GEPA lineage and comparison semantic joins
+were missing. Do not bind the obsolete profile
 `0e891173b651032a74e720a88b649ebf895e369bc0d70c727e7154d538d15107`.
+The following corrected capsule still requires independent SHIP before target trust
+or auth repin. Wire versions and hash domains are unchanged.
+
+Current pure-verifier profile:
+`dc27f425513ed616ffbc21ff80ed9460ea0f773628acebd0878e6dfad483b91e`.
 Module basenames below share prefix `program_foundry_closure_` and suffix `.py`:
 
 | Module | Raw SHA-256 |
 |---|---|
-| check | `919b0a9fcf88e9422735eb34576ef50bca21297206fca8dd55759f459d85c974` |
-| core | `35e543771ff306b0278db077958e7a91715fab13434a6ce6added8f4887d5477` |
-| gepa | `1a9ca77835604b8ca0278243d527778ad1d6edf50920237ba8b4270338df4705` |
+| check | `91a8300a418bb1cc70c5bdf79484cd3a8d76913103c4bf02f7adb8ef68aa5166` |
+| comparison | `c71c987db8fe37f15164c4a8632c47036b1643b0a216f2a15680cfe8adca66d1` |
+| contracts | `31c0f2d5ab32ef971c9ae04d98f83e4fc699ed54c98bc0f7f6ceda4c2290fe94` |
+| core | `744a10f3729a647d4853c57e0210085edbf0f78917dfbce3e9db26ec13c96e46` |
+| gepa | `2e855889a7c00102440db8596c0f512dcdac057ab15e94177be33eb1fd242098` |
 | import | `d603a4f0d7e0573a587211d7c7ed42c42be0b829c6455fa85168aee06633620c` |
 | io | `28a556f0b2fc30a55ed198a36cb091f342120698a92d99fd87e0b7ea42db535d` |
 | journal | `bc75534be0f3893229542e19f7a1958155ef63461d55fdc1720cc47a27010c35` |
 | jury | `bb1e65e00bfe00030a600b0e91728eafba6e1fcc4c74205c9b6359cc2f7396be` |
 | profiles | `58e745dc2bd2d61fc274112ddd89ff1a8c844477e26906a185f51f55e8d04a09` |
+| reducers | `3620e262692e187980bc88d66e1f07b3884ecef37479b9f2bd9892e237bfbfcc` |
 
 Tested CPython real executable:
 `/home/tryinget/.local/share/uv/python/cpython-3.13.12-linux-x86_64-gnu/bin/python3.13`,
@@ -323,23 +333,42 @@ unprobed credential validity, reachability or completion capacity. Jury and cred
 probe transports share a selector-based bounded duplex helper; overflow/timeout kills
 and reaps the child group without `communicate()` buffering. This is not a sandbox.
 
-Validation observed:
-- 50 focused closure/provenance tests passed with Espresso and Copilot explicitly
-  selected. Imported-vLLM closure/boundary slice: 40 passed.
-- Foundry-wide slice: 569 passed, 2 failed. One failure is the intentionally unchanged
-  current owner pin versus the concurrent fork checkout; the other is an unchanged
-  test's false assumption that every retained projection predates `metric_honesty`.
-- `UV_OFFLINE=1 just verify-fast` passed (workflow, direction, governance projection,
-  exact task-scope binding and installed offline hooks).
-- `UV_OFFLINE=1 just ci-quality`: workflow/format/lint passed; nine type diagnostics
-  remain on unchanged test lines in local-vLLM, OpenCode Go, xAI, Z.ai,
-  metric-honesty and Oracle semantic tests. Changed verifier/runtime/CLI checks pass.
-- No full gate pass, independent implementation review or cross-owner acceptance
-  is claimed. Do not repin, release or complete AK-5511 from these local results.
+Corrective implementation:
+- Runtime manifest schema, candidate identity, embedded episode id/schema, contract
+  mode, fixed input/behavior paths and both hashes are checked for both runtimes.
+- GEPA materialization source identity/paths/hashes, result hash, optimizer manifest
+  and payload inventory/count, metric honesty, status, refresh and authority flags
+  are checked; execution-tree and optimizer-payload hash domains remain distinct.
+- Nineteen pure comparison helpers are now shared with the current producer instead
+  of maintaining divergent approximate reducers. Finite 777388a pre-label/exact,
+  80cc409 label-era, and 6c3473ca label-era/conservative dialects reconstruct all three
+  semantic projections. Historical `live` labels are checked as old assertions,
+  never projected as authenticated provenance. No recipe or model rerun occurs.
+- Both stripped-runtime mutants and field-level contradictions execute through the
+  isolated capsule. GEPA/comparison tests additionally check exact inner-contract
+  rejection and transitive rehashes while preserving subject/seven expected roots.
+  Root-anchored mutants may reject at the outer hash boundary; the direct contract
+  tests separately prove the new inner checks, not a misleading passing proxy.
 
-Tests are opt-in for saved roots through `DSPX_CLOSURE_SAVED_ROOT` and, for the
-journal-only case, `DSPX_CLOSURE_JOURNAL_ROOT`. They hash original evidence before/
-after; mutants live only in separate owned scratch. Relocated stdlib-only execution,
+Validation observations and final deltas are recorded in the scoped HOLD-repair
+session diary. `just ci-quality` now passes, including the nine baseline type errors
+repaired with explicit test-double casts and type-narrowing assertions. The retained
+metric-honesty test now distinguishes and validates both legacy and extended v1
+projections without rewriting historical artifacts. The current auth pin/fork
+checkout disagreement remains visible and is not authorized for repair here.
+The full offline heavy-job attempt was denied by workstation retained-run process
+reference inspection; no bypass or unrelated scratch cleanup was performed.
+`just verify-full` also includes live/infrastructure residual tests outside this
+no-live authorization. No full-gate pass or independent SHIP is claimed.
+
+Tests now default to repo-owned, frozen, selected credential-free Espresso closure
+and Copilot journal-only bytes. Archive SHA-256 values are checked before extraction;
+original absolute paths are inert aliases, and scripts/pickles are never executed.
+The selected fixture excludes credentials, env files, caches, derivation scripts and
+mutable lock files. Compression is storage only, not executable fixture generation.
+`DSPX_CLOSURE_SAVED_ROOT` / `DSPX_CLOSURE_JOURNAL_ROOT` optionally select immutable
+external roots for additional audit; they are no longer needed by default positives
+or mutants. Tests hash evidence before/after; mutants live in separate owned scratch. Relocated stdlib-only execution,
 ignored unreviewed siblings/current-policy modules, strict JSON, aliases, FIFO/
 symlink and write permissions, substitutions/rehashed leaves, all-failed reduction,
 profile mismatch, streaming overflow and explicit wheel-independent context are

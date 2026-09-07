@@ -224,6 +224,9 @@ def runtime(
         s.json(sibling(path, key + ".json"), hashes[key + "_sha256"])
     behavior = s.json(sibling(path, "behavior_results.json"))
     rmanifest = s.json(episode["manifest_path"])
+    from program_foundry_closure_contracts import runtime_manifest  # ty: ignore[unresolved-import]
+
+    runtime_manifest(s, path, manifest_path, episode, rmanifest, behavior)
     equal(
         rmanifest["source_candidate_manifest"],
         {"path": manifest_path, "sha256": s.hash(manifest_path)},

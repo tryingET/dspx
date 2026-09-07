@@ -329,6 +329,7 @@ def test_family_for_request_requires_retained_endpoint(
     # The retained request, not the environment, binds the family.
     assert family_for_request(request) is LOCAL_VLLM_FAMILY
     other = family_for_request({**request, "local_vllm_base_url": ALT_ENDPOINT})
+    assert other is not None
     assert other.endpoint_origin == ALT_ENDPOINT
     with pytest.raises(ValueError, match="endpoint is missing"):
         family_for_request({"provider": LOCAL_VLLM_FAMILY.provider_name})
