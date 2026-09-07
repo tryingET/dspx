@@ -257,19 +257,10 @@ def verify_gepa(s: Snapshot, state: dict, report: dict) -> dict:
     )
     equal(created["candidate_runtime_episode_hash"], s.hash(runtime_path))
     for label, mp in (("source", state["source_path"]), ("candidate", cp)):
-        mb = s.json(mp)["receipt_bundle"]
         equal(
             comparison[label + "_identity"],
-            {
-                k: mb[k]
-                for k in (
-                    "candidate_id",
-                    "assembly_id",
-                    "receipt_bundle_id",
-                    "episode_id",
-                    "request_id",
-                )
-            },
+            identity(s.json(mp)),
+            "comparison_manifest_identity",
         )
     workflow = s.json(
         eroot + "/materialize-and-compare-result.json", cb["workflow_sha256"]

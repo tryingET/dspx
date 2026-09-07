@@ -295,8 +295,14 @@ Both profiles are obsolete. The following capsule requires independent corrected
 SHIP before target trust. The separately authorized auth repin above is not that
 SHIP. Wire versions and hash domains are unchanged.
 
-Current pure-verifier profile:
-`e17c2ef0390b1c3783b477654c858672b4bd8c850b7014874ca9bf407ab7b7ea`.
+The runtime-graph baseline `f460b082` / profile
+`e17c2ef0390b1c3783b477654c858672b4bd8c850b7014874ca9bf407ab7b7ea` subsequently
+retained an identity HOLD: comparison identities incorrectly preferred the receipt
+bundle over canonical manifest precedence. That profile is also obsolete. The
+controller's minimal correction and regression evidence are recorded below.
+
+Current pure-verifier profile (corrected SHIP candidate, review still required):
+`726ad977b188bbaa57e72f59cdec2ca485fbde299fe7e7e019927c5d8d2d678f`.
 Exact module basenames (16, previously 11):
 
 | Module | Raw SHA-256 |
@@ -305,7 +311,7 @@ Exact module basenames (16, previously 11):
 | program_foundry_closure_comparison.py | `3992421d62059d7ec3740a20c4e4b8e4f712ff9723e83d51e9d5b70d589f24d5` |
 | program_foundry_closure_contracts.py | `3a5b99e510e3163352d45c34479d46e2a3a3f86de872c7a38011618695d18c25` |
 | program_foundry_closure_core.py | `f908d2a184ae3427682552e22e23ed40a2fba8bbda2c9419fa4c4cc27cfefd17` |
-| program_foundry_closure_gepa.py | `135ef2f93f827e92fdc3731aadac9d2865ce3e06e17889c4d3cea5d87965981c` |
+| program_foundry_closure_gepa.py | `4f9c8ef6b618237a583b559228fe531ad1dfef0f97e022c9784ca5f4a2d6cd5d` |
 | program_foundry_closure_import.py | `d603a4f0d7e0573a587211d7c7ed42c42be0b829c6455fa85168aee06633620c` |
 | program_foundry_closure_io.py | `28a556f0b2fc30a55ed198a36cb091f342120698a92d99fd87e0b7ea42db535d` |
 | program_foundry_closure_journal.py | `bc75534be0f3893229542e19f7a1958155ef63461d55fdc1720cc47a27010c35` |
@@ -474,7 +480,7 @@ but fail the unchanged outer historical anchors: internally consistent fixture
 bytes are explicitly not original-root proof. Receipt/provider/base-GEPA tests are
 labelled direct contract tests, not substitutes for end-to-end custody validation.
 
-Observed final broad slice: **908 passed**, including foundry, closure, comparison,
+Observed runtime-graph baseline broad slice: **908 passed**, including foundry, closure, comparison,
 Oracle backend, runtime episodes/traces, GEPA candidate and quality evaluation tests.
 The focused closure/comparison slice had **248 passed**; optional imported-vLLM audit
 had **13 passed**. The broadened first attempt timed out and exposed two stale
@@ -485,3 +491,32 @@ processes preventing retained-run reference inspection. No bypass or cleanup was
 performed. Final quality/fast/scope checks and commit evidence are recorded in the
 runtime-graph session diary; independent corrected SHIP and full-gate proof remain
 separate requirements before consumer trust/release decisions.
+
+### Final identity HOLD correction
+
+The only subsequent source change is the controller-supplied GEPA comparison loop:
+compare each source/candidate sidecar identity to `identity(s.json(manifest_path))`,
+not to a receipt-bundle-only projection. It reduces source by nine LOC. Canonical
+precedence matches both original comparison and model-jury producers:
+
+- `request_id`: request → candidate assembly → execution episode → receipt bundle.
+- `candidate_id`, `assembly_id`: candidate assembly → execution episode → receipt bundle.
+- `episode_id`: execution episode → receipt bundle.
+- `receipt_bundle_id`: receipt bundle only (no competing precedence).
+
+`tests/test_program_foundry_closure_identity.py` adds **52 regressions**: both source
+and candidate, all four precedence fields, every fallback, canonical vs shadow
+comparison identities, jury agreement, and a mutually agreeing shadow comparison/
+jury pair that must still fail the canonical-manifest gate. The component tests
+use an explicitly labelled in-memory identity view; their original byte hashes
+are not claimed to bind the altered view. No production guards are disabled.
+Separate isolated-capsule mutants alter copied comparison/jury bytes and preserve
+subject/seven expected roots, proving custody rejection without mislabelling it as
+inner semantic proof. Original evidence is untouched.
+
+Final selected validation: **300 focused closure/comparison tests passed** and
+**960 expanded tests passed**; CI-quality including test typechecking passed.
+The 16-file interface, schemas, fixed historical profiles, auth pin and claim
+ceilings are unchanged. Only the GEPA module hash/profile changed, frozen after
+formatting and tests. The full-gate heavy-job blocker is not bypassed or represented
+as passing; no held profile is approved for provisioning by these results.
