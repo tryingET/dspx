@@ -1,0 +1,163 @@
+{
+  "kind": "AK-5511 bounded finalization receipt; local projection, not AK evidence or lifecycle authority",
+  "source_base_commit": "92443fbee2ceb72c8844482215342ac76ed3211a",
+  "scope_entity_version": 6,
+  "scope_export_sha256": "dcf4e4fd9873e8669c2978b09086d355a56332ea1a592fa719ffe45dcbb4f0aa",
+  "scope_export_check": "ak task scope export 5511; byte-equal to parent snapshot; no snapshot rewrite",
+  "test_sha256": {
+    "tests/test_program_oracle_semantic_backend.py": "5ad34a8c4b35be81a8025e2947b643350cb12a924573e614e1c8c3dc92e7c19b",
+    "tests/test_program_oracle_live_gate.py": "8201456a74e98bd166bd06546d54dae8b2df0a68459ea9d9804b1a8befeda456",
+    "tests/test_adapters_eval_bertscore.py": "00c18d475dd76f9bb0e768589c3e0f8ca2629cb0c44708f0d5a2d13794885e97",
+    "tests/test_dspy_lm_auth_lm.py": "df5191a4d26295ce0cff1e9adaed9138beed7dae5065b230c7fe3cb2c36dcdf9"
+  },
+  "production_runner": {
+    "path": "scripts/ci/run_oracle_semantic_analysis_evaluation_v11.py",
+    "sha256": "f593be0834cb370806a8b5c18ac5a157e6438cf1fcaa7628ee920e47c6e868c6",
+    "equal_head": true,
+    "preledger_sources_equal_head": 46
+  },
+  "historical_diary_suffixes": [
+    {
+      "path": "diary/2026-09-03--implementation-foundry-jury-child-retention-and-xai-timeout.md",
+      "historical_bytes": 6218,
+      "historical_sha256": "d5e0e3ba1607967223bd93c40b5f487deab0bce9f5592753dfb0a94fb48dd2ec",
+      "final_sha256": "fab1381596ea7e4dd4d76c6a29cf889b8b861aa25f4c4ffa3b621d4223bf92a6"
+    },
+    {
+      "path": "diary/2026-09-03--implementation-foundry-jury-fresh-subprocess-and-split.md",
+      "historical_bytes": 7197,
+      "historical_sha256": "cadaa65cef04bc2de5caa3d44def195845523b1d4594ea8d51cb81e774c14e16",
+      "final_sha256": "66c480682618c41adfa033a6671060cdf069b824efabed5e4a5258fc2b125ae1"
+    },
+    {
+      "path": "diary/2026-09-03--implementation-foundry-jury-preflight-and-catalog.md",
+      "historical_bytes": 6122,
+      "historical_sha256": "e584d2c853d557fa043dae619fdcb48a47c061e59ed1558c06242af45f53afc4",
+      "final_sha256": "726cc01fa6cda1c78f1ce3e45c7498a647e3a11a33a8f1885b37e7b629a9b41a"
+    }
+  ],
+  "initial_review": {
+    "dispatch": "dispatch1788934614753",
+    "source": "operator dispatch, not independently rerun review",
+    "verdict": "bounded SHIP",
+    "pytest": "101 passed, 2 skipped",
+    "premature_probe_mutant": "38 cases reported by dispatch; separate negative characterization, not full-gate cases"
+  },
+  "final_review": {
+    "dispatch": "dispatch1788937030933",
+    "verdict": "bounded SHIP on final source",
+    "pytest": "11 passed, 17 deselected; exit 0; 3.95s",
+    "counterfactuals": "4 passed characterizations; each expects test/subprocess rejection, child exit 1",
+    "receipts": [
+      {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/ak5511-origin-rereview.ie6TnY/review.md",
+        "sha256": "87cbc95128db5853754292068a1a525c0e5032eb55e005991ebbd1373d5a0d23",
+        "bytes": 6346
+      },
+      {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/ak5511-origin-rereview.ie6TnY/pytest.log",
+        "sha256": "84393489da39cf1a1de236e56c2303d991b0d32d1a3274b121d6eac9dcb17306",
+        "bytes": 1803
+      },
+      {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/ak5511-origin-rereview.ie6TnY/counterfactuals.py",
+        "sha256": "4fb5f25fd364c7eeff8a1394194df058c4bbfde80a3d84d29387e9deb0b35193",
+        "bytes": 2733
+      },
+      {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/ak5511-origin-rereview.ie6TnY/counterfactuals.log",
+        "sha256": "7c08d2d1754d739aa7679b065c64ebe5775a20ff21b3b0bdded52ef285491223",
+        "bytes": 3842
+      },
+      {
+        "path": "/home/tryinget/.local/state/pi-quests/tmp/ak5511-origin-rereview.ie6TnY/command.txt",
+        "sha256": "c5b74e375529cc17941f792143c07d8ab62c098c6ce1efa4f52a143025d3536f",
+        "bytes": 450
+      }
+    ]
+  },
+  "fresh_validation": {
+    "scratch": "/home/tryinget/.local/state/pi-quests/tmp/ak5511-finalize.TWuQLl",
+    "environment": "env -i HOME=\"$HOME\" PATH=\"$PATH\" LANG=C.UTF-8 TMPDIR=\"$scratch\" UV_OFFLINE=1 HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 MLFLOW_ENABLE=0 DSPX_PROVIDER=stub unshare -Urn bash \"$scratch/validate.sh\"",
+    "script": "set -euo pipefail\ncd /home/tryinget/ai-society/softwareco/owned/dspx\nset -x\n\n.venv/bin/python -B -m pytest -q -ra -p no:cacheprovider tests/test_program_oracle_semantic_backend.py tests/test_program_oracle_live_gate.py tests/test_adapters_eval_bertscore.py --basetemp=\"$TMPDIR/pytest-gates\"\n.venv/bin/python -B -m pytest -q -ra -p no:cacheprovider tests/test_dspy_lm_auth_lm.py -k \"bootstrap or source_loader or historical_repository_runner or candidate_contract_and_accepted_consumer or cli_gate4 or loaded_runtime_origin\" --basetemp=\"$TMPDIR/pytest-loader\"\n.venv/bin/ruff format --check tests/test_program_oracle_semantic_backend.py tests/test_program_oracle_live_gate.py tests/test_adapters_eval_bertscore.py tests/test_dspy_lm_auth_lm.py\n.venv/bin/ruff check tests/test_program_oracle_semantic_backend.py tests/test_program_oracle_live_gate.py tests/test_adapters_eval_bertscore.py tests/test_dspy_lm_auth_lm.py\njust lint\njust typecheck\njust typecheck-tests\ngit diff --check\n",
+    "stdout_stderr": "+ .venv/bin/python -B -m pytest -q -ra -p no:cacheprovider tests/test_program_oracle_semantic_backend.py tests/test_program_oracle_live_gate.py tests/test_adapters_eval_bertscore.py --basetemp=/home/tryinget/.local/state/pi-quests/tmp/ak5511-finalize.TWuQLl/pytest-gates\n..........................s............................................. [ 69%]\n.....s.........................                                          [100%]\n=========================== short test summary info ============================\nSKIPPED [1] tests/test_program_oracle_semantic_backend.py:605: requires exact DSPX_ORACLE_LIVE_VLLM=1\nSKIPPED [1] tests/test_adapters_eval_bertscore.py:22: requires exact DSPX_BERTSCORE_REAL_MODEL=1\n101 passed, 2 skipped in 1.27s\n+ .venv/bin/python -B -m pytest -q -ra -p no:cacheprovider tests/test_dspy_lm_auth_lm.py -k 'bootstrap or source_loader or historical_repository_runner or candidate_contract_and_accepted_consumer or cli_gate4 or loaded_runtime_origin' --basetemp=/home/tryinget/.local/state/pi-quests/tmp/ak5511-finalize.TWuQLl/pytest-loader\n...........                                                              [100%]\n11 passed, 17 deselected in 4.12s\n+ .venv/bin/ruff format --check tests/test_program_oracle_semantic_backend.py tests/test_program_oracle_live_gate.py tests/test_adapters_eval_bertscore.py tests/test_dspy_lm_auth_lm.py\n4 files already formatted\n+ .venv/bin/ruff check tests/test_program_oracle_semantic_backend.py tests/test_program_oracle_live_gate.py tests/test_adapters_eval_bertscore.py tests/test_dspy_lm_auth_lm.py\nAll checks passed!\n+ just lint\nuv run --no-sync ruff check packages/dspx-core/src apps/forge/src docs\nAll checks passed!\n+ just typecheck\nuv run --no-sync ty check packages/dspx-core/src apps/forge/src\nAll checks passed!\n+ just typecheck-tests\nuv run --no-sync ty check tests --extra-search-path apps/forge/src\nAll checks passed!\n+ git diff --check\n",
+    "exit": 0,
+    "script_sha256": "4dc6bfcc620e6891d4d0c2e933344e92217545ef703c524b2da4ba97b978ce8b",
+    "log_sha256": "da614a8e336e4b5c58409b26a0f826f30acf0b6f7a229b9c2f29f498ed0e45ff",
+    "preexisting_paths_unchanged_after_validation": 2843
+  },
+  "native_docs_metadata": {
+    "command": "node /home/tryinget/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict",
+    "result_before_addenda": "Strict check: pass; exit 0",
+    "log_sha256": "5b47117811a6a09c80e3435b2311b37c2f2fd02594ff00058085b1dd2f984f34"
+  },
+  "retained_untracked_evidence": [
+    {
+      "path": "diary/2026-09-07--evidence-baseline-repair",
+      "files": 16,
+      "bytes": 1227230,
+      "largest_bytes": 370851,
+      "inventory_sha256": "31b978f032843dcaf1f1a4f0dcca06b465158fb99a72d90a9623467d3c2f7c45",
+      "inventory_encoding": "SHA256(compact sorted-key JSON array, path-sorted rows {path,bytes,sha256}, no newline)",
+      "retention": "unchanged, nonignored untracked; excluded from commit"
+    },
+    {
+      "path": "diary/2026-09-07--evidence-full-verification",
+      "files": 20,
+      "bytes": 1056334,
+      "largest_bytes": 368153,
+      "inventory_sha256": "5c7ec5d0330d323f57ad2d11a997314c53b40787cc85cbe167fb65dddbc98bde",
+      "inventory_encoding": "SHA256(compact sorted-key JSON array, path-sorted rows {path,bytes,sha256}, no newline)",
+      "retention": "unchanged, nonignored untracked; excluded from commit"
+    },
+    {
+      "path": "diary/2026-09-07--evidence-origin-repair",
+      "files": 35,
+      "bytes": 1391149,
+      "largest_bytes": 372988,
+      "inventory_sha256": "c166d40ecdbd13f70055e15da50df5d299ee0998835d3467ff1c429688346d8f",
+      "inventory_encoding": "SHA256(compact sorted-key JSON array, path-sorted rows {path,bytes,sha256}, no newline)",
+      "retention": "unchanged, nonignored untracked; excluded from commit"
+    }
+  ],
+  "retained_full_failure": {
+    "run": "run-1788935170-066132954db9cde8",
+    "exit": 1,
+    "pytest": "4067 passed, 85 failed, 5 skipped",
+    "raw_log": "diary/2026-09-07--evidence-full-verification/full-run.log",
+    "raw_log_sha256": "0c1edeacde139bcd600893e7df0415554ef45f38475bbff24f80ecb8c07737c1",
+    "current_full_gate": "HOLD; not retried; 82-case isolation attribution is not counterfactual proof or retroactive pass"
+  },
+  "routing": "ak direction check passed; effective-routing list returned AK_DIRECTION_ROUTING_UNINITIALIZED; exact task and dispatch bind bounded work",
+  "inspection": "No raw directories staged. Large inventories, backups, source copies, redundant diffs and 301035-byte full log retained unchanged. Token-shaped scan matches were the existing alphabetic fake test key and task-* paths, not discovered credentials. No exhaustive secret-detection or syscall-audit claim.",
+  "limits": "Three complete test files plus prior accepted 11-case selection in fourth; 17 residual cases unselected due to known UID/ancestor-guard namespace incompatibility. No full gate, real provider/model, downloads, historical execution, production repin, push, or AK lifecycle/evidence mutation.",
+  "post_addendum_checks": {
+    "docs_metadata": {
+      "command": "node /home/tryinget/ai-society/core/agent-scripts/scripts/docs-list.mjs --docs . --strict",
+      "exit": 0,
+      "result": "Strict check: pass; all 471 documents checked"
+    },
+    "scope": {
+      "command": "just task-scope-check task_id=5511 mode=working-tree",
+      "exit": 0,
+      "result": "AK-5511 working-tree scope passes, including retained untracked evidence"
+    },
+    "whitespace": {
+      "command": "git diff --check",
+      "exit": 0
+    },
+    "checks_script_sha256": "5d8628c0e6355680ac11f70a6eabf2cb296936156031b9cdcb35a2998f1d2527",
+    "checks_log_sha256": "5bd93b219c3fd9aa3627d48e4f9c8e3094ab30f8ee6b04fe7da5bb50eb4439f9",
+    "explicit_hooks": {
+      "command": "just hooks-run files=\"tests/test_program_oracle_semantic_backend.py tests/test_program_oracle_live_gate.py tests/test_adapters_eval_bertscore.py tests/test_dspy_lm_auth_lm.py diary/2026-09-03--implementation-foundry-jury-child-retention-and-xai-timeout.md diary/2026-09-03--implementation-foundry-jury-fresh-subprocess-and-split.md diary/2026-09-03--implementation-foundry-jury-preflight-and-catalog.md governance/task-scopes/AK-5511.snapshot.json docs/project/2026-09-07-evidence-integrity-design.md diary/2026-09-07--evidence-gate-repair.md diary/2026-09-07--evidence-baseline-repair.md diary/2026-09-07--evidence-full-verification.md diary/2026-09-07--evidence-finalization.md diary/2026-09-07--evidence-finalization.receipt.json\"",
+      "exit": 0,
+      "result": "all five cached hooks passed; no rewrites",
+      "log_sha256": "ecdd33652d059d044114659928fd4f47673a58b169e25825bb6ea1a2a42b647a"
+    },
+    "preservation": {
+      "unchanged_preexisting_paths": 2839,
+      "append_only_preexisting_documents": 4,
+      "test_sources_unchanged": 4
+    }
+  }
+}

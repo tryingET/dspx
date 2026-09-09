@@ -520,3 +520,163 @@ The 16-file interface, schemas, fixed historical profiles, auth pin and claim
 ceilings are unchanged. Only the GEPA module hash/profile changed, frozen after
 formatting and tests. The full-gate heavy-job blocker is not bypassed or represented
 as passing; no held profile is approved for provisioning by these results.
+
+## Bounded test-gate repair plan (recorded before code, 2026-09-09)
+
+Controller dispatch reports independent design acceptance
+`dispatch-1788933214927` of the amended tests-only plan. Observed starting HEAD:
+`92443fbee2ceb72c8844482215342ac76ed3211a`; AK-5511 is claimed by the existing
+session through `2026-09-10T05:57:39.169144884+00:00`, scope entity version 5.
+The parent-modified scope snapshot is retained untouched. This is the sole
+implementation owner for this bounded slice; no other work is displaced.
+Acceptance of design is not implementation review or a passing gate.
+
+1. In the existing Oracle live test, require exact `DSPX_ORACLE_LIVE_VLLM=1`
+   and `DSPX_POLICY_ALLOW_NETWORK_MUTATE=1`, reject policy-enabled bypass using
+   the policy's own normalization, then check `openai-compatible` provider and
+   both `network.read` / `network.mutate` capabilities before availability HTTP.
+   Denied/missing permission skips without probe, preflight, resolution or analysis.
+   Remove live-test self-grants and restriction clearing; keep the credential-free
+   key removal, fixed loopback endpoint/model and offline MockTransport helper.
+2. Add unconditional `tests/test_program_oracle_live_gate.py` calling the actual
+   live test entrypoint. Count HTTP/preflight/resolution/analysis attempts (not
+   exception sentinels alone: availability catches Exception). Exercise absent,
+   malformed and partial opt-ins, policy bypass spellings, provider/capability
+   allow and deny restrictions, allowed-but-unavailable skip and a complete fake
+   successful analysis. Check permission before probe and preserve caller policy.
+3. Move real BERTScore optional import into its smoke-test body, behind exact
+   `DSPX_BERTSCORE_REAL_MODEL=1`; retain real/model markers only on that smoke.
+   Unconditional fake-module tests cover import/score absence by default,
+   argument order, forwarded defaults/options, tensor and iterable aggregation,
+   empty/mismatched inputs and macro delegation. No torch/model download needed.
+4. Run only these three test files, explicit-file ruff and focused typechecking
+   with existing installed tools, offline namespace (`unshare -Urn` available),
+   no dependency sync/download or blanket marker exclusion. Record exact commands,
+   counts and limits separately. Full gate waits for independent implementation
+   review. No production, Justfile, shared conftest, historical evidence, source
+   pins, ontology, AK state, commit/push or lifecycle mutation.
+
+Engineering contract read locally; immutable upstream guidance is not fetched
+because this dispatch forbids remote effects. This plan does not assert a full
+suite/network-isolation proof beyond the specific observed namespace runs.
+
+
+## Bounded baseline characterization repair (plan before code, 2026-09-09)
+
+Observed admission: AK-5511 claimed, scope entity version 6, evidence **8669**
+(`synthetic_fixture_repair_admission`, pass), following independent design review
+`dispatch-1788935571657`. Effective routing remains uninitialized; the exact task
+and admission bind this slice. The prior full gate remains FAIL/HOLD, not retried.
+No production repin, new live eligibility, AK mutation, commit or release is admitted.
+
+Decision: characterize the source-only loader with a **synthetic current-source
+private repository**, not a newly reviewed live runtime. In
+`tests/test_dspy_lm_auth_lm.py` only, copy the required source/manifest members,
+v10 contract and runner. Bind the original runner to immutable SHA-256
+`f593be0834cb370806a8b5c18ac5a157e6438cf1fcaa7628ee920e47c6e868c6`.
+Validate its 46-member preledger and the fixed historical/current pairs below;
+patch exactly one full path/hash literal per delta (three total) in the copy only.
+All copied source bytes must match the historical pins or these three fixed
+current hashes. Never derive replacement pins from arbitrary current bytes.
+
+| Source under packages/dspx-core/src/dspx/ | Historical SHA-256 | Fixed current SHA-256 |
+|---|---|---|
+| model_roles.py | `a7a4dc03afcbc2726d62ab4b11b951bf8d32c069652d34423c3ec08e751015a2` | `30c8f3c935e9a59b03f386d6f1525b2fa66bc36735ef611c3b75ae97b1cef8c2` |
+| openai_compatible_provider.py | `df4ed50f569b4e04757592468a7f908f940b8629eef796932423357b688e5241` | `f923b5149683dd78cecc61f1b14752ddbccb7cdaeb275acc29d2c8433037b76c` |
+| services/program_oracle_semantic_backend.py | `ba4c983f12f478f58ef17590b22a68ee241fa8a249f79918de8a2622f6dc60f2` | `7f44fdfd6cf71f6137ab223595d1339a2135a1c61b76594e4250e162b003598b` |
+
+All three historical file hashes were independently recovered from Git commit
+`6ea779d0f1af7e8adb2f0a7a4bc499c450b1f890`; later source changes are at
+`c617826c` and `c9a52177`. Historical source/constants remain untouched.
+
+Route the stale-PYTHONPATH positive/allowlist/origin checks, post-preparation
+drift check, malicious timestamp-valid pyc check and both parametrized preledger
+corruption cases through the helper. Preserve downstream checks and assert the
+exact corrupted relative path in each rejection. Add a separate immutable real
+runner hash/pin and fail-closed assertion, rather than counting synthetic success
+as historical eligibility. These cases load actual computation-only entry modules
+and use the provider-free candidate/task-binding path; no live entry is invoked
+(the existing loader tests do not mock the loader itself).
+
+Prepend only truthful summary/read_when YAML frontmatter to the three admitted
+September 3 foundry-jury diaries (child-retention-and-xai-timeout,
+fresh-subprocess-and-split, preflight-and-catalog). Preserve every original byte as
+an exact suffix. No other diaries or reviewed gate tests change.
+
+Validation plan: source-bound before/after inventory and exact suffix comparison;
+only the focused loader/immutable-contract tests, explicit-file ruff/typecheck,
+and metadata parsing. Use installed offline tools, sanitized provider-disabled
+environment, no downloads/provider calls/full gate/retries. A focused namespace
+run does not establish a compatible full-suite isolation posture. Record results
+separately; stop for independent implementation review before any commit.
+
+
+### First focused execution finding (not a pass)
+
+The single focused pytest invocation returned **9 passed, 1 failed, 17 deselected**.
+The candidate positive failed because the synthetic copy omitted the code-semantics
+manifest; inspection of `load_candidate` also identified its required v9 contract.
+The helper now explicitly includes `SEMANTICS_PATH` and `V9_PATH` alongside v10.
+No production bytes or historical pins changed. **No pytest retry is performed**
+under this dispatch. The corrected positive/allowlist/origin sequence remains
+unverified and must not be described as a passing baseline repair. Static checks
+and preservation evidence are reported separately.
+
+
+## Foreign-origin attribution repair — parent decision before code, 2026-09-09
+
+Parent dispatch adopts independent reviewer `dispatch1788937030933`'s minimal
+follow-up within the same admitted test file. The reviewer issued bounded SHIP
+for the previous repair and executed its final source: **10 passed, 17 deselected**,
+plus five separately labelled scratch probes. Its source hash was
+`9aa4ccff89845e274e7fdc70c4f3bfd079ba5009bfac9ae6ed49edc965bfbc2c`.
+This supersedes the prior unexecuted-final-source status without erasing the
+original **9 passed / 1 failed** attempt. Full-gate HOLD and non-authority remain.
+Review: `/home/tryinget/.local/state/pi-quests/tmp/ak5511-independent-review.VFhg9H/review.md`.
+
+The old foreign-backend test can pass by rejecting the ordinary `dspx.__cached__`
+before inspecting the substituted backend. Decision: replace it with Gate4/Gate5
+parametrized private copied-fixture subprocess checks. Establish a successful
+actual source-loader baseline with the backend present, retain the same manifest,
+then mutate only that backend's `__file__`. Require the exact existing diagnostic
+AND the innermost rejection frame's backend-relative path and module identity.
+Production exceptions do not include paths; traceback attribution tests the actual
+rejection without changing those diagnostics. Restore that single origin and
+require verification to pass again. Never clear modules, cached attributes,
+allowlists or manifest inputs to manufacture a positive baseline.
+
+Only `tests/test_dspy_lm_auth_lm.py` may change source; production runner and all
+pins remain byte-identical. Record a dated review/result addendum in the existing
+scoped diary, preserving its complete earlier bytes as a prefix. Run focused final
+loader/origin regressions and explicit-file static checks offline in owned scratch
+with network isolation; deterministic fixture regression reruns are explicitly
+admitted, unlike mechanical retries of effect-indeterminate live/full runs. No
+provider call, full gate, AK mutation or commit. Stop for final independent review.
+
+
+## Bounded durable disposition — 2026-09-09 (not full-gate/lifecycle closeout)
+
+The controller now authorizes a normal main commit of only the reviewed four test
+files, exact three frontmatter-only September3 diaries, native scope-v6 export,
+and scoped design/evidence docs. No new source change is authorized or performed.
+Independent gate/BERT SHIP `dispatch1788934614753` reports 101-pass/2-skip plus
+38-case premature-probe mutant evidence. Final synthetic/origin correction SHIP
+`dispatch1788937030933` independently executed final hash
+`df5191a4d26295ce0cff1e9adaed9138beed7dae5065b230c7fe3cb2c36dcdf9`: 11-pass/17-deselected,
+plus four expected-rejection counterfactual characterizations. The production runner
+remains `f593be0834cb370806a8b5c18ac5a157e6438cf1fcaa7628ee920e47c6e868c6`.
+
+Fresh bounded checks total **112 passed / 2 skipped / 17 deselected** across three
+complete files and the previously accepted loader selection in the fourth. Native
+strict docs metadata and package/test static checks pass separately. Earlier failed
+attempts and pending-review statements above are preserved as historical prefixes.
+See `diary/2026-09-07--evidence-finalization.md` and its command/hash receipt for
+source identities, retention inventory and exact coverage limits.
+
+**Current full gate: HOLD.** Actual run1788935170 remains exit1; corrected metadata
+and synthetic positives do not turn the 82-case isolation attribution into a
+retroactive pass. A separately admitted compatible no-live variant must preserve
+UID/permission/ancestor semantics, allow only isolated fixture loopback, and exclude
+host-provider/model effects without weakening tests or guards. No such variant was
+implemented or executed here. No task close, AK evidence/parent-record mutation,
+production repin, consumer trust activation, release, push or full retry is granted.

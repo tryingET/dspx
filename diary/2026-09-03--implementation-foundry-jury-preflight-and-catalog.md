@@ -1,3 +1,9 @@
+---
+summary: "Historical AK-5354 slices A-C implementation, validation, and catalog preflight observations."
+read_when:
+  - "Reviewing the historical jury pre-marker preflight, catalog probe, or evidence-gap tests."
+---
+
 # 2026-09-03 — foundry jury: pre-marker preflight, catalog check, evidence-gap tests (AK-5354, slices A-C)
 
 Plan: `~/.claude/jobs/508c6e1b/tmp/plan-phase1-dspx.md`. Slice D (fresh subprocess per jury)

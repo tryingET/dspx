@@ -1,3 +1,9 @@
+---
+summary: "Historical September 3 implementation and validation notes for jury child result retention and xAI family timeouts."
+read_when:
+  - "Reviewing the historical child-result envelope, failure retention, or xAI timeout changes."
+---
+
 # 2026-09-03 — foundry jury: child result retention and xAI per-family timeout
 
 Follow-up to slice D (`1ce51274`, `diary/2026-09-03--implementation-foundry-jury-fresh-subprocess-and-split.md`)

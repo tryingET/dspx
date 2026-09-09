@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import copy
 from dataclasses import dataclass, field, replace
 import hashlib
@@ -14,7 +15,7 @@ import subprocess
 import struct
 import sys
 import threading
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -32,11 +33,11 @@ from dspx.services.program_oracle_semantic_contract_v11 import SemanticV11Error
 from dspx.services.program_oracle_semantic_state_v11 import (
     _consume_fixture_attempt,
 )
-from dspx.services.program_oracle_semantic_gate4_v11 import (
-    candidate_source_manifest,
-    verify_loaded_runtime_modules,
+from dspx.services.program_oracle_semantic_contract_v10 import (
+    INHERITED_KEYS,
+    SEMANTICS_PATH,
+    V9_PATH,
 )
-from dspx.services.program_oracle_semantic_contract_v10 import INHERITED_KEYS
 from dspx.services.program_oracle_semantic_contract_v11 import (
     CASE_ORDER,
     CONSUMER_MODULE_HASHES,
@@ -93,6 +94,88 @@ from dspx.services.provider_outcome_receipt_journal import ReceiptJournal
 
 REPO = Path(__file__).resolve().parents[1]
 RUNNER = REPO / "scripts/ci/run_oracle_semantic_analysis_evaluation_v11.py"
+
+_HISTORICAL_RUNNER_SHA256 = (
+    "f593be0834cb370806a8b5c18ac5a157e6438cf1fcaa7628ee920e47c6e868c6"
+)
+# Historical bytes: 6ea779d0f1af7e8adb2f0a7a4bc499c450b1f890; changes:
+# c617826c (roles/backend), c9a52177 (provider). Synthetic characterization
+# ONLY: these fixed current bytes confer no live eligibility or production repin.
+_CURRENT_SOURCE_DELTAS = {
+    "packages/dspx-core/src/dspx/model_roles.py": (
+        "a7a4dc03afcbc2726d62ab4b11b951bf8d32c069652d34423c3ec08e751015a2",
+        "30c8f3c935e9a59b03f386d6f1525b2fa66bc36735ef611c3b75ae97b1cef8c2",
+    ),
+    "packages/dspx-core/src/dspx/openai_compatible_provider.py": (
+        "df4ed50f569b4e04757592468a7f908f940b8629eef796932423357b688e5241",
+        "f923b5149683dd78cecc61f1b14752ddbccb7cdaeb275acc29d2c8433037b76c",
+    ),
+    "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py": (
+        "ba4c983f12f478f58ef17590b22a68ee241fa8a249f79918de8a2622f6dc60f2",
+        "7f44fdfd6cf71f6137ab223595d1339a2135a1c61b76594e4250e162b003598b",
+    ),
+}
+
+
+def _historical_preledger() -> tuple[bytes, dict[str, str]]:
+    raw = RUNNER.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == _HISTORICAL_RUNNER_SHA256
+    declarations = [
+        node.value
+        for node in ast.parse(raw).body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "_PRELEDGER_SHA256"
+    ]
+    assert len(declarations) == 1
+    assert declarations[0] is not None
+    pins = cast(dict[str, str], ast.literal_eval(declarations[0]))
+    assert len(pins) == 46
+    for relative, (historical, _) in _CURRENT_SOURCE_DELTAS.items():
+        assert pins[relative] == historical, relative
+    return raw, pins
+
+
+def _current_source_repository(tmp_path: Path) -> tuple[Path, Path]:
+    """Private synthetic loader fixture, never a live-runtime trust anchor."""
+    from dspx.services.program_oracle_semantic_gate4_contract_v11 import (
+        CANDIDATE_SOURCE_PATHS,
+        RUNTIME_SUPPORT_SOURCE_PATHS,
+    )
+
+    raw, pins = _historical_preledger()
+    root = _private(tmp_path / "current-source-characterization")
+    target_script = root / RUNNER.relative_to(REPO)
+    required = (
+        set(pins)
+        | set(CANDIDATE_SOURCE_PATHS)
+        | set(RUNTIME_SUPPORT_SOURCE_PATHS)
+        | {path.as_posix() for path in (V10_PATH, V9_PATH, SEMANTICS_PATH)}
+    )
+    for relative in sorted(required):
+        source = REPO / relative
+        assert source.is_file() and not source.is_symlink(), relative
+        copied = root / relative
+        copied.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, copied)
+        if relative in pins:
+            expected = _CURRENT_SOURCE_DELTAS.get(relative, (pins[relative],) * 2)[1]
+            assert hashlib.sha256(copied.read_bytes()).hexdigest() == expected, relative
+    assert target_script.read_bytes() == raw
+    patched = raw
+    replacements = 0
+    for relative, (historical, current) in _CURRENT_SOURCE_DELTAS.items():
+        old = f'"{relative}": "{historical}"'.encode()
+        new = f'"{relative}": "{current}"'.encode()
+        assert patched.count(old) == 1, relative
+        assert patched.count(new) == 0, relative
+        patched = patched.replace(old, new, 1)
+        assert patched.count(old) == 0 and patched.count(new) == 1, relative
+        replacements += 1
+    assert replacements == 3
+    target_script.write_bytes(patched)
+    assert RUNNER.read_bytes() == raw
+    return root, target_script
 
 
 def _private(path: Path) -> Path:
@@ -176,22 +259,34 @@ def test_receipt_safe_adapter_exposes_no_live_invocation_or_callback_surface(
     )
 
 
-def test_loaded_runtime_origin_hash_binding_rejects_foreign_module(monkeypatch):
-    manifest = candidate_source_manifest(REPO)
-    fake = ModuleType("dspx.services.program_oracle_semantic_backend")
-    fake.__file__ = str(REPO / "tests/test_dspy_lm_auth_lm.py")
-    from dspx.services.program_oracle_semantic_gate4_contract_v11 import (
-        REVIEWED_RUNTIME_MODULES,
-    )
-
-    for name in tuple(sys.modules):
-        if (
-            name == "dspx" or name.startswith("dspx.")
-        ) and name not in REVIEWED_RUNTIME_MODULES:
-            monkeypatch.delitem(sys.modules, name)
-    monkeypatch.setitem(sys.modules, fake.__name__, fake)
-    with pytest.raises(SemanticV11Error, match="origin(?:/hash)? drift"):
-        verify_loaded_runtime_modules(REPO, manifest, require_all=False)
+@pytest.mark.parametrize("gate_id", [4, 5])
+def test_loaded_runtime_origin_hash_binding_rejects_foreign_module(tmp_path, gate_id):
+    root, target_script = _current_source_repository(tmp_path)
+    code = f"""
+import pathlib, runpy, sys, traceback
+module=runpy.run_path({str(target_script)!r})
+root=pathlib.Path({str(root)!r})
+gate=module['_load_target_entry'](root, 'dspx.services.program_oracle_semantic_gate4_v11')
+gate._runtime_modules()
+from dspx.services.program_oracle_semantic_gate5_runtime_v11 import source_manifest, verify_loaded_origins
+manifest=gate.candidate_source_manifest(root) if {gate_id} == 4 else source_manifest(root)
+verify=(lambda: gate.verify_loaded_runtime_modules(root, manifest, require_all=True)) if {gate_id} == 4 else (lambda: verify_loaded_origins(root, manifest))
+backend=sys.modules['dspx.services.program_oracle_semantic_backend']
+verify()
+original, backend.__file__=backend.__file__, str(root/'tests/test_dspy_lm_auth_lm.py')
+try:
+    verify()
+except gate.SemanticV11Error as exc:
+    assert str(exc) == ('reviewed runtime module origin/hash drift' if {gate_id} == 4 else 'Gate-5 loaded module origin/hash drift'), str(exc)
+    frame=list(traceback.walk_tb(exc.__traceback__))[-1][0]
+    assert frame.f_locals['relative'] == 'packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py'
+    assert frame.f_locals['module'] is backend
+else: raise AssertionError('foreign backend origin accepted')
+backend.__file__=original
+verify()
+"""
+    completed = _run(["-c", code], cwd=root)
+    assert completed.returncode == 0, completed.stdout + completed.stderr
 
 
 def _run(args: list[str], *, env: dict[str, str] | None = None, cwd: Path = REPO):
@@ -229,6 +324,7 @@ def test_bootstrap_rejects_preloaded_dspx_and_contaminated_sitecustomize(tmp_pat
 def test_bootstrap_source_loader_ignores_stale_pythonpath_and_checks_allowlist(
     tmp_path,
 ):
+    root, target_script = _current_source_repository(tmp_path)
     forbidden = set(PRELEDGER_FORBIDDEN_PREFIXES)
     assert {
         "dspy",
@@ -244,7 +340,7 @@ def test_bootstrap_source_loader_ignores_stale_pythonpath_and_checks_allowlist(
         REVIEWED_RUNTIME_MODULES,
     )
 
-    bootstrap_source = RUNNER.read_text()
+    bootstrap_source = target_script.read_text()
     assert all(path in bootstrap_source for path in REVIEWED_RUNTIME_MODULES.values())
     stale = tmp_path / "stale"
     package = stale / "dspx"
@@ -253,9 +349,9 @@ def test_bootstrap_source_loader_ignores_stale_pythonpath_and_checks_allowlist(
     state = _private(tmp_path / "state")
     completed = _run(
         [
-            str(RUNNER),
+            str(target_script),
             "--repo",
-            str(REPO),
+            str(root),
             "--task-binding-check",
             "85001",
             "--state-root",
@@ -265,6 +361,14 @@ def test_bootstrap_source_loader_ignores_stale_pythonpath_and_checks_allowlist(
     )
     assert completed.returncode == 0, completed.stdout + completed.stderr
     payload = json.loads(completed.stdout)
+    assert payload["fixture_only"] is True
+    for flag in (
+        "provider_invoked",
+        "v11_authorized",
+        "live_execution_authorized",
+        "authority_granted",
+    ):
+        assert payload[flag] is False
     assert payload["task_binding"][
         "state_root_identity_sha256"
     ] == state_root_identity_sha256(state)
@@ -273,21 +377,13 @@ def test_bootstrap_source_loader_ignores_stale_pythonpath_and_checks_allowlist(
     code = f"""
 import importlib.util
 from pathlib import Path
-spec=importlib.util.spec_from_file_location('v11_bootstrap', {str(RUNNER)!r})
+spec=importlib.util.spec_from_file_location('v11_bootstrap', {str(target_script)!r})
 module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-gate=module._load_target_entry(Path({str(REPO)!r}), 'dspx.services.program_oracle_semantic_gate4_v11')
+gate=module._load_target_entry(Path({str(root)!r}), 'dspx.services.program_oracle_semantic_gate4_v11')
 gate._assert_preledger_import_posture()
-import copy
-import hashlib
-import importlib
-import importlib._bootstrap_external as bootstrap_external
-import importlib.util
-import importlib
-import importlib._bootstrap_external as bootstrap_external
-import importlib.util
 gate._runtime_modules()
-manifest=gate.candidate_source_manifest(Path({str(REPO)!r}))
-gate.verify_loaded_runtime_modules(Path({str(REPO)!r}), manifest, require_all=True)
+manifest=gate.candidate_source_manifest(Path({str(root)!r}))
+gate.verify_loaded_runtime_modules(Path({str(root)!r}), manifest, require_all=True)
 print('ok')
 """
     allowlist = _run(["-c", code], env={"PYTHONPATH": str(stale)})
@@ -297,11 +393,11 @@ print('ok')
     gate5_code = f"""
 import importlib.util
 from pathlib import Path
-spec=importlib.util.spec_from_file_location('v11_bootstrap', {str(RUNNER)!r})
+spec=importlib.util.spec_from_file_location('v11_bootstrap', {str(target_script)!r})
 module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-gate5=module._load_target_entry(Path({str(REPO)!r}), 'dspx.services.program_oracle_semantic_gate5_v11')
+gate5=module._load_target_entry(Path({str(root)!r}), 'dspx.services.program_oracle_semantic_gate5_v11')
 from dspx.services.program_oracle_semantic_gate5_runtime_v11 import source_manifest, verify_loaded_origins
-manifest=source_manifest(Path({str(REPO)!r})); verify_loaded_origins(Path({str(REPO)!r}), manifest)
+manifest=source_manifest(Path({str(root)!r})); verify_loaded_origins(Path({str(root)!r}), manifest)
 print('ok')
 """
     gate5_origin = _run(["-c", gate5_code], env={"PYTHONPATH": str(stale)})
@@ -325,26 +421,20 @@ def test_cli_gate4_and_gate5_operations_are_mutually_exclusive():
     ],
 )
 def test_bootstrap_rejects_drifted_entry_or_transitive_helper(tmp_path, relative):
-    root = tmp_path / "repo"
-    target_script = root / "scripts/ci/run_oracle_semantic_analysis_evaluation_v11.py"
-    target_script.parent.mkdir(parents=True)
-    shutil.copy2(RUNNER, target_script)
-    source = REPO / "packages/dspx-core/src/dspx"
+    root, target_script = _current_source_repository(tmp_path)
     target = root / "packages/dspx-core/src/dspx"
-    shutil.copytree(source, target)
     (target / relative).write_text("DRIFT = True\n")
     completed = _run([str(target_script), "--repo", str(root)], cwd=root)
     assert completed.returncode != 0
-    assert "preledger module hash drift" in completed.stderr
+    assert completed.stderr.splitlines()[-1] == (
+        "RuntimeError: reviewed preledger module hash drift: "
+        f"packages/dspx-core/src/dspx/{relative}"
+    )
 
 
 def test_source_loader_rechecks_hash_when_source_drifts_after_preparation(tmp_path):
-    root = tmp_path / "recheck-repo"
-    target_script = root / "scripts/ci/run_oracle_semantic_analysis_evaluation_v11.py"
-    target_script.parent.mkdir(parents=True)
-    shutil.copy2(RUNNER, target_script)
+    root, target_script = _current_source_repository(tmp_path)
     target_root = root / "packages/dspx-core/src/dspx"
-    shutil.copytree(REPO / "packages/dspx-core/src/dspx", target_root)
     helper = target_root / "services/program_oracle_semantic_state_v11.py"
     code = f"""
 import importlib, importlib.util
@@ -357,19 +447,17 @@ importlib.import_module('dspx.services.program_oracle_semantic_state_v11')
 """
     completed = _run(["-c", code], cwd=root)
     assert completed.returncode != 0
-    assert "source hash drift during import" in completed.stderr
+    assert completed.stderr.splitlines()[-1] == (
+        "RuntimeError: reviewed source hash drift during import: "
+        + helper.relative_to(root).as_posix()
+    )
 
 
 def test_bootstrap_ignores_timestamp_valid_malicious_pyc_and_executes_source(
     tmp_path,
 ):
-    root = tmp_path / "source-only-repo"
-    target_script = root / "scripts/ci/run_oracle_semantic_analysis_evaluation_v11.py"
-    target_script.parent.mkdir(parents=True)
-    shutil.copy2(RUNNER, target_script)
-    source_root = REPO / "packages/dspx-core/src/dspx"
+    root, target_script = _current_source_repository(tmp_path)
     target_root = root / "packages/dspx-core/src/dspx"
-    shutil.copytree(source_root, target_root)
     target_source = target_root / "services/program_oracle_semantic_gate4_v11.py"
     info = target_source.stat()
     hostile = compile(
@@ -493,6 +581,26 @@ def _journal(tmp_path: Path):
         reservation,
         artifact,
     )
+
+
+def test_historical_repository_runner_remains_immutable_and_fail_closed():
+    raw, pins = _historical_preledger()
+    drift = {
+        relative: hashlib.sha256((REPO / relative).read_bytes()).hexdigest()
+        for relative, historical in pins.items()
+        if hashlib.sha256((REPO / relative).read_bytes()).hexdigest() != historical
+    }
+    assert drift == {
+        relative: current for relative, (_, current) in _CURRENT_SOURCE_DELTAS.items()
+    }
+    completed = _run([str(RUNNER), "--repo", str(REPO)])
+    assert completed.returncode != 0
+    assert completed.stdout == ""
+    assert completed.stderr.splitlines()[-1] == (
+        "RuntimeError: reviewed preledger module hash drift: "
+        "packages/dspx-core/src/dspx/model_roles.py"
+    )
+    assert RUNNER.read_bytes() == raw
 
 
 def test_candidate_contract_and_accepted_consumer_bytes_remain_exact():

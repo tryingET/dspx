@@ -9,6 +9,7 @@ from typing import Any, Callable
 
 import httpx
 import pytest
+from dspx import policy
 from dspx.cli.commands.oracle import app as oracle_app
 from dspx.dspy_typed_lm import DSPyTypedLMAdapter
 from dspx.openai_compatible_provider import OpenAICompatibleProvider
@@ -600,11 +601,20 @@ def test_live_loopback_vllm_typed_backend_round_trip(
 ) -> None:
     """Bounded credential-free round trip against the local vLLM (opt-in only)."""
 
+    if os.environ.get("DSPX_ORACLE_LIVE_VLLM") != "1":
+        pytest.skip("requires exact DSPX_ORACLE_LIVE_VLLM=1")
+    if os.environ.get("DSPX_POLICY_ALLOW_NETWORK_MUTATE") != "1":
+        pytest.skip("requires exact DSPX_POLICY_ALLOW_NETWORK_MUTATE=1")
+    if policy.bypass():
+        pytest.skip("live Oracle test does not permit DSPX_POLICY_BYPASS")
+    try:
+        policy.check_provider_allowed("openai-compatible")
+        policy.check_capability("network.read")
+        policy.check_capability("network.mutate")
+    except PermissionError as exc:
+        pytest.skip(str(exc))
     if not _loopback_vllm_available():
         pytest.skip("loopback vLLM at 127.0.0.1:2456 is not serving the local model")
-    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
-    monkeypatch.delenv("DSPX_POLICY_ALLOWED_PROVIDERS", raising=False)
-    monkeypatch.delenv("DSPX_POLICY_ALLOWED_CAPS", raising=False)
     monkeypatch.delenv("DSPX_OPENAI_COMPAT_API_KEY", raising=False)
     environ = {
         **{k: v for k, v in os.environ.items() if not k.startswith("DSPX_ORACLE_")},

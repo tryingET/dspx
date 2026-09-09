@@ -1,3 +1,9 @@
+---
+summary: "Historical AK-5354 slice D implementation and validation notes for fresh jury subprocesses and the module split."
+read_when:
+  - "Reviewing the historical task-local jury subprocess boundary or slice D module split."
+---
+
 # 2026-09-03 — foundry jury: fresh `-I -B` child per task-local jury, module split (AK-5354, slice D)
 
 Plan: `~/.claude/jobs/508c6e1b/tmp/plan-phase1-dspx.md`, slice D, on top of slices A-C
