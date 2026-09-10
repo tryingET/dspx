@@ -1,0 +1,14 @@
+{
+  "synthetic": true,
+  "source_ref": "synthetic:school-garden",
+  "markdown": "Water pools on the compacted path after rain. Shade lowered the garden temperature in one afternoon trial. Neither observation establishes long-term yield.\n",
+  "puzzles": [
+    {"puzzle_id": "puzzle:drainage", "question": "How can we test water drainage without assuming a cause?"},
+    {"puzzle_id": "puzzle:heat", "question": "How can we test garden heat exposure with limited observations?"}
+  ],
+  "owner_reviewed_purposes": [
+    "Design a water drainage comparison with a measured infiltration time and an unchanged control path.",
+    "Design a heat exposure comparison with repeated temperature measurements and an unshaded control."
+  ],
+  "claim_ceiling": "local_synthetic_execution_only"
+}

@@ -21,7 +21,35 @@ Use it as an **active work artifact**:
 
 This file is a dated projection, not live authority, a task list, or a changelog. Active direction, tasks, decisions, and evidence live in Agent Kernel (AK). Shipped behavior lives in code and its current executable proof. Historical posture snapshots remain available in Git history; do not append implementation diaries here.
 
-## AK5419 design posture — 2026-09-05
+## Reading producer frontier — AK5456, 2026-09-10
+
+An additive **synthetic-only** producer now connects generated proposal/reading
+DSPy candidates to the existing runtime and validated readback. Independent review
+`dispatch-1789080583190` executed **118 tests, 1 optional probe skipped**, and
+independently audited four selected bundles and 61 raw-file hashes. This is
+source-checkout integration proof, not installed behavior or semantic acceptance.
+
+- Full versioned reader intent reaches declared provider-facing inputs; A/B tests
+  observe changed inputs and synthetic responses, not a fake replacement runtime.
+- Wrapper-issued receipts bind caller-held identities, exact native episode/index,
+  raw input/output bytes and parsed hashes. Captured generated source—not cached
+  candidate bytecode—executes. Recursive proposal/reading schemas reject authority
+  escalation, foreign bindings, malformed evidence and missing artifact families.
+- The three `program_reading_*` services and new reading fixtures leave existing
+  runtime/readback/renderers and historical closure verification unchanged.
+- Every receipt remains `local_synthetic_execution_only`, `review_eligible=false`,
+  `canonical_apply_allowed=false`, with quality unknown and provider-output
+  authentication not established. No model calls, private books, service changes,
+  XState selection or Foundry activation occurred.
+
+**Next:** AK5457's separately scoped independent-receipt consumer must use isolated
+synthetic inspection, not bypass the existing fitness/active-review gates. AK5458
+still owns later admitted source-fidelity and empirical purpose-sensitivity proof.
+AK5511 retains its separate full-validation HOLD; bounded producer tests do not
+satisfy that gate. Contract/API and validation limits are in
+[the synthetic producer boundary](program-synthesis-boundary.md#synthetic-producer-implementation--ak5456).
+
+## Historical AK5419 design posture — 2026-09-05
 
 Operator route evidence **8364** permits **Core-priority design reconciliation
 with Autonomous Program Foundry paused**. Done contract v3 and four-document scope

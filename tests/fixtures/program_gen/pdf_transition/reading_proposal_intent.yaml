@@ -1,0 +1,17 @@
+{
+  "schema_version": "program-intent-v2",
+  "name": "SyntheticReadingProposal",
+  "objective": "Propose existing puzzles and reader purposes from caller-supplied synthetic source and puzzle snapshots. This stage suggests candidates, never approves working intent, registers puzzles, chooses a canonical primary puzzle, or performs a completed purpose-guided reading. Separate source meaning from proposed reader purpose. Permit explicit no_match, direct and defer dispositions without forced candidates. Include exact evidence locators, rationale, uncertainty and alternatives. Output later_puzzle_linkage maps candidate_puzzle_ids to candidate_puzzle_suggestions with candidate_id and proposed_reader_purpose plus snapshot provenance. An independent owner reviews or corrects this before creating immutable working-reading-intent-v1. No Oracle invocation/index/semantic/publication or canonical apply.",
+  "input_fields": [
+    {"name": "source_package_manifest_json", "type": "str", "desc": "Caller-supplied synthetic source snapshot, source_ref and exact markdown_sha256; no filesystem discovery."},
+    {"name": "marker_markdown", "type": "str", "desc": "Supplied synthetic source text only. Cite exact Unicode start/end offsets, UTF-8 excerpt_sha256 and page/section/paragraph; do not invent support."},
+    {"name": "existing_wiki_index_json", "type": "str", "desc": "Explicit empty synthetic wiki index; do not open paths or fabricate existing notes."},
+    {"name": "declared_output_root", "type": "str", "desc": "Logical synthetic-review-only destination, not filesystem permission."},
+    {"name": "puzzle_set_snapshot_json", "type": "str", "desc": "Supplied synthetic existing puzzle IDs/questions. Return only members, or explicit no_match/direct/defer with empty candidates. Do not register puzzles."},
+    {"name": "producer_context_json", "type": "str", "desc": "Independent request_id, source_sha256 and puzzle_snapshot_sha256 binding. Proposal reading_intent_binding must be null: no approved working intent exists at this stage."}
+  ],
+  "output_fields": [
+    {"name": "reading_proposal_json", "type": "str", "desc": "JSON object binding request_id, source_sha256 and reading_intent_binding=null. disposition is candidates/no_match/direct/defer. Include rationale, uncertainty, alternatives and evidence (exact source_ref, markdown_sha256, excerpt start/end/hash, quotation_status, page/section/paragraph; or insufficient_evidence with reason). later_puzzle_linkage includes source_sha256, puzzle_snapshot_sha256, candidate_puzzle_ids and candidate_puzzle_suggestions. Each suggestion has existing candidate_id, proposed_reader_purpose, rationale, uncertainty, alternatives and evidence. No working intent approval, puzzle registration, canonical apply or quality acceptance."}
+  ],
+  "options": {"focused_json_bundle_runtime": false, "module_inference": false}
+}

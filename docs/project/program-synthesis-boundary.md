@@ -682,6 +682,78 @@ Proposed separately reviewed implementation scopes, **not tasks launched here**:
   provider/effect budgets, any installed host/PWA work and canonical acceptance.
   Neither DSPx nor the adapter manufactures these permissions.
 
+### Synthetic producer implementation — AK5456
+
+The separately admitted additive implementation now lives in Core services
+`program_reading_contracts.py`, `program_reading_runtime.py` and
+`program_reading_receipts.py`. The existing PDF fixture, generic runtime/readback,
+renderers and AK5511 historical closure remain unchanged. This implements only
+synthetic contract/integration proof; it does not implement the statechart host,
+semantic-quality acceptance or an installed review/knowledge workflow.
+
+Public Python entrypoints:
+- `materialize_reading_candidate(intent_path=..., candidate_root=..., stage=...)`
+  generates a proposal or reading candidate from the new `reading_*_intent.yaml`
+  fixtures under `tests/fixtures/program_gen/pdf_transition/`.
+- `run_reading_producer(manifest_path=..., requests_root=..., expected=...,
+  inputs=..., synthetic_transport=..., current_intent=...)` invokes the actual
+  generated DSPy program and native runtime in a spawned worker. The explicitly
+  supplied transport is trusted synthetic test code, not a plugin sandbox.
+- `consume_reading_receipt(root=..., trusted_receipt_sha256=..., manifest_path=...,
+  expected=..., inputs=..., expected_native_episode_id=...,
+  expected_native_index=0, current_intent=...)` verifies and returns captured
+  synthetic outputs. The trusted receipt hash and expected identities must arrive
+  through independent caller custody, never a submitted bundle's own trust claims.
+
+Both fixtures disable focused-bundle rendering **and module inference**; otherwise
+inferred topology can discard rich field descriptors despite disabling the focused
+renderer. The proposal stage emits reviewable supplied-puzzle alternatives/no-fit,
+not an approved working intent. The reading stage receives the full owner-reviewed
+intent as declared input; defer/source-only cause zero reading dispatches. Direct
+preservation requires a null puzzle and explicit purpose/reason.
+
+Admission requires exact `DSPX_PROVIDER=stub`, `MLFLOW_ENABLE=0`,
+`DSPX_POLICY_ALLOW_NETWORK_MUTATE=0` and
+`DSPX_POLICY_DISALLOWED_CAPS=network.read,network.mutate`; other DSPx/MLflow activation
+or custody configuration rejects before generation or runtime construction.
+Optional allowed variables are the private `DSPX_CACHE_DIR` and
+`DSPX_POLICY_ALLOWED_PROVIDERS=stub`. The caller establishes this posture before
+invocation; the wrapper does not switch shared process environment. Existing local
+Oracle readability files remain, but indexing/semantic/publication are disabled.
+
+`dspx-program-reading-receipt-v1` retains the independent expected request,
+source/puzzle/candidate/input/intent identities, exact native episode/index,
+`raw_file_sha256`, `output_parsed_sha256` and readback byte/parsed hashes. Raw
+native inputs use their existing pretty-printed envelope serialization; raw outputs
+use native string `rstrip()` plus newline. Working-intent hashes preserve Obsidian's
+`sha256:`-prefixed compact sorted UTF-8 convention. These domains are deliberately
+not interchangeable. Captured generated source and confined stable artifact reads
+prevent unchecked candidate bytecode and path-selected evidence from replacing
+those subjects; these checks do not authenticate a provider or establish OS isolation.
+
+All eight families and the nested v2 campaign must pass closed structural/reference
+schemas, including original L1–L5 and explicit added L6. Missing content, forged
+exact quotations, foreign descendants and contradictory authority flags reject.
+This is structural/reference integrity, not an assertion that the reasoning is good.
+The outer receipt always retains the synthetic ceiling, unknown quality,
+unestablished provider-output authentication, false review eligibility and false
+canonical-apply permission.
+
+Every request uses exclusive creation; failed/stale generations are retained and
+never rebound. Start/end intent callbacks detect observed supersession but are not
+an atomic owner publication lock. AK5457 must independently retain receipt hashes
+and serialize current-intent verification with publication into an isolated
+**synthetic inspection** destination. Existing materializer fitness/active-review
+admission must not be relaxed to pretend synthetic evidence is review-ready.
+
+Independent final review `dispatch-1789080583190` passed 118 tests with one optional
+external probe skipped, plus four independently selected bundles/61 raw-file hashes.
+Prior bytecode/schema/test-environment HOLDs remain in the task evidence. This proof
+does not close AK5511's full gate, implement AK5525 quality provenance, or satisfy
+AK5458 empirical reading acceptance. Example use and adversarial cases are the new
+`tests/test_program_reading_*.py`; they require only synthetic source snapshots.
+
+
 ### Requirements-to-binding and acceptance traceability
 
 All tests below are **required future acceptance probes**, except the explicitly

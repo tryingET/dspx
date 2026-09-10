@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-05T21:57:15.826127723+00:00",
+  "task_id": 5456,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      "diary/2026-09-11--ak5456-reading-integration.md",
+      "docs/project/product-posture.md",
+      "docs/project/program-synthesis-boundary.md",
+      "governance/task-scopes/AK-5456.snapshot.json",
+      "packages/dspx-core/src/dspx/services/program_reading_contracts.py",
+      "packages/dspx-core/src/dspx/services/program_reading_receipts.py",
+      "packages/dspx-core/src/dspx/services/program_reading_runtime.py",
+      "tests/fixtures/program_gen/pdf_transition/reading_cases.json",
+      "tests/fixtures/program_gen/pdf_transition/reading_intent.yaml",
+      "tests/fixtures/program_gen/pdf_transition/reading_proposal_intent.yaml",
+      "tests/test_program_reading_contracts.py",
+      "tests/test_program_reading_receipts.py",
+      "tests/test_program_reading_runtime.py"
+    ],
+    "required_paths": [],
+    "forbidden_paths": [
+      "apps/**",
+      "docs/_core/**",
+      "packages/dspx-core/src/dspx/services/program_foundry_*.py",
+      "packages/dspx-core/src/dspx/services/program_runtime_episode.py",
+      "packages/dspx-core/src/dspx/services/program_surfaces.py",
+      "packages/dspx-core/src/dspx/templates/module_templates.py",
+      "tests/fixtures/program_gen/pdf_transition/intent.yaml"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
