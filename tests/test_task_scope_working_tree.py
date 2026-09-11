@@ -114,7 +114,10 @@ def test_check_task_scope_working_tree_resolves_uncommitted_manifest_before_head
     )
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
 
-    result = check_task_scope(repo, mode="working-tree")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(
+        repo, mode="working-tree", claimed_task_resolver=lambda _: None
+    )
 
     assert result.ok is True
     assert result.task_id == 266
@@ -163,7 +166,10 @@ def test_check_task_scope_working_tree_resolves_uncommitted_snapshot_before_head
     )
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
 
-    result = check_task_scope(repo, mode="working-tree")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(
+        repo, mode="working-tree", claimed_task_resolver=lambda _: None
+    )
 
     assert result.ok is True
     assert result.task_id == 266
@@ -201,7 +207,8 @@ def test_check_task_scope_auto_uses_working_tree_for_uncommitted_slice(
     )
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
 
-    result = check_task_scope(repo, mode="auto")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(repo, mode="auto", claimed_task_resolver=lambda _: None)
 
     assert result.ok is True
     assert result.mode == "working-tree"
@@ -243,7 +250,8 @@ def test_check_task_scope_auto_uses_working_tree_to_catch_dirty_out_of_scope_fil
 
     (repo / "rogue.md").write_text("oops\n", encoding="utf-8")
 
-    result = check_task_scope(repo, mode="auto")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(repo, mode="auto", claimed_task_resolver=lambda _: None)
 
     assert result.ok is False
     assert result.mode == "working-tree"
@@ -289,6 +297,7 @@ def test_check_task_scope_working_tree_uses_claimed_task_binding_without_scope_a
 
     (repo / "scripts" / "allowed.py").write_text("print('dirty')\n", encoding="utf-8")
 
+    # Unit claim positive; native integration belongs to the host full-gate stage.
     monkeypatch.setattr(task_scope_module, "infer_claimed_task_id", lambda _: 266)
 
     result = check_task_scope(repo, mode="working-tree")

@@ -5,8 +5,10 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -53,8 +55,8 @@ class ScopeCheckResult:
 
 
 def _ak_cmd(repo_root: Path) -> list[str]:
-    wrapper = (repo_root / "scripts" / "ak.sh").resolve()
-    if wrapper.exists():
+    wrapper = (repo_root / "scripts" / "ak.sh").absolute()
+    if wrapper.exists() or wrapper.is_symlink():
         return [str(wrapper)]
     return ["ak"]
 
@@ -98,42 +100,63 @@ def _git_output_nul(cmd: list[str], *, cwd: Path) -> list[str]:
     ]
 
 
-def _ak_claim_lookup_unavailable(message: str) -> bool:
-    lowered = message.lower()
-    return (
-        "registered repo scope" in lowered
-        or "run from a registered repo" in lowered
-        or "use --all for the global task list" in lowered
-        or "could not compile `ak-cli`" in lowered
-        or "unresolved import `ak_core::" in lowered
-    )
-
-
 def claimed_task_ids_for_repo(repo_root: Path) -> list[int]:
+    command = _ak_cmd(repo_root)
     try:
         proc = _run(
-            [*_ak_cmd(repo_root), "task", "list", "-s", "claimed", "-F", "json"],
-            cwd=repo_root,
+            [*command, "task", "list", "-s", "claimed", "-F", "json"], cwd=repo_root
         )
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
+        candidates = [repo_root / directory / "ak" for directory in os.get_exec_path()]
+        if (
+            command != ["ak"]
+            or not repo_root.is_dir()
+            or exc.filename != "ak"
+            or any(path.exists() or path.is_symlink() for path in candidates)
+        ):
+            raise RuntimeError(
+                "configured AK executable could not be launched"
+            ) from exc
         return []
     if proc.returncode != 0:
-        message = (proc.stderr or proc.stdout or "ak task list failed").strip()
-        if _ak_claim_lookup_unavailable(message):
-            return []
-        raise RuntimeError(message)
-    payload = json.loads(proc.stdout)
+        raise RuntimeError(
+            (proc.stderr or proc.stdout or "ak task list failed").strip()
+        )
+
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate claimed task JSON key")
+            result[key] = value
+        return result
+
+    def invalid_constant(value):
+        raise ValueError(f"invalid claimed task JSON constant: {value}")
+
+    payload = json.loads(
+        proc.stdout, object_pairs_hook=unique_object, parse_constant=invalid_constant
+    )
     if not isinstance(payload, list):
         raise RuntimeError("claimed task payload was not a list")
-
-    repo = str(repo_root.resolve())
+    seen: set[int] = set()
     out: list[int] = []
     for item in payload:
-        if not isinstance(item, dict) or item.get("repo") != repo:
-            continue
-        task_id = item.get("id")
-        if isinstance(task_id, int):
-            out.append(task_id)
+        # Contract correction: malformed rows in ANY repo deny, never become absence.
+        if (
+            not isinstance(item, dict)
+            or type(item.get("id")) is not int
+            or item["id"] <= 0
+            or not isinstance(item.get("repo"), str)
+            or not Path(item["repo"]).is_absolute()
+            or item.get("status") != "claimed"
+        ):
+            raise RuntimeError("malformed claimed task row")
+        if item["id"] in seen:
+            raise RuntimeError("duplicate claimed task ID")
+        seen.add(item["id"])
+        if item["repo"] == str(repo_root.resolve()):
+            out.append(item["id"])
     return out
 
 
@@ -523,12 +546,19 @@ def check_task_scope(
     scope_artifact_path: Path | None = None,
     mode: str = "head",
     rev_range: str = "auto",
+    claimed_task_resolver: Callable[[Path], int | None] | None = None,
 ) -> ScopeCheckResult:
     mode = _resolve_scope_check_mode(repo_root, mode)
     resolved_task_id = task_id
     if resolved_task_id is None and scope_artifact_path is None:
         resolution_issue: str | None = None
-        resolved_task_id = infer_claimed_task_id(repo_root)
+        # Resolve at invocation, preserving the native default and monkeypatches.
+        resolver = (
+            infer_claimed_task_id
+            if claimed_task_resolver is None
+            else claimed_task_resolver
+        )
+        resolved_task_id = resolver(repo_root)
         if resolved_task_id is None and mode == "working-tree":
             resolved_task_id = infer_task_id_from_working_tree(repo_root)
         if resolved_task_id is None:

@@ -1,54 +1,7 @@
 #!/bin/sh
-# ---
-# summary: "Run the full DSPx gate with runtime and test verification in parallel."
-# read_when:
-#   - "Changing full verification sequencing, parallel gate execution, or failure reporting."
-# ---
+# summary: "Closed-startup, fail-closed full-gate dispatcher; defaults to blocked plan."
 set -eu
-
-say() { printf '%s\n' "$*"; }
-err() { printf '%s\n' "$*" >&2; }
-
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || { err "error: not a git repo"; exit 1; }
-cd "$repo_root"
-
-say "==> verify-fast"
-just verify-fast
-
-log_dir="$(mktemp -d "${TMPDIR:-/tmp}/dspx-verify-full.XXXXXX")"
-cleanup() {
-  rm -rf "$log_dir"
-}
-trap cleanup EXIT INT TERM
-
-say "==> verify-runtime + verify-tests (parallel, pytest deduplicated)"
-# The complete pytest suite runs in verify-tests. Full-gate environment switches
-# keep runtime on non-pytest invariants and combine credential-free fast+slow tests
-# in one xdist pool, while preserving both standalone recipe contracts.
-(
-  DSPX_VERIFY_FULL_NONOVERLAP=1 just verify-runtime >"$log_dir/runtime.log" 2>&1
-) &
-runtime_pid=$!
-(
-  DSPX_VERIFY_FULL_COMBINED_OFFLINE=1 just verify-tests >"$log_dir/tests.log" 2>&1
-) &
-tests_pid=$!
-
-runtime_status=0
-tests_status=0
-wait "$runtime_pid" || runtime_status=$?
-wait "$tests_pid" || tests_status=$?
-
-say "--- verify-runtime output ---"
-cat "$log_dir/runtime.log"
-say "--- verify-tests output ---"
-cat "$log_dir/tests.log"
-
-if [ "$runtime_status" -ne 0 ] || [ "$tests_status" -ne 0 ]; then
-  err "error: verify-full failed"
-  [ "$runtime_status" -eq 0 ] || err "- verify-runtime exit=$runtime_status"
-  [ "$tests_status" -eq 0 ] || err "- verify-tests exit=$tests_status"
-  exit 1
-fi
-
-say "ok: verify-full"
+# No ambient dotenv, Python startup, provider or command-selection variables.
+script_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+exec /usr/bin/env -i PATH=/usr/bin:/bin HOME=/home/tryinget LANG=C.UTF-8 LC_ALL=C.UTF-8 \
+    /usr/bin/python3 -I -S -B "$script_dir/verify_full_isolation.py" "$@"

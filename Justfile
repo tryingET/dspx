@@ -2,7 +2,8 @@
 # Contract: /home/tryinget/ai-society/softwareco/owned/docs/project/standardized-justfile-contract.md
 # Lane addendum: /home/tryinget/ai-society/core/engineering-core/src/engineering_core/lanes/engineering-py.justfile.md
 set shell := ["bash", "-uc"]
-set dotenv-load := true
+# Compatibility change: callers explicitly export non-full-gate configuration.
+set dotenv-load := false
 set export
 
 # List available tasks
@@ -294,12 +295,15 @@ verify-pre-push:
   just verify-fast
 
 # Full validation gate (run once before merge/release or when explicitly needed)
-verify-full:
-  bash scripts/ci/verify-full.sh
+[positional-arguments]
+verify-full *args:
+  #!/usr/bin/env -S -i PATH=/usr/bin:/bin HOME=/home/tryinget LANG=C.UTF-8 /bin/sh
+  exec /bin/bash scripts/ci/verify-full.sh "$@"
 
 # Full local CI-equivalent gate from the standardized owned-lane Justfile surface
 ci:
-  @just verify-full
+  #!/usr/bin/env -S -i PATH=/usr/bin:/bin HOME=/home/tryinget LANG=C.UTF-8 /bin/sh
+  exec /usr/bin/just verify-full
 
 # Toolchain/runtime/environment sanity checks from the standardized owned-lane Justfile surface
 doctor:

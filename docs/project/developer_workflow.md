@@ -194,7 +194,7 @@ Validation contract:
 - `just ci-quality`, `just ci-test-shard`, and `just ci-package`
   - are the local command surfaces used directly by GitHub CI; `just ci-test-shards` runs the complete credential-free test set locally
 - `just verify-full`
-  - runs `just verify-fast` first
+  - preserves workflow → direction-static → governance declaration → hostscope → isolated hooks → mandatory host task5061, then the parallel branches below; every computational stage is isolated, including the first three
   - then runs a non-pytest runtime/invariant branch alongside the package+complete-test branch; boundary and candidate-state tests run once in the complete suite instead of being duplicated in both branches
   - uses one 16-worker xdist pool for all credential-free fast and slow tests, avoiding a second pool startup and allowing workers to share the complete offline queue; standalone `test-parallel`, `test-slow-parallel`, and `verify-tests` retain their compatible split behavior
   - schedules offline tests individually across workers so oversized files cannot monopolize one worker; live/network/model/GPU/Postgres tests remain in the serial residual selection
@@ -232,3 +232,153 @@ The repo root `.gitignore` must ignore Python cache artifacts at minimum:
 - `*.py[cod]`
 
 Additional local-only outputs may be ignored when they are reproducible or clearly machine-generated.
+
+
+## Full-gate isolation and manual admission
+
+**Implementation pending independent review; no full-gate pass or installed closure
+is claimed. LIVE execution remains blocked pending parent/owner determination of
+separately_disabled applicability. Normal owner policy does not clear that boundary.**
+A CLI opt-in records caller intent, not proof of owner permission. No override policy,
+native binary/DB argument, authority proxy, copied DB or saved-query response exists.
+
+Safe now: `just verify-full --plan`. Bare `just verify-full` prints the blocked plan
+and exits2, never success. `--prepare` and `--execute` are separate modes of that same
+entrypoint; both require `--owner-admitted`, and preparation additionally requires
+`--heavy-job-admitted` plus the actual workstation heavy-job wrapper and separate
+provisioning admission. Neither mode installs, downloads, pulls images or prunes
+installed dependencies. Do not invoke them in the present unadmitted slice.
+
+The independently reviewed input is an external JSON manifest plus its independently
+supplied `--review-sha256`, **not a permission registry**. Schema
+`dspx-full-local-custody-v3` has exactly these fields:
+
+- `head`: reviewed Git HEAD; `source`: HEAD+index+untracked nonignored worktree
+  inventory, including dirty bytes and explicit `{deleted: true}` tombstones for
+  both staged and unstaged intentional deletions. Source links (including dangling
+  links and linked ancestry) reject before cloning; they are never deletions.
+- `index`: `{sha256, entries}` from the read-only source index: SHA256 of its exact
+  bytes (including stat cache) and the exact UTF-8 NUL-terminated stage list
+  (`mode OID 0\tpath\0`). Missing index means SHA256 of empty bytes and an empty list.
+  Only SHA1 index v2, stage0, modes100644/100755/120000 and no semantic flags are
+  admitted; live source links still reject. Optional TREE cache is stripped before
+  Git reads it. Other extensions, split/sparse/fsmonitor/resolve-undo, assume-valid,
+  skip-worktree, intent-to-add, unmerged, malformed or non-UTF8 paths fail closed.
+  Original raw-index drift and any private stage-time index drift invalidate the run,
+  even with identical worktree bytes. Hook eligibility is not inferred from bytes.
+- `closure`: complete exact existing `.venv`, interpreter, tool, docs-list and hook
+  resource copies as `{source, target, role, members}` (plus the exact Python
+  `aliases` field described below); roles are `venv`, `python`,
+  `tool`, `docs`, `hooks`, `fixture`. Paths remain canonical R/H/uv aliases **inside
+  private copies**. No live checkout/venv/home/cache/model/service/AK mount is allowed.
+- Inventory maps relative names (or `.` for one file) to `{sha256, bytes, mode}` or
+  `{link}` or `{directory: true, mode}`. Alias chains must terminate in bound members; `.pth` editable paths must
+  be bound. `pth_imports` maps executable `.pth` canonical paths to separately reviewed
+  exact hashes. Venv installed versions must occur in `uv.lock`; RECORD hashes and
+  complete installed-tree membership are checked, never pruned to make a gate pass.
+- `image`: existing reviewed immutable `sha256:` image ID. Its base OS/runtime bytes
+  also require custody review; manifest hashing is local custody, not upstream trust.
+  Filename guards are only defense in depth, not a complete secret detector; independent
+  review must exclude machine credentials/state/provider assets. Hostile same-UID or
+  Docker-capable actors are outside the cooperative-custody claim.
+- `environment`: exact plan-mode environment; `fixtures` explicitly names
+  `AK5456_REVIEW_PROBES` and `host_interpreter` as null or exact copied member paths.
+  All extra fixture bytes must be included in closure membership.
+- `collection`: independently reviewed `{nodes, skips}`. `nodes` is the exact whole
+  test-node inventory, not a union inferred from the same execution's partitions.
+  Collector `skips` maps collector nodeID to SHA256 of the compact sorted-key JSON
+  encoding of its exact reason string (the shared `digest` domain). Every collector
+  outcome/reason is retained; unknown skips and matching-but-incomplete partitions
+  fail. V1/V2 manifests are deliberately rejected, not upgraded by guessing missing baselines.
+- `skips`: reviewed exact test nodeID → pytest runtime reason strings. Actual worker collection,
+  selection and setup/call/teardown outcomes must prove the original complementary
+  marker expressions' complete disjoint union. Collection errors, missing nodes,
+  duplicate phases or newly induced/changed/disappeared skips reject; no custom
+  pytest host scheduler or fake native pytest result is produced.
+
+Preparation requires fresh disjoint absolute `--prepared` and `--logs` paths outside
+source and `/tmp`; it makes a private non-hardlinked **metadata-only** Git clone,
+sets the reviewed HEAD without checking out unreviewed files/links, validates staged
+blob types, packs their objects into private storage, and reconstructs the reviewed
+index using sanitized `git update-index -z --index-info` with bounded, hashed stdin.
+No original index/object writes or host Git-config execution are used. Staged
+additions/deletions stay distinct from dirty tracked/untracked bytes; nothing is
+implicitly `git add`ed. It materializes only live reviewed worktree entries and
+copies/checks the complete tool resources. No manifest,
+image, closure or optional fixture was provisioned by this implementation slice.
+Prek operational cache is fresh writable state; reviewed copied hook resources mount
+read-only at their original canonical subpaths. Hook-resource resolution under that
+layout, installed closure safety and full-suite compatibility still need actual
+separately admitted provisioning/runtime verification, not assumptions from unit tests.
+
+Future admitted execution additionally supplies a fresh `--job`, `--expected-task 5511`
+and the admitted `--claimant`. Host G claim admission precedes container creation;
+the ordered hostscope stage makes a fresh native observation. G alone owns policy,
+binary, explicit DB selection and exclusive locking. Observations are point-in-time,
+not a transaction across queries. Task5061 uses exactly G's machine payload.task.
+
+Docker computation uses rootful runc/UID1000, root0 ancestors, read-only root, no
+external network/GPU/capabilities/host services, and fresh private writable scratch.
+Startup verifies identity/capabilities/network before any site hook. Hooks receive a
+writable source copy backed by an immutable manifest; any rewrite stops the gate,
+without normalizing the parent checkout or exporting mixed-identity results.
+Both parallel branches are waited normally; cancellation settles owned host groups
+and exact labelled container IDs, with escalation/reaping and no force-prune/retry of
+unknown objects. Full-output logs (128MiB per command, overflow is failure), status
+receipts and the aggregate remain under `--logs`, outside the disposable job. Jobs
+are retained for inspection; no automatic job/resource deletion is performed. Only
+newly owned Git metadata views with proven settled invocations are cleaned.
+
+
+### Independent-review security corrections (scope v10)
+
+Host Git reads use generated, bounded metadata views without local/global/system
+configuration or includes. Index, refs, object lookup, `.gitignore`, info/exclude and
+inert attributes remain available; filters, textconv, external diff, fsmonitor and
+hooks cannot be selected by repository config. Gitlinks, linked `.git` directories
+and alternate object stores reject explicitly rather than omit their paths. Private
+computation `.git` is an exact read-only submount, not mutable host control input.
+Source and post-hook checks enumerate lstat-visible entries, not exists/is_file
+filters; hooks also bind directory entries and reject new/retargeted/deletion-replaced
+links, including ignored ones. Git-view construction failures clean only their own
+new scratch. Other parallel children do not pin a settled view; uncertain invocation
+settlement retains the view with `retained.json`, never deleting active state.
+
+Closure roles have closed destination sets in `verify_full_closure.py`: the sole
+source-descendant dependency mount is `.venv`. No manifest-selected tests/scripts/
+Git/generated overlay is accepted. Directory aliases such as `lib64 -> lib` remain
+bound. Root bind sources must be concrete private paths, not symlinks Docker would
+resolve against live host files. A standalone tool alias needs reviewed concrete
+binary bytes at its fixed canonical target; no installed package is pruned to pass.
+
+The observed Python pair is closed, not a wildcard mount prefix. One `python` row
+has target `/home/tryinget/.local/share/uv/python/cpython-3.13.12-linux-x86_64-gnu`
+and `aliases: ["/home/tryinget/.local/share/uv/python/cpython-3.13-linux-x86_64-gnu"]`.
+Its complete physical-tree inventory binds the executable; **both destinations bind
+the same concrete private `closure-N` directory read-only**. Never bind the host
+minor-root symlink, duplicate/prune runtime contents, or edit the installed venv.
+`pyvenv.cfg` must retain that minor `bin` home, CPython3.13.12 and disabled host-site
+access; the venv Python link must retain its observed minor path. `.pth` references
+must resolve to bound live inputs, not tombstones. Other versions/aliases/overlays
+need a new explicit design/admission, not a broad allowlist or implicit upgrade.
+
+Before Docker create, a fsynced intent journal binds a unique name/attempt label,
+image, command and source/mount identity. Missing responses trigger one bounded
+name+label lookup and exact inspection, never another create. Only a unique verified
+created object becomes removable; ambiguity, changed identity or protected state
+retains candidate IDs and an unsettled failure. Cancellation remains polled after
+pipe EOF, with escalation/reaping before return. Actual daemon behavior and complete
+closure compatibility remain unexecuted; these changes do not establish admission.
+
+### Implementation SHIP is not operational admission
+
+September11 independent review dispatch1789151333325 SHIPs the bounded root-cause
+implementation for a normal main commit; see
+[the dated diary addendum](../../diary/2026-09-07--evidence-rootcause-implementation.md).
+The full gate remains OPEN. The `separately_disabled` applicability question still
+requires explicit operator confirmation; the form timed out with a default, not
+consent. No policy/DB-route change or full-profile activation follows.
+Explicit-task5511 static scope checks and cached offline commit hooks contain this
+commit only, not native integration. Real private environment/image/tool/hook and
+optional-fixture closure, native success, container cancellation/recovery and full
+collection/outcome validation remain separately admitted, unexecuted obligations.

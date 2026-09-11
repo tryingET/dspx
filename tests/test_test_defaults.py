@@ -61,7 +61,7 @@ def test_full_offline_lane_is_complete_and_disjoint_from_residual() -> None:
 def test_combined_offline_lane_is_full_gate_only() -> None:
     repo_root = Path(__file__).resolve().parents[1]
     justfile = (repo_root / "Justfile").read_text(encoding="utf-8")
-    verify_full = (repo_root / "scripts" / "ci" / "verify-full.sh").read_text(
+    verify_full = (repo_root / "scripts" / "ci" / "verify_full_isolation.py").read_text(
         encoding="utf-8"
     )
 
@@ -69,4 +69,6 @@ def test_combined_offline_lane_is_full_gate_only() -> None:
     assert "just test-full-offline-parallel jobs=16" in justfile
     assert "just test-parallel jobs=16" in justfile
     assert "just test-slow-parallel jobs=16" in justfile
-    assert "DSPX_VERIFY_FULL_COMBINED_OFFLINE=1 just verify-tests" in verify_full
+    assert '"offline", OFFLINE' in verify_full
+    assert '"residual", RESIDUAL' in verify_full
+    assert "set dotenv-load := false" in justfile

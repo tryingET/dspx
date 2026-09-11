@@ -773,10 +773,17 @@ def test_timestamp_valid_source_matching_pyc_is_rejected(tmp_path: Path) -> None
 
 
 def test_pinned_ak_binary_is_hashed_and_executed_through_open_fd(
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Original node retained; broad historical-runtime skip explicitly retired.
+    # SYNTHETIC mechanics proof, not compatibility with any historical AK/DB.
+    import os
+    import stat
+    from soomfon_runtime_helpers import synthetic_runtime
     from dspx.services import soomfon_evaluation_ak_runtime as runtime
 
+    executable = synthetic_runtime(tmp_path, monkeypatch)
     real_popen = runtime.subprocess.Popen
     observed: dict[str, object] = {}
 
@@ -786,23 +793,19 @@ def test_pinned_ak_binary_is_hashed_and_executed_through_open_fd(
         return real_popen(argv, **kwargs)
 
     monkeypatch.setattr(runtime.subprocess, "Popen", tracked_popen)
-    descriptor, _identity = runtime._open_verified_ak_executable()
+    descriptor, identity = runtime._open_verified_ak_executable()
+    assert identity.st_ino == executable.stat().st_ino
+    assert stat.S_IMODE(identity.st_mode) == 0o555
+    assert not os.get_inheritable(descriptor)
     runtime.os.close(descriptor)
-    runtime_unavailable = False
-    try:
-        result = cast(
-            dict[str, Any],
-            runtime.run_ak_json(("task", "show", "5061", "--machine")),
-        )
-    except runtime.AKRuntimeIdentityError:
-        runtime_unavailable = True
-        result = {}
+    result = cast(
+        dict[str, Any], runtime.run_ak_json(("task", "show", "5061", "--machine"))
+    )
     argv = cast(tuple[str, ...], observed["argv"])
-    passed = observed["pass_fds"]
     assert argv[0].startswith("/proc/self/fd/")
-    assert passed == (int(argv[0].rsplit("/", 1)[1]),)
-    if runtime_unavailable:
-        pytest.skip("pinned historical AK cannot read the current database generation")
+    assert observed["pass_fds"] == (int(argv[0].rsplit("/", 1)[1]),)
+    assert result["synthetic"] is True
+    assert result["inheritable"] is True
     assert result["payload"]["task"]["id"] == 5061
 
 

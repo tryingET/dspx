@@ -732,3 +732,69 @@ and cancellation. Read-only review `dispatch-1789117566482` did not approve exec
 or a gate implementation. No scope expansion, test exclusion, DB mount, AK change
 or native-model permission is inferred. The next owner decision must preserve both
 native authority and complete declared validation, not manufacture a passing proxy.
+
+
+## Approved root-cause implementation — September 11 (before code)
+
+Dispatch1789132510761 approves design, not execution or implementation. Native
+read through the canonical G gate observed AK5511 claimed, scope v9, claimant
+`pi:01a05bcc-4790-77cf-be21-e6a0d2ccc0d9:evidence-repair`, lease September12
+05:29:38 UTC. The parent snapshot is untouched. Evidence9229 is parent-reported.
+One implementation owner; no commit before independent review. Existing failures,
+deferrals, historical pins and saved evidence remain unchanged.
+
+Root cause: ambient runtime/authority was conflated with fixture computation and
+an offline marker was mistaken for effect containment. Dependency injection must
+separate incidental claim lookup from native integration, not simulate authority.
+The single dispatcher disables Just dotenv ingestion; starts a closed environment
+before imports/hooks/collection; separates host-native authority from every
+computational stage. No owner policy, DB, adapter or historical pin changes.
+
+| Obligation previously coupled to host | Explicit migration / acceptance |
+|---|---|
+| Eight fallback scope fixture calls | Keyword-only call-time resolver, inject no-claim in exactly four head/four working-tree cases; retain assertions and IDs |
+| Native missing executable | Real empty-PATH/no-wrapper branch; errors/duplicates/malformed/permission denial never become fallback |
+| Existing mock claim positives | Label unit evidence; preserve default monkeypatch semantics |
+| Historical Soomfon fd positive | Same node ID, synthetic executable only; actual open/hash/mode/fd inheritance/pass_fds/Popen/output, bounded negatives; retire broad skip |
+| Historical AK compatibility | NOT claimed by synthetic test; production adapter/pin immutable |
+| Actual claim and task5061 read | Mandatory separately labelled host-native integrations through fixed G; exact verbose list and machine-show payload.task; no skip/proxy |
+| Claim binding | Unique repo/claimant/future RFC3339 lease; compare observed ID with run admission (5511), not reusable hardcode |
+| Workflow/direction/governance/hooks | Isolated too; hook copy writable, source manifest immutable; any rewritten source byte stops before further stages |
+| Computational toolchain | Separately prepared private Git clone with reviewed dirty inventory and complete exact installed dependency/interpreter/tool copies, canonical aliases and checked .pth/RECORD/lock; local custody, not upstream authentication |
+| Docker containment | Rootful runc, UID1000/root0 ancestors, no network except private loopback, zero caps, read-only root, no GPU/services/socket/AK DB/binary/host cache/home/model mounts |
+| Stage graph | workflow → direction-static → governance declaration → hostscope → isolated hooks → host task5061 success → parallel runtime/tests → wait both → aggregate |
+| Runtime branch | replay → monorepo → module corpus → strict docs, all isolated |
+| Test branch | package ty → test ty → combined offline 16 workers → residual serial; original logical expressions and exact IDs |
+| Test membership | Actual collection/outcomes, complete disjoint union, duplicate/missing/error/drift rejection; reviewed skip reasons and optional AK5456/host-interpreter fixtures explicit |
+| Native access in pytest | No AK mounts/binary, diagnostic audit guard; intended empty-PATH branch independently tested |
+| Lifecycle/logs | Exact process groups/CIDs, terminate/escalate/wait/reap before cleanup; retained bounded full-output logs outside disposable jobs; incomplete stages/unsettled effects cannot seal |
+
+Preparation is a separate admitted heavy job: no automatic install/download/pull,
+no pruning installed packages to make closure pass. A reviewed closure manifest
+binds image identity, source/HEAD, all tool bytes and optional fixtures before any
+startup. Unsafe or unreviewed closure rejects. Stub, embedding=none, fresh Oracle
+index/evidence/cache/home roots supplement OS isolation, never replace it.
+Host admission is checked before container creation; the ordered scope stage makes
+a fresh native observation. Each stage binds the same source/tool/env receipt;
+authority observations are point-in-time, not a cross-call DB transaction.
+
+Manual boundary: owner normal policy does not clear separately_disabled. LIVE
+execution remains blocked until parent obtains owner applicability determination
+and independent implementation review; an execute opt-in is not authority proof.
+Plan/fixture commands are permitted now, native G queries only for task inspection,
+not validation. Multi-GiB provisioning, Docker/full/native integration execution
+are not admitted in this slice. Focused provider-free unit/static and synthetic
+local OS-process checks alone may run. Results/gaps will be reported separately;
+this section establishes design and migration obligations, not passing behavior.
+
+### Independent HOLD corrections — scope v10
+
+Reviews1789143502431/1789143502432 reproduce seven blockers; prior170 passes stand
+only as prior unit evidence. Extract characterized Git/process/closure boundaries,
+then fix config-driven host Git execution, broken-wrapper/malformed-claim fallback,
+hidden collector skips, source overmounts, lost-CID custody, EOF cancellation and
+directory aliases. V2 requires independent node/collector baselines, closed mount
+roles and concrete bind origins. Private .git is read-only; host Git uses config-free
+metadata views. RefactorOps scope is stable extraction APIs plus these explicit
+security corrections, not behavior preservation of defects. Details/results append
+to the existing root-cause diary. No commit, G/Docker/full run or real provisioning.

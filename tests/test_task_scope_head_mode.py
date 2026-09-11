@@ -99,7 +99,8 @@ def test_check_task_scope_resolves_head_manifest_when_no_claim(tmp_path: Path) -
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
     _commit_all(repo, "task slice")
 
-    result = check_task_scope(repo, mode="head")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(repo, mode="head", claimed_task_resolver=lambda _: None)
     assert result.ok is True
     assert result.skipped is False
     assert result.task_id == 266
@@ -195,7 +196,8 @@ def test_check_task_scope_fails_closed_when_task_id_cannot_be_resolved(
     (repo / "README.md").write_text("hello again\n", encoding="utf-8")
     _commit_all(repo, "change")
 
-    result = check_task_scope(repo, mode="head")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(repo, mode="head", claimed_task_resolver=lambda _: None)
     assert result.ok is False
     assert result.skipped is False
     assert result.task_id is None
@@ -249,7 +251,8 @@ def test_check_task_scope_head_fails_closed_when_latest_commit_only_updates_hand
     )
     _commit_all(repo, "handoff only")
 
-    result = check_task_scope(repo, mode="head")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(repo, mode="head", claimed_task_resolver=lambda _: None)
     assert result.ok is False
     assert result.task_id is None
     assert result.issues
@@ -395,7 +398,8 @@ def test_check_task_scope_head_fails_closed_when_latest_commit_touches_multiple_
     )
     _commit_all(repo, "two scope artifacts")
 
-    result = check_task_scope(repo, mode="head")
+    # Unit fixture: exercise artifact fallback, not host-native authority.
+    result = check_task_scope(repo, mode="head", claimed_task_resolver=lambda _: None)
     assert result.ok is False
     assert result.task_id is None
     assert result.issues
@@ -511,6 +515,7 @@ def test_check_task_scope_head_uses_claimed_task_binding_for_full_slice(
     (repo / "scripts" / "allowed.py").write_text("print('changed')\n", encoding="utf-8")
     _commit_all(repo, "allowed change")
 
+    # Unit claim positive; native integration belongs to the host full-gate stage.
     monkeypatch.setattr(task_scope_module, "infer_claimed_task_id", lambda _: 266)
 
     result = check_task_scope(repo, mode="head")
