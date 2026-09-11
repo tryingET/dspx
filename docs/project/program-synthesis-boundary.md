@@ -741,10 +741,10 @@ canonical-apply permission.
 
 Every request uses exclusive creation; failed/stale generations are retained and
 never rebound. Start/end intent callbacks detect observed supersession but are not
-an atomic owner publication lock. AK5457 must independently retain receipt hashes
-and serialize current-intent verification with publication into an isolated
-**synthetic inspection** destination. Existing materializer fitness/active-review
-admission must not be relaxed to pretend synthetic evidence is review-ready.
+an atomic owner publication lock. AK5457's landed Obsidian consumer independently
+retains receipt hashes and serializes current-intent verification/publication into
+an isolated **synthetic inspection** destination. Existing materializer fitness/
+active-review admission remains unchanged; synthetic evidence is not review-ready.
 
 Independent final review `dispatch-1789080583190` passed 118 tests with one optional
 external probe skipped, plus four independently selected bundles/61 raw-file hashes.
@@ -753,6 +753,19 @@ does not close AK5511's full gate, implement AK5525 quality provenance, or satis
 AK5458 empirical reading acceptance. Example use and adversarial cases are the new
 `tests/test_program_reading_*.py`; they require only synthetic source snapshots.
 
+
+### Separate passage pilot — AK5681
+
+The [passage A/B API](../../examples/reading_pilot/README.md) is separately implemented
+and independently approved with 91 isolated native-runtime baseline tests, nine probes,
+and a 14-case test-only follow-up. One immutable two-request batch uses generic-provider code, not
+AK5456 synthetic receipt relabeling. Worker-to-parent digest custody rejects forged
+observations while preserving genuine effects across unrelated readback damage.
+This is provider-free implementation proof, not empirical quality, full eight-family
+integration, whole-source coverage or installed behavior. Human source/rubric review,
+local-only deployment/output-bound evidence, explicit live admission and independent
+local result review remain open. The timed-out budget form grants no consent; AK5458
+remains deferred. The historical acceptance matrix below is not a new live result.
 
 ### Requirements-to-binding and acceptance traceability
 

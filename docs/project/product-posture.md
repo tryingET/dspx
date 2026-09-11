@@ -42,12 +42,32 @@ source-checkout integration proof, not installed behavior or semantic acceptance
   authentication not established. No model calls, private books, service changes,
   XState selection or Foundry activation occurred.
 
-**Next:** AK5457's separately scoped independent-receipt consumer must use isolated
-synthetic inspection, not bypass the existing fitness/active-review gates. AK5458
-still owns later admitted source-fidelity and empirical purpose-sensitivity proof.
-AK5511 retains its separate full-validation HOLD; bounded producer tests do not
-satisfy that gate. Contract/API and validation limits are in
-[the synthetic producer boundary](program-synthesis-boundary.md#synthetic-producer-implementation--ak5456).
+AK5457's isolated synthetic consumer landed in Obsidian at `a6ba358f39b49a7df14d50594fd01a5eaea6fbc9`;
+it does not bypass fitness/active-review gates. AK5458 remains the separately gated
+source-fidelity and empirical purpose-sensitivity acceptance task. Bounded reading
+proof does not close AK5511's full gate or implement AK5525 quality provenance.
+Contract/API limits: [synthetic producer boundary](program-synthesis-boundary.md#synthetic-producer-implementation--ak5456).
+
+### Passage pilot prerequisite — AK5681, 2026-09-11
+
+A separate [native A/B passage pilot](../../examples/reading_pilot/README.md) now has
+independent **provider-free implementation approval** (`dispatch-1789164427875`):
+91 focused baseline tests, nine independent probes, and a 14-case follow-up after
+two test-only assertions; no skips. Actual generated DSPy, native loopback HTTP
+transport, effect receipts and readback ran against an isolated
+synthetic server; the positive A/B probe independently counted exactly two requests.
+A dedicated worker-to-parent digest pipe binds effect observations before mutable
+artifacts are interpreted. Coordinated projection forgeries return unknown facts;
+unrelated artifact damage retains independently captured effects without completion.
+
+This is one immutable two-request batch, not a six-call revision campaign, full
+eight-family consumer integration, whole-book reading, installed proof or semantic
+pass. No real book/model was used. Source/rubric review, independently observed
+local-only deployment and output bounds, explicit live budget/admission, and local
+human result review remain required. The budget form timed out; its preselected
+recommendation was not consent. AK5458 remains deferred; the empirical milestone
+has **not passed**. Optional high-file-descriptor embedding support also remains
+unproved: `select.select()` fails closed above its descriptor limit.
 
 ## Historical AK5419 design posture — 2026-09-05
 
