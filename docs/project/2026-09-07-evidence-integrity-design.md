@@ -680,3 +680,35 @@ UID/permission/ancestor semantics, allow only isolated fixture loopback, and exc
 host-provider/model effects without weakening tests or guards. No such variant was
 implemented or executed here. No task close, AK evidence/parent-record mutation,
 production repin, consumer trust activation, release, push or full retry is granted.
+
+## Validation-environment continuation — 2026-09-11
+
+Operator resumed the remaining validation/admission steps. The execution baseline
+now includes the separately landed synthetic reading producer at `8d96fec7`;
+`0938c5cf` refreshed only the native claim-dependent scope export and continuation
+document. Earlier test results remain bound to their earlier commits, not this
+combined test inventory. The renewed AK-5511 claim does not authorize new provider
+calls, source changes, retained-record cleanup or an unreviewed runtime exception.
+
+A new bounded Bubblewrap probe retained EUID1000, permission-negative behavior and
+working private fixture HTTP, but host-root-owned ancestors appeared as UID65534.
+Both inspected production custody guards reject that ownership. Therefore this
+variant is unsuitable; weakening those guards or treating the reading producer's
+bounded tests as full-suite compatibility proof is rejected. No repository tests
+or full gate ran during that probe. Evidence:
+`/home/tryinget/.local/state/pi-quests/tmp/ak5511-isolation-probe.YtU3Yg/RESULT.md`.
+
+The next candidate is a separately admitted local, CPU-only Docker feasibility
+probe with native identity semantics, no external networking, no capabilities,
+read-only explicit mounts and fresh private synthetic scratch. Preparation is not
+execution authority: payload/controller review, mount-exposure disposition and
+explicit workload admission must precede container creation. Synthetic ownership
+success would still not prove actual full-checkout compatibility. Do not substitute
+the candidate for the unchanged full gate or claim an installed isolation facility.
+
+Shared runner capacity is separately blocked at the observed 100-record limit;
+Decision154's no-old-state mode reserves a failure slot and permits at most99
+existing records. Another controller owns the preservation-first archival plan.
+No archival effect, capacity clearance, pruning authority or transferable task
+exception is established by that plan. Future full execution needs fresh owner
+capacity/admission checks and an exact current-source identity binding.
