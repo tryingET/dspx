@@ -712,3 +712,23 @@ existing records. Another controller owns the preservation-first archival plan.
 No archival effect, capacity clearance, pruning authority or transferable task
 exception is established by that plan. Future full execution needs fresh owner
 capacity/admission checks and an exact current-source identity binding.
+
+### Subsequent observed runtime proof and owner boundary — September 11
+
+The later explicit operator response admitted the two bounded feasibility payloads.
+After independently reviewed Docker API-ordering/logging corrections, both payloads
+passed; all newly owned containers were removed through guarded nonforce paths.
+See `2026-09-07-evidence-integrity-runtime-proof.md` for exact receipts and limits.
+This supersedes the unexecuted-probe status above, not the historical failed attempts.
+Separately, AK5643 completed exact preservation-first capacity recovery, and the
+independently reviewed auth full gate completed AK-5512 without replay or release.
+
+DSPx full validation remains open. Current AK task-list startup requires writable
+storage access through its native host-coherent admission gate; a physically
+read-only database mount or captured-query substitute is not acceptable. A proposed
+host-control/isolated-test split must explicitly account for the tests' actual AK
+integration branches, optional fixture coverage, offline Oracle/embedding inputs
+and cancellation. Read-only review `dispatch-1789117566482` did not approve execution
+or a gate implementation. No scope expansion, test exclusion, DB mount, AK change
+or native-model permission is inferred. The next owner decision must preserve both
+native authority and complete declared validation, not manufacture a passing proxy.
