@@ -154,6 +154,19 @@ ci-quality:
   uv run --frozen --no-sync ruff check packages/dspx-core/src apps/forge/src tests
   uv run --frozen --no-sync ty check --extra-search-path apps/forge/src --extra-search-path scripts/ci packages/dspx-core/src apps/forge/src tests
 
+# Evidence-gate integrity (docs/adr/20260918-ci-evidence-clearance.md).
+ci-gate-approval:
+  uv run --frozen --no-sync python scripts/ci/ci_evidence_predicate.py approval
+
+ci-collection-integrity:
+  uv run --frozen --no-sync python scripts/ci/ci_evidence_predicate.py collection
+
+# Runtime invariants that need no AK or machine-local tooling.
+ci-runtime:
+  just replay-provenance-check
+  just monorepo-check
+  just module-synthesis-quality-check
+
 # Build distributions; prove the Core wheel's stub-backed product journey; smoke Forge separately.
 ci-package:
   bash scripts/ci/package-check.sh

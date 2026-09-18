@@ -30,7 +30,7 @@ def test_parallel_surfaces_use_per_test_scheduling() -> None:
     )
 
     assert 'pytest -q tests -n "$workers" --dist load ' in justfile
-    assert 'pytest_args=(-q -n "$jobs" --dist load -m "$marker")' in shard_script
+    assert 'pytest_args=(-q -rsxX -n "$jobs" --dist load -m "$marker")' in shard_script
     assert "--dist loadfile" not in shard_script
 
 

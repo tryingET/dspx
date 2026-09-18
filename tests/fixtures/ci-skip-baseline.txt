@@ -1,0 +1,13 @@
+# Reviewed skips, xfails and xpasses for the generic CI shards
+# (docs/adr/20260918-ci-evidence-clearance.md).
+# Format: <test file> :: <exact reason> :: <reviewed maximum count>. Sorted, unique.
+# An unlisted outcome, or more of a listed one than reviewed, fails the shard. Rows that
+# no longer occur are not detected (a shard sees only its own slice); prune by hand.
+tests/test_coordinates_phase_b_real_embeddings.py :: No embedding backend available (needs sentence-transformers) :: 1
+tests/test_coordinates_phase_b_real_embeddings.py :: No embedding backend available :: 2
+tests/test_program_foundry_gepa_comparison_jury_copilot.py :: local owner object store is unavailable; no network fallback :: 1
+tests/test_program_reading_runtime.py :: independent reviewer script not supplied :: 1
+tests/test_provider_outcome_receipt_consumer.py :: exact accepted owner source is an explicit local fixture :: 1
+tests/test_reading_pilot.py :: reading pilot requires the explicit offline bwrap test namespace :: 50
+tests/test_reading_pilot_verification.py :: reading pilot requires the explicit offline bwrap test namespace :: 40
+tests/test_soomfon_evaluation_provider.py :: exact AK-5070 proof venv is unavailable :: 1

@@ -33,6 +33,33 @@ jobs:
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
       - run: uv sync --frozen --all-packages --dev
       - run: just ci-quality
+      - name: Gate-defining files match their recorded approval
+        run: just ci-gate-approval
+      - name: Shards partition the offline suite exactly
+        run: just ci-collection-integrity
+
+  runtime:
+    name: Runtime invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Prepare owner-only temporary directory
+        run: |
+          install -d -m 700 "$RUNNER_TEMP/dspx-tmp"
+          echo "TMPDIR=$RUNNER_TEMP/dspx-tmp" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.14"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - run: uv sync --frozen --all-packages --dev
+      # Strict docs metadata stays host-only: its checker lives outside this repo.
+      - run: just ci-runtime
 
   tests:
     name: Tests (${{ matrix.shard }})

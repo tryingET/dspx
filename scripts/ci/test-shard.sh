@@ -6,6 +6,9 @@
 # ---
 set -euo pipefail
 
+# Ambient pytest options could suppress the rows the outcome baseline reads.
+unset PYTEST_ADDOPTS
+
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
@@ -40,7 +43,13 @@ case "$shard" in
     ;;
 esac
 
-pytest_args=(-q -n "$jobs" --dist load -m "$marker")
+# Collection-integrity mode: print this shard's node ids and run nothing.
+if [[ "${CI_COLLECT_ONLY:-0}" == "1" ]]; then
+  exec uv run --frozen --no-sync python -m pytest --collect-only -q \
+    -p no:cacheprovider -m "$marker" "${selected[@]}"
+fi
+
+pytest_args=(-q -rsxX -n "$jobs" --dist load -m "$marker")
 if [[ "${CI_COVERAGE:-0}" == "1" ]]; then
   pytest_args+=(--cov=dspx --cov=dspx_forge --cov-branch --cov-report= --cov-fail-under=0)
 fi
@@ -50,4 +59,8 @@ fi
 export NO_COLOR=1 TERM=dumb COLUMNS=200
 
 printf '==> test shard %s (%s files; marker: %s)\n' "$shard" "${#selected[@]}" "$marker"
-uv run --frozen --no-sync python -m pytest "${pytest_args[@]}" "${selected[@]}"
+shard_log="$(mktemp "${TMPDIR:-/tmp}/dspx-shard-$shard.XXXXXX")"
+trap 'rm -f "$shard_log"' EXIT
+uv run --frozen --no-sync python -m pytest "${pytest_args[@]}" "${selected[@]}" 2>&1 | tee "$shard_log"
+# A new skip, xfail or xpass must be reviewed into tests/fixtures/ci-skip-baseline.txt first.
+uv run --frozen --no-sync python scripts/ci/ci_evidence_predicate.py skips "$shard_log"

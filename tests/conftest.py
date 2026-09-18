@@ -136,6 +136,11 @@ def _deduplicate_program_generation_validation(
 GENERATED_TOP_LEVEL_MODULES = ("module", "signature")
 
 
+def evict_generated_top_level_modules() -> None:
+    for name in GENERATED_TOP_LEVEL_MODULES:
+        sys.modules.pop(name, None)
+
+
 @pytest.fixture(autouse=True)
 def _isolate_generated_top_level_modules() -> Generator[None]:
     """Stop one test's generated ``module`` being imported by the next.
@@ -144,11 +149,9 @@ def _isolate_generated_top_level_modules() -> Generator[None]:
     ``sys.modules``; on a shared xdist worker the following test then imports a
     stranger's candidate. See test_generated_module_isolation.py.
     """
-    for name in GENERATED_TOP_LEVEL_MODULES:
-        sys.modules.pop(name, None)
+    evict_generated_top_level_modules()
     yield
-    for name in GENERATED_TOP_LEVEL_MODULES:
-        sys.modules.pop(name, None)
+    evict_generated_top_level_modules()
 
 
 @pytest.fixture(autouse=True)

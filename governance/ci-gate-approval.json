@@ -1,0 +1,23 @@
+{
+  "schema": "dspx-ci-gate-approval-v1",
+  "adr": "docs/adr/20260918-ci-evidence-clearance.md",
+  "task": "AK-5755",
+  "notice": "Tamper-evidence, not authentication. Nothing in this repository proves who wrote the fields below.",
+  "approved_by": "Owner (in session, 2026-09-18): adopted the bounded autoclearance policy. The owner approved the policy, not a line-by-line read of these bytes.",
+  "reviewed_by": "Independent read-only adversarial review subagent, 2026-09-18. First pass: SHIP-WITH-FIXES (F1-F9). Confirmation pass on the fixes: SHIP; residual N1 fixed afterwards without a further pass, N2 documented in the ADR as an accepted limit, N3 accepted.",
+  "excluded_node_count": 11,
+  "excluded_node_note": "8 workstation (exact inventory in tests/fixtures/workstation-tests.txt) + 3 live/network/model/gpu/postgres",
+  "files": {
+    ".github/workflows/ci.yml": "314911b4aa735d50b337bd618b3149c55bc293ed2f9864e7b1b5ae204d71dbaf",
+    "Justfile": "82d2ab05c664232d6f72a6cf02e19af3cb32fef130afdfaa62162c0600ae9d80",
+    "pyproject.toml": "ddcee0f1bf4b814805a296a8f36663f096f0aad449f0862de1ffd05ab71d3e63",
+    "scripts/ci/ci_evidence_predicate.py": "bef6f212736c2c89796a275eea5b68948083cbfbc44fa7f5b4732dc64e46e37f",
+    "scripts/ci/package-check.sh": "446cfeb5d2a62083a592f7b625fe23ac7907b05f0af39e959a38cb7a0d098b19",
+    "scripts/ci/test-shard.sh": "b8bdf89c0bb3b2eac9beeffd0c809906f4c20fae50f21a8234d7e4d01cf1adeb",
+    "tests/conftest.py": "10215c7d5eb606a3546dcd7d8533ac26617da8d0c74fd3abe38eb75592734892",
+    "tests/fixtures/ci-skip-baseline.txt": "5bd908493f0fadd4eb81c1c82106876b38f82b452d86e27bbb1a7821fd9680ff",
+    "tests/fixtures/workstation-tests.txt": "4e0c2d211f1ade421d2f7dc025e00b4c1890221520f75729de67c4c3ca0acba7",
+    "tests/test_ci_evidence_predicate.py": "fdff8c8a0b311222222be4d3163f52c18f8713251bb0b770732670ffda0ff614",
+    "tests/test_ci_shard_selection.py": "7fdd6d4eee28d99b43d77a3b7446635b3f2d7b0d06619e50b15a6e7c4dc6a3a7"
+  }
+}
