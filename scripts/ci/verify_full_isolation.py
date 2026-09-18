@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 from concurrent.futures import ThreadPoolExecutor
+import hmac
 import json
 from pathlib import Path
 import shutil
@@ -114,6 +115,12 @@ def fixture_environment():
         "HF_HOME": "/fixture/hf",
         "DSPX_VERIFY_FULL_FIXTURE": "1",
         "PYTHONPATH": str(R / "scripts/ci"),
+        # Thread pools follow the host core count, not --cpus, and threads count
+        # against --pids-limit: 16 workers x 64 threads exhausted it at startup.
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1",
+        "NUMEXPR_NUM_THREADS": "1",
     }
 
 
@@ -198,9 +205,8 @@ def branches(runtime, tests):
 def execute(processes, review, prepared: Path, job: Path, claimant: str, expected: int):
     run = processes.run
     source_check(run, review)
-    if strict_json((prepared / "prepared.json").read_text())["review"] != digest(
-        review
-    ):
+    prepared_review = strict_json((prepared / "prepared.json").read_text())["review"]
+    if not hmac.compare_digest(str(prepared_review), digest(review)):
         raise ValueError("preparation/review mismatch")
     source_check(run, review, prepared / "source", private=True)
     for i, row in enumerate(review["closure"]):

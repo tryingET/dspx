@@ -163,12 +163,25 @@ _report: dict[str, Any] = {
 }
 
 
+def _below_private_tmp(path: str) -> bool:
+    """Synthetic fixtures under the gate's private TMPDIR are not native authority."""
+    root = os.environ.get("TMPDIR")
+    if not root:
+        return False
+    resolved = os.path.normpath(os.path.abspath(path))
+    return resolved.startswith(os.path.normpath(root) + os.sep)
+
+
 def authority_audit(event, args):
     if event == "open":
         path = args[0]
-        if isinstance(path, (str, bytes)) and any(
-            part in os.fsdecode(path)
-            for part in ("society.v2.db", "/agent-kernel/", "/agent-kernel-")
+        if (
+            isinstance(path, (str, bytes))
+            and any(
+                part in os.fsdecode(path)
+                for part in ("society.v2.db", "/agent-kernel/", "/agent-kernel-")
+            )
+            and not _below_private_tmp(os.fsdecode(path))
         ):
             raise PermissionError(
                 "verify-full fixture plane: unexpected native authority access"

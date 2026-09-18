@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 
 from dspx.generated_code_guard import (
@@ -12,6 +13,9 @@ from dspx.generated_code_guard import (
     smoke_module_code,
     smoke_signature_code,
 )
+
+# Inside the hermetic gate / is read-only; probes live in the process tmp dir.
+_PROBE_DIR = Path(tempfile.gettempdir())
 
 
 def test_generated_signature_guard_allows_passive_type_annotations() -> None:
@@ -29,7 +33,7 @@ class SafeSig(dspy.Signature):
 
     errors = _validate_signature_source(code)
 
-    assert errors == []
+    assert not errors
 
 
 def test_generated_signature_guard_rejects_executable_annotations() -> None:
@@ -271,7 +275,7 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
 def test_generated_module_smoke_does_not_allow_annotation_effect_root_file_read() -> (
     None
 ):
-    probe = Path("/tmp/dspx_annotation_escape_probe")
+    probe = _PROBE_DIR / "dspx_annotation_escape_probe"
     probe.unlink(missing_ok=True)
     code = """
 from __future__ import annotations
@@ -342,7 +346,7 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
 
 
 def test_generated_module_smoke_does_not_allow_reflective_fileio_write() -> None:
-    probe = Path("/tmp/dspx_guard_escape_probe")
+    probe = _PROBE_DIR / "dspx_guard_escape_probe"
     probe.unlink(missing_ok=True)
     code = """
 import dspy
@@ -375,7 +379,7 @@ def output_weights():
 
 def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
     return (gold, pred)
-"""
+""".replace("/tmp/", f"{_PROBE_DIR}/")
 
     ok, checks, errors = smoke_module_code(
         code,
@@ -414,7 +418,7 @@ def output_weights():
 
 def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
     return (gold, pred)
-"""
+""".replace("/tmp/", f"{_PROBE_DIR}/")
 
     errors = _validate_module_source(code)
 
@@ -454,7 +458,7 @@ def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
 
 
 def test_generated_module_smoke_does_not_allow_low_level_os_write_escape() -> None:
-    probe = Path("/tmp/dspx_osopen_escape_probe")
+    probe = _PROBE_DIR / "dspx_osopen_escape_probe"
     probe.unlink(missing_ok=True)
     code = """
 import dspy
@@ -481,7 +485,7 @@ def output_weights():
 
 def normalize_output(key, gold, pred, pred_name=None, pred_trace=None):
     return (gold, pred)
-"""
+""".replace("/tmp/", f"{_PROBE_DIR}/")
 
     ok, checks, errors = smoke_module_code(
         code,

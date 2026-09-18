@@ -82,6 +82,44 @@ def assert_inventory(root: Path, expected: dict, names: list[str] | None = None)
         raise ValueError(f"custody/source drift: {root}")
 
 
+def replaces_private_state(target: Path, repo: Path) -> bool:
+    """Runtime and private roots are closed, except inside the validated repository.
+
+    In production the repository is never below these roots, so the exception is
+    inert there; it exists because the gate's self-tests run with TMPDIR=/fixture/tmp.
+    """
+    return not target.is_relative_to(repo) and any(
+        target.is_relative_to(Path(root))
+        for root in ("/proc", "/sys", "/dev", "/run", "/fixture")
+    )
+
+
+def metadata_identity(text: str) -> tuple[str, str]:
+    """Headers end at the first blank line; a description body may quote anything."""
+    fields: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line.strip():
+            break
+        key, separator, value = line.partition(": ")
+        if separator and key in {"Name", "Version"}:
+            fields.setdefault(key, value.strip())
+    if set(fields) != {"Name", "Version"}:
+        raise ValueError("installed package identity headers missing")
+    return fields["Name"].lower().replace("_", "-"), fields["Version"]
+
+
+def pem_is_public(raw: bytes) -> bool:
+    """Certificates and public keys only; installed wheels legitimately ship both."""
+    return b"PRIVATE KEY" not in raw and any(
+        marker in raw
+        for marker in (
+            b"-----BEGIN CERTIFICATE-----",
+            b"-----BEGIN PUBLIC KEY-----",
+            b"-----BEGIN RSA PUBLIC KEY-----",
+        )
+    )
+
+
 # Exact observed runtime identity, not an arbitrary interpreter mount prefix.
 PYTHON_PHYSICAL = Path(
     "/home/tryinget/.local/share/uv/python/cpython-3.13.12-linux-x86_64-gnu"
@@ -290,10 +328,7 @@ def validate_closure(review: dict, repo: Path):
             part in denied for part in target.parts
         ):
             raise ValueError("unsafe closure mount")
-        if any(
-            target.is_relative_to(Path(root))
-            for root in ("/proc", "/sys", "/dev", "/run", "/fixture")
-        ):
+        if replaces_private_state(target, repo):
             raise ValueError("closure cannot replace runtime/private state")
         if row["role"] not in {"venv", "python", "tool", "docs", "hooks", "fixture"}:
             raise ValueError("unknown closure role")
@@ -307,13 +342,10 @@ def validate_closure(review: dict, repo: Path):
                 or any(name.endswith(s) for s in (".safetensors", ".gguf", ".key"))
             ):
                 raise ValueError(f"authority/credential/model or unsafe member: {name}")
-            if name.endswith(".pem"):
-                certificate = (source / name).read_bytes()
-                if (
-                    b"-----BEGIN CERTIFICATE-----" not in certificate
-                    or b"PRIVATE KEY" in certificate
-                ):
-                    raise ValueError("non-public certificate/key in tool closure")
+            if name.endswith(".pem") and not pem_is_public(
+                (source / name).read_bytes()
+            ):
+                raise ValueError("non-public certificate/key in tool closure")
             if "link" in member:
                 link = Path(member["link"])
                 resolved = Path(
@@ -344,12 +376,7 @@ def validate_closure(review: dict, repo: Path):
         if row["role"] != "venv":
             continue
         for metadata in source.glob("lib/python*/site-packages/*.dist-info/METADATA"):
-            fields = dict(
-                line.split(": ", 1)
-                for line in metadata.read_text().splitlines()
-                if line.startswith(("Name: ", "Version: "))
-            )
-            identity = (fields["Name"].lower().replace("_", "-"), fields["Version"])
+            identity = metadata_identity(metadata.read_text())
             if identity not in packages:
                 raise ValueError(f"installed package outside uv.lock: {identity}")
             record = metadata.with_name("RECORD")

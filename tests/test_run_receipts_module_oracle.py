@@ -23,6 +23,12 @@ def test_module_receipts_use_canonical_default_oracle_index_with_outfile(
     tmp_path: Path, monkeypatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
+    # These assert the DEFAULT index location; an ambient override (the hermetic
+    # gate exports both) would otherwise be what is observed.
+    monkeypatch.delenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH", raising=False
+    )
+    monkeypatch.delenv("DSPX_ORACLE_INDEX_PATH", raising=False)
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
@@ -103,6 +109,12 @@ def test_module_receipts_align_default_oracle_index_with_outfile_root_when_cwd_d
     out_root.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.chdir(cwd)
+    # These assert the DEFAULT index location; an ambient override (the hermetic
+    # gate exports both) would otherwise be what is observed.
+    monkeypatch.delenv(
+        "DSPX_MODULE_SYNTHESIS_EVIDENCE_ORACLE_INDEX_PATH", raising=False
+    )
+    monkeypatch.delenv("DSPX_ORACLE_INDEX_PATH", raising=False)
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_PROVIDER", "stub")
     monkeypatch.setenv("DSPX_CACHE_ENABLE", "1")
