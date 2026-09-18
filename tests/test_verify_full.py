@@ -134,6 +134,7 @@ def test_real_process_terminates_child_group(tmp_path):
     assert not processes.groups
 
 
+@pytest.mark.workstation
 def test_real_just_cleans_environment_before_recipe_shell_startup(tmp_path):
     import shutil
 
@@ -293,6 +294,7 @@ def run_local_prek(repo, runner, home):
     return status[0], output
 
 
+@pytest.mark.workstation
 @pytest.mark.parametrize(
     "membership",
     ["addition", "deletion", "unstaged-deletion", "recreated-deletion", "untracked"],
@@ -372,7 +374,15 @@ def test_real_offline_prek_preserves_index_obligation(
     assert not runner.groups
 
 
-@pytest.mark.parametrize("when", ["before", "copy", "stages", "private-hook"])
+@pytest.mark.parametrize(
+    "when",
+    [
+        "before",
+        "copy",
+        "stages",
+        pytest.param("private-hook", marks=pytest.mark.workstation),
+    ],
+)
 def test_real_index_only_drift_invalidates_custody(
     index_fixture, tmp_path, monkeypatch, when
 ):
@@ -505,6 +515,7 @@ def test_real_unsupported_index_features_fail_closed(index_fixture, tmp_path, fe
     assert not runner.groups
 
 
+@pytest.mark.workstation
 def test_real_bounded_stdin_is_exact_and_receipted(tmp_path):
     import hashlib
     import json

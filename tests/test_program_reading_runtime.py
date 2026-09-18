@@ -19,6 +19,7 @@ from dspx.services.program_reading_runtime import (
     materialize_reading_candidate,
     run_reading_producer,
 )
+import reading_suite_posture as posture
 from test_program_reading_contracts import (
     FIXTURES,
     reading_test_environment as reading_test_environment,
@@ -32,9 +33,11 @@ from test_program_reading_contracts import (
     transport,
 )
 
+reading_suite_posture = posture.reading_suite_posture
+
 
 @pytest.fixture(scope="module")
-def candidates(tmp_path_factory):
+def candidates(tmp_path_factory, reading_suite_posture):
     root = tmp_path_factory.mktemp("reading-candidates")
     results = {}
     for stage, filename in [

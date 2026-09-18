@@ -12,7 +12,7 @@ cd "$repo_root"
 shard="${1:-}"
 shard="${shard#shard=}"
 jobs="${CI_TEST_JOBS:-4}"
-offline='not live and not network and not model and not gpu and not postgres'
+offline='not live and not network and not model and not gpu and not postgres and not workstation'
 mapfile -t test_files < <(find tests -type f -name 'test_*.py' -print | LC_ALL=C sort)
 
 case "$shard" in

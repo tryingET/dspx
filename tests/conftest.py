@@ -132,6 +132,25 @@ def _deduplicate_program_generation_validation(
         monkeypatch.undo()
 
 
+# Every generated program imports these same generic top-level names.
+GENERATED_TOP_LEVEL_MODULES = ("module", "signature")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_generated_top_level_modules() -> Generator[None]:
+    """Stop one test's generated ``module`` being imported by the next.
+
+    Tests that execute generated code restore ``sys.path`` but rarely
+    ``sys.modules``; on a shared xdist worker the following test then imports a
+    stranger's candidate. See test_generated_module_isolation.py.
+    """
+    for name in GENERATED_TOP_LEVEL_MODULES:
+        sys.modules.pop(name, None)
+    yield
+    for name in GENERATED_TOP_LEVEL_MODULES:
+        sys.modules.pop(name, None)
+
+
 @pytest.fixture(autouse=True)
 def _default_provider_stub(
     monkeypatch: pytest.MonkeyPatch,

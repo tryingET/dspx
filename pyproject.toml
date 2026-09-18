@@ -32,6 +32,7 @@ markers = [
   "model: tests that may invoke live LLM/model provider runtimes",
   "gpu: tests that require GPU resources",
   "postgres: tests that require a live Postgres/pgvector service",
+  "workstation: full-gate tests pinned to the owner workstation toolchain or a private network namespace; excluded from generic CI shards and counted in tests/fixtures/workstation-tests.txt",
 ]
 filterwarnings = [
   # Silence upstream MLflow/protobuf deprecation warning during tests

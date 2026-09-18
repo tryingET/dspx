@@ -13,6 +13,7 @@ from dspx.services.program_reading_receipts import capture, exclusive_write
 import test_program_reading_runtime as runtime_tests
 
 reading_test_environment = runtime_tests.reading_test_environment
+reading_suite_posture = runtime_tests.reading_suite_posture
 candidates = runtime_tests.candidates
 run_factory = runtime_tests.run_factory
 executed = runtime_tests.executed

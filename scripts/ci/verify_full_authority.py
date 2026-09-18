@@ -38,7 +38,13 @@ def host_scope(run, repo: Path, claimant: str, expected: int):
         raise RuntimeError("task scope loader unavailable")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    # The gate entrypoint runs under -B; any other caller must not leave a
+    # __pycache__ in the repository whose scope is about to be inspected.
+    write_bytecode, sys.dont_write_bytecode = sys.dont_write_bytecode, True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = write_bytecode
 
     def git_result(cmd, *, cwd):
         if not cmd or cmd[0] != "git":

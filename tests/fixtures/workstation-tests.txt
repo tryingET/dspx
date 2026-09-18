@@ -1,0 +1,11 @@
+# Exact inventory of tests carrying the `workstation` marker (see pyproject.toml).
+# Generic CI shards deselect these; the workstation full gate still runs them.
+# tests/test_ci_shard_selection.py fails when this list and collection differ.
+tests/test_verify_full.py::test_real_bounded_stdin_is_exact_and_receipted
+tests/test_verify_full.py::test_real_index_only_drift_invalidates_custody[private-hook]
+tests/test_verify_full.py::test_real_just_cleans_environment_before_recipe_shell_startup
+tests/test_verify_full.py::test_real_offline_prek_preserves_index_obligation[addition]
+tests/test_verify_full.py::test_real_offline_prek_preserves_index_obligation[deletion]
+tests/test_verify_full.py::test_real_offline_prek_preserves_index_obligation[recreated-deletion]
+tests/test_verify_full.py::test_real_offline_prek_preserves_index_obligation[unstaged-deletion]
+tests/test_verify_full.py::test_real_offline_prek_preserves_index_obligation[untracked]
