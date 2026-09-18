@@ -87,6 +87,11 @@ def _import_program_module(program_path: Path) -> object:
         previous_siblings = {
             name: sys.modules.get(name) for name in sibling_module_names
         }
+        # Generated programs import their siblings by generic process-global names
+        # (module, signature). Evict any cached namesake first, or the program
+        # binds a stranger's module instead of the file beside it.
+        for name in sibling_module_names:
+            sys.modules.pop(name, None)
         try:
             spec.loader.exec_module(mod)
         finally:

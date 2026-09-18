@@ -76,6 +76,9 @@ def _load_candidate():
     if inserted:
         sys.path.insert(0, candidate_dir)
     module = importlib.util.module_from_spec(spec)
+    # Evict cached namesakes first: generated programs import generic sibling names.
+    for name in sibling_names:
+        sys.modules.pop(name, None)
     sys.modules[spec.name] = module
     try:
         spec.loader.exec_module(module)
