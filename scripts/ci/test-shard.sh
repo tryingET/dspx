@@ -45,5 +45,9 @@ if [[ "${CI_COVERAGE:-0}" == "1" ]]; then
   pytest_args+=(--cov=dspx --cov=dspx_forge --cov-branch --cov-report= --cov-fail-under=0)
 fi
 
+# CLI help assertions match plain option names; Rich forces ANSI styling and an
+# 80-column wrap under GITHUB_ACTIONS, which splits those names.
+export NO_COLOR=1 TERM=dumb COLUMNS=200
+
 printf '==> test shard %s (%s files; marker: %s)\n' "$shard" "${#selected[@]}" "$marker"
 uv run --frozen --no-sync python -m pytest "${pytest_args[@]}" "${selected[@]}"

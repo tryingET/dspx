@@ -152,7 +152,7 @@ ci-quality:
   just workflow-contract-check
   uv run --frozen --no-sync ruff format --check packages/dspx-core/src apps/forge/src tests
   uv run --frozen --no-sync ruff check packages/dspx-core/src apps/forge/src tests
-  uv run --frozen --no-sync ty check --extra-search-path apps/forge/src packages/dspx-core/src apps/forge/src tests
+  uv run --frozen --no-sync ty check --extra-search-path apps/forge/src --extra-search-path scripts/ci packages/dspx-core/src apps/forge/src tests
 
 # Build distributions; prove the Core wheel's stub-backed product journey; smoke Forge separately.
 ci-package:
