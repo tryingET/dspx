@@ -101,6 +101,8 @@ def fixture_environment():
         "UV_CACHE_DIR": "/fixture/uv",
         "PREK_HOME": str(H / ".cache/prek"),
         "XDG_CACHE_HOME": "/fixture/cache",
+        # Hooks must leave the source byte-identical, ignored files included.
+        "RUFF_CACHE_DIR": "/fixture/cache/ruff",
         "XDG_CONFIG_HOME": "/fixture/config",
         "XDG_DATA_HOME": "/fixture/data",
         "DSPX_PROVIDER": "stub",

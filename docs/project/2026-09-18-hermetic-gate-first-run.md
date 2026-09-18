@@ -1,5 +1,5 @@
 ---
-summary: "AK-5754: the hermetic verify-full gate ran for the first time: all 13 container stages pass in discovery after six defects were fixed; heavy-job admission needs an owner-authorized Decision 160 age deferral."
+summary: "AK-5754: the hermetic verify-full gate ran for the first time: all 13 container stages pass in discovery after seven defects were fixed; the first official execute passed 5 stages and stopped at the hook guard (fixed since); no passing receipt yet."
 read_when:
   - "You want to run, re-provision or debug the optional hermetic local full run."
   - "heavy-job refuses admission with 'process-reference scan incomplete'."
@@ -34,6 +34,29 @@ the dispatcher. At `eb014199`:
 inside the dispatcher (`hostscope`, `host-task5061`), the custody copy, the Docker
 intent journal, container reconciliation and cancellation/recovery. No receipt exists.
 
+## Official run — how far it got
+
+Two owner-authorized `heavy-job` admissions (Decision 160 age deferral, three named
+runs) on 2026-09-18, both `heavy_job_result=success`:
+
+1. `--prepare` at `2f029478` — succeeded. A read-only pre-check then showed `--execute`
+   would fail `hostscope`: AK-5754 had no task scope. The scope was authored and frozen
+   (`22f8c597`), which changed HEAD and invalidated that manifest and copy.
+2. `--prepare` at `22f8c597` (manifest `ade26d6b…`) — succeeded; then the **first official
+   `--execute`**. It passed `workflow`, `direction-static`, `governance`, `hostscope`
+   (native AK claim, scope `ok`) and ran `hooks`, then stopped fail-closed:
+   `hook rewrote source bytes; no further stages`. Receipt status `incomplete`.
+
+Cause: no tracked byte changed; the ruff hook wrote `.ruff_cache` into the source tree,
+and the hook guard — unlike the other stages — inventories ignored files too. Fixed by
+redirecting `RUFF_CACHE_DIR` into the private `/fixture` state and verified in the
+container posture. Because that changes HEAD, a further `--prepare` admission is needed;
+it was deliberately **not** requested a third time. **No passing receipt exists.**
+
+Never yet executed officially: `host-task5061` inside the dispatcher (verified natively
+outside it), the ten remaining container stages under the custody copy, membership
+validation inside the dispatcher, and container cancellation/recovery.
+
 ## Defects the first real run found
 
 Unit tests with synthetic venvs and fake command results could not find these:
@@ -48,7 +71,8 @@ Unit tests with synthetic venvs and fake command results could not find these:
    `--cpus`; threads count against `--pids-limit=1024`; 16 workers x 64 = 1024, so forks
    failed with `EAGAIN` before any test ran. At 12 workers it surfaced as subprocess
    timeouts and a `degraded` runtime status. The closed environment now caps the pools.
-6. Tests assumed a writable `/tmp`, an unset oracle-index override and a host scratch
+6. The ruff hook cached into the source tree, tripping the hook-rewrite guard (above).
+7. Tests assumed a writable `/tmp`, an unset oracle-index override and a host scratch
    root. The image also lacked a passwd entry for UID 1000 (44 failures), `ssh-keygen`,
    `/usr/bin/python3` and `cue`.
 
