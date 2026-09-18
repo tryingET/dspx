@@ -16,10 +16,20 @@ that cached object and never looks at the file beside the program.
 
 ## What went wrong
 
-Two in-process loaders saved the previous `sys.modules` entries and restored them
-afterwards, but did not evict them first: `optimize_service._import_program_module` and
-the emitted metric-honesty wrapper's `_load_candidate`. With a stale `module` cached, the
-optimizer imported a generated program that was bound to a **stranger's** module. The
+`optimize_service._import_program_module` saved the previous `sys.modules` entries and
+restored them afterwards, but did not evict them first. With a stale `module` cached, the
+optimizer imported a generated program that was bound to a **stranger's** module. That
+loader is fixed.
+
+**Known residual, deliberately not fixed:** the emitted metric-honesty wrapper's
+`_load_candidate` has the same save/restore-only shape. Its text is a hash-bound
+surface: the historical foundry closure verifier reconstructs the wrapper from this
+template and compares it with recorded bytes (`metric_wrapper_reconstruction`), so
+editing the template breaks verification of past evidence. A first attempt to patch it
+turned CI red (run 35387229535) and was reverted. In practice the wrapper is itself
+loaded through the now-evicting optimizer loader in a fresh optimization process; fix it
+only together with a versioned wrapper template that leaves historical reconstruction
+on the old text. The
 test suite never showed it because tests happened to clean up, until xdist scheduling
 put a leaking test and a victim on the same worker (CI, 2026-09-18).
 
