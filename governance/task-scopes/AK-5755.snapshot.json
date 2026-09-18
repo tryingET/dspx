@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-18T16:47:25.562502769+00:00",
+  "task_id": 5755,
+  "entity_version": 3,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      ".github/workflows/ci.yml",
+      "Justfile",
+      "docs/adr/**",
+      "docs/engineering.local.md",
+      "docs/project/**",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "pyproject.toml",
+      "scripts/ci/**",
+      "tests/**"
+    ],
+    "required_paths": [],
+    "forbidden_paths": []
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}
