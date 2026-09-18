@@ -477,8 +477,11 @@ Open questions:
 
 ## Visual design workbench and reuse disposition — AK5419
 
-**Proposed integration only.** Operator route evidence8364 keeps Core first and
-Foundry paused. The canonical target contract is the
+**Owner-accepted DESIGN only** (AK5419/evidence8373); Forge integration is still
+proposed, not implemented. Core stays first and Foundry paused. AK5455 host/XState
+selection is pending with active deferral; neither historically evaluated v6
+alpha.52 nor v5 5.32.6 is selected or claimed current. AK5735/evidence9811 aligns
+docs only, without implementation/detail decisions. The canonical target is the
 [statechart-to-program-suite boundary](project/program-synthesis-boundary.md#statechart-to-program-suite-contract--ak5419-design).
 No new WorkOrder schema, runtime, XState install, external issue, private-input
 inspection or activation is implemented by this section.
@@ -493,10 +496,16 @@ Review can revise the requirements/bindings and return to any affected design
 state. It is not a disposable front-end form followed by an opaque linear run.
 
 A conceptual reading suite includes an intake/source-map actor, a puzzle/purpose
-proposal actor, a first-review wait, a purpose-bound planner, paragraph-reading
-actors, a whole-source synthesizer, critique and transfer-proposal consumers,
-and a separate campaign review. The design, reading and review configurations
-may be hierarchical and parallel. Paragraph workers can proceed independently
+proposal actor, a first-review wait, a purpose-bound planner, chapter/passage
+workers, a cross-chapter synthesizer, critique and transfer-proposal consumers,
+and a separate campaign review. Whole orientation precedes declared units through
+L1 paraphrase, L2 full explication (main point/elaboration/example/analogy), L3
+eight-element analysis, L4 nine-standard evaluation and L5 source-supported,
+labeled author-perspective simulation. Cross-chapter synthesis grounds added L6
+application with limits, counterexample and test. Each unit/level declares
+applicability/insufficiency; valid JSON is not semantic success. Program-candidate
+and per-run jury/adjudication remain distinct requirements, not all shipped loops.
+The design, reading and review configurations may be hierarchical and parallel. Paragraph workers can proceed independently
 under bounded concurrency; source-grounding checks can run alongside synthesis,
 but neither branch's completion alone admits final review. The full suite also
 retains bounded evaluation/refinement/jury and recovery paths for program
@@ -507,8 +516,12 @@ source and intent revisions; which programs would be invoked; pending/uncertain
 effects; missing evidence; budgets; and why a transition is blocked. Local
 visualization must retain hierarchy, parallel configuration, edge labels,
 invocation/receipt identities and stale-state markings across save/restore.
-An editor export is a proposed binding, never permission to run it. v5/v6 editor
-compatibility and local/offline identity remain unverified.
+An editor export is a proposed binding, never permission to run it. The target
+deterministic event-based durable host binds source/coverage/intent/program/schema/
+runtime/budget identities and persistent effect custody, including uncertain
+reconciliation without blind model-call retries. v5/v6 editor compatibility and
+local/offline identity remain unverified. Mermaid is orientation, not a faithful
+compiler; no Three.js explorer or executed reading statechart is verified.
 
 ### Reuse / enhance / retire from this target
 
@@ -521,20 +534,32 @@ Source baseline is DSPx `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`.
 | Core foundry orchestration | **Reuse custody/identity contracts; enhance only under a later owner gate** | `services/program_foundry.py:94–137` `_accepted_intent_binding` compares accepted quality proposal and exact candidate intent; `:326–391` `_run_program_foundry_locked` uses existing stage artifacts/receipts and rejects partial uncertain stages. Program-generation intent acceptance is not reading intent or canonical knowledge acceptance |
 | WorkOrder clarifier and UX events | **Reuse requirements/review affordances** | This v0 spec has reversible questions, requirement IDs, acceptance tests and capability posture. It does not prove a durable hierarchical statechart host; GitLab apply remains a separately gated optional app behavior |
 | Mermaid parser/generator | **Reuse as legacy diagram/scaffold tooling; retire as semantic compiler for this target** | `services/mermaid_workflow_service.py:43–150` `parse_mermaid`/`_toposort` extract graph nodes/edges, with cycle fallback to node order; `:553–566` `generate_programs` does not use computed order. No faithful hierarchy/parallel/timer/cancellation lowering is established. Keep historical artifacts and current callers; reject statecharts instead of pretending this path preserves them |
-| Tracked PDF-transition fixture and focused renderer | **Reuse source/proposal boundaries; enhance input/outputs** | Four declared source/context inputs and eight JSON output families exist; versioned working intent and independent receipt binding are missing. Exact seams and six-vs-eight mismatch are in the boundary contract |
+| Tracked PDF-transition fixture and focused renderer | **Reuse legacy boundaries; keep additive proof distinct** | AK5419's four-input legacy fixture lacked versioned intent/independent receipt binding, with six runtime-required versus eight adapter families. AK5456/5457 subsequently add eight-family synthetic integration, not a retrofit or live-reading proof; see the boundary contract |
 | Recovered May10/May14 artifacts | **Reuse as historical design/evidence references only** | Existing dated dogfood/replay docs record source context, purpose rubric and non-authority. Scratch paths and past provider outcomes do not establish a current executable contract; no historical input/receipt was reopened or replayed |
 | Obsidian swipe-review client | **Reuse repaired review/custody behavior; enhance explicit producer handoff later** | AK5427 commit `6930feec0d08b6e67d390132808a465855c1e6c5` and8355/8356 support receipt safety and revisable intent with synthetic tests. Gestures and campaign detail are not program execution, canonical apply, installed PWA identity or real steering |
 | Second-resolution overwrite and display-as-authority assumptions | **Retire assumptions, preserve evidence** | AK5427 repaired the prototype paths; preserve predecessor failure evidence and lock quarantine. Do not reintroduce these assumptions in the future host or adapter |
 
 ### Review experience and authority boundaries
 
-Preserve Stage1 meanings: LEFT source-only, RIGHT attach-to-puzzle review, UP
-Wiki/Atlas-direct review, DOWN defer. Stage2 cancel/approve/revise/defer-campaign
-are typed review requests, not arbitrary statechart events or apply permissions.
-Intent correction from Stage2 must stay on the same card/campaign, retain active
-RIGHT and receipt history, and visibly invalidate old output. It must not require
-routing undo. Uncertain submissions retain the original key/body until exact
+Preserve coded Stage1: LEFT=source-only, RIGHT=puzzle review, UP=Atlas/Wiki,
+DOWN=defer. Stage2 LEFT=cancel, RIGHT=approve next step (`approve_campaign`),
+UP=revise, DOWN=defer is currently gated on Stage1 RIGHT. Neither stage runs the
+producer or accepts/applies knowledge. Intent correction retains the same
+card/campaign, active RIGHT and receipt history while staling dependent/in-flight
+outputs; it must not require routing undo. Route-only and purpose changes are
+distinct. Uncertain submissions retain the original key/body until exact
 acknowledgement or owner-proven no-effect; token refresh is not reconciliation.
+
+Wiki, Atlas and puzzle/project refinement may coexist downstream. Preserve both
+stages and propose a final exact-change acceptance, potentially a swipe without
+another ceremonial approval, followed by deterministic apply with separate
+accepted/applied states. Do not reinterpret `approve_campaign` or old receipts.
+Tomorrow's unselected alternatives are A destination-specific decks, B grouped
+review packet (recommended initial bounded slice), C puzzle/project-first workspace.
+The [owner roadmap](../../../../../Documents/Obsidian/_System/architecture/next-session-roadmap.md#reading-review-directions-for-next-session)
+holds these proposals; the [canonical method](../../../../../Documents/Obsidian/_System/architecture/distillation-method-architecture.md)
+and [doc-only lifecycle chart](../../../../../Documents/Obsidian/_System/docs/project/flow-views.md#reading-lifecycle-statechart)
+remain Obsidian-owned rather than duplicated UX specifications here.
 
 The proposed first review belongs **before purpose-sensitive reading**. The
 current prototype starts with already-generated routing material, so an editable

@@ -432,13 +432,13 @@ Do not mistake `program_service` for the final ontology of the runtime.
 
 ## Statechart-to-program-suite contract — AK5419 design
 
-**Status: proposed design, not implemented or activated.** AK5419 contract v3,
-guardrails v2 and operator-route evidence **8364** authorize only reconciliation
-in four existing documents. Core production readiness remains the priority;
-`SF-AUTONOMOUS-PROGRAM-FOUNDRY` remains paused. Existing bounded jury work does not
-reactivate its parent by implication. AK SF14/Decision140/task5210 and G7/task5281
-retain their own scope. No new strategic frame, direction transition or runtime
-owner is created here. Route approval is not acceptance of this design.
+**Status: owner-accepted DESIGN only** (AK5419, owner evidence **8373**), not
+implemented host behavior or activation. AK5455 host/XState selection remains
+pending with active deferral; neither version is selected. AK5735/evidence9811
+aligns documentation only, with no implementation/detail decisions today. Core
+production readiness remains first; `SF-AUTONOMOUS-PROGRAM-FOUNDRY` stays paused.
+Existing jury work, AK SF14/Decision140/task5210 and G7/task5281 retain their scope.
+Route evidence8364 alone was not design acceptance; no new runtime owner is created.
 
 ### Operating boundary and portable binding
 
@@ -448,8 +448,11 @@ review/cancellation/recovery protocols and separate receipt lineages. Existing
 program-topology DAGs can be invoked leaves; they cannot represent the parent
 machine's hierarchy, orthogonal regions or event-driven cycles.
 
-Proposed portable binding records contain: machine ID/version/content hash;
-state/region IDs; typed event schemas; named pure guard/assignment definitions;
+The target is a deterministic event-based durable host coordinating DSPx
+candidate/version/receipt workers, not model-directed control flow. Portable
+bindings require typed source snapshot, coverage, intent, program, schema, runtime
+and budget identities as well as machine ID/version/hash; state/region IDs;
+typed event schemas; named pure guard/assignment definitions;
 ordered named effect descriptors; named actor/program registry entries; exact
 candidate manifest and input/output schema hashes; input projections; budgets;
 timeout/cancellation/retry policies; and requirement/test IDs. The owner reviews
@@ -523,6 +526,7 @@ host contract requiring future proof, not an implemented v6 adapter.
 
 ### XState comparison: exact candidates, no dependency selection
 
+Historical versions below are evaluated baselines, not current-version claims.
 Source inspection on 2026-09-05 compared registry metadata for **6.0.0-alpha.52**
 and **5.32.6**, v5 tagged source, and v6 upstream commit
 `2c4eeb4881c7fab607ef2dd410e547c17f1bff87`. Both registry records have null
@@ -569,14 +573,24 @@ verification claim.
 | 5 — Author-perspective examination | Answer questions by role-playing the author's reasoned position, with source support, uncertainty and clear simulation label | Not invented author testimony; not omitted or relabeled as application |
 | 6 — Added application/transfer | Propose a context-specific use, limits, counterexample and observable test, with uncertainty and a separate recipient/review boundary | Transfer is not filesystem apply, canonical acceptance or attribution to Paul/Elder |
 
-First map the whole source and its argumentative structure. A purpose-guided plan
-selects parts plus contrary evidence and explains exclusions. Paragraph outputs
-retain source ID/hash, page/section/paragraph locator, excerpt hash and exact vs
-approximate quotation status. Integrate the parts back into the whole; record
-contradictions and changed interpretation. Missing source support means
-`insufficient_evidence`, not an invented quotation or a completed level. Source
-meaning, reader intent, critique, application proposal, review and accepted
-knowledge stay separate objects even if shown on one screen.
+Whole-source orientation → declared chapter/passage units through L1–L5 →
+cross-chapter synthesis → grounded L6 is the target sequence. A coverage plan
+records selected units, contrary evidence, exclusions and gaps; a passage pilot
+is not whole-book coverage. Each unit/level explicitly records applicability and
+insufficiency, never a fabricated completion. Outputs retain source ID/hash,
+page/section/paragraph locator, excerpt hash and exact/approximate quotation status.
+Synthesis records contradictions and changed interpretation. Valid JSON is not
+semantic success. Source meaning, reader intent, critique, transfer, review and
+accepted knowledge remain separate, even on one screen.
+
+Two evaluation loops are required: program-candidate jury/adjudication evaluates
+candidate behavior/version fitness; per-run jury/adjudication evaluates this
+reading's source fidelity, level quality, coverage and purpose response. Neither
+substitutes for the other or human final acceptance; this requirement does not
+claim all loops are implemented. Canonical method: [Obsidian distillation method](../../../../../../Documents/Obsidian/_System/architecture/distillation-method-architecture.md).
+The parent-owned [reading lifecycle statechart](../../../../../../Documents/Obsidian/_System/docs/project/flow-views.md#reading-lifecycle-statechart)
+is Mermaid documentation/orientation, not a faithful executable compiler or an
+executed statechart. No Three.js explorer is verified.
 
 ### Proposed intent propagation
 
@@ -631,56 +645,42 @@ exists. GET/render/gesture confirmation cannot invoke a producer.
 
 ### Current producer evidence and bounded owner handoff
 
-Source baseline for this inspection: DSPx `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`.
-Obsidian safety implementation is `6930feec0d08b6e67d390132808a465855c1e6c5`, with
-closeout documentation `c37c019691942558e97ce8d2436df81f161f623f`, evidence8355/8356
-and transferred obligation8357. These are bounded safety/proposal evidence only.
+**Historical baseline:** AK5419 inspected DSPx `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`.
+Its PDF fixture had four inputs (`source_package_manifest_json`, `marker_markdown`,
+`existing_wiki_index_json`, `declared_output_root`), not versioned reading intent.
+Legacy runtime required `section_units_json`, `distillation_frames_json`, `evidence_cards_json`,
+`merge_create_proposals_json`, `review_packet_json`, `artifact_contract_manifest_json`;
+Obsidian's `materialize_dspy_transition_review.py` also required `frontmatter_plans_json`
+and `wiki_note_drafts_json`, fell back to a passed example and lacked independent intent/run binding.
+AK5456/5457 supersede that gap **only for additive synthetic integration**, not a legacy retrofit.
+Program intent, provider-visible fields and per-reading identity remain distinct. Live adapters
+still require exact run/example selection, independent receipt custody, current-intent checks,
+immutable packets, complete meaningful families and stale rejection; empty arrays cannot mask gaps.
 
-| Current source locator | Observed contract | Design consequence |
-|---|---|---|
-| `tests/fixtures/program_gen/pdf_transition/intent.yaml:11–24,87–94,121–123` | Four inputs: `source_package_manifest_json`, `marker_markdown`, `existing_wiki_index_json`, `declared_output_root`; eight output names, purpose rubric and focused-bundle option | A tracked producer **scenario/fixture exists**; purpose rubric is not a versioned working-intent or automatic-suggestion input contract |
-| `packages/dspx-core/src/dspx/services/program_intent.py:473–497` (`ProgramIntent`) | Structured program contract; `extra="forbid"`, declared IO/quality/runtime/options | A new top-level reading field cannot be assumed accepted; program and per-reading identity must remain distinct |
-| `packages/dspx-core/src/dspx/templates/module_templates.py:18–48` (`render_module_skeleton`) and `packages/dspx-core/src/dspx/services/program_surfaces.py:29–88` (`render_signature_surface`, `render_module_surface`) | Focused bundle renderer derives declared inputs and outputs from generation contracts | Enhance the declared signature and focused-bundle path together; metadata propagation alone cannot prove provider-visible purpose |
-| `packages/dspx-core/src/dspx/services/program_runtime_episode.py:272–276,1025–1080` (`_load_inputs`, `_validate_pdf_transition_review_outputs`) | Generic direct/nested input mapping; six required PDF JSON families and noncanonical flags | No checked versioned intent admission or semantic steering in this validator |
-| Obsidian `_System/pdf-pipeline/scripts/materialize_dspy_transition_review.py:20–29,55–84,493–545` (`OUTPUT_FILES`, `_load_observed_outputs_from_behavior`, `_load_generated_bundle`, `materialize`) | Requires eight families; fallback chooses a passed example; bundle uses `**parsed`, no independent top-level intent binding | Future adapter must select the exact reviewed run/example, validate provenance and propagate binding; passing example is not current-intent authority |
-| Obsidian `_System/review/mobile-routing-prototype/reading_intent.py` (`producer_input`, `freshness`, `campaign_approvable`) | Explicit noncanonical input helper and structural freshness gate; no executor | Reuse helper contract, not a claim of current live producer integration |
+AK5427 `6930feec0d08b6e67d390132808a465855c1e6c5`, closeout `c37c019691942558e97ce8d2436df81f161f623f`,
+8355/8356 and handoff8357 retain bounded safety/proposal scope. [May10](2026-05-10-dogfood-how-to-read-paragraph-canonical-transition.md)
+and [May14](2026-05-14-purpose-driven-codex-gpt55-replay.md) retain historical outcomes;
+no private/scratch inputs or receipts are reopened/reinterpreted. Timeouts never license blind retries.
+DSPx owns separately admitted producer/schema/receipt work, not a Foundry rewrite; Obsidian owns
+materializer/review publication. Source/knowledge/runtime owners authorize disclosure, budgets,
+installation and acceptance/apply. AK5735 launches none of these implementation scopes.
 
-The **six** runtime-required families are `section_units_json`,
-`distillation_frames_json`, `evidence_cards_json`, `merge_create_proposals_json`,
-`review_packet_json`, `artifact_contract_manifest_json`. The materializer also
-requires **`frontmatter_plans_json` and `wiki_note_drafts_json`**. Thus a runtime
-validation pass can still lack role-separated frontmatter or reviewable note
-content required by the adapter. Neither check proves the original fifth reading
-level, a substantive v2 mobile campaign, or actual purpose-sensitive behavior.
-The future contract must enumerate all required families and explicitly reject
-missing content; it cannot hide the mismatch by filling empty arrays.
+### Review routes and deferred downstream design
 
-Bounded negative: inspection of current Core/Forge Python, the tracked PDF fixture,
-renderer/runtime and named Obsidian adapter found **no end-to-end contract for
-automatic puzzle/purpose suggestion plus version-bound purpose-sensitive reading**.
-This is not proof that no producer or historical experiment exists anywhere.
-The [May10 dogfood](2026-05-10-dogfood-how-to-read-paragraph-canonical-transition.md)
-and [May14 replay](2026-05-14-purpose-driven-codex-gpt55-replay.md) describe historical
-candidates, inputs and outcomes; their scratch/private source paths were not
-opened, replayed or accepted as current producer identity. The May14 timeout and
-later run remain historical facts, not precedent for retrying uncertain effects.
+Preserve the coded two stages: Stage1 RIGHT=puzzle review, UP=Atlas/Wiki,
+LEFT=`source_only`, DOWN=defer. Stage2 RIGHT=approve next step (`approve_campaign`),
+UP=revise, LEFT=cancel, DOWN=defer is currently gated on active Stage1 RIGHT.
+Neither stage invokes the producer or accepts/applies knowledge. A route-only
+change is not a purpose change; purpose correction versions intent and stales
+all dependent/in-flight outputs without erasing route or receipt history.
 
-Proposed separately reviewed implementation scopes, **not tasks launched here**:
-- **DSPx owner:** extend the PDF scenario's declared input/output contract,
-  focused renderer and runtime validation/receipt seam; add synthetic intent
-  propagation and six-level traceability tests. Design an automatic proposal
-  producer against supplied source/puzzle snapshots before introducing any live
-  model. Candidate paths are the fixture, `program_intent.py` only if a genuine
-  program-level field is needed, `program_surfaces.py`, `module_templates.py`,
-  `program_runtime_episode.py` and their focused tests. No generic foundry rewrite.
-- **Obsidian owner:** review changes to the named materializer and its validator
-  plus the prototype input/campaign consumer. Retain independent receipt and
-  current-intent verification, immutable packet generations, eight-family
-  completeness, explicit exact-example selection and stale admission rejection.
-  This design grants no write to those paths or to real review stores.
-- **Source/knowledge and runtime owners:** separately approve corpus disclosure,
-  provider/effect budgets, any installed host/PWA work and canonical acceptance.
-  Neither DSPx nor the adapter manufactures these permissions.
+Wiki, Atlas and puzzle/project refinement can coexist. Tomorrow's
+[owner-held alternatives](../../../../../../Documents/Obsidian/_System/architecture/next-session-roadmap.md#reading-review-directions-for-next-session):
+A destination-specific decks; B grouped review packet (recommended initial bounded slice);
+C puzzle/project-first campaign workspace. **None selected.** Preserve both stages; propose
+final **exact-change** acceptance (possibly a swipe without extra ceremonial approval),
+then separate deterministic apply with distinct accepted/applied states and persistent
+effect receipts/uncertain reconciliation. Never reinterpret `approve_campaign` or old receipts.
 
 ### Synthetic producer implementation — AK5456
 
@@ -776,7 +776,7 @@ observed prototype regression. A design review pass does not execute them.
 |---|---|---|
 | R1: inspect the entire machine | Hierarchical `design` / `reading` / `review` regions, invoked assemblies and bounded revision cycles | T1: model/renderer round-trip retains IDs, nested/parallel configuration, guards, loops and input hashes; unknown construct rejects rather than flattens |
 | R2: first-review purpose correction | `proposal → intent_review → planning`; explicit correction from campaign to same intent owner | T2: two puzzles A/B, revise purposeA to purposeB; input to fake producer has v2/B/purposeB, old packets are stale and history/RIGHT remain unchanged |
-| R3: source-qualified five-plus-one reading | Whole map → per-paragraph L1–L5 → whole synthesis → added L6 proposal | T3: source rubric evaluates each level separately; omission of author-roleplay fails, unsupported author claims and fabricated quotes fail |
+| R3: source-qualified five-plus-one reading | Whole orientation → declared chapter/passage L1–L5 with applicability/gaps → cross-chapter synthesis → grounded L6 | T3: source rubric evaluates each level separately; omission of author-roleplay fails, unsupported author claims and fabricated quotes fail |
 | R4: purpose changes relevance, not truth | Version-bound planner, paragraph readers and synthesizer | T4: on the same declared public/synthetic source, two contrasting purposes change relevant questions/plans/outputs while preserving source claims and counterevidence; independent domain review rejects mere label copying |
 | R5: stale/forged outputs cannot become review | Receipt-bound completion → eight-family materializer → current-intent campaign gate | T5: reject forged echo binding, old in-flight completion, missing two adapter families, wrong example/run, malformed dependent row or missing substantive campaign |
 | R6: uncertain effects stay uncertain | Pre-dispatch intent ledger, ordered/transitive acceptance, independent effect acknowledgement and reconciliation | T6: crash at intent-write/dispatch/transitive-acceptance/checkpoint/ack boundaries; inject a child operation and root-event between acceptance and checkpoint. Recover without event loss, duplicate authorization or false business-effect completion; rejected batches and uncertain effects are not blindly replayed |
@@ -792,6 +792,6 @@ to a fake producer, rejects old approval and preserves historical receipts and
 canonical sentinels. It does not validate the proposed DSPx adapter, execute an
 XState machine, prove automatic suggestion, or satisfy empirical T4.
 
-Design closure requires owner review of this mapping and explicit disposition of
-the remaining dependency/host, producer implementation and empirical acceptance
-gates. No green document check can substitute for those future runtime proofs.
+AK5419 owner review accepted this design mapping, not the remaining host,
+producer/consumer or empirical gates. No green document check substitutes for
+runtime proof; historical tests above were not rerun by AK5735.

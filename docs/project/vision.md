@@ -41,19 +41,24 @@ A DSPx user can:
 
 ## Visual statecharts and interconnected DSPy suites — design target
 
-AK5419 reconciles this ambition into the existing runtime objects, not a new
-strategic frame. Operator route evidence **8364** permits design reconciliation
-with **Core production readiness first and Autonomous Program Foundry paused**.
-It does not select an XState dependency or activate the target described here.
+AK5419 is **owner-accepted DESIGN only** (evidence8373), reconciled into existing
+runtime objects, not a new strategic frame. **Core production readiness remains
+first and Autonomous Program Foundry paused**. AK5455 host/XState selection is
+pending and deferred; neither XState is selected. Historically evaluated v6
+alpha.52 and v5 5.32.6 are not current-version claims. AK5735 aligns documentation
+only; no implementation or downstream-review detail is selected today.
 
 A user should be able to inspect and revise a complete visual behavioral machine:
 hierarchical states, parallel regions, event-driven re-entry, typed program
 invocations, review waits, cancellation, recovery, and bounded refinement. One
 machine may coordinate several interconnected DSPy candidate assemblies; each
 assembly retains its own input contract, runtime conditions, evaluation and
-receipt lineage. A linear diagram or one generated Python program is not the
-whole product. Statechart control semantics must not be flattened into the
-existing bounded program-topology DAG.
+receipt lineage. A deterministic event-based durable host should coordinate these
+workers through typed source/coverage/intent/program/schema/runtime/budget bindings,
+persistent effect custody and uncertain reconciliation, never blind model-call
+retries. A linear diagram or one generated Python program is not the whole product.
+Statechart semantics must not be flattened into a program-topology DAG. Mermaid
+is orientation, not a faithful compiler; no Three.js explorer is verified.
 
 The design segment is part of that machine: operating concept → needs and
 requirements → candidate bindings → verification and semantic acceptance design
@@ -70,14 +75,33 @@ review can correct either, choose Wiki/Atlas-direct preservation, defer, or reta
 source-only. Working intent is noncanonical: it is neither the author's purpose
 nor a merged canonical puzzle assignment.
 
-Reading then moves whole → part → whole: map the work and its argument; select
-paragraphs for the declared question while retaining contrary evidence; examine
-them through Paul/Elder's original five levels; integrate the result back into
-the whole before an explicitly added sixth application/transfer level. Purpose
-controls relevance and questions, not what the source is allowed to mean.
-Corrections supersede intent, invalidate dependent plans and packets, and require
-new purpose-sensitive work before review can resume. Applications are proposals,
-not filesystem operations or accepted knowledge.
+Reading moves whole-source orientation → declared chapter/passage L1–L5 →
+cross-chapter synthesis → grounded L6, retaining counterevidence and explicit
+coverage gaps. Paul/Elder's five levels remain distinct: paraphrase; full explication
+(main point, elaboration, example, analogy); analysis of eight elements; evaluation
+by nine standards; source-supported, labeled author-perspective simulation.
+Our added sixth level proposes application/transfer with limits, counterexample
+and observable test. Each unit/level declares applicability or insufficiency;
+valid JSON does not prove semantic success. Program-candidate and per-run
+jury/adjudication are separate required loops, not presumed implemented behavior.
+Purpose controls relevance, not source meaning. Purpose correction supersedes
+intent and stales dependent/in-flight outputs; a route-only change is distinct.
+Applications remain proposals, not filesystem operations or accepted knowledge.
+
+The coded two-stage swipe flow stays unchanged: Stage1 RIGHT=puzzle review,
+UP=Atlas/Wiki, LEFT=source-only, DOWN=defer; Stage2 RIGHT=approve next step,
+UP=revise, LEFT=cancel, DOWN=defer, currently gated on Stage1 RIGHT. It does not
+run a producer or accept/apply knowledge. Wiki, Atlas and puzzle/project refinement
+may coexist downstream. A proposed final exact-change acceptance may itself be a
+swipe without another ceremonial approval; deterministic apply remains separate,
+with distinct accepted/applied states. Do not reinterpret `approve_campaign` or
+old receipts as that future acceptance.
+
+Owner references: [canonical method](../../../../../../Documents/Obsidian/_System/architecture/distillation-method-architecture.md),
+[Mermaid doc-only lifecycle chart](../../../../../../Documents/Obsidian/_System/docs/project/flow-views.md#reading-lifecycle-statechart),
+and [tomorrow's review alternatives](../../../../../../Documents/Obsidian/_System/architecture/next-session-roadmap.md#reading-review-directions-for-next-session).
+A destination-specific decks, B grouped review packet (recommended initial bounded
+slice), and C puzzle/project-first workspace are proposals; **none selected**.
 
 Success requires both faithful source interpretation and a demonstrable response
 to changed reader purpose. Showing a purpose label, recording revision text,

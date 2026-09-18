@@ -69,43 +69,62 @@ recommendation was not consent. AK5458 remains deferred; the empirical milestone
 has **not passed**. Optional high-file-descriptor embedding support also remains
 unproved: `select.select()` fails closed above its descriptor limit.
 
-## Historical AK5419 design posture — 2026-09-05
+## Statechart and reading-review posture — AK5735, 2026-09-13
 
-Operator route evidence **8364** permits **Core-priority design reconciliation
-with Autonomous Program Foundry paused**. Done contract v3 and four-document scope
-are unchanged; guardrails v2 reconcile only the route prerequisite. This is not
-Foundry activation, dependency selection or product-runtime acceptance. The
-broader implementation snapshot below is retained, not revalidated by this task.
+AK5419 is **owner-accepted DESIGN only** (evidence8373), not implemented host
+behavior. AK5455 host/XState selection is pending with active deferral. Neither
+XState is selected: v6 `6.0.0-alpha.52` and v5 `5.32.6` are historical evaluated
+baselines, not current-version claims. Core remains first and Foundry paused.
+AK5735/evidence9811 permits only four-document alignment, not implementation or
+UX/detail selection. The broader implementation snapshot below is not revalidated.
 
-The proposed [statechart/suite and six-level reading contract](program-synthesis-boundary.md#statechart-to-program-suite-contract--ak5419-design)
-preserves the full hierarchical/parallel machine, interconnected DSPy assemblies,
-revisable intent and separate source/review/knowledge authorities. The
-[Forge reuse disposition](../FORGE.md#visual-design-workbench-and-reuse-disposition--ak5419)
-keeps Core independent of the optional WorkOrder/backlog app and rejects Mermaid
-scaffolding as a substitute for faithful statechart semantics.
+The [statechart/suite contract](program-synthesis-boundary.md#statechart-to-program-suite-contract--ak5419-design)
+targets a deterministic event-based durable host coordinating independently
+versioned DSPx workers and receipts, with typed source/coverage/intent/program/
+schema/runtime/budget identities, persistent effects and uncertain reconciliation.
+No blind model-call retries. Mermaid is orientation, not a faithful compiler;
+no Three.js explorer or executed reading statechart is verified.
 
-| Question | Observed / proposed disposition |
-|---|---|
-| Is there a producer? | A tracked PDF-transition fixture, focused renderer and runtime validator exist at DSPx `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`. This is current source/scenario evidence, not an observation of deployed producer use |
-| Does it bind working reader intent? | The inspected four-field fixture and Core/Forge code do not expose the required end-to-end automatic suggestion/versioned reading-intent contract. Generic program intent and purpose-quality prose are not that contract |
-| Is the adapter ready? | Obsidian's named materializer demands eight output families while the runtime PDF validator requires six; frontmatter plans and Wiki drafts are the difference. Independent intent/run binding is also missing. Proposed owner-native changes are specified, not implemented |
-| What carries forward from AK5427? | Commit `6930feec0d08b6e67d390132808a465855c1e6c5`,8355/8356 and handoff8357 support bounded receipt safety and noncanonical intent. The existing A→B fake-producer regression independently passed once here; no real steering, deployment or PWA proof |
-| What do May artifacts establish? | Historical source/quality-rubric experiments only. Their private/generated inputs were not inspected or replayed; no current automatic producer is inferred from scratch locators |
-| Which XState is selected? | Neither. Exact v6 alpha.52 source/metadata and stable5.32.6 were compared. v6 is a proposed evaluation candidate; host/effect/renderer proof and owner dependency selection remain open |
-| What remains before real reading? | Separately reviewed DSPx producer and Obsidian adapter scopes, independent receipt binding, semantic source-fidelity/A–B evaluation, privacy/effect admission and runtime-owner proof; no successor execution is authorized here |
+The six explicit levels are paraphrase; full explication (main point, elaboration,
+example, analogy); analysis of eight elements; evaluation by nine standards;
+source-supported, labeled author-perspective simulation; added L6 transfer with
+limits, counterexample and test. Whole orientation → declared chapter/passage
+L1–L5 with per-unit applicability/insufficiency → cross-chapter synthesis → grounded
+L6 is the target. Valid JSON is not semantic success. Program-candidate and per-run
+jury/adjudication are distinct required loops, not a claim both are fully shipped.
 
-Validation limits: this is a documentation design slice. Native targeted source
-reads replaced unavailable cross-repository SCI (the Pi session is bound to
-Obsidian). The pinned engineering guidance helper could not fetch its release
-under offline/no-install constraints; local engineering/workflow guidance was
-read, but full upstream guidance or full engineering validation is not claimed.
-The method preserves the task's Paul/Elder original levels1–5, including author
-role-play, plus an explicitly added sixth transfer level; public page retrieval
-did not independently verify the complete original method text.
+Preserve coded Stage1 RIGHT=puzzle review, UP=Atlas/Wiki, LEFT=source-only,
+DOWN=defer; Stage2 RIGHT=approve next step, UP=revise, LEFT=cancel, DOWN=defer,
+currently gated on Stage1 RIGHT. Swipes do not run producers or accept/apply
+knowledge. Purpose correction stales dependent outputs; route-only changes must
+not masquerade as purpose changes. Wiki, Atlas and puzzle/project refinement may
+coexist. Proposed final exact-change acceptance (possibly a swipe without another
+ceremonial approval) and deterministic apply have separate accepted/applied states;
+`approve_campaign` and historical receipts do not acquire that meaning.
 
-Owner review and exact task completion remain AK facts, not consequences of this
-paragraph. Future runtime tests in the contract remain unexecuted except the
-explicitly identified prototype regression.
+Owner surfaces: [canonical method](../../../../../../Documents/Obsidian/_System/architecture/distillation-method-architecture.md),
+[doc-only lifecycle chart](../../../../../../Documents/Obsidian/_System/docs/project/flow-views.md#reading-lifecycle-statechart),
+[tomorrow's alternatives](../../../../../../Documents/Obsidian/_System/architecture/next-session-roadmap.md#reading-review-directions-for-next-session).
+A destination-specific decks; B grouped review packet (recommended initial bounded
+slice); C puzzle/project-first workspace remain **unselected**. See also the
+[Forge reuse disposition](../FORGE.md#visual-design-workbench-and-reuse-disposition--ak5419).
+
+### Historical findings versus current proof
+
+AK5419 inspected `ae60ad90860006a145bab04fb0c2cb12afe9f7cf`: a four-input PDF fixture,
+a six-family runtime validator versus eight-family Obsidian materializer, and no
+end-to-end suggestion/versioned reading-intent contract in those inspected paths.
+AK5456/5457 now provide additive **synthetic-only** integration, not a retrofit of
+that legacy path or real semantic reading acceptance. AK5681 remains the separately
+bounded passage prerequisite above. AK5427 `6930feec0d08b6e67d390132808a465855c1e6c5`,
+8355/8356 and handoff8357 retain safety/proposal scope; its historical one-test fake
+producer pass is not real steering or installed PWA proof. May experiments and
+terminal outcomes remain unchanged, not reopened or reinterpreted here.
+
+AK5419's offline guidance/SCI/public-method-text limits remain historical; its
+attributed five-plus-one method was not new primary-text verification. AK5735
+reads documentation and AK authority only: no new source, provider, runtime,
+semantic, installation or full-suite proof is claimed.
 
 ## Retained implementation snapshot — 2026-09-02
 
