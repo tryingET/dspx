@@ -1,5 +1,5 @@
 ---
-summary: "AK-5754: the hermetic verify-full gate's stages ran for the first time (discovery, identical container posture): all 13 container stages pass after six defects were fixed; the official admitted run is blocked by the workstation heavy-job wrapper."
+summary: "AK-5754: the hermetic verify-full gate ran for the first time: all 13 container stages pass in discovery after six defects were fixed; heavy-job admission needs an owner-authorized Decision 160 age deferral."
 read_when:
   - "You want to run, re-provision or debug the optional hermetic local full run."
   - "heavy-job refuses admission with 'process-reference scan incomplete'."
@@ -68,31 +68,37 @@ Unit tests with synthetic venvs and fake command results could not find these:
   `.pyc` written into `.venv`, or any prek cache change invalidates it — regenerate
   immediately before `--prepare`, and export `PYTHONDONTWRITEBYTECODE=1` in between.
 
-## Blocker: workstation `heavy-job` cannot admit any job
+## `heavy-job` admission needs an owner-authorized age deferral
 
-`--prepare` must run under the workstation wrapper. `heavy-job run` exits 74:
+`--prepare` must run under the workstation wrapper. A plain `heavy-job run` exits 74:
 `retained-run enforcement failed: process-reference scan incomplete` for
 `run-1788137699…`, `run-1789025931…`, `run-1789118712…`.
 
-Cause (read from `infra/workstation/scripts/heavy_job_support.py`): those retained runs
-are past the 72 h age limit, so the wrapper must clean them before admitting new work.
-Cleanup requires a complete scan of same-UID process references, and "complete" means
-every kernel-protected process present now is in the run's recorded
-`protected_process_baseline`, which is keyed `pid:start-time`. The machine has rebooted
-since, so every protected process (`systemd --user`, `sd-pam`, `espanso`, `btop`) is new
-and the scan can never complete. The Decision 154 deferral covers one named run only.
+**This is deliberate workstation policy, not a defect** (an earlier revision of this note
+said otherwise; that was wrong). Those runs are past the 72 h age limit, so the wrapper
+must clean them before admitting new work. Cleanup requires that every kernel-protected
+same-UID process present now is in the run's recorded `protected_process_baseline`
+(`pid:start-time`): a protected process that appeared after the run might hold a
+reference to its scratch and cannot be inspected. After a reboot every protected process
+is new, so cleanup cannot be proven safe. Workstation ADR-0011 rejects rebasing
+baselines, copying current identities into old metadata and a reboot-based proof, and
+routes any change of those semantics through the owner decision membrane.
 
-This is a workstation-infrastructure defect, outside this repository. It was not worked
-around, and `--heavy-job-admitted` was not passed falsely.
+The sanctioned route is workstation ADR-0019 / Decision 160: name the aged terminal runs
+and defer only their age debt for one invocation. Nothing old is deleted or rewritten and
+every other gate still applies. Each invocation needs the workstation owner's
+authorization; the owner gave it in session on 2026-09-18 for the single DSPx
+`--prepare` below. Nothing was worked around and no wrapper code was changed.
 
-## To finish once the wrapper admits
+## Official run procedure
 
 ```
 IMG=$(docker image inspect dspx-verify-full:local --format '{{.Id}}')
 # 1. discovery at the exact HEAD -> reports; 2. generate; 3. prepare; 4. execute
 /usr/bin/python3 -I -S -B scripts/ci/verify_full_manifest.py --image "$IMG" \
   --out <manifest> --logs <fresh> --from-reports <offline/reports> <residual/reports>
-heavy-job run --label dspx-verify-full-prepare --task <id> -- /bin/sh scripts/ci/verify-full.sh \
+heavy-job run --label dspx-verify-full-prepare --task <id> \
+  --defer-retained-ages <aged-run>,<aged-run>[,...] --retention-decision 160 -- /bin/sh scripts/ci/verify-full.sh \
   --prepare --owner-admitted --heavy-job-admitted --review <manifest> \
   --review-sha256 <sha> --prepared <fresh> --logs <fresh>
 /bin/sh scripts/ci/verify-full.sh --execute --owner-admitted --review <manifest> \
