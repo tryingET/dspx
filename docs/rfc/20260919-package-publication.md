@@ -104,13 +104,27 @@ from the old shadow rollout or a green CI badge.
 
 ## Account and infrastructure setup
 
-Register two PyPI pending publishers: project `dspx-core` / `dspx-forge`, owner
-`tryingET`, repository `dspx`, workflow filename `release.yml`, environment `pypi`.
+Correction from live PyPI registration under AK5795: two pending project names
+cannot use the same publisher identity. The original single-`pypi` configuration
+above is superseded by distinct environments, not different repository owners:
+
+| Project | Owner | Repository | Workflow | Environment |
+|---|---|---|---|---|
+| `dspx-core` | `tryingET` | `dspx` | `release.yml` | `pypi-core` |
+| `dspx-forge` | `tryingET` | `dspx` | `release.yml` | `pypi-forge` |
+
+Each has its own sequential job and owner approval, sharing one immutable
+candidate artifact and manifest. All other controls above remain unchanged.
+See the [ADR correction](../adr/20260919-package-publication.md).
+
 A 404 does not reserve a name. Registration needs the owner's authenticated PyPI
-account; no bootstrap token is necessary. Create the matching GitHub environment
-and read back its reviewer and branch protections. Do not approve it on behalf of
-the operator. The environment is an actual permission gate, not an assertion in
-a version-controlled JSON file.
+account; no bootstrap token is necessary. Create both matching GitHub environments
+and read back their sole-reviewer/main-only/no-bypass protections. Do not approve
+on behalf of the operator. Environments are actual permission gates, not assertions
+in a version-controlled JSON file. Pending publishers become normal publishers on
+first use; see [PyPI's documentation](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/).
+The GitHub identity fields, including environment, are defined by
+[Warehouse's form](https://github.com/pypi/warehouse/blob/main/warehouse/oidc/forms/github.py).
 
 ## Validation and failure handling
 

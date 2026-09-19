@@ -69,3 +69,20 @@ single-owner policy. Read-only preflight cannot promise draft visibility; the
 maintainer must inspect drafts before dispatch and the final writer rechecks.
 Exact-source hosted CI, registry ownership and publication remain separate gates.
 No version bump or upload is part of AK5785 infrastructure completion.
+
+## Pending-publisher identity correction — AK5795
+
+PyPI rejected the operator's second pending project because both used the same
+owner/repository/workflow/environment tuple. `pypi-core` and `pypi-forge` now give
+the two jobs distinct identities, with unchanged sole-owner/main-only/no-bypass
+protections. The same manifest receives sequential Core and Forge approvals;
+Forge independently rechecks Core registry bytes before staging its own files.
+The old pending run 35442526631 was cancelled before upload; its successful wheel
+and sdist installations on Python 3.13/3.14 remain evidence for its old source only.
+
+Independent reviewer `dispatch-1789823290181` found no concrete blocker in the
+bounded split: artifact custody, both approvals, permission isolation, Core
+reverification and source/parent checks remain intact. This was static review,
+not external configuration or publication approval. Parent verification passed
+313 focused tests, repo `ci-quality`, native task scope and readback of both live
+protected environments. New exact-source CI and release jobs are still required.

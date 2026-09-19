@@ -18,6 +18,19 @@ Accept the boundary and sequencing in
 closed both design blockers. Implementation remains subject to code review and
 exact-source validation.
 
+### Implementation correction: distinct pending publisher identities
+
+The operator's PyPI registration attempt exposed a provider constraint: two pending
+project names cannot share one publisher identity. AK5795 therefore separates the
+original `pypi` job into `publish-core` / `pypi-core` and `publish-forge` /
+`pypi-forge`, still using owner `tryingET`, repo `dspx`, workflow `release.yml`.
+Both environments retain the sole owner reviewer, main-only branch restriction
+and disabled administrator bypass. The same manifest is reviewed twice, first
+for Core and then for Forge; this adds a gate, never bypasses approval or creates
+independent quorum. Forge rechecks Core's exact registry bytes before uploading.
+The binding contract below applies to each environment. The old waiting run was
+cancelled before any publisher ran. No package version/dependency/runtime changed.
+
 ## Binding publication contract
 
 - Exact source and parent CI clearance plus host-native AK scope evidence precede

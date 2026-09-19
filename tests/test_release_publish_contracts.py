@@ -501,7 +501,7 @@ def test_ci_rejects_nonexact_jobs(
 def protected_environment() -> tuple[dict[str, Any], dict[str, Any]]:
     return (
         {
-            "name": "pypi",
+            "name": "pypi-core",
             "can_admins_bypass": False,
             "protection_rules": [
                 {
@@ -518,11 +518,28 @@ def protected_environment() -> tuple[dict[str, Any], dict[str, Any]]:
     )
 
 
+@pytest.mark.parametrize("name", ["pypi-core", "pypi-forge"])
 def test_environment_requires_owner_and_main_only(
     scripts: SimpleNamespace,
     protected_environment: tuple[dict[str, Any], dict[str, Any]],
+    name: str,
 ) -> None:
-    scripts.ci.validate_environment(*protected_environment)
+    scripts.ci.validate_environment(*protected_environment)  # Core default.
+    environment, branches = protected_environment
+    environment["name"] = name
+    scripts.ci.validate_environment(environment, branches, name=name)
+
+
+@pytest.mark.parametrize("name", ["pypi-core", "pypi-forge"])
+def test_environment_rejects_crossmatched_identity(
+    scripts: SimpleNamespace,
+    protected_environment: tuple[dict[str, Any], dict[str, Any]],
+    name: str,
+) -> None:
+    environment, branches = protected_environment
+    environment["name"] = "pypi-forge" if name == "pypi-core" else "pypi-core"
+    with pytest.raises(ValueError, match="wrong publication environment"):
+        scripts.ci.validate_environment(environment, branches, name=name)
 
 
 @pytest.mark.parametrize(
@@ -543,12 +560,15 @@ def test_environment_requires_owner_and_main_only(
         "branch",
     ],
 )
+@pytest.mark.parametrize("name", ["pypi-core", "pypi-forge"])
 def test_environment_rejects_weaker_protection(
     scripts: SimpleNamespace,
     protected_environment: tuple[dict[str, Any], dict[str, Any]],
     mutation: str,
+    name: str,
 ) -> None:
     environment, branches = protected_environment
+    environment["name"] = name
     rule = environment["protection_rules"][0]
     reviewer = rule["reviewers"][0]
     if mutation == "name":
@@ -578,7 +598,53 @@ def test_environment_rejects_weaker_protection(
     else:
         branches["branch_policies"][0]["name"] = "*"
     with pytest.raises(ValueError):
-        scripts.ci.validate_environment(environment, branches)
+        scripts.ci.validate_environment(environment, branches, name=name)
+
+
+@pytest.mark.parametrize("bad_name", [None, "pypi-core", "pypi-forge"])
+def test_clearance_checks_both_environment_identities(
+    scripts: SimpleNamespace,
+    ci_run: dict[str, Any],
+    protected_environment: tuple[dict[str, Any], dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch,
+    bad_name: str | None,
+) -> None:
+    parent = "b" * 40
+    responses: dict[str, Any] = {
+        "branches/main": {"protected": True},
+        f"compare/{COMMIT}...main": {"status": "identical"},
+        f"git/commits/{COMMIT}": {"parents": [{"sha": parent}]},
+    }
+    for run_id, sha in enumerate((COMMIT, parent), 1):
+        run = dict(ci_run, head_sha=sha, id=run_id, html_url=f"synthetic/{run_id}")
+        responses[
+            f"actions/workflows/ci.yml/runs?head_sha={sha}&event=push&branch=main&per_page=100"
+        ] = {"total_count": 1, "workflow_runs": [run]}
+        responses[f"actions/runs/{run_id}/attempts/1/jobs?per_page=100"] = {
+            "total_count": len(CI_JOBS),
+            "jobs": successful_jobs(),
+        }
+    environment, branches = protected_environment
+    for name in ("pypi-core", "pypi-forge"):
+        returned_name = (
+            ("pypi-forge" if name == "pypi-core" else "pypi-core")
+            if name == bad_name
+            else name
+        )
+        responses[f"environments/{name}"] = dict(environment, name=returned_name)
+        responses[f"environments/{name}/deployment-branch-policies"] = branches
+    api = Mock(side_effect=responses.__getitem__)
+    monkeypatch.setattr(scripts.ci, "api", api)
+    if bad_name is not None:
+        with pytest.raises(ValueError, match="wrong publication environment"):
+            scripts.ci.clearance(COMMIT)
+    else:
+        result = scripts.ci.clearance(COMMIT)
+        assert result["source"] == COMMIT
+        assert [row["commit"] for row in result["ci"]] == [COMMIT, parent]
+        assert result["environment_checked"] is True
+        assert result["owner_approval"] is False
+        assert [call.args[0] for call in api.call_args_list] == list(responses)
 
 
 @pytest.mark.parametrize("registry", [False, True])
@@ -743,17 +809,18 @@ def test_workflow_writer_permissions_and_no_candidate_installation(
         for name, job in jobs.items()
         if "write" in job.get("permissions", workflow["permissions"]).values()
     }
-    assert writers == {"publish-pypi", "github-release"}
-    assert jobs["publish-pypi"]["permissions"] == {
-        "contents": "read",
-        "actions": "read",
-        "id-token": "write",
-    }
+    assert writers == {"publish-core", "publish-forge", "github-release"}
+    for package in ("core", "forge"):
+        assert jobs[f"publish-{package}"]["permissions"] == {
+            "contents": "read",
+            "actions": "read",
+            "id-token": "write",
+        }
+        assert jobs[f"publish-{package}"]["environment"]["name"] == f"pypi-{package}"
     assert jobs["github-release"]["permissions"] == {
         "contents": "write",
         "actions": "read",
     }
-    assert jobs["publish-pypi"]["environment"]["name"] == "pypi"
     for name in writers:
         for step in jobs[name]["steps"]:
             if "uses" in step:
@@ -777,11 +844,12 @@ def test_workflow_dependency_gates_and_exact_artifact_binding(
 ) -> None:
     jobs = workflow["jobs"]
     assert jobs["install-candidate"]["needs"] == "candidate"
-    assert set(jobs["publish-pypi"]["needs"]) == {"candidate", "install-candidate"}
-    assert set(jobs["install-pypi"]["needs"]) == {"candidate", "publish-pypi"}
+    assert set(jobs["publish-core"]["needs"]) == {"candidate", "install-candidate"}
+    assert set(jobs["publish-forge"]["needs"]) == {"candidate", "publish-core"}
+    assert set(jobs["install-pypi"]["needs"]) == {"candidate", "publish-forge"}
     assert set(jobs["github-release"]["needs"]) == {
         "candidate",
-        "publish-pypi",
+        "publish-forge",
         "install-pypi",
     }
     for name, job in jobs.items():
@@ -815,32 +883,72 @@ def test_workflow_dependency_gates_and_exact_artifact_binding(
         assert ("--registry" in command) == (name == "install-pypi")
 
 
-def test_workflow_core_verification_precedes_forge_publication(
+@pytest.mark.parametrize("package", ["core", "forge"])
+def test_workflow_preflight_stage_publish_and_failure_readback(
     workflow: dict[str, Any],
+    package: str,
 ) -> None:
-    steps = workflow["jobs"]["publish-pypi"]["steps"]
+    steps = workflow["jobs"][f"publish-{package}"]["steps"]
+    preflights = [
+        i
+        for i, step in enumerate(steps)
+        if "scripts/release/ci.py" in step.get("run", "")
+    ]
+    assert len(preflights) == 1
+    preflight = steps[preflights[0]]
+    assert "if" not in preflight
+    assert "set -euo pipefail" in preflight["run"]
+    assert 'python scripts/release/ci.py --commit "$GITHUB_SHA"' in preflight["run"]
+    assert "scripts/release/github.py --check-only" in preflight["run"]
     publishers = [
-        (index, step)
-        for index, step in enumerate(steps)
+        (i, step)
+        for i, step in enumerate(steps)
         if step.get("uses", "").startswith("pypa/gh-action-pypi-publish@")
     ]
-    assert len(publishers) == 2
-    (core_index, core), (forge_index, forge) = publishers
-    assert core["if"] == "steps.core.outputs.needed == 'true'"
-    assert forge["if"] == "steps.forge.outputs.needed == 'true'"
-    assert core["with"] == {"packages-dir": "${{ runner.temp }}/core-upload/"}
-    assert forge["with"] == {"packages-dir": "${{ runner.temp }}/forge-upload/"}
-    verifications = [
-        index
-        for index, step in enumerate(steps)
-        if "registry.py verify --package dspx-core" in step.get("run", "")
-    ]
-    assert len(verifications) == 1
-    assert core_index < verifications[0] < forge_index
+    assert len(publishers) == 1
+    publish_index, publish = publishers[0]
+    assert publish["if"] == f"steps.{package}.outputs.needed == 'true'"
+    assert publish["with"] == {
+        "packages-dir": "${{ runner.temp }}/" + package + "-upload/"
+    }
+    stage_index = next(i for i, step in enumerate(steps) if step.get("id") == package)
+    stage = steps[stage_index]
+    assert "if" not in stage
+    assert f"registry.py stage --package dspx-{package}" in stage["run"]
+    assert "set -euo pipefail" in stage["run"]
+    verify_index = next(
+        i
+        for i, step in enumerate(steps)
+        if f"registry.py verify --package dspx-{package}" in step.get("run", "")
+    )
+    verify = steps[verify_index]
+    assert (
+        verify["if"]
+        == "${{ !cancelled() && steps." + package + ".outcome == 'success' }}"
+    )
+    assert verify["shell"] == "bash"
+    assert preflights[0] < stage_index < publish_index < verify_index
+    if package == "forge":
+        core_checks = [
+            i
+            for i, step in enumerate(steps)
+            if "registry.py verify --package dspx-core" in step.get("run", "")
+        ]
+        assert len(core_checks) == 1
+        assert preflights[0] < core_checks[0] < stage_index
+        assert "if" not in steps[core_checks[0]]
 
 
-@pytest.mark.parametrize("job_name", ["publish-pypi", "github-release"])
-@pytest.mark.parametrize("package", PACKAGES)
+@pytest.mark.parametrize(
+    ("job_name", "package"),
+    [
+        ("publish-core", "dspx-core"),
+        ("publish-forge", "dspx-core"),
+        ("publish-forge", "dspx-forge"),
+        ("github-release", "dspx-core"),
+        ("github-release", "dspx-forge"),
+    ],
+)
 def test_workflow_registry_verification_pipelines_fail_closed(
     workflow: dict[str, Any],
     job_name: str,

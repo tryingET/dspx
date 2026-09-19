@@ -53,10 +53,13 @@ full gate remains separate, not silently counted as run.
    dependency range, lockfile, changelog and any runtime version contract.
 2. Push the exact release commit to protected `main`, wait for its first-attempt
    green CI, run the native AK task-scope check at that SHA and record AK evidence.
-3. Register PyPI pending publishers for `dspx-core` and `dspx-forge`: owner
-   `tryingET`, repository `dspx`, workflow `release.yml`, environment `pypi`.
-   No long-lived PyPI token is needed. Name availability is not ownership.
-4. Ensure GitHub environment `pypi` requires sole user `tryingET` (260287438),
+3. Register PyPI pending publishers with owner `tryingET`, repository `dspx`,
+   workflow `release.yml`: use environment **`pypi-core` for `dspx-core`** and
+   **`pypi-forge` for `dspx-forge`**. PyPI rejects two pending project names with
+   an identical publisher identity; the environment distinguishes these identities.
+   Replace any old pending registration using `pypi` before registering the corrected
+   identity. No long-lived PyPI token is needed. Name availability is not ownership.
+4. Ensure both GitHub environments require sole user `tryingET` (260287438),
    permits only branch `main` and has administrator bypass disabled. Self-review
    is permitted because this is explicitly a single-owner release decision.
 5. Dispatch **Publish approved DSPx packages** on `main` with the committed
@@ -64,9 +67,12 @@ full gate remains separate, not silently counted as run.
 6. The read-only candidate job builds once and displays the source SHA, manifest
    SHA-256 and four file hashes. Read-only Python 3.13/3.14 jobs separately install
    wheels and sdists with ordinary base dependency resolution.
-7. The owner reviews those exact hashes and AK evidence, then approves `pypi`
-   in the run UI. Agents must not approve or bypass this gate on the owner's behalf.
-8. The writer publishes Core then Forge through OIDC. Subsequent read-only jobs
+7. The owner reviews those exact hashes and AK evidence, then approves `pypi-core`
+   in the run UI. After Core publishes, approve `pypi-forge` against the same
+   manifest. These are sequential approvals, not independent quorum. Agents must
+   not approve or bypass either gate on the owner's behalf.
+8. Separate OIDC writers publish Core then Forge. Forge rechecks Core's registry
+   bytes before uploading its own files. Subsequent read-only jobs
    install pinned versions from PyPI. Only then does the GitHub writer create
    complete drafts with the same bytes and publish them. Verify both channels and
    record URLs, source, manifest digest and final installation results in AK.

@@ -65,8 +65,10 @@ def validate_run(run: dict[str, Any], jobs: list[dict[str, Any]], commit: str) -
     )
 
 
-def validate_environment(environment: dict[str, Any], branches: dict[str, Any]) -> None:
-    require(environment.get("name") == "pypi", "wrong publication environment")
+def validate_environment(
+    environment: dict[str, Any], branches: dict[str, Any], *, name: str = "pypi-core"
+) -> None:
+    require(environment.get("name") == name, "wrong publication environment")
     require(
         environment.get("can_admins_bypass") is False,
         "approval bypass must be disabled",
@@ -122,9 +124,12 @@ def clearance(commit: str) -> dict[str, Any]:
         )
         validate_run(run, response["jobs"], sha)
         evidence.append({"commit": sha, "run_id": run["id"], "url": run["html_url"]})
-    validate_environment(
-        api("environments/pypi"), api("environments/pypi/deployment-branch-policies")
-    )
+    for name in ("pypi-core", "pypi-forge"):
+        validate_environment(
+            api(f"environments/{name}"),
+            api(f"environments/{name}/deployment-branch-policies"),
+            name=name,
+        )
     return {
         "source": commit,
         "ci": evidence,

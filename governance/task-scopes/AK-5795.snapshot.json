@@ -2,7 +2,7 @@
   "schema_version": 1,
   "exported_at": "2026-09-19T11:51:17.407789914+00:00",
   "task_id": 5795,
-  "entity_version": 5,
+  "entity_version": 6,
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
@@ -11,10 +11,13 @@
       "README.md",
       "apps/forge/pyproject.toml",
       "diary/*package-publication*",
+      "docs/adr/*package-publication*",
       "docs/project/*release*",
+      "docs/rfc/*package-publication*",
       "governance/task-scopes/AK-*.snapshot.json",
       "packages/dspx-core/pyproject.toml",
       "scripts/release/artifacts.py",
+      "scripts/release/ci.py",
       "tests/test_release_publish_contracts.py",
       "tests/test_release_publish_version.py",
       "uv.lock"
