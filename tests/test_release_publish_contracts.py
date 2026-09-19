@@ -721,6 +721,19 @@ def test_workflow_manual_main_only_and_pinned_actions(workflow: dict[str, Any]) 
                 assert step["with"]["persist-credentials"] in ("false",)
 
 
+def test_isolated_install_jobs_do_not_save_unused_setup_uv_cache(
+    workflow: dict[str, Any],
+) -> None:
+    for name in ("install-candidate", "install-pypi"):
+        setup = [
+            step
+            for step in workflow["jobs"][name]["steps"]
+            if step.get("uses", "").startswith("astral-sh/setup-uv@")
+        ]
+        assert len(setup) == 1
+        assert setup[0]["with"]["enable-cache"] == "false"
+
+
 def test_workflow_writer_permissions_and_no_candidate_installation(
     workflow: dict[str, Any],
 ) -> None:

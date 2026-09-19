@@ -100,7 +100,8 @@ jobs:
         with:
           version: '0.11.14'
           python-version: ${{ matrix.python }}
-          enable-cache: true
+          # install.py deliberately ignores ambient UV_* cache configuration.
+          enable-cache: false
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           artifact-ids: ${{ needs.candidate.outputs.artifact }}
@@ -199,7 +200,8 @@ jobs:
         with:
           version: '0.11.14'
           python-version: ${{ matrix.python }}
-          enable-cache: true
+          # install.py deliberately ignores ambient UV_* cache configuration.
+          enable-cache: false
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           artifact-ids: ${{ needs.candidate.outputs.artifact }}

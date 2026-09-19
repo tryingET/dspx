@@ -2,10 +2,11 @@
   "schema_version": 1,
   "exported_at": "2026-09-19T11:51:17.407789914+00:00",
   "task_id": 5795,
-  "entity_version": 4,
+  "entity_version": 5,
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
+      ".github/workflows/release.yml",
       "CHANGELOG.md",
       "README.md",
       "apps/forge/pyproject.toml",
@@ -19,7 +20,7 @@
       "uv.lock"
     ],
     "required_paths": [
-      "scripts/release/artifacts.py"
+      ".github/workflows/release.yml"
     ],
     "forbidden_paths": [
       "apps/forge/src/**",
