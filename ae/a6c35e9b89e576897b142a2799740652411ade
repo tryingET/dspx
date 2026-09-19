@@ -1,0 +1,19 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "aea6c35e9b89e576897b142a2799740652411ade"
+created_at: "2026-09-19T01:30:05Z"
+intent: "Record the hermetic gate first real execution"
+files:
+  - "docs/project/2026-09-18-hermetic-gate-first-run.md"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5754
