@@ -1,0 +1,5 @@
+# Live-state documents that predate the AK-binding rule (core/agent-scripts deb81ed).
+# Exempt from requiring a binding ONLY. A bound document is still invalidated by its
+# AK closure. Do not add new entries: bind new documents instead. Shrink this file.
+docs/project/2026-05-10-dogfood-target-aware-candidate-status.md
+docs/project/2026-09-07-evidence-integrity-validation-continuation.md
