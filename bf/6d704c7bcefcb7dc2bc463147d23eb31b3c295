@@ -1,0 +1,19 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "bf6d704c7bcefcb7dc2bc463147d23eb31b3c295"
+created_at: "2026-09-19T01:30:48Z"
+intent: "Refresh completed AK-5754 scope"
+files:
+  - "governance/task-scopes/AK-5754.snapshot.json"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "hermetic verify-full receipt 4502b7f8"
+    status: "pass"
+links:
+  task_ids:
+    - 5754
