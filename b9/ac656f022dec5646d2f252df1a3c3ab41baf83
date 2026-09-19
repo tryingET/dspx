@@ -1,0 +1,19 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "b9ac656f022dec5646d2f252df1a3c3ab41baf83"
+created_at: "2026-09-19T01:29:55Z"
+intent: "Refresh completed AK-5755 scope"
+files:
+  - "governance/task-scopes/AK-5755.snapshot.json"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5755
