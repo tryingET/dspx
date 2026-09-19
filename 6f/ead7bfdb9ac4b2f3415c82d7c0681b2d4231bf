@@ -1,0 +1,20 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "6fead7bfdb9ac4b2f3415c82d7c0681b2d4231bf"
+created_at: "2026-09-19T01:30:07Z"
+intent: "Restore the hash-bound metric-honesty wrapper template"
+files:
+  - "docs/learnings/2026-09-18-generated-program-generic-sibling-imports.md"
+  - "packages/dspx-core/src/dspx/services/program_refinement_gepa_metric_honesty.py"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5756
