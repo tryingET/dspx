@@ -1,10 +1,10 @@
 [project]
 name = "dspx-forge"
-version = "0.2.1"
+version = "0.3.0"
 license = "LicenseRef-Apache-2.0-with-AI-Rider"
 license-files = ["LICENSE"]
 description = "Optional Forge workflow application built on DSPx Core"
-readme = { text = "DSPx Forge is the optional backlog and issue-workflow application for the DSPx monorepo. It provides the `dspx-forge` command-line interface and depends only on the public DSPx Core package.", content-type = "text/markdown" }
+readme = { text = "DSPx Forge is the optional backlog and issue-workflow application for DSPx. Requires Python 3.13 or 3.14. Install with `pip install dspx-forge`; run `dspx-forge --help`. Depends on DSPx Core >=0.3.0,<0.4.0. Alpha software. Custom Apache-based license with restrictive AI rider, not unmodified Apache-2.0. [License](https://github.com/tryingET/dspx/blob/dspx-forge-v0.3.0/LICENSE). [Installation and release notes](https://github.com/tryingET/dspx/blob/dspx-forge-v0.3.0/docs/project/package-release.md).", content-type = "text/markdown" }
 requires-python = ">=3.13,<3.15"
 keywords = ["dspy", "workflow", "forge"]
 classifiers = [
@@ -14,7 +14,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-  "dspx-core>=0.2.1,<0.3.0",
+  "dspx-core>=0.3.0,<0.4.0",
   "pydantic>=2.0.0",
   "pyyaml>=6.0.1",
   "httpx>=0.28.1",
