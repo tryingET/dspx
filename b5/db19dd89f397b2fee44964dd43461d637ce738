@@ -1,0 +1,19 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "b5db19dd89f397b2fee44964dd43461d637ce738"
+created_at: "2026-09-19T01:29:54Z"
+intent: "Record many-of-the-greats review of the AK-5511 full-gate deadlock"
+files:
+  - "docs/project/2026-09-18-review-full-gate-autoclearance-many-greats.md"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5511
