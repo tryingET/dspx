@@ -1,0 +1,31 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "eb014199e94647422190da1798d09de22bb5c92c"
+created_at: "2026-09-19T01:30:04Z"
+intent: "Provision the hermetic gate and fix what its first real run found"
+files:
+  - "scripts/ci/verify-full-image/Dockerfile"
+  - "scripts/ci/verify_full_closure.py"
+  - "scripts/ci/verify_full_isolation.py"
+  - "scripts/ci/verify_full_manifest.py"
+  - "scripts/ci/verify_full_membership.py"
+  - "tests/test_generated_code_guard_adversarial.py"
+  - "tests/test_run_receipts_module_oracle.py"
+  - "tests/test_verify_full.py"
+  - "tests/test_verify_full_audit_private_tmp.py"
+  - "tests/test_verify_full_closure_metadata.py"
+  - "tests/test_verify_full_closure_pem.py"
+  - "tests/test_verify_full_closure_private_state.py"
+  - "tests/test_verify_full_thread_budget.py"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5754
