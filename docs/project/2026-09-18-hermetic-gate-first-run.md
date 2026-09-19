@@ -34,28 +34,66 @@ the dispatcher. At `eb014199`:
 inside the dispatcher (`hostscope`, `host-task5061`), the custody copy, the Docker
 intent journal, container reconciliation and cancellation/recovery. No receipt exists.
 
-## Official run — how far it got
+## Official run — PASSED
 
-Two owner-authorized `heavy-job` admissions (Decision 160 age deferral, three named
-runs) on 2026-09-18, both `heavy_job_result=success`:
+Three owner-authorized `heavy-job` admissions (ADR-0019 / Decision 160 age deferral of
+the same three named terminal runs), all `heavy_job_result=success`:
 
 1. `--prepare` at `2f029478` — succeeded. A read-only pre-check then showed `--execute`
-   would fail `hostscope`: AK-5754 had no task scope. The scope was authored and frozen
+   would fail `hostscope`: AK-5754 had no task scope. One was authored and frozen
    (`22f8c597`), which changed HEAD and invalidated that manifest and copy.
-2. `--prepare` at `22f8c597` (manifest `ade26d6b…`) — succeeded; then the **first official
-   `--execute`**. It passed `workflow`, `direction-static`, `governance`, `hostscope`
-   (native AK claim, scope `ok`) and ran `hooks`, then stopped fail-closed:
-   `hook rewrote source bytes; no further stages`. Receipt status `incomplete`.
+2. `--prepare` at `22f8c597` + `--execute` — passed `workflow`, `direction-static`,
+   `governance`, `hostscope`, then stopped fail-closed at `hook rewrote source bytes`.
+   The ruff hook was caching into the source tree; fixed in `af91c808`.
+3. `--prepare` + `--execute` at `6fead7bf`, with this note's own edit as the uncommitted
+   in-scope slice — **`ok: verify-full`, exit 0, 220 s.**
 
-Cause: no tracked byte changed; the ruff hook wrote `.ruff_cache` into the source tree,
-and the hook guard — unlike the other stages — inventories ignored files too. Fixed by
-redirecting `RUFF_CACHE_DIR` into the private `/fixture` state and verified in the
-container posture. Because that changes HEAD, a further `--prepare` admission is needed;
-it was deliberately **not** requested a third time. **No passing receipt exists.**
+### The passing receipt
 
-Never yet executed officially: `host-task5061` inside the dispatcher (verified natively
-outside it), the ten remaining container stages under the custody copy, membership
-validation inside the dispatcher, and container cancellation/recovery.
+`receipt.json` SHA-256 `4502b7f86ca1efd12a2cd7b5982497fce794fb6f0ade8063ae321bf97be31f3c`,
+manifest SHA-256 `a5780e9f3c4baf65c472572b4ffe02df4df437f7876075d2d8298d53a2a8b86b`,
+reviewed-closure digest `533328e6dd93…`, HEAD `6fead7bf`.
+
+| | |
+|---|---|
+| status | `passed` |
+| stages | 15/15 — every stage in `STAGES` |
+| hostscope | task 5754, `working-tree` mode |
+| host-task5061 | native integration, task 5061 |
+| membership | 4683 collected = 4680 offline + 3 residual, disjoint and complete; 101 skips; 0 collector skips |
+| containers | every one reconciled and removed; no unsettled host effects |
+
+This is the first passing hermetic receipt in the repository's history. It is **not** a
+release gate and clears nothing: the release-evidence predicate remains exact-SHA green
+CI ([ADR 20260918](../adr/20260918-ci-evidence-clearance.md)), and release authorization
+remains a separate human act.
+
+The 2.4 GB job directory is retained for inspection, as the gate's contract requires.
+
+## Scope stage: the gate validates *uncommitted* work
+
+`host_scope` calls `check_task_scope(mode="auto")`, and `auto` resolves to
+**working-tree** when the tree is dirty and **head** when it is clean. In head mode the
+slice is every commit from the task's first scope artifact through HEAD, so when another
+task lands in between — AK-5756 did — that task's files are judged against this task's
+scope and the stage fails:
+
+```
+packages/dspx-core/src/dspx/services/optimize_service.py: falls outside attested task scope
+```
+
+That is the over-approximation already recorded for AK-5511, not a new defect: the gate
+is built to validate the work in front of you, before it is committed. The custody-v3
+manifest binds dirty worktree bytes and explicit deletion tombstones precisely for that.
+Run the gate with the task's changes uncommitted; a clean tree on a shared main is the
+unsupported mode.
+
+Independent of that, **commits should carry provenance notes**. The restricted host Git
+view admits exactly `git notes show --ref=refs/notes/...`, and
+`committed_files_for_task_provenance` uses those notes to include a task's already
+committed group. The convention lapsed in this repository after 2026-08-24 and this
+session's commits initially had none; they were added afterwards with
+`~/ai-society/core/agent-scripts/scripts/git-note-provenance.sh`.
 
 ## Defects the first real run found
 
