@@ -1,0 +1,19 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "22f8c597b1165f650d857cb4e892c5996a9e1a1e"
+created_at: "2026-09-19T01:30:05Z"
+intent: "Freeze AK-5754 scope"
+files:
+  - "governance/task-scopes/AK-5754.snapshot.json"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5754
