@@ -1,0 +1,20 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "aa73bbadf07bc250a0b88952c61c06033eeebfcc"
+created_at: "2026-09-19T01:29:54Z"
+intent: "Close AK-5511 under owner-adopted bounded autoclearance"
+files:
+  - "docs/project/2026-09-07-evidence-integrity-closing-note.md"
+  - "governance/task-scopes/AK-5511.snapshot.json"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5511
