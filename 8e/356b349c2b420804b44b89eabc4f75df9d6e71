@@ -1,0 +1,31 @@
+kind: "ai-society/commit-provenance/v1"
+tool: "claude-code"
+actor: "tryinget"
+repo: "/home/tryinget/ai-society/softwareco/owned/dspx"
+commit: "8e356b349c2b420804b44b89eabc4f75df9d6e71"
+created_at: "2026-09-19T01:29:53Z"
+intent: "Make the offline suite pass on a generic runner, spec-first"
+files:
+  - "pyproject.toml"
+  - "scripts/ci/test-shard.sh"
+  - "scripts/ci/verify_full_authority.py"
+  - "tests/conftest.py"
+  - "tests/fixtures/workstation-tests.txt"
+  - "tests/reading_suite_posture.py"
+  - "tests/test_ci_shard_selection.py"
+  - "tests/test_generated_module_isolation.py"
+  - "tests/test_program_reading_receipts.py"
+  - "tests/test_program_reading_runtime.py"
+  - "tests/test_program_reading_suite_posture.py"
+  - "tests/test_verify_full.py"
+  - "tests/test_verify_full_host_scope_bytecode.py"
+validation:
+  fast_gate:
+    command: "just ci-quality"
+    status: "pass"
+  full_gate:
+    command: "GitHub CI exact-SHA (ADR 20260918)"
+    status: "pass"
+links:
+  task_ids:
+    - 5755
