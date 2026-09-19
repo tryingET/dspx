@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-09-19T10:57:35.264132979+00:00",
+  "task_id": 5785,
+  "entity_version": 2,
+  "commit_sha": null,
+  "scope": {
+    "allowed_paths": [
+      ".github/workflows/release.yml",
+      "CHANGELOG.md",
+      "LICENSE*",
+      "NOTICE*",
+      "README.md",
+      "apps/forge/LICENSE*",
+      "apps/forge/pyproject.toml",
+      "diary/*package-publication*",
+      "docs/adr/*package-publication*",
+      "docs/project/*release*",
+      "docs/rfc/*package-publication*",
+      "governance/ci-gate-approval.json",
+      "governance/task-scopes/AK-*.snapshot.json",
+      "packages/dspx-core/LICENSE*",
+      "packages/dspx-core/pyproject.toml",
+      "scripts/ci/package-check.sh",
+      "scripts/release*",
+      "scripts/release/**",
+      "tests/test_release_publish*.py",
+      "uv.lock"
+    ],
+    "required_paths": [
+      ".github/workflows/release.yml"
+    ],
+    "forbidden_paths": [
+      "apps/forge/src/**",
+      "governance/release-signing/**",
+      "packages/dspx-core/src/**"
+    ]
+  },
+  "default_applies": false,
+  "export_tool": "ak task scope export",
+  "export_tool_version": "snapshot-v1"
+}

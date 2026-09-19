@@ -7,12 +7,25 @@
 set -euo pipefail
 
 retain_core_bundle=""
-if [[ $# -gt 0 ]]; then
-  if [[ $# -ne 2 || "$1" != "--retain-core-evidence" || -z "$2" ]]; then
-    printf 'usage: %s [--retain-core-evidence <output.zip>]\n' "$0" >&2
-    exit 2
-  fi
-  retain_core_bundle="$2"
+release_output=""
+scope_evidence=""
+usage() {
+  printf 'usage: %s [--retain-core-evidence <output.zip>] [--release-output <new-absolute-dir> --scope-evidence AK-evidence:<id>]\n' "$0" >&2
+  exit 2
+}
+while [[ $# -gt 0 ]]; do
+  [[ $# -ge 2 && -n "$2" ]] || usage
+  case "$1" in
+    --retain-core-evidence) [[ -z "$retain_core_bundle" ]] || usage; retain_core_bundle="$2" ;;
+    --release-output) [[ -z "$release_output" ]] || usage; release_output="$2" ;;
+    --scope-evidence) [[ -z "$scope_evidence" ]] || usage; scope_evidence="$2" ;;
+    *) usage ;;
+  esac
+  shift 2
+done
+if [[ -n "$release_output" || -n "$scope_evidence" ]]; then
+  [[ "$release_output" == /* && ! -e "$release_output" && ! -L "$release_output" ]] || usage
+  [[ "$scope_evidence" =~ ^AK-evidence:[1-9][0-9]*$ ]] || usage
 fi
 
 repo_root="$(git rev-parse --show-toplevel)"
@@ -202,3 +215,13 @@ printf '[package-check] validate selected Core signer policy and fail-closed unb
   > "$work_dir/release-signing-policy-preflight.json"
 
 printf 'ok: built and metadata-checked all artifacts; exact Core wheel bytes passed the stub-backed product journey and release-claim truth check; CycloneDX wheel-payload/direct-dependency and point-in-time resolved-environment SBOM generation and verification passed; selected signer-policy schemas and the intentionally unbound owner roster passed offline preflight; signature authenticity, live CI custody, release authorization, package publication, technical completeness, and release readiness remain unproven; Forge passed separate install/CLI smoke\n'
+
+# Preserve the tested bytes for the separate publication channel. The manifest is
+# evidence, not approval; downstream resolver/sdist checks and owner approval remain.
+if [[ -n "$release_output" ]]; then
+  mkdir -- "$release_output"
+  cp -- "$dist_dir"/*.whl "$dist_dir"/*.tar.gz "$release_output/"
+  "$core_venv_dir/bin/python" scripts/release/artifacts.py create \
+    --dist "$release_output" --repo "$repo_root" \
+    --commit "$(git rev-parse HEAD)" --scope-evidence "$scope_evidence"
+fi

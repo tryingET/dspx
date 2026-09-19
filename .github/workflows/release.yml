@@ -1,0 +1,244 @@
+name: Publish approved DSPx packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Exact paired package version already committed on main'
+        required: true
+        type: string
+      ak_scope_evidence:
+        description: 'Native scope check for this SHA: AK-evidence:<id>'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: dspx-package-publication
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    if: github.ref == 'refs/heads/main' && github.repository == 'tryingET/dspx'
+    runs-on: ubuntu-latest
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      manifest: ${{ steps.identity.outputs.manifest }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: '0.11.14'
+          python-version: '3.13'
+          enable-cache: true
+      - name: Check source, parent CI and owner environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python scripts/release/ci.py --commit "$GITHUB_SHA"
+          python - <<'PY'
+          import os, tomllib
+          from pathlib import Path
+          for file in ('packages/dspx-core/pyproject.toml', 'apps/forge/pyproject.toml'):
+              assert tomllib.loads(Path(file).read_text())['project']['version'] == os.environ['VERSION']
+          PY
+      - name: Build once and retain exact tested artifacts
+        env:
+          SCOPE_EVIDENCE: ${{ inputs.ak_scope_evidence }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/dspx-tmp"
+          export TMPDIR="$RUNNER_TEMP/dspx-tmp"
+          uv sync --frozen --all-packages --dev
+          bash scripts/ci/package-check.sh --release-output "$RUNNER_TEMP/candidate" --scope-evidence "$SCOPE_EVIDENCE"
+      - name: Display exact manifest for owner review and preflight GitHub names
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          digest=$(sha256sum "$RUNNER_TEMP/candidate/release-manifest.json" | cut -d' ' -f1)
+          echo "manifest=$digest" >> "$GITHUB_OUTPUT"
+          python scripts/release/github.py --check-only --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$digest"
+          {
+            echo '## Exact release approval input'
+            printf 'Source: `%s`\n\nManifest SHA-256: `%s`\n\n' "$GITHUB_SHA" "$digest"
+            echo 'Review the native AK evidence reference and all four hashes before approving pypi.'
+            echo '```json'
+            cat "$RUNNER_TEMP/candidate/release-manifest.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        id: upload
+        with:
+          name: package-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/candidate/*
+          if-no-files-found: error
+          retention-days: 90
+
+  install-candidate:
+    needs: candidate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.13', '3.14']
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: '0.11.14'
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.candidate.outputs.artifact }}
+          path: ${{ runner.temp }}/candidate
+          merge-multiple: true
+      - name: Fresh normal-resolution wheel and sdist installations
+        env:
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+          PYTHON: ${{ matrix.python }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/dspx-tmp"
+          export TMPDIR="$RUNNER_TEMP/dspx-tmp"
+          python scripts/release/install.py --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST" --python "$PYTHON"
+
+  publish-pypi:
+    needs: [candidate, install-candidate]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://github.com/tryingET/dspx/actions/runs/${{ github.run_id }}
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.candidate.outputs.artifact }}
+          path: ${{ runner.temp }}/candidate
+          merge-multiple: true
+      - name: Recheck source and protection after owner approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+        run: |
+          python scripts/release/ci.py --commit "$GITHUB_SHA"
+          python scripts/release/github.py --check-only --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST"
+      - name: Reconcile Core registry state and stage only missing approved bytes
+        id: core
+        env:
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+        run: |
+          set -euo pipefail
+          python scripts/release/registry.py stage --package dspx-core --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST" --stage "$RUNNER_TEMP/core-upload" > "$RUNNER_TEMP/core-plan.json"
+          echo "needed=$(jq -r '.missing | length > 0' "$RUNNER_TEMP/core-plan.json")" >> "$GITHUB_OUTPUT"
+      - name: Publish Core using approved trusted-publisher identity
+        if: steps.core.outputs.needed == 'true'
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          packages-dir: ${{ runner.temp }}/core-upload/
+      - name: Verify Core inventory and downloaded bytes
+        if: ${{ !cancelled() && steps.core.outcome == 'success' }}
+        shell: bash
+        env:
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+        run: python scripts/release/registry.py verify --package dspx-core --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Reconcile Forge registry state and stage only missing approved bytes
+        id: forge
+        env:
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+        run: |
+          set -euo pipefail
+          python scripts/release/registry.py stage --package dspx-forge --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST" --stage "$RUNNER_TEMP/forge-upload" > "$RUNNER_TEMP/forge-plan.json"
+          echo "needed=$(jq -r '.missing | length > 0' "$RUNNER_TEMP/forge-plan.json")" >> "$GITHUB_OUTPUT"
+      - name: Publish Forge using approved trusted-publisher identity
+        if: steps.forge.outputs.needed == 'true'
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
+        with:
+          packages-dir: ${{ runner.temp }}/forge-upload/
+      - name: Verify Forge inventory and downloaded bytes
+        if: ${{ !cancelled() && steps.forge.outcome == 'success' }}
+        shell: bash
+        env:
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+        run: python scripts/release/registry.py verify --package dspx-forge --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  install-pypi:
+    needs: [candidate, publish-pypi]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.13', '3.14']
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: '0.11.14'
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.candidate.outputs.artifact }}
+          path: ${{ runner.temp }}/candidate
+          merge-multiple: true
+      - name: Install pinned releases from PyPI alone
+        env:
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+          PYTHON: ${{ matrix.python }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/dspx-tmp"
+          export TMPDIR="$RUNNER_TEMP/dspx-tmp"
+          python scripts/release/install.py --registry --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST" --python "$PYTHON"
+
+  github-release:
+    needs: [candidate, publish-pypi, install-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.candidate.outputs.artifact }}
+          path: ${{ runner.temp }}/candidate
+          merge-multiple: true
+      - name: Verify registry bytes and publish complete draft-first GitHub releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MANIFEST: ${{ needs.candidate.outputs.manifest }}
+        run: |
+          set -euo pipefail
+          python scripts/release/registry.py verify --package dspx-core --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST"
+          python scripts/release/registry.py verify --package dspx-forge --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST"
+          python scripts/release/github.py --dist "$RUNNER_TEMP/candidate" --commit "$GITHUB_SHA" --manifest-sha256 "$MANIFEST" | tee -a "$GITHUB_STEP_SUMMARY"

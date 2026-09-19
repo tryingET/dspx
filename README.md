@@ -33,6 +33,9 @@ Read [the active product posture](docs/project/product-posture.md) before select
 
 ## Quick start
 
+For standalone Core/Forge packages, licensing, release approval and recovery, see
+[package installation and releases](docs/project/package-release.md).
+
 Requirements:
 
 - Python 3.13+
