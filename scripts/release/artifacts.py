@@ -125,7 +125,8 @@ def inspect(
         require(meta.get_all(header) == [expected], f"metadata mismatch: {header}")
     python = meta.get_all("Requires-Python", [])
     require(
-        len(python) == 1 and set(python[0].split(",")) == {">=3.13", "<3.15"},
+        len(python) == 1
+        and {part.strip() for part in python[0].split(",")} == {">=3.13", "<3.15"},
         "Python support drift",
     )
     require(meta.get_all("License-File") == ["LICENSE"], "license inventory mismatch")
@@ -145,7 +146,11 @@ def inspect(
         expected = {f">={version}", f"<{major}.{minor + 1}.0"}
         require(
             len(dependencies) == 1
-            and set(dependencies[0].removeprefix("dspx-core").split(",")) == expected,
+            and {
+                part.strip()
+                for part in dependencies[0].removeprefix("dspx-core").split(",")
+            }
+            == expected,
             "paired Forge/Core compatibility mismatch",
         )
 

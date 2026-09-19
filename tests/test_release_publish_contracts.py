@@ -158,6 +158,18 @@ def test_real_archive_pair_validates(
     assert {row["kind"] for row in candidate.data["files"]} == {"wheel", "sdist"}
 
 
+@pytest.mark.parametrize("separator", [",", ", ", ",  ", ",\t"])
+def test_build_backend_specifier_whitespace_is_not_version_drift(
+    candidate: Candidate, scripts: SimpleNamespace, separator: str
+) -> None:
+    # uv-build emits 'Requires-Python: >=3.13, <3.15' in real wheels/sdists.
+    for row in candidate.data["files"]:
+        raw = metadata(row["package"]).replace(b",", separator.encode())
+        candidate.replace(row, raw)
+    candidate.save()
+    assert candidate.verify(scripts) == candidate.data
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "exported_at": "2026-09-19T11:51:17.407789914+00:00",
   "task_id": 5795,
-  "entity_version": 2,
+  "entity_version": 4,
   "commit_sha": null,
   "scope": {
     "allowed_paths": [
@@ -13,11 +13,13 @@
       "docs/project/*release*",
       "governance/task-scopes/AK-*.snapshot.json",
       "packages/dspx-core/pyproject.toml",
+      "scripts/release/artifacts.py",
+      "tests/test_release_publish_contracts.py",
       "tests/test_release_publish_version.py",
       "uv.lock"
     ],
     "required_paths": [
-      "CHANGELOG.md"
+      "scripts/release/artifacts.py"
     ],
     "forbidden_paths": [
       "apps/forge/src/**",
