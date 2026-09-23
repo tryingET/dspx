@@ -71,6 +71,16 @@
       "path_in_layer": "reference/concepts/core.AuditEvent.md"
     },
     {
+      "id": "core.Authority",
+      "kind": "concept",
+      "labels": [
+        "Authority"
+      ],
+      "layer": "core",
+      "layer_kind": "ref",
+      "path_in_layer": "reference/concepts/core.Authority.md"
+    },
+    {
       "id": "core.Capability",
       "kind": "concept",
       "labels": [
@@ -79,6 +89,16 @@
       "layer": "core",
       "layer_kind": "ref",
       "path_in_layer": "reference/concepts/core.Capability.md"
+    },
+    {
+      "id": "core.Claim",
+      "kind": "concept",
+      "labels": [
+        "Claim"
+      ],
+      "layer": "core",
+      "layer_kind": "ref",
+      "path_in_layer": "reference/concepts/core.Claim.md"
     },
     {
       "id": "core.Consent",
@@ -181,6 +201,16 @@
       "path_in_layer": "reference/concepts/core.DecisionRecord.md"
     },
     {
+      "id": "core.Evidence",
+      "kind": "concept",
+      "labels": [
+        "Evidence"
+      ],
+      "layer": "core",
+      "layer_kind": "ref",
+      "path_in_layer": "reference/concepts/core.Evidence.md"
+    },
+    {
       "id": "core.Exception",
       "kind": "concept",
       "labels": [
@@ -231,6 +261,16 @@
       "path_in_layer": "reference/concepts/core.Objection.md"
     },
     {
+      "id": "core.Observation",
+      "kind": "concept",
+      "labels": [
+        "Observation"
+      ],
+      "layer": "core",
+      "layer_kind": "ref",
+      "path_in_layer": "reference/concepts/core.Observation.md"
+    },
+    {
       "id": "core.Pipeline",
       "kind": "concept",
       "labels": [
@@ -269,6 +309,16 @@
       "layer": "core",
       "layer_kind": "ref",
       "path_in_layer": "reference/concepts/core.Proposal.md"
+    },
+    {
+      "id": "core.Receipt",
+      "kind": "concept",
+      "labels": [
+        "Receipt"
+      ],
+      "layer": "core",
+      "layer_kind": "ref",
+      "path_in_layer": "reference/concepts/core.Receipt.md"
     },
     {
       "id": "core.Release",
@@ -329,6 +379,16 @@
       "layer": "core",
       "layer_kind": "ref",
       "path_in_layer": "reference/concepts/core.Service.md"
+    },
+    {
+      "id": "core.Verification",
+      "kind": "concept",
+      "labels": [
+        "Verification"
+      ],
+      "layer": "core",
+      "layer_kind": "ref",
+      "path_in_layer": "reference/concepts/core.Verification.md"
     },
     {
       "id": "core.WorkItem",

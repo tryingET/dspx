@@ -7,7 +7,9 @@
     "core.Agent",
     "core.Assumption",
     "core.AuditEvent",
+    "core.Authority",
     "core.Capability",
+    "core.Claim",
     "core.Consent",
     "core.ConsentTier",
     "core.Constraint",
@@ -18,35 +20,39 @@
     "core.DataClassification",
     "core.Debt",
     "core.DecisionRecord",
+    "core.Evidence",
     "core.Exception",
     "core.IntegrationEdge",
     "core.Invariant",
     "core.Milestone",
     "core.Objection",
+    "core.Observation",
     "core.Pipeline",
     "core.Policy",
     "core.Program",
     "core.Proposal",
+    "core.Receipt",
     "core.Release",
     "core.Repo",
     "core.Risk",
     "core.Role",
     "core.Secret",
     "core.Service",
+    "core.Verification",
     "core.WorkItem"
   ],
   "counts": {
-    "concepts": 34,
+    "concepts": 40,
     "relations": 12
   },
   "layers": [
     {
       "name": "core",
-      "origin": "<gitlab:ai-society/core/ontology-kernel@main>"
+      "origin": "<repo:ai-society/core/ontology-kernel@main>"
     },
     {
       "name": "company",
-      "origin": "<gitlab:ai-society/softwareco/ontology@main>"
+      "origin": "<repo:ai-society/softwareco/ontology@main>"
     },
     {
       "name": "repo",
@@ -70,5 +76,5 @@
   ],
   "repo": "/home/tryinget/ai-society/softwareco/owned/dspx",
   "schema_version": 1,
-  "version": "0.1.4"
+  "version": "0.4.3"
 }
