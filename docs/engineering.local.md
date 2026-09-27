@@ -10,6 +10,8 @@ type: "reference"
 
 Canonical lane docs come from the immutable release declared in `policy/engineering-lane.json`; do not use the current engineering-core checkout as a substitute for that consumer pin and do not vendor/copy upstream guidance here.
 
+Release pin: `v0.12.0` (`3fc8387274dddccbae3d7fab80954ad483c9b681`). DSPx retains its transaction-specific immutable `exclude-newer = "2026-08-21T23:59:59Z"` cutoff, recorded in both `pyproject.toml` and `uv.lock`, rather than replacing it with the lane's rolling seven-day default. The repo-local `Justfile` validation tiers and lockfile-pinned tools remain canonical; a metadata pin move does not change the full-gate admission contract.
+
 Inspect only the compact policy projection defined by the workspace AGENTS rule. Use the repo-owned helper for upstream Markdown; it derives the immutable source, lane, and selected disciplines from that policy and exposes no full-document mode:
 
 ```bash
