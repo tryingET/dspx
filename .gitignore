@@ -7,6 +7,7 @@ coverage.xml
 .venv/
 generated/
 mlruns/
-ontology/dist/.authority-receipt.lock
-ontology/dist/authority-receipt*.json
+# ROCS generated outputs: validate/build rewrite ontology/dist (including
+# authority receipts); `./scripts/rocs.sh cleanup --repo .` removes them.
+/ontology/dist/
 .ontology/
