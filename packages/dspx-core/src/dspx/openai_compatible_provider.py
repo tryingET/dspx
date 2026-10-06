@@ -15,6 +15,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
+from .image_worker import require_clean_boundary
 from .policy import (
     allow_network_mutate,
     check_capability,
@@ -28,6 +29,7 @@ from .provider_contract import (
     ProviderMessage,
     ProviderRequest,
     ProviderResult,
+    requested_model_for_event,
 )
 
 _PROVIDER_KIND: Final = "openai-compatible"
@@ -39,10 +41,8 @@ _MAX_OUTPUT_CHARS: Final = 1_000_000
 _MAX_RESPONSE_BYTES: Final = 2_000_000
 _MAX_USAGE_TOKENS: Final = 1_000_000_000
 _USAGE_KEYS: Final = frozenset({"prompt_tokens", "completion_tokens", "total_tokens"})
-# Closed allowlists for keys that OpenAI-compatible servers (vLLM 0.27) add to a
-# plain chat completion. They never carry data this port consumes: null-only
-# keys must be null, reasoning keys may be null or bounded text, usage detail
-# keys may be null or an object. Anything else remains a completed failure.
+# OpenAI/vLLM 0.27 extras: null-only, bounded reasoning, null/object usage details.
+# Extras are never consumed; unallowlisted fields remain a completed failure.
 _MESSAGE_NULL_ONLY_KEYS: Final = frozenset(
     {"refusal", "annotations", "audio", "function_call"}
 )
@@ -73,7 +73,18 @@ class OpenAICompatibleProvider:
         model: str,
         timeout: float = 30.0,
         _transport: httpx.BaseTransport | None = None,
+        _image_session: object | None = None,
     ) -> None:
+        if _image_session is not None:
+            from .image_admission import validate_image_provider_binding
+
+            validate_image_provider_binding(
+                _image_session,
+                model=model,
+                base_url=base_url,
+                transport=_transport,
+            )
+        self.image_session = _image_session
         self._base_url, self._endpoint = _validated_endpoint(base_url)
         self._model = _validated_model(model)
         configured_timeout = _validated_timeout(timeout)
@@ -99,6 +110,13 @@ class OpenAICompatibleProvider:
         self._attempt_total = 0
         self._terminal_effect: EffectDisposition | None = None
         self._indeterminate_latched = False
+        self._image_client_binding = None
+        if _image_session is not None:
+            from .provider_contract import ImageClientBinding
+
+            self._image_client_binding = ImageClientBinding.capture(
+                self._client, transport
+            )
 
     @property
     def operation_lock(self) -> ReentrantLock:
@@ -142,7 +160,13 @@ class OpenAICompatibleProvider:
     def invoke(self, request: ProviderRequest) -> ProviderResult:
         """Serialize one complete direct invocation through terminal classification."""
 
+        if self.image_session is not None:
+            require_clean_boundary()
         with self._operation_lock:
+            if self.image_session is not None:
+                from .image_effects import invoke_image_http
+
+                return invoke_image_http(self, request)
             return self._invoke(request)
 
     def _invoke(self, request: ProviderRequest) -> ProviderResult:
@@ -155,7 +179,7 @@ class OpenAICompatibleProvider:
                 provider=_PROVIDER_KIND,
             ) from None
 
-        requested_model = _requested_model(request)
+        requested_model = requested_model_for_event(request, _validated_model)
         try:
             payload = self._request_payload(request)
             canonical_base, canonical_endpoint = _validated_endpoint(self._base_url)
@@ -282,6 +306,8 @@ class OpenAICompatibleProvider:
     def _request_payload(self, request: ProviderRequest) -> dict[str, object]:
         if type(request) is not ProviderRequest or request.model != self.model:
             raise ValueError("provider request identity is invalid")
+        if request.image_binding is not None:
+            raise ValueError("provider image admission is unavailable")
         if not request.messages or len(request.messages) > _MAX_MESSAGES:
             raise ValueError("provider request message count is invalid")
         total_chars = 0
@@ -488,23 +514,6 @@ def _validated_timeout(timeout: float) -> float:
     ):
         raise ValueError("timeout must be a positive finite number")
     return float(timeout)
-
-
-def _requested_model(request: object) -> str:
-    try:
-        model = getattr(request, "model", None)
-    except Exception:
-        return "<invalid>"
-    return _safe_event_model(model) or "<invalid>"
-
-
-def _safe_event_model(value: object) -> str | None:
-    if not isinstance(value, str):
-        return None
-    try:
-        return _validated_model(value)
-    except (TypeError, ValueError):
-        return None
 
 
 def _read_bounded(response: httpx.Response) -> bytes:

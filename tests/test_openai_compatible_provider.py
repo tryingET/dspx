@@ -62,6 +62,20 @@ def _payload(*, usage: object = None, model: str = "local-model") -> dict[str, o
     return payload
 
 
+def test_unintegrated_image_binding_cannot_dispatch_as_ordinary_text() -> None:
+    provider, requests = _provider((200, _payload()))
+    ordinary = _request()
+    request = ProviderRequest(ordinary.model, ordinary.messages, object())
+    try:
+        with pytest.raises(ProviderInvocationError) as failure:
+            provider.invoke(request)
+        assert failure.value.disposition is EffectDisposition.PREFLIGHT_REJECTED
+        assert not requests
+        assert provider.provider_events[-1].dispatch_count == 0
+    finally:
+        provider.close()
+
+
 def _request() -> ProviderRequest:
     return ProviderRequest(
         model="local-model",
@@ -468,7 +482,10 @@ def test_runtime_invocation_preserves_usage_without_response_facsimile() -> None
     )
     lm = DSPyTypedLMAdapter(provider)
 
-    text, usage = invoke_provider(lm, prompt="hello")
+    # This fixture tests invocation/usage, not history. Do not contaminate a later
+    # image worker's parent; production privacy must still deny dirty histories.
+    with dspy.context(disable_history=True):
+        text, usage = invoke_provider(lm, prompt="hello")
 
     assert text == "local answer"
     assert usage == {
@@ -745,3 +762,45 @@ def test_non_allowlisted_extras_remain_completed_failure(payload: object) -> Non
 
     assert exc_info.value.disposition is EffectDisposition.COMPLETED_FAILURE
     assert len(requests) == 1
+
+
+def test_direct_text_port_cold_invoke_without_provider_runtime() -> None:
+    """Given a fresh interpreter; When direct text invokes; Then no runtime layer.
+
+    DSPx's existing top-level exports import DSPy; no DSPy-free import is claimed.
+    """
+    from pathlib import Path
+    import subprocess
+    import sys
+
+    core = Path(__file__).resolve().parents[1] / "packages" / "dspx-core" / "src"
+    script = """
+import os, sys
+sys.path.insert(0, sys.argv[1])
+import httpx
+from dspx.openai_compatible_provider import OpenAICompatibleProvider
+from dspx.provider_contract import ProviderMessage, ProviderRequest
+assert "dspx.provider_runtime" not in sys.modules
+os.environ["DSPX_POLICY_ALLOW_NETWORK_MUTATE"] = "1"
+seen = []
+def handler(request):
+    seen.append(True)
+    return httpx.Response(200, json={"model": "fixture", "choices": [
+        {"message": {"role": "assistant", "content": "fixture answer"}}
+    ]}, request=request)
+provider = OpenAICompatibleProvider(base_url="http://127.0.0.1:8000/v1",
+    model="fixture", _transport=httpx.MockTransport(handler))
+try:
+    result = provider.invoke(ProviderRequest("fixture", (ProviderMessage("user", "fixture"),)))
+    assert result.text == "fixture answer" and seen == [True]
+    assert "dspx.provider_runtime" not in sys.modules
+finally:
+    provider.close()
+"""
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", script, str(core)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, "cold synthetic text invocation failed"

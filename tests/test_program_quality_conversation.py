@@ -12,6 +12,7 @@ from dspx.cli.dspx import app
 
 from dspx.provider_contract import (
     EffectDisposition,
+    ProviderMessage,
     ProviderRequest,
     ProviderResult,
 )
@@ -125,7 +126,9 @@ def test_proposal_uses_normalized_fields_and_stays_pending() -> None:
     assert payload["effect"]["program_generated"] is False
     assert payload["non_authority"]["model_proposal_is_decision"] is False
     assert len(lm.requests) == 1
-    assert "Return only one JSON object" in lm.requests[0].messages[0].text
+    message = lm.requests[0].messages[0]
+    assert type(message) is ProviderMessage
+    assert "Return only one JSON object" in message.text
 
 
 def test_indeterminate_provider_result_cannot_become_proposal_text() -> None:
@@ -183,7 +186,9 @@ def test_feedback_is_bound_into_next_proposal_turn() -> None:
         "turn": 1,
         "history": [],
     }
-    assert "Add a policy-safety criterion." in lm.requests[0].messages[0].text
+    message = lm.requests[0].messages[0]
+    assert type(message) is ProviderMessage
+    assert "Add a policy-safety criterion." in message.text
 
 
 def test_invalid_or_unbound_quality_contract_fails_closed() -> None:
@@ -364,7 +369,9 @@ def test_revision_turn_includes_prior_validated_proposal() -> None:
         second["conversation"]["history"][0]["proposal"]["quality_criteria"][0]["id"]
         == "helpful_response"
     )
-    assert "helpful_response" in lm.requests[0].messages[0].text
+    message = lm.requests[0].messages[0]
+    assert type(message) is ProviderMessage
+    assert "helpful_response" in message.text
 
 
 @pytest.mark.parametrize(
