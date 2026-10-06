@@ -285,11 +285,47 @@ def _data_uri_from_base64(*, data: str, media_type: str) -> str:
 
 
 def _materialize_image_descriptor(value: Mapping[str, Any], *, base_dir: Path) -> str:
-    from dspx.image_admission import ImageContractError
+    descriptor_type = str(value.get("type") or value.get("kind") or "").strip()
+    try:
+        import dspy
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - import failure is environment-specific
+        raise RuntimeError("runtime image descriptors require dspy") from exc
 
-    del value, base_dir
-    # Unbound historical materialization is not an image admission surface.
-    raise ImageContractError("image_admission_invalid") from None
+    if descriptor_type == "image_file":
+        raw_path = str(value.get("path") or value.get("file") or "").strip()
+        if not raw_path:
+            raise ValueError("image_file descriptor requires path")
+        candidate_path = Path(raw_path).expanduser()
+        image_path = confine_path(base_dir, candidate_path)
+        if not image_path.is_file():
+            raise ValueError(f"image_file path does not exist: {image_path}")
+        return str(dspy.Image.from_path(str(image_path)))
+
+    if descriptor_type == "image_base64":
+        data = str(value.get("data") or value.get("base64") or "").strip()
+        if not data:
+            raise ValueError("image_base64 descriptor requires data")
+        media_type = str(
+            value.get("media_type")
+            or value.get("mime_type")
+            or value.get("mimeType")
+            or "image/png"
+        ).strip()
+        return str(dspy.Image(_data_uri_from_base64(data=data, media_type=media_type)))
+
+    if descriptor_type == "image_url":
+        url = str(value.get("url") or value.get("image_url") or "").strip()
+        if not url:
+            raise ValueError("image_url descriptor requires url")
+        if not url.startswith("data:image/"):
+            raise ValueError(
+                "image_url descriptor only accepts data:image/* URLs; use image_file for local artifacts"
+            )
+        return str(dspy.Image(url))
+
+    raise ValueError(f"unsupported image descriptor type: {descriptor_type}")
 
 
 def _is_image_descriptor(value: object) -> TypeGuard[Mapping[str, Any]]:
@@ -321,17 +357,6 @@ def _materialize_runtime_input_value(value: object, *, base_dir: Path) -> Any:
 def _materialize_runtime_inputs(
     runtime_inputs: Mapping[str, Any], *, inputs_path: Path
 ) -> dict[str, Any]:
-    from dspx.image_input_contract import generation_preflight
-    from dspx.image_admission import ImageContractError
-
-    try:
-        generation_preflight(dict(runtime_inputs))
-    except ImageContractError:
-        rejected = True
-    else:
-        rejected = False
-    if rejected:
-        raise ImageContractError("image_admission_invalid") from None
     base_dir = inputs_path.expanduser().resolve().parent
     return {
         str(key): _materialize_runtime_input_value(item, base_dir=base_dir)
@@ -2089,46 +2114,7 @@ def run_program_runtime_episode(
     capture_replay_fixture: bool = False,
     run_oracle_semantic: bool = False,
     soomfon_custody: object | None = None,
-    image_execution: object | None = None,
 ) -> dict[str, Any]:
-    if image_execution is not None:
-        from dspx.image_execution import ImageExecutionRequest
-        from dspx.image_admission import require, ImageContractError
-        from dspx.image_artifacts import verify_image_run
-        from dspx.image_source_io import open_root
-
-        if capture_replay_fixture:
-            raise ImageContractError("image_replay_unsupported") from None
-        require(
-            type(image_execution) is ImageExecutionRequest
-            and contract_mode == "none"
-            and not run_oracle_semantic
-            and publication_preflight_out is None
-            and soomfon_custody is None,
-            "image_admission_invalid",
-        )
-        request = cast(ImageExecutionRequest, image_execution)
-        for path, expected in (
-            (manifest_path.absolute().parent, request.candidate_fd),
-            (inputs_path.absolute().parent, request.input_fd),
-            (outdir.absolute(), request.artifact_fd),
-        ):
-            fd = open_root(path)
-            try:
-                actual, bound = os.fstat(fd), os.fstat(expected)
-                require(
-                    (actual.st_dev, actual.st_ino) == (bound.st_dev, bound.st_ino),
-                    "image_custody",
-                )
-            finally:
-                os.close(fd)
-        require(
-            manifest_path.name == "manifest.json"
-            and inputs_path.name == request.input_name,
-            "image_custody",
-        )
-        anchor = request.execute(route="episode")
-        return {**verify_image_run(anchor), "image_anchor": anchor}
     if contract_mode not in CONTRACT_MODES:
         raise ValueError(
             "contract_mode must be one of: " + ", ".join(sorted(CONTRACT_MODES))

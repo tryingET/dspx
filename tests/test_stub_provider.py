@@ -4,8 +4,6 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
-
 import pytest
 
 from dspx.dspy_typed_lm import DSPyTypedLMAdapter
@@ -81,87 +79,3 @@ def test_stub_preflight_rejection_records_zero_dispatch_attempt() -> None:
     assert provider.provider_events[-1].observed_model is None
     assert provider.provider_events[-1].dispatch_count == 0
     assert provider.provider_events[-1].disposition.value == "preflight_rejected"
-
-
-@pytest.mark.parametrize("fixture", [None, "fixture-success-must-not-bypass"])
-def test_direct_stub_rejects_malformed_image_union_before_fixture(fixture) -> None:
-    from dspx.provider_contract import ProviderInvocationError, ProviderRequest
-
-    provider = StubProvider(explicit_response_text=fixture)
-    # Runtime DTO annotation is not a validator: exercise actual direct preflight.
-    request = ProviderRequest(
-        model=provider.model, messages=cast(Any, ({"type": "image_url"},))
-    )
-    with pytest.raises(ProviderInvocationError) as failure:
-        provider.invoke(request)
-    assert failure.value.disposition.value == "preflight_rejected"
-    assert len(provider.provider_events) == 1
-    assert provider.provider_events[0].dispatch_count == 0
-
-
-def test_provider_text_dtos_do_not_format_payload_repr() -> None:
-    from dspx.provider_contract import (
-        EffectDisposition,
-        ProviderMessage,
-        ProviderRequest,
-        ProviderResult,
-    )
-
-    # ubs:ignore -- synthetic redaction canary, not a credential
-    secret = "synthetic-private-text-value"
-    message = ProviderMessage(role="user", text=secret)
-    request = ProviderRequest(model="stub/echo", messages=(message,))
-    result = ProviderResult(
-        text=secret,
-        model="stub/echo",
-        effect_disposition=EffectDisposition.COMPLETED_SUCCESS,
-        provider_data={"unsafe": secret},
-    )
-    exposed = any(secret in repr(value) for value in (message, request, result))
-    assert not exposed, "nominal DTO repr exposed payload"
-
-
-@pytest.mark.parametrize("fixture", [None, "fixture-success-must-not-bypass"])
-@pytest.mark.parametrize("image", [False, True])
-def test_stub_denies_nominal_parts_even_in_direct_fixture_mode(fixture, image) -> None:
-    from dspx.provider_contract import (
-        ProviderImagePart,
-        ProviderInvocationError,
-        ProviderPartsMessage,
-        ProviderRequest,
-        ProviderTextPart,
-    )
-    from dspx.image_admission import sha
-
-    provider = StubProvider(explicit_response_text=fixture)
-    raw = b"synthetic-unadmitted-image-fixture"
-    part = (
-        ProviderImagePart("image/png", raw, sha(raw), len(raw), 1, 1, "s000001")
-        if image
-        else ProviderTextPart("synthetic-text")
-    )
-    message = ProviderPartsMessage("user", (part,))
-    request = ProviderRequest(provider.model, (message,))
-    with pytest.raises(ProviderInvocationError) as failure:
-        provider.invoke(request)
-    assert str(failure.value) == "DSPx stub provider invocation failed"
-    assert failure.value.disposition.value == "preflight_rejected"
-    assert len(provider.provider_events) == 1
-    assert provider.provider_events[0].dispatch_count == 0
-
-
-def test_stub_denies_image_binding_before_fixture() -> None:
-    from dspx.provider_contract import (
-        ProviderInvocationError,
-        ProviderMessage,
-        ProviderRequest,
-    )
-
-    provider = StubProvider(explicit_response_text="not-an-image-canary")
-    request = ProviderRequest(
-        provider.model, (ProviderMessage("user", "ordinary"),), object()
-    )
-    with pytest.raises(ProviderInvocationError) as failure:
-        provider.invoke(request)
-    assert failure.value.disposition.value == "preflight_rejected"
-    assert provider.provider_events[0].dispatch_count == 0

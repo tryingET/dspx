@@ -13,11 +13,6 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 
 from dspx.cache import cache_dir, cache_enabled, make_key, sha256_text
-from dspx.image_source_io import (
-    contract_verification_metadata as _contract_verification_metadata,
-    image_generation_profile,
-    validate_contract_verification_payload,
-)
 from dspx.generated_code_guard import isolated_subprocess_env
 from dspx.redaction import sanitize_diagnostic_text
 from dspx.services.program_capabilities import build_program_capability_registry
@@ -164,9 +159,63 @@ def _build_pre_materialization_intent_normalization(
 
 
 def _validate_contract_verification_payload(
-    payload: Mapping[str, object], *, intent_source: Path | None
+    payload: Mapping[str, Any],
+    *,
+    intent_source: Path | None,
 ) -> None:
-    validate_contract_verification_payload(payload, intent_source=intent_source)
+    if payload.get("schema_version") != "program-architecture-contract-verification-v1":
+        raise ValueError("invalid contract verification schema_version")
+    if payload.get("status") != "verified_contract_intent":
+        raise ValueError("contract verification is not verified")
+    if payload.get("materialization_allowed_by_contract_verification") is not True:
+        raise ValueError("contract verification does not allow materialization")
+    gate = payload.get("materialization_gate")
+    if not isinstance(gate, Mapping) or gate.get("status") != (
+        "verified_for_explicit_program_gen_materialization"
+    ):
+        raise ValueError("contract verification materialization gate is not open")
+    if (
+        gate.get("allows_live_tools")
+        or gate.get("allows_custom_imports")
+        or gate.get("allows_external_retrievers")
+    ):
+        raise ValueError("contract verification unexpectedly allows live effects")
+    if intent_source is not None:
+        expected_hash = str(
+            gate.get("program_gen_must_match_intent_hash") or ""
+        ).strip()
+        if not expected_hash:
+            raise ValueError("contract verification missing intent hash")
+        actual_hash = sha256_text(
+            intent_source.expanduser().resolve().read_text(encoding="utf-8")
+        )
+        if actual_hash != expected_hash:
+            raise ValueError("contract verification intent_hash_mismatch")
+
+
+def _contract_verification_metadata(
+    path: Optional[Path], *, root: Path, intent_source: Path | None
+) -> dict[str, Any] | None:
+    if path is None:
+        return None
+    source = path.expanduser().resolve()
+    text = source.read_text(encoding="utf-8")
+    payload = json.loads(text)
+    _validate_contract_verification_payload(payload, intent_source=intent_source)
+    candidate_path = root / "program_architecture_contract_verification.json"
+    candidate_path.write_text(text, encoding="utf-8")
+    return {
+        "path": "program_architecture_contract_verification.json",
+        "source_path": str(source),
+        "content_hash": sha256_text(text),
+        "schema_version": str(
+            payload.get("schema_version")
+            or "program-architecture-contract-verification-v1"
+        ),
+        "status": str(payload.get("status") or "unknown"),
+        "materialization_gate": dict(payload.get("materialization_gate") or {}),
+        "non_authority": dict(payload.get("non_authority") or {}),
+    }
 
 
 def _build_ids(intent: ProgramIntent, surface_bundle_text: str) -> dict[str, str]:
@@ -1375,7 +1424,6 @@ def _materialize_program_from_intent_unchecked(
         raise ValueError(f"program-gen outdir is not empty: {root}")
     root.mkdir(parents=True, exist_ok=True)
 
-    image_profile = image_generation_profile(intent)
     intent, retriever_snapshots_payload = resolve_program_retriever_snapshots(
         intent,
         intent_source=intent_source,
@@ -1520,10 +1568,7 @@ def _materialize_program_from_intent_unchecked(
     surface_bundle_text = "\n\n".join(bundle_parts)
     ids = _build_ids(intent, surface_bundle_text)
     contract_verification_metadata = _contract_verification_metadata(
-        contract_verification_path,
-        root=root,
-        intent_source=intent_source,
-        image_profile=image_profile,
+        contract_verification_path, root=root, intent_source=intent_source
     )
     intent_payload = _intent_payload(intent)
     intent_hash = sha256_text(json.dumps(intent_payload, sort_keys=True))

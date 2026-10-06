@@ -7,8 +7,6 @@ from __future__ import annotations
 from typing import Any
 
 from dspx.dtos import ModuleSpec, SignatureGenRequest
-from dspx.image_input_contract import generation_intent_preflight
-from dspx.image_source_io import image_generation_profile
 from dspx.services.program_artifact_names import PROTECTED_PROGRAM_ARTIFACT_NAMES
 from dspx.services.program_contracts import (
     intent_field_specs,
@@ -31,11 +29,6 @@ _DIRECT_RUN_PROTECTED_OUTPUT_NAMES = PROTECTED_PROGRAM_ARTIFACT_NAMES | {
 def render_signature_surface(intent: Any) -> tuple[str, dict[str, Any]]:
     """Render the signature surface through the signature generation service."""
 
-    generation_intent_preflight(intent)
-    if image_generation_profile(intent):
-        from dspx.image_source_io import image_surface_sources
-
-        return image_surface_sources(intent)[0], {"template_version": "simple-image-v1"}
     if has_materializable_pipeline_topology(intent):
         return render_pipeline_signature_surface(intent)
 
@@ -64,11 +57,6 @@ def render_signature_surface(intent: Any) -> tuple[str, dict[str, Any]]:
 def render_module_surface(intent: Any) -> tuple[str, dict[str, Any]]:
     """Render the module surface through the module generation service."""
 
-    generation_intent_preflight(intent)
-    if image_generation_profile(intent):
-        from dspx.image_source_io import image_surface_sources
-
-        return image_surface_sources(intent)[1], {"template_version": "simple-image-v1"}
     if has_materializable_pipeline_topology(intent):
         return render_pipeline_module_surface(intent)
 
@@ -112,7 +100,6 @@ def render_direct_run_code(intent: Any) -> str:
     do not need ad-hoc shell wrappers.
     """
 
-    generation_intent_preflight(intent)
     code = """#!/usr/bin/env python3
 from __future__ import annotations
 
@@ -169,26 +156,68 @@ def _prediction_mapping(prediction: object, output_fields: list[str]) -> dict[st
     return {}
 
 
-def _load_inputs(path: Path) -> dict[str, object]:
-    from dspx.image_input_contract import safe_generation_document
-    payload = safe_generation_document(path.absolute())
-    inputs = payload.get('inputs') if type(payload) is dict else None
-    if type(inputs) is dict:
-        return dict(inputs)
-    if type(payload) is dict:
-        return dict(payload)
-    from dspx.image_admission import ImageContractError
-    raise ImageContractError('image_input_invalid') from None
+def _data_uri_from_base64(*, data: str, media_type: str) -> str:
+    raw = data.strip()
+    if raw.startswith('data:'):
+        return raw
+    return f'data:{media_type};base64,{raw}'
 
 
-def prepare_image(**kwargs):
-    from dspx.image_execution import prepare_image_execution
-    return prepare_image_execution(**kwargs)
+def _image_marker_from_base64(*, data: str, media_type: str) -> str:
+    try:
+        import dspy
+    except Exception as exc:
+        raise RuntimeError('runtime image descriptors require dspy') from exc
+    return str(dspy.Image(_data_uri_from_base64(data=data, media_type=media_type)))
 
 
-def run_image(**kwargs):
-    from dspx.image_execution import execute_image_program
-    return execute_image_program(route='direct', **kwargs)
+def _materialize_designmd_visual_image_inputs_text(value: str) -> str:
+    try:
+        payload = json.loads(value)
+    except json.JSONDecodeError:
+        return value
+    if not isinstance(payload, dict):
+        return value
+    images = payload.get('images')
+    if not isinstance(images, list):
+        return value
+    next_payload = dict(payload)
+    next_images: list[object] = []
+    materialized = 0
+    for item in images:
+        if not isinstance(item, dict):
+            next_images.append(item)
+            continue
+        image = dict(item)
+        data = str(image.get('imageDataBase64') or '').strip()
+        media_type = str(image.get('imageDataMimeType') or image.get('mimeType') or 'image/png').strip()
+        if data and image.get('pixelInspectionInputStatus') == 'available_bounded_inline_image_payload':
+            image['modelImageInput'] = _image_marker_from_base64(data=data, media_type=media_type)
+            image['modelImageInputMaterialized'] = True
+            materialized += 1
+        next_images.append(image)
+    next_payload['images'] = next_images
+    next_payload['modelImageInputMaterializedCount'] = materialized
+    next_payload['modelImageInputAdapter'] = 'dspy.Image(data-uri)'
+    if materialized <= 0:
+        next_payload['pixelInspectionStatus'] = 'not_run_due_to_missing_image_input_adapter'
+    return json.dumps(next_payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _materialize_runtime_input_value(key: str, value: object) -> object:
+    if key == 'visual_image_inputs_json' and isinstance(value, str):
+        return _materialize_designmd_visual_image_inputs_text(value)
+    return value
+
+
+def _load_inputs(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    inputs = payload.get('inputs') if isinstance(payload, dict) else None
+    if isinstance(inputs, dict):
+        return {str(key): _materialize_runtime_input_value(str(key), value) for key, value in inputs.items()}
+    if isinstance(payload, dict):
+        return {str(key): _materialize_runtime_input_value(str(key), value) for key, value in payload.items()}
+    raise SystemExit(f'input file must be a JSON object: {path}')
 
 
 def _parse_json_output(value: object, *, field: str) -> Any:
@@ -509,7 +538,6 @@ def _write_direct_run_receipt(
 
 
 def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None) -> dict[str, Any]:
-    inputs = _load_inputs(inputs_path)
     program_dir = Path(__file__).resolve().parent
     sys.path.insert(0, str(program_dir))
     from program import build_program, configure_observability, end_observability_run, io_spec  # noqa: PLC0415
@@ -519,6 +547,7 @@ def _single_run(inputs_path: Path, outdir: Path, config_path: Path | None = None
     if not output_fields:
         raise SystemExit('generated program io_spec declares no outputs')
     outdir.mkdir(parents=True, exist_ok=True)
+    inputs = _load_inputs(inputs_path)
     provider = _configure_lm()
     started = False
     end_status = 'FINISHED'
@@ -796,20 +825,6 @@ if __name__ == '__main__':
 def render_program_code(intent: Any) -> str:
     """Render the program assembly surface that composes generated surfaces."""
 
-    generation_intent_preflight(intent)
-    if image_generation_profile(intent):
-        from dspx.image_source_profile import image_program_code
-
-        return image_program_code(
-            {
-                "name": intent.name,
-                "objective": intent.objective,
-                "constraints": list(intent.constraints),
-                "metric": intent.metric or "unspecified",
-                "quality_criteria": list(intent.quality_criteria),
-                "io": {"inputs": list(intent.inputs), "outputs": list(intent.outputs)},
-            }
-        )
     if has_materializable_pipeline_topology(intent):
         program_code = render_pipeline_program_code(intent)
         runtime = getattr(intent, "runtime", {}) or {}
@@ -1049,7 +1064,6 @@ def render_program_code(intent: Any) -> str:
 
 
 def render_eval_smoke(intent: Any) -> str:
-    generation_intent_preflight(intent)
     program_class = sanitize_ident(intent.name)
     sample_inputs = {name: f"sample_{name}" for name in intent.inputs}
     return "\n".join(
@@ -1079,7 +1093,6 @@ def render_eval_smoke(intent: Any) -> str:
 def render_eval_examples(intent: Any) -> str:
     """Render a deterministic examples behavior-evidence harness."""
 
-    generation_intent_preflight(intent)
     return "\n".join(
         [
             "from __future__ import annotations",
@@ -1317,7 +1330,6 @@ def render_eval_examples(intent: Any) -> str:
 def render_eval_behavior(intent: Any) -> str:
     """Render a bounded local behavior orchestration harness."""
 
-    generation_intent_preflight(intent)
     harnesses: list[dict[str, object]] = []
     if getattr(intent, "examples", None):
         harnesses.append(

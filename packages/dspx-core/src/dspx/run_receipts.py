@@ -340,18 +340,6 @@ def _get_execution_context() -> dict[str, Any]:
     return ctx
 
 
-def build_image_run_receipt(
-    session: object, content_sha256: str, *, route: str, outcome: str
-) -> dict[str, object]:
-    """Closed image branch: no environment, replay input, legacy extras or raw paths."""
-    from dspx.image_custody import ImageCustodySession
-    from dspx.image_admission import require
-    from dspx.image_artifacts import build_image_receipt
-
-    require(type(session) is ImageCustodySession, "image_custody")
-    return build_image_receipt(session, content_sha256, route=route, outcome=outcome)
-
-
 def receipt_path_for_output(output_path: Path) -> Path:
     return output_path.parent / f"{output_path.name}.meta.json"
 
@@ -946,10 +934,6 @@ def build_run_receipt(
         capture_context: If True, capture git commit, Python version, env hash.
             Used by Consciousness for environment correlation.
     """
-    if run_kind in {"program-runtime-image", "generated-direct-image"}:
-        from dspx.image_admission import ImageContractError
-
-        raise ImageContractError("image_custody") from None
     provider_details = (
         _json_safe(_current_provider_details())
         if provider_details_override is None

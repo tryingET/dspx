@@ -223,13 +223,6 @@ def provider_effect_evidence_from_instance(
     provider = cast(StubProvider | OpenAICompatibleProvider, lm.provider)
     with provider.operation_lock:
         terminal = provider.terminal_effect
-        if (
-            type(provider) is OpenAICompatibleProvider
-            and provider.image_session is not None
-        ):
-            from .image_effects import image_effect_envelope
-
-            return image_effect_envelope(provider.image_session)
         return {
             "schema_version": "dspx-provider-effect-evidence-v1",
             "attempt_total": provider.attempt_total,

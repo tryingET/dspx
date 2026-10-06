@@ -1038,67 +1038,80 @@ def test_generated_program_module_allows_signature_sibling_import(
         assert module.io_spec()["outputs"] == ["answer"]
 
 
-def _assert_unadmitted_image_denied(payload, inputs_path, monkeypatch) -> None:
-    import dspy
-    import httpx
-    from dspx.openai_compatible_provider import OpenAICompatibleProvider
-    from dspx.stub_provider import StubProvider
-
-    entries: list[bool] = []
-
-    def forbidden(*args, **kwargs):
-        entries.append(True)
-        raise AssertionError("unadmitted image effect")
-
-    for owner, name in (
-        (os, "open"),
-        (os, "read"),
-        (dspy, "Image"),
-        (StubProvider, "invoke"),
-        (OpenAICompatibleProvider, "invoke"),
-        (httpx.Client, "send"),
-    ):
-        monkeypatch.setattr(owner, name, forbidden)
-    with pytest.raises(ValueError, match="^image_admission_invalid$"):
-        _materialize_runtime_inputs(payload, inputs_path=inputs_path)
-    assert not entries
-
-
-def test_runtime_input_materialization_denies_unadmitted_image_file_descriptors(
+def test_runtime_input_materialization_converts_image_file_descriptors(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Given no admission; When legacy images enter; Then no read or invocation."""
-    _assert_unadmitted_image_denied(
+    image_path = tmp_path / "ref.png"
+    image_path.write_bytes(
+        bytes.fromhex(
+            "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63f8cfc00000030101c9fe92ef0000000049454e44ae426082"
+        )
+    )
+    inputs_path = tmp_path / "runtime-inputs.json"
+    inputs_path.write_text("{}\n", encoding="utf-8")
+
+    materialized = _materialize_runtime_inputs(
         {
-            "visual": {
-                "type": "image_file",
-                "path": "ref.png",
-                "media_type": "image/png",
-            }
+            "visual_image_blocks": [
+                {"type": "image_file", "path": "ref.png"},
+                {
+                    "type": "image_url",
+                    "url": "data:image/png;base64,iVBORw0KGgo=",
+                },
+            ],
+            "text": "unchanged",
         },
-        tmp_path / "runtime-inputs.json",
-        monkeypatch,
+        inputs_path=inputs_path,
     )
 
+    assert materialized["text"] == "unchanged"
+    visual_image_blocks = materialized["visual_image_blocks"]
+    assert isinstance(visual_image_blocks, str)
+    assert visual_image_blocks.count("CUSTOM-TYPE-START-IDENTIFIER") == 2
+    assert "image_url" in visual_image_blocks
 
-@pytest.mark.parametrize("source", ["remote", "outside"])
-def test_runtime_input_materialization_denies_unadmitted_unsafe_sources(
+
+def test_runtime_input_materialization_rejects_remote_image_url(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    source: str,
 ) -> None:
-    """Given unadmitted URL/path; When legacy materialization runs; Then no effects."""
-    descriptor = (
-        {"type": "image_url", "url": "http://169.254.169.254/latest/meta-data/"}
-        if source == "remote"
-        else {"type": "image_file", "path": str(tmp_path / "outside" / "ref.png")}
+    inputs_path = tmp_path / "runtime-inputs.json"
+    inputs_path.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="only accepts data:image"):
+        _materialize_runtime_inputs(
+            {
+                "visual_image_blocks": [
+                    {
+                        "type": "image_url",
+                        "url": "http://169.254.169.254/latest/meta-data/",
+                    }
+                ]
+            },
+            inputs_path=inputs_path,
+        )
+
+
+def test_runtime_input_materialization_rejects_absolute_image_path_outside_inputs(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    image_path = outside / "ref.png"
+    image_path.write_bytes(
+        bytes.fromhex(
+            "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de0000000c49444154789c63f8cfc00000030101c9fe92ef0000000049454e44ae426082"
+        )
     )
-    _assert_unadmitted_image_denied(
-        {"visual": {**descriptor, "media_type": "image/png"}},
-        tmp_path / "inputs" / "runtime-inputs.json",
-        monkeypatch,
-    )
+    input_dir = tmp_path / "inputs"
+    input_dir.mkdir()
+    inputs_path = input_dir / "runtime-inputs.json"
+    inputs_path.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Path escapes confinement root"):
+        _materialize_runtime_inputs(
+            {"image": {"type": "image_file", "path": str(image_path)}},
+            inputs_path=inputs_path,
+        )
 
 
 def test_program_runtime_episode_redacts_provider_diagnostics(

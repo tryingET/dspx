@@ -12,7 +12,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Mapping, cast
+from typing import Any, Mapping
 
 from dspx.cache import make_key
 from dspx.run_receipts import (
@@ -2108,18 +2108,7 @@ def _expected_cache_payload(receipt: Mapping[str, Any]) -> dict[str, Any] | None
     return None
 
 
-def check_run_receipt(
-    meta_path: Path, *, image_anchor: object | None = None
-) -> dict[str, Any]:
-    # Explicit image intent must deny before inspecting either caller-supplied object.
-    # This does not classify or protect unanchored legacy receipts.
-    if image_anchor is not None:
-        return {
-            "status": "invalid",
-            "error_codes": ["image_execution_unavailable"],
-            "execution_reproduction": False,
-            "dispatch_available": False,
-        }
+def check_run_receipt(meta_path: Path) -> dict[str, Any]:
     report: dict[str, Any] = {
         "status": "ok",
         "receipt_path": str(meta_path),
@@ -2153,51 +2142,6 @@ def check_run_receipt(
         )
         return report
 
-    if receipt.get("run_kind") in {
-        "program-runtime-image",
-        "generated-direct-image",
-    } or str(receipt.get("schema_version", "")).startswith(
-        ("dspx-image-", "generated-dspy-direct-image")
-    ):
-        from dspx.image_artifacts import ImageRunAnchor, verify_image_run
-        from dspx.image_admission import ImageContractError, require
-        from dspx.image_source_io import open_root
-
-        try:
-            require(type(image_anchor) is ImageRunAnchor, "image_custody")
-            anchor = cast(ImageRunAnchor, image_anchor)
-            require(
-                meta_path.name
-                in {
-                    "runtime_image_episode.json.meta.json",
-                    "direct_image_run_receipt.json",
-                },
-                "image_custody",
-            )
-            fd = open_root(meta_path.absolute().parent)
-            try:
-                actual, bound = os.fstat(fd), os.fstat(anchor.artifact_fd)
-                require(
-                    (actual.st_dev, actual.st_ino) == (bound.st_dev, bound.st_ino),
-                    "image_custody",
-                )
-            finally:
-                os.close(fd)
-            return {
-                **verify_image_run(anchor),
-                "run_kind": receipt["run_kind"],
-                "checks": {"receipt_integrity": True},
-                "errors": [],
-                "error_codes": [],
-                "replay_policy": receipt["replay_policy"],
-            }
-        except (ImageContractError, OSError, KeyError, TypeError):
-            return {
-                "status": "invalid",
-                "error_codes": ["image_custody"],
-                "execution_reproduction": False,
-                "dispatch_available": False,
-            }
     report["receipt_version"] = receipt.get("receipt_version")
     report["run_kind"] = receipt.get("run_kind")
 
@@ -2459,40 +2403,16 @@ def _signature_execution_replay_argv(
     return argv
 
 
-def execute_run_receipt(
-    meta_path: Path, replay_output: Path, *, image_anchor: object | None = None
-) -> dict[str, Any]:
+def execute_run_receipt(meta_path: Path, replay_output: Path) -> dict[str, Any]:
     """Re-run a deterministic receipt in a scrubbed, receipt-local sandbox.
 
     Check-only remains the compatibility path. Execution additionally requires an
     exact receipt policy and identity bindings, invokes the real ``signature gen``
     command with the stub provider and cache disabled, compares the fresh output,
     and only then exclusively publishes it to ``replay_output``.
-
-    Explicit image intent refuses before all path access. An anchor selects this
-    denial, not authority to read or replay. Unanchored legacy behavior is unchanged.
     """
-    if image_anchor is not None:
-        return {
-            "status": "invalid",
-            "error_codes": ["image_execution_replay_unsupported"],
-            "execution": {"attempted": False, "strategy": None},
-            "execution_reproduction": False,
-            "dispatch_available": False,
-        }
-    initial_receipt = load_run_receipt(meta_path)
-    if type(initial_receipt) is dict and initial_receipt.get("run_kind") in {
-        "program-runtime-image",
-        "generated-direct-image",
-    }:
-        return {
-            "status": "invalid",
-            "error_codes": ["image_execution_replay_unsupported"],
-            "execution": {"attempted": False, "strategy": None},
-            "execution_reproduction": False,
-            "dispatch_available": False,
-        }
     report = check_run_receipt(meta_path)
+    initial_receipt = load_run_receipt(meta_path)
     if (
         isinstance(initial_receipt, Mapping)
         and initial_receipt.get("run_kind") == "program-runtime"
