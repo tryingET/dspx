@@ -528,7 +528,8 @@ def test_program_runtime_validator_uses_centralized_luna_identity(
 
 def test_journal_parent_must_be_private(tmp_path: Path) -> None:
     parent = tmp_path / "journals"
-    parent.mkdir(mode=0o755)
+    parent.mkdir()
+    parent.chmod(0o755)  # explicit: independent of the ambient umask
     with pytest.raises(SoomfonProviderError):
         SoomfonCallCustodian(
             journal_parent=parent,

@@ -527,7 +527,8 @@ def test_sink_failure_poisoning_never_falls_back_or_synthesizes_a_terminal(
     with pytest.raises(ProviderOutcomeConsumerError) as exc_info:
         journal.load_verified()
     assert exc_info.value.reason == "journal_poisoned"
-    assert [path.name for path in journal._events.iterdir()] == [
+    # iterdir order is filesystem-defined; compare names in a stable order.
+    assert sorted(path.name for path in journal._events.iterdir()) == [
         "000000.json",
         "000001.json",
     ]

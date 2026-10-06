@@ -225,7 +225,8 @@ def test_ledger_rejects_non_owner_only_immediate_parent(
     module: ModuleType, tmp_path: Path
 ) -> None:
     parent = tmp_path / "shared-parent"
-    parent.mkdir(mode=0o755)
+    parent.mkdir()
+    parent.chmod(0o755)  # explicit: independent of the ambient umask
     with pytest.raises(module.CoreReleaseEvidenceError, match="not owner-only"):
         module.NonceLedger(parent / "ledger.sqlite3")
 
