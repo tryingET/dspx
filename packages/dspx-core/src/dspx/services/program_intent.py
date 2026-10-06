@@ -13,7 +13,6 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    ValidationError,
     field_validator,
     model_validator,
 )
@@ -644,46 +643,7 @@ def default_outdir(intent: ProgramIntent) -> Path:
     return cache_dir() / "programs" / slug
 
 
-def _text_only(payload: dict[str, Any] | None) -> bool:
-    from dspx.image_input_contract import generation_preflight
-
-    if payload is None:
-        return False
-    try:
-        return not generation_preflight(payload)
-    except Exception:
-        return False  # image material or unbounded payload: fixed code only
-
-
 def load_program_intent(path: Path) -> ProgramIntent:
-    """Load a program intent from JSON or YAML.
+    """Load a program intent from JSON or YAML through the image-safe first ingress."""
 
-    Image-bearing documents fail with fixed codes only. Ordinary text intents keep
-    their validator messages (never Pydantic input values or context).
-    """
-
-    from dspx.image_admission import ImageContractError
-
-    safe_message: str | None = None
-    resolved_payload: dict[str, Any] | None = None
-    try:
-        source = path.expanduser().absolute()
-        payload = image_source_io.load_generation_document(source)
-        if not isinstance(payload, Mapping):
-            raise ImageContractError("image_input_invalid")
-        resolved_payload = dict(payload)
-        image_source_io.resolve_generation_examples(resolved_payload, source=source)
-        return ProgramIntent.model_validate(resolved_payload)
-    except ImageContractError as error:
-        code = error.code
-    except ValidationError as error:
-        safe_message = image_source_io.identifier_validation_message(error)
-        if safe_message is None and _text_only(resolved_payload):
-            safe_message = image_source_io.validation_messages(error)
-        code = "image_input_invalid"
-    except Exception:
-        code = "image_input_invalid"
-    # Leave the catch before raising so neither raw values nor context survive.
-    if safe_message is not None:
-        raise ValueError(safe_message) from None
-    raise ImageContractError(code) from None
+    return image_source_io.load_intent_document(path, ProgramIntent.model_validate)

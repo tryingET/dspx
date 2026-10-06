@@ -8,6 +8,8 @@ fresh `-I -S` worker. Live authority is never executed by this module.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+from pathlib import Path
 from typing import cast
 
 import dspy
@@ -16,6 +18,7 @@ from dspy.core.types import LMImagePart, LMTextPart
 from .image_admission import (
     CEILINGS,
     ImageAdmission,
+    ImageContractError,
     SyntheticImageAuthority,
     canonical,
     closed,
@@ -436,3 +439,46 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
         )
         session.close_run(binding, outcome="completed")
         return _status("completed", sha(read_record(custody_fd, "closure.json")))
+
+
+def run_image_episode(
+    image_execution: object,
+    *,
+    manifest_path: Path,
+    inputs_path: Path,
+    outdir: Path,
+    capture_replay_fixture: bool,
+    plain: bool,
+) -> dict[str, object]:
+    """Episode route: bind caller paths to the held fds, then the shared execution."""
+    from .image_artifacts import verify_image_run
+    from .image_source_io import open_root
+
+    if capture_replay_fixture:
+        raise ImageContractError("image_replay_unsupported") from None
+    require(
+        type(image_execution) is ImageExecutionRequest and plain is True,
+        "image_admission_invalid",
+    )
+    request = cast(ImageExecutionRequest, image_execution)
+    for path, expected in (
+        (manifest_path.absolute().parent, request.candidate_fd),
+        (inputs_path.absolute().parent, request.input_fd),
+        (outdir.absolute(), request.artifact_fd),
+    ):
+        fd = open_root(path)
+        try:
+            actual, bound = os.fstat(fd), os.fstat(expected)
+            require(
+                (actual.st_dev, actual.st_ino) == (bound.st_dev, bound.st_ino),
+                "image_custody",
+            )
+        finally:
+            os.close(fd)
+    require(
+        manifest_path.name == "manifest.json"
+        and inputs_path.name == request.input_name,
+        "image_custody",
+    )
+    anchor = request.execute(route="episode")
+    return {**verify_image_run(anchor), "image_anchor": anchor}

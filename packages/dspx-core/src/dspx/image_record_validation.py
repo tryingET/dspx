@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any, cast
 
 from .image_admission import require, hash_value
 
@@ -275,3 +276,29 @@ def validate_artifact_chain(
         "image_custody",
     )
     return content_sha
+
+
+_IMAGE_RUN_KINDS = frozenset({"program-runtime-image", "generated-direct-image"})
+
+
+def is_image_receipt(receipt: object) -> bool:
+    """Image-domain receipts never enter the ordinary text check or replay path."""
+    if type(receipt) is not dict:
+        return False
+    row = cast(dict[str, Any], receipt)
+    return row.get("run_kind") in _IMAGE_RUN_KINDS or str(
+        row.get("schema_version", "")
+    ).startswith(("dspx-image-", "generated-dspy-direct-image"))
+
+
+def image_receipt_refusal(code: str, *, replay: bool = False) -> dict[str, object]:
+    """Fixed report: no path, receipt value, anchor attribute or exception text."""
+    report: dict[str, object] = {
+        "status": "invalid",
+        "error_codes": [code],
+        "execution_reproduction": False,
+        "dispatch_available": False,
+    }
+    if replay:
+        report["execution"] = {"attempted": False, "strategy": None}
+    return report

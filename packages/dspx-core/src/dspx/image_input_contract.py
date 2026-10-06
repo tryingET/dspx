@@ -84,6 +84,16 @@ def generation_preflight(value: object) -> bool:
     return image_profile
 
 
+def refuse_runtime_image_inputs(runtime_inputs: Mapping[str, Any]) -> None:
+    """Unbound historical episode inputs are never an image admission surface."""
+    try:
+        generation_preflight(dict(runtime_inputs))
+        return
+    except ImageContractError:
+        pass  # leave the handler first: no payload-bearing context survives
+    raise ImageContractError("image_admission_invalid") from None
+
+
 def generation_intent_preflight(intent: object) -> None:
     """Refuse generation-time image payloads; data-less legacy intents stay text-only."""
     from .services.program_intent import ProgramIntent

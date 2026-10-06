@@ -27,6 +27,7 @@ from .provider_contract import (
     ProviderInvocationError,
     ProviderMessage,
     ProviderRequest,
+    ImageClientBinding,
     ProviderResult,
     requested_model_for_event,
 )
@@ -109,13 +110,9 @@ class OpenAICompatibleProvider:
         self._attempt_total = 0
         self._terminal_effect: EffectDisposition | None = None
         self._indeterminate_latched = False
-        self._image_client_binding = None
-        if _image_session is not None:
-            from .provider_contract import ImageClientBinding
-
-            self._image_client_binding = ImageClientBinding.capture(
-                self._client, transport
-            )
+        self._image_client_binding = ImageClientBinding.for_session(
+            _image_session, self._client, transport
+        )
 
     @property
     def operation_lock(self) -> ReentrantLock:
@@ -159,16 +156,11 @@ class OpenAICompatibleProvider:
     def invoke(self, request: ProviderRequest) -> ProviderResult:
         """Serialize one complete direct invocation through terminal classification."""
 
-        if self.image_session is not None:
-            # Lazy: the text path's module graph never loads the image worker.
-            from .image_worker import require_clean_boundary
+        if self.image_session is not None:  # lazy: text never loads image modules
+            from .image_effects import invoke_image_provider
 
-            require_clean_boundary()
+            return invoke_image_provider(self, request)
         with self._operation_lock:
-            if self.image_session is not None:
-                from .image_effects import invoke_image_http
-
-                return invoke_image_http(self, request)
             return self._invoke(request)
 
     def _invoke(self, request: ProviderRequest) -> ProviderResult:

@@ -93,6 +93,15 @@ class ObservedResponseFailure(Exception):
         super().__init__(code)
 
 
+def invoke_image_provider(
+    provider: OpenAICompatibleProvider, request: ProviderRequest
+) -> ProviderResult:
+    """Clean-boundary probe precedes the operation lock; then one image dispatch."""
+    require_privacy()
+    with provider.operation_lock:
+        return invoke_image_http(provider, request)
+
+
 def invoke_image_http(
     provider: OpenAICompatibleProvider, request: ProviderRequest
 ) -> ProviderResult:

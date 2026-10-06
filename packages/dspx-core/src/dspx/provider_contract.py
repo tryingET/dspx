@@ -140,6 +140,13 @@ class ImageClientBinding:
     transport_code: object
 
     @classmethod
+    def for_session(
+        cls, session: object | None, client: object, transport: object
+    ) -> ImageClientBinding | None:
+        """No binding for ordinary text; image sessions bind the exact client."""
+        return None if session is None else cls.capture(client, transport)
+
+    @classmethod
     def capture(cls, client: object, transport: object) -> ImageClientBinding:
         import httpx
         from .image_admission import require

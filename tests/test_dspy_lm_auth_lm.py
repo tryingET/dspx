@@ -113,11 +113,11 @@ _CURRENT_SOURCE_DELTAS = {
     ),
     "packages/dspx-core/src/dspx/openai_compatible_provider.py": (
         "df4ed50f569b4e04757592468a7f908f940b8629eef796932423357b688e5241",
-        "c81a1d4bc07943c275ade88a65d976c9156a082cecf5c1cb6b4fe6eb8f215b34",
+        "7cb023dbc1d09afe6e26a2998491c20ba9b9a64f72b960294754460c006b15f3",
     ),
     "packages/dspx-core/src/dspx/provider_contract.py": (
         "b16640fda28a0b8c6188a3781879d44ee4091e27b7968dce6e57e65e7d5f0fb7",
-        "0d32f4c6b7734e16825e6dd53d164927e069fe2c693272f1418207a276f9dc44",
+        "97b11775bad1208cf712da77ead370eea5f8069f7a44844f90a3c506f742c67a",
     ),
     "packages/dspx-core/src/dspx/provider_registry.py": (
         "237fa4d9aa1b153bc3ccf45f5676c29b3efcac4ae32575e1935557a34361a6cb",

@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import re
 import stat
-from typing import Any, Mapping, cast
+from typing import Any, Callable, Mapping, TypeVar, cast
 
 from pydantic import ValidationError
 
@@ -20,6 +20,7 @@ from .image_admission import (
     require,
 )
 
+_T = TypeVar("_T")
 IDENTIFIER_ERROR_CODE = "program_field_identifier"
 IDENTIFIER_ERROR_MESSAGE = "program intent fields must be valid Python identifiers"
 
@@ -40,6 +41,39 @@ def load_generation_document(path: Path) -> Any:
     from .image_input_contract import safe_generation_document
 
     return safe_generation_document(path.expanduser().absolute())
+
+
+def load_intent_document(path: Path, validate: Callable[[dict[str, Any]], _T]) -> _T:
+    """Image-bearing documents fail with fixed codes; text intents keep validator text."""
+    from .image_input_contract import generation_preflight
+
+    safe_message: str | None = None
+    payload: dict[str, Any] | None = None
+    try:
+        source = path.expanduser().absolute()
+        loaded = load_generation_document(source)
+        require(isinstance(loaded, Mapping), "image_input_invalid")
+        payload = dict(loaded)
+        resolve_generation_examples(payload, source=source)
+        return validate(payload)
+    except ImageContractError as error:
+        code = error.code
+    except ValidationError as error:
+        safe_message = identifier_validation_message(error)
+        if safe_message is None and payload is not None:
+            try:
+                text_only = not generation_preflight(payload)
+            except Exception:
+                text_only = False  # image material or unbounded: fixed code only
+            if text_only:
+                safe_message = validation_messages(error)
+        code = "image_input_invalid"
+    except Exception:
+        code = "image_input_invalid"
+    # Leave the handler before raising so neither raw values nor context survive.
+    if safe_message is not None:
+        raise ValueError(safe_message) from None
+    raise ImageContractError(code) from None
 
 
 def resolve_generation_examples(payload: dict[str, Any], *, source: Path) -> None:

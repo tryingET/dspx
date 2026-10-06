@@ -321,17 +321,9 @@ def _materialize_runtime_input_value(value: object, *, base_dir: Path) -> Any:
 def _materialize_runtime_inputs(
     runtime_inputs: Mapping[str, Any], *, inputs_path: Path
 ) -> dict[str, Any]:
-    from dspx.image_input_contract import generation_preflight
-    from dspx.image_admission import ImageContractError
+    from dspx.image_input_contract import refuse_runtime_image_inputs
 
-    try:
-        generation_preflight(dict(runtime_inputs))
-    except ImageContractError:
-        rejected = True
-    else:
-        rejected = False
-    if rejected:
-        raise ImageContractError("image_admission_invalid") from None
+    refuse_runtime_image_inputs(runtime_inputs)
     base_dir = inputs_path.expanduser().resolve().parent
     return {
         str(key): _materialize_runtime_input_value(item, base_dir=base_dir)
@@ -2092,43 +2084,19 @@ def run_program_runtime_episode(
     image_execution: object | None = None,
 ) -> dict[str, Any]:
     if image_execution is not None:
-        from dspx.image_execution import ImageExecutionRequest
-        from dspx.image_admission import require, ImageContractError
-        from dspx.image_artifacts import verify_image_run
-        from dspx.image_source_io import open_root
+        from dspx.image_execution import run_image_episode
 
-        if capture_replay_fixture:
-            raise ImageContractError("image_replay_unsupported") from None
-        require(
-            type(image_execution) is ImageExecutionRequest
-            and contract_mode == "none"
+        return run_image_episode(
+            image_execution,
+            manifest_path=manifest_path,
+            inputs_path=inputs_path,
+            outdir=outdir,
+            capture_replay_fixture=capture_replay_fixture,
+            plain=contract_mode == "none"
             and not run_oracle_semantic
             and publication_preflight_out is None
             and soomfon_custody is None,
-            "image_admission_invalid",
         )
-        request = cast(ImageExecutionRequest, image_execution)
-        for path, expected in (
-            (manifest_path.absolute().parent, request.candidate_fd),
-            (inputs_path.absolute().parent, request.input_fd),
-            (outdir.absolute(), request.artifact_fd),
-        ):
-            fd = open_root(path)
-            try:
-                actual, bound = os.fstat(fd), os.fstat(expected)
-                require(
-                    (actual.st_dev, actual.st_ino) == (bound.st_dev, bound.st_ino),
-                    "image_custody",
-                )
-            finally:
-                os.close(fd)
-        require(
-            manifest_path.name == "manifest.json"
-            and inputs_path.name == request.input_name,
-            "image_custody",
-        )
-        anchor = request.execute(route="episode")
-        return {**verify_image_run(anchor), "image_anchor": anchor}
     if contract_mode not in CONTRACT_MODES:
         raise ValueError(
             "contract_mode must be one of: " + ", ".join(sorted(CONTRACT_MODES))
