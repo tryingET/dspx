@@ -190,6 +190,40 @@ def _explicit_replay_fixture_text() -> str | None:
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)
 
 
+def create_image_lm(session, *, transport=None):
+    """Only nominal parent-bound sessions; no environment/TOML can select image mode."""
+    from .image_worker import require_clean_boundary
+
+    require_clean_boundary()
+    import httpx
+    from .image_admission import SyntheticImageAuthority, require
+    from .image_custody import ImageCustodySession
+    from .image_privacy import require_privacy
+
+    active = require_privacy()
+    active.check()
+    require(
+        type(session) is ImageCustodySession
+        and active.context is session.context
+        and active.session is session
+        and not session.poisoned,
+        "image_admission_invalid",
+    )
+    if type(session.authority) is SyntheticImageAuthority:
+        require(type(transport) is httpx.MockTransport, "image_admission_invalid")
+    record = session.record
+    provider = OpenAICompatibleProvider(
+        base_url=record["canonical_base_endpoint"],
+        model=record["model"],
+        timeout=record["deadlines"]["per_request_io_timeout_ms"] / 1000,
+        _transport=transport,
+        _image_session=session,
+    )
+    lm = DSPyTypedLMAdapter(provider, cache=False, callbacks=[])
+    active.lm = lm
+    return lm
+
+
 def _validated_name(name: str) -> str:
     if not isinstance(name, str):
         raise TypeError("provider name must be a string")

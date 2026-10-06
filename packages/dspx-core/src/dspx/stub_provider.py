@@ -6,12 +6,13 @@ from __future__ import annotations
 
 from collections import deque
 from _thread import RLock as ReentrantLock
-from typing import Final
+from typing import Final, cast
 
 from .provider_contract import (
     EffectDisposition,
     ProviderAttemptEvent,
     ProviderInvocationError,
+    ProviderMessage,
     ProviderRequest,
     ProviderResult,
 )
@@ -91,10 +92,32 @@ class StubProvider:
             ) from None
         requested_model = (
             request.model
-            if type(request) is ProviderRequest and isinstance(request.model, str)
+            if type(request) is ProviderRequest
+            and type(request.model) is str
+            and 0 < len(request.model) <= 256
+            and not any(char.isspace() for char in request.model)
             else "<invalid>"
         )
-        if type(request) is not ProviderRequest or request.model != self.model:
+        if (
+            type(request) is not ProviderRequest
+            or type(request.model) is not str
+            or request.model != self.model
+            or request.image_binding is not None
+            or type(request.messages) is not tuple
+            or not 0 < len(request.messages) <= 256
+            or any(
+                type(message) is not ProviderMessage
+                or type(message.role) is not str
+                or message.role not in {"system", "user", "assistant"}
+                or type(message.text) is not str
+                for message in request.messages
+            )
+            or sum(
+                len(message.text)
+                for message in cast(tuple[ProviderMessage, ...], request.messages)
+            )
+            > 1_000_000
+        ):
             disposition = EffectDisposition.PREFLIGHT_REJECTED
             self._record(
                 ProviderAttemptEvent(
@@ -175,9 +198,8 @@ class StubProvider:
 
     @staticmethod
     def _render(request: ProviderRequest) -> str:
-        if len(request.messages) == 1 and request.messages[0].role == "user":
-            return f"stub: {request.messages[0].text}"
-        rendered = "\n".join(
-            f"{message.role}: {message.text}" for message in request.messages
-        )
+        messages = cast(tuple[ProviderMessage, ...], request.messages)
+        if len(messages) == 1 and messages[0].role == "user":
+            return f"stub: {messages[0].text}"
+        rendered = "\n".join(f"{message.role}: {message.text}" for message in messages)
         return f"stub: {rendered}".rstrip()

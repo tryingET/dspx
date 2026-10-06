@@ -6,14 +6,21 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Mapping, Optional
-import json
 import keyword
 import re
 
-import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
+from pydantic_core import PydanticCustomError
 
 from dspx.cache import cache_dir
+from dspx import image_source_io
 from dspx.services.program_capabilities import (
     normalize_program_capabilities,
     normalize_retriever_config,
@@ -540,9 +547,9 @@ class ProgramIntent(BaseModel):
         if not fields:
             raise ValueError("program intent fields must include at least one field")
         if invalid:
-            raise ValueError(
-                "program intent fields must be valid Python identifiers; "
-                f"invalid entries: {invalid}"
+            raise PydanticCustomError(
+                image_source_io.IDENTIFIER_ERROR_CODE,
+                image_source_io.IDENTIFIER_ERROR_MESSAGE,
             )
         if len(set(fields)) != len(fields):
             raise ValueError("program intent fields must be unique")
@@ -637,37 +644,46 @@ def default_outdir(intent: ProgramIntent) -> Path:
     return cache_dir() / "programs" / slug
 
 
-def _load_json_or_yaml(path: Path) -> Any:
-    source = path.expanduser().resolve()
-    text = source.read_text(encoding="utf-8")
-    if source.suffix.lower() == ".json":
-        return json.loads(text)
-    return yaml.safe_load(text)
+def _text_only(payload: dict[str, Any] | None) -> bool:
+    from dspx.image_input_contract import generation_preflight
 
-
-def _resolve_program_intent_examples(payload: dict[str, Any], *, source: Path) -> None:
-    examples_path_raw = payload.get("examples_path")
-    if not examples_path_raw:
-        return
-    examples_path = Path(str(examples_path_raw)).expanduser()
-    if not examples_path.is_absolute():
-        examples_path = source.parent / examples_path
-    examples_payload = _load_json_or_yaml(examples_path)
-    if not isinstance(examples_payload, list) or not all(
-        isinstance(item, Mapping) for item in examples_payload
-    ):
-        raise ValueError("program intent examples_path must contain a list of objects")
-    payload["examples"] = [dict(item) for item in examples_payload]
-    payload["examples_path"] = str(examples_path.resolve())
+    if payload is None:
+        return False
+    try:
+        return not generation_preflight(payload)
+    except Exception:
+        return False  # image material or unbounded payload: fixed code only
 
 
 def load_program_intent(path: Path) -> ProgramIntent:
-    """Load a program intent from JSON or YAML."""
+    """Load a program intent from JSON or YAML.
 
-    source = path.expanduser().resolve()
-    payload = _load_json_or_yaml(source)
-    if not isinstance(payload, Mapping):
-        raise ValueError("program intent file must contain a mapping/object")
-    resolved_payload = dict(payload)
-    _resolve_program_intent_examples(resolved_payload, source=source)
-    return ProgramIntent.model_validate(resolved_payload)
+    Image-bearing documents fail with fixed codes only. Ordinary text intents keep
+    their validator messages (never Pydantic input values or context).
+    """
+
+    from dspx.image_admission import ImageContractError
+
+    safe_message: str | None = None
+    resolved_payload: dict[str, Any] | None = None
+    try:
+        source = path.expanduser().absolute()
+        payload = image_source_io.load_generation_document(source)
+        if not isinstance(payload, Mapping):
+            raise ImageContractError("image_input_invalid")
+        resolved_payload = dict(payload)
+        image_source_io.resolve_generation_examples(resolved_payload, source=source)
+        return ProgramIntent.model_validate(resolved_payload)
+    except ImageContractError as error:
+        code = error.code
+    except ValidationError as error:
+        safe_message = image_source_io.identifier_validation_message(error)
+        if safe_message is None and _text_only(resolved_payload):
+            safe_message = image_source_io.validation_messages(error)
+        code = "image_input_invalid"
+    except Exception:
+        code = "image_input_invalid"
+    # Leave the catch before raising so neither raw values nor context survive.
+    if safe_message is not None:
+        raise ValueError(safe_message) from None
+    raise ImageContractError(code) from None

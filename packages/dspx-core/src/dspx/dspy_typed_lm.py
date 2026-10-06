@@ -14,7 +14,7 @@ from dspy import (
     LMTransportError,
     LMUnsupportedFeatureError,
 )
-from dspy.core.types import LMTextPart, LMUsage
+from dspy.core.types import LMTextPart
 
 from .openai_compatible_provider import OpenAICompatibleProvider
 from .provider_contract import (
@@ -30,10 +30,6 @@ from .stub_provider import StubProvider
 _ADAPTER_STATE_SCHEMA: Final = "dspx-dspy-typed-lm-state-v1"
 _ADAPTER_CLASS_PATH: Final = "dspx.dspy_typed_lm.DSPyTypedLMAdapter"
 _ALLOWED_ROLES: Final = frozenset({"system", "user", "assistant"})
-_ALLOWED_USAGE_KEYS: Final = frozenset(
-    {"input_tokens", "output_tokens", "total_tokens"}
-)
-_MAX_OUTPUT_CHARS: Final = 1_000_000
 
 
 class _ProviderResultFailure(Exception):
@@ -78,6 +74,17 @@ class DSPyTypedLMAdapter(BaseLM):
             else ReentrantLock()
         )
 
+    def __call__(self, *items, **kwargs):
+        session = getattr(self.provider, "image_session", None)
+        if session is None:
+            return super().__call__(*items, **kwargs)
+        from .image_worker import require_clean_boundary
+
+        require_clean_boundary()
+        from .image_effects import invoke_image_lm
+
+        return invoke_image_lm(self, items, kwargs)
+
     # DSPy 3.3 selects this runtime contract through forward_contract, while its
     # BaseLM annotation still describes the legacy signature.
     def forward(  # ty: ignore[invalid-method-override]
@@ -85,6 +92,11 @@ class DSPyTypedLMAdapter(BaseLM):
     ) -> LMResponse:
         """Serialize invocation through response construction and terminal latching."""
 
+        if getattr(self.provider, "image_session", None) is not None:
+            # Lazy: the text path's module graph never loads the image worker.
+            from .image_worker import require_clean_boundary
+
+            require_clean_boundary()
         with self._operation_lock:
             return self._forward_locked(request)
 
@@ -96,6 +108,14 @@ class DSPyTypedLMAdapter(BaseLM):
                 "DSPx provider invocation effect is indeterminate",
                 code=EffectDisposition.EFFECT_INDETERMINATE.value,
             ) from None
+        if getattr(self.provider, "image_session", None) is not None:
+            from .image_privacy import require_privacy
+            from .provider_contract import image_request_from_lm
+
+            active = require_privacy()
+            active.check()
+            provider_request = image_request_from_lm(request, active.session)
+            return self._typed_response(self.provider.invoke(provider_request))
         provider_request = self._provider_request(request)
         normalized_error: LMTransportError | None = None
         try:
@@ -331,54 +351,9 @@ class DSPyTypedLMAdapter(BaseLM):
         return ProviderRequest(model=self.model, messages=tuple(messages))
 
     def _typed_response(self, result: ProviderResult) -> LMResponse:
-        if type(result) is not ProviderResult:
-            raise TypeError("provider returned an invalid result type")
-        if not isinstance(result.effect_disposition, EffectDisposition):
-            raise TypeError("provider returned an invalid effect disposition")
-        if result.effect_disposition is not EffectDisposition.COMPLETED_SUCCESS:
-            raise _ProviderResultFailure(code=result.effect_disposition.value)
-        if result.model != self.model:
-            raise _ProviderResultFailure(code="provider_model_mismatch")
-        if not isinstance(result.text, str) or len(result.text) > _MAX_OUTPUT_CHARS:
-            raise ValueError("provider result text is invalid or exceeds the bound")
+        from .image_effects import typed_provider_response
 
-        provider_data = dict(result.provider_data)
-        usage_data = dict(result.usage)
-        if type(self.provider) is StubProvider:
-            if provider_data != {"provider_kind": "stub"}:
-                raise ValueError("provider data is not in the stub allowlist")
-            if set(usage_data) != _ALLOWED_USAGE_KEYS or any(
-                value != 0 or isinstance(value, bool) for value in usage_data.values()
-            ):
-                raise ValueError(
-                    "provider usage is not the exact zero-token canary shape"
-                )
-        elif type(self.provider) is OpenAICompatibleProvider:
-            if provider_data != {"provider_kind": "openai-compatible"}:
-                raise ValueError("provider data is not in the HTTP provider allowlist")
-            if usage_data and (
-                set(usage_data) != _ALLOWED_USAGE_KEYS
-                or any(
-                    not isinstance(value, int) or isinstance(value, bool) or value < 0
-                    for value in usage_data.values()
-                )
-            ):
-                raise ValueError("provider usage is incomplete or invalid")
-        else:
-            raise ValueError("provider result is not from an allowlisted provider")
-        provider_data["effect_disposition"] = result.effect_disposition.value
-
-        usage = LMUsage(
-            input_tokens=usage_data.get("input_tokens"),
-            output_tokens=usage_data.get("output_tokens"),
-            total_tokens=usage_data.get("total_tokens"),
-        )
-        return LMResponse.from_text(
-            result.text,
-            model=self.model,
-            usage=usage,
-            provider_data=provider_data,
-        )
+        return typed_provider_response(self, result)
 
     def _transport_error(self, message: str, *, code: str) -> LMTransportError:
         return LMTransportError(

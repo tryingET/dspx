@@ -99,20 +99,37 @@ _HISTORICAL_RUNNER_SHA256 = (
     "f593be0834cb370806a8b5c18ac5a157e6438cf1fcaa7628ee920e47c6e868c6"
 )
 # Historical bytes: 6ea779d0f1af7e8adb2f0a7a4bc499c450b1f890; changes:
-# c617826c (roles/backend), c9a52177 (provider). Synthetic characterization
+# c617826c (roles/backend), c9a52177 (provider), AK6607/AK6760 typed image
+# transport (typed LM, provider contract/registry/stub, provider). Synthetic characterization
 # ONLY: these fixed current bytes confer no live eligibility or production repin.
 _CURRENT_SOURCE_DELTAS = {
+    "packages/dspx-core/src/dspx/dspy_typed_lm.py": (
+        "b4b4127ac151e8fbb6b039d7679cf2169244a37b8fa11e5573843e5b8c64b6f1",
+        "e45f7f35d833d4c7616ae83510ee525979de6f06ba827772ad78434f7c758adf",
+    ),
     "packages/dspx-core/src/dspx/model_roles.py": (
         "a7a4dc03afcbc2726d62ab4b11b951bf8d32c069652d34423c3ec08e751015a2",
         "30c8f3c935e9a59b03f386d6f1525b2fa66bc36735ef611c3b75ae97b1cef8c2",
     ),
     "packages/dspx-core/src/dspx/openai_compatible_provider.py": (
         "df4ed50f569b4e04757592468a7f908f940b8629eef796932423357b688e5241",
-        "f923b5149683dd78cecc61f1b14752ddbccb7cdaeb275acc29d2c8433037b76c",
+        "c81a1d4bc07943c275ade88a65d976c9156a082cecf5c1cb6b4fe6eb8f215b34",
+    ),
+    "packages/dspx-core/src/dspx/provider_contract.py": (
+        "b16640fda28a0b8c6188a3781879d44ee4091e27b7968dce6e57e65e7d5f0fb7",
+        "0d32f4c6b7734e16825e6dd53d164927e069fe2c693272f1418207a276f9dc44",
+    ),
+    "packages/dspx-core/src/dspx/provider_registry.py": (
+        "237fa4d9aa1b153bc3ccf45f5676c29b3efcac4ae32575e1935557a34361a6cb",
+        "15744b59fdf301f44625b7e8e35fe19705925e5e931df7daea263d2f7272a718",
     ),
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py": (
         "ba4c983f12f478f58ef17590b22a68ee241fa8a249f79918de8a2622f6dc60f2",
         "7f44fdfd6cf71f6137ab223595d1339a2135a1c61b76594e4250e162b003598b",
+    ),
+    "packages/dspx-core/src/dspx/stub_provider.py": (
+        "30d17deba346b69982451448c5bb6c368584a31829e0b708e6f2480271c26e6d",
+        "21c9da18e501007dbb51d2e14f2f1627469a6a5299bd0e08637c13d25036b470",
     ),
 }
 
@@ -172,7 +189,7 @@ def _current_source_repository(tmp_path: Path) -> tuple[Path, Path]:
         patched = patched.replace(old, new, 1)
         assert patched.count(old) == 0 and patched.count(new) == 1, relative
         replacements += 1
-    assert replacements == 3
+    assert replacements == len(_CURRENT_SOURCE_DELTAS)
     target_script.write_bytes(patched)
     assert RUNNER.read_bytes() == raw
     return root, target_script
@@ -596,9 +613,10 @@ def test_historical_repository_runner_remains_immutable_and_fail_closed():
     completed = _run([str(RUNNER), "--repo", str(REPO)])
     assert completed.returncode != 0
     assert completed.stdout == ""
+    # The runner fails closed on the first drifted pin in its own preledger order.
+    first = next(relative for relative in pins if relative in drift)
     assert completed.stderr.splitlines()[-1] == (
-        "RuntimeError: reviewed preledger module hash drift: "
-        "packages/dspx-core/src/dspx/model_roles.py"
+        f"RuntimeError: reviewed preledger module hash drift: {first}"
     )
     assert RUNNER.read_bytes() == raw
 
