@@ -100,7 +100,8 @@ def parent_initializer(
             < record["deadlines"]["expires_utc_ms"],
             "image_custody",
         )
-        publish(root_fd, "ready.json", ready)
+        # Claim before publishing: O_EXCL on the lock is the one atomic arbiter between
+        # contending parents, so a loser fails before it writes anything (no residue).
         fd = os.open(
             "lock",
             os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
@@ -111,7 +112,8 @@ def parent_initializer(
             os.fsync(fd)
         finally:
             os.close(fd)
-        os.fsync(root_fd)
+        require(list_root(root_fd) == ["lock"], "image_spent")
+        publish(root_fd, "ready.json", ready)  # its directory fsync covers the lock
 
     return initialize
 
