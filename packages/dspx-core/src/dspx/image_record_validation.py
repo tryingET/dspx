@@ -453,6 +453,11 @@ def validate_artifact_chain(
 
 
 _IMAGE_RUN_KINDS = frozenset({"program-runtime-image", "generated-direct-image"})
+# Image-only commitment rows: a v1 receipt carrying any of them is mixed, never v1.
+_IMAGE_ROWS: frozenset[str] = frozenset(
+    "caller_run_id admission_sha256 input_manifest_sha256 source_package_sha256 "
+    "content_artifact_manifest_sha256".split()
+)
 
 
 def is_image_receipt(receipt: object) -> bool:
@@ -460,9 +465,13 @@ def is_image_receipt(receipt: object) -> bool:
     if type(receipt) is not dict:
         return False
     row = cast(dict[str, Any], receipt)
-    return row.get("run_kind") in _IMAGE_RUN_KINDS or str(
-        row.get("schema_version", "")
-    ).startswith(("dspx-image-", "generated-dspy-direct-image"))
+    return (
+        row.get("run_kind") in _IMAGE_RUN_KINDS
+        or str(row.get("schema_version", "")).startswith(
+            ("dspx-image-", "generated-dspy-direct-image")
+        )
+        or not _IMAGE_ROWS.isdisjoint(row)
+    )
 
 
 def image_receipt_refusal(code: str, *, replay: bool = False) -> dict[str, object]:
