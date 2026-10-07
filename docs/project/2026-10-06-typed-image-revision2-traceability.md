@@ -1,226 +1,290 @@
 ---
-summary: "AK6607 Revision2 red matrix (159 cases) mapped to executing tests after the clean-worker slice; scope source for the follow-up matrix task."
+summary: "AK6607 Revision2 red matrix (159 cases) mapped to executing tests: all 158 in-scope cases covered by AK6756, with the production fixes, as-built deviations and follow-up tasks."
 read_when:
-  - "Executing or extending the Revision2 typed-image red matrix after AK6607."
-  - "Checking which typed-image safety cases have executed test proof."
+  - "Executing or extending the Revision2 typed-image red matrix."
+  - "Checking which typed-image safety cases have executed test proof, or why a case behaves as built."
 type: "reference"
 ---
 
+# Revision2 red matrix — executed-test traceability
 
-# Revision2 red matrix — executed-test traceability (2026-10-06)
-
-Source matrix: `docs/proof/AK-6607/design/red-cases.feature` (local proof custody) (51 scenarios, 159 expanded cases; case ids
-from `docs/proof/AK-6607/refusal-containment/full-target-status.csv`). Mapped by an independent read-only
-agent against the first-review clean-worker tree (manifest `80905a6c…`, local proof), using
-the 23-file regression selection. Strict classes: a test counts only if it executes the
-asserted behavior against production code with a matching assertion.
+Source matrix: `docs/proof/AK-6607/design/red-cases.feature` (local proof custody; 51
+scenarios, 159 expanded cases; case ids from
+`docs/proof/AK-6607/refusal-containment/full-target-status.csv`). AK6607 mapped the matrix
+on 2026-10-06 (8 COVERED, 61 PARTIAL, 89 UNCOVERED). AK6756 (2026-10-07) executed every
+open case. Strict class: a test counts only if it runs the scenario's Then-steps against
+production code with a matching assertion; payload scenarios run inside the guarded clean
+worker (declared `@worker_entry` functions) and publish only codes, counters and hashes.
 
 | Class | Cases |
 |---|---|
-| COVERED | 8 (S05, S12-E01, S12-E09, S14, S28-E01..E04) |
-| PARTIAL | 61 |
-| UNCOVERED | 89 |
+| COVERED | 158 (S11 by an earlier refusal by design, see below) |
 | OUT_OF_SCOPE_BY_DECISION | 1 (S24: design/release acceptance statement) |
 
-The hardening after review adds executed coverage that bears on S16/S31 (observer
-channels: settrace, setprofile, monitoring, signal handlers, gc callbacks, frame
-introspection, all ending the worker before materialization) and S35 (typed
-`LMImagePart` at the sole adapter with exact pixels). Those rows remain PARTIAL until
-re-mapped case by case; no row is promoted here by inference.
+Each fixed row first failed against unchanged production code (red logs kept in local
+proof custody, `docs/proof/AK-6756/<slice>/`). An independent review of the combined
+production diff found nothing blocking; its should-fix items are fixed below.
 
-## Gaps by owning module (effort: S small, M moderate, N new mechanism)
+## Production fixes the matrix found
 
-- **Typed adapter** (`dspy_typed_lm`, `provider_contract`): S04 (S); S06-E01..E15
-  unsupported affordances via a worker entry with a send counter (M); S33 image DTO repr (S).
-- **Source membrane** (`image_source_io`, `image_input_contract`): S07 descriptor
-  defects through the materializer with effect spies (S); S09 request-global budgets incl.
-  >8 MiB / >24 MiB fixtures (S–M); S10 (S); S12 symlink/ancestor/socket/oversize leaves
-  with read spies (S); S13/S25 changed source after prepare (S); S15 envelope parity (M,
-  import-fault half N).
-- **Decoder**: S38 JPEG, S40 iTXt (S); S07-E08..E12 WebP/truncated/warning/codec (S–M);
-  S39 frozen formats/plugins/`LOAD_TRUNCATED_IMAGES` (M).
-- **Admission** (`validate_admission` runs in the parent): S27 all bound rows, S03-E03/
-  E05/E07, S02, S28-E05 (S); S03-E01/E02/E04/E06/E08 drift inside the worker (M); S01 (S–M).
-- **Privacy**: S16, S29, S30, S31-E02/E05..E10, S36 (S); S31-E01/E03 MLflow inside the
-  clean worker (M); S32, S34 ×12 marker-repair spies, S37, S17 (M); S35 spies (S);
-  S11 demo repetition is refused earlier by graph binding (design question).
-- **HTTP effects** (`image_effects`): S21 image redirect, S22-E01..E04, S19 echo,
-  S45 direct-provider finalization, S09-E07/E08/E10 (M); S22-E05/E06, S44-E01/E02 (S);
-  S51 echo (M; worker stdout/stderr half N); S47 trickle + absent-terminal
-  reconciliation (N — no reconciliation code exists).
-- **Custody/records**: S43/S44 publication faults inside a real transaction (M);
-  S20/S23 scan tampering (S); S23 artifact-chain tamper, S26 (M); S46 (M), S48 (S);
-  S42 two-worker contention, S22-E07, S44-E06 kill-after-intent reconciliation (N).
-- **Episode/replay/artifacts**: S18 `capture_replay_fixture=True` refusal (S); S49 mixed
-  rows (S–M). Explicit-anchor receipt check/replay stays refused (AK6717).
-- **Generation preflight/surfaces**: S50 inline examples/dataset/reserved keys (S);
-  retriever/pre-render accounting (M).
+- **Admission** (`image_admission`): the request plan must use every source occurrence,
+  first uses in source order (S27-E03: a reordered plan was accepted). The provider
+  binding checks the session authority's type, bytes and mode before any client exists
+  (S28-E05; defence in depth, since in-worker tampering is outside the threat model).
+- **Effects** (`image_effects`): a completed failure classified `privacy` (an echoed
+  payload) reaches the caller as `image_privacy`, not `image_finalization` (S19).
+- **Privacy** (`image_privacy`, `image_source_profile`): `adapter` and `lm` must be unset
+  in the base settings and every override, so an observer hidden by
+  `dspy.context(adapter=None)` refuses (S30, S31-E09). An import-time identity snapshot
+  of the call-path classes' MROs detects class-level wraps of `ChainOfThought.__call__`/
+  `forward`, `Adapter.__call__` and `Predict.__getattribute__` (S31-E10).
+- **Source membrane and decoder** (`image_input_contract`, `image_decoder`): closed
+  DesignMD envelope key set (S07-E14/E15, and an extra key holding raw base64 that
+  reached the provider as text); `image_url` must be a `data:` URI (S08); verified
+  decoder functions must be real functions bound to their own module (S39: a same-code
+  clone with a foreign registry was accepted).
+- **Custody** (`image_custody`, `image_records`, `image_record_validation`,
+  `image_artifacts`):
+  - the initializer claims the root with an `O_EXCL` lock before `ready.json`, so two
+    contending workers cannot both proceed (S42);
+  - read-only reconciliation (`reconcile_image_custody`): an intent without its terminal
+    is `effect_indeterminate`, never success, and no terminal is minted (S22-E07,
+    S43-E05/E06, S44-E05/E06, S47, S48);
+  - `verify_image_run` refuses a non-success, residue-bearing or unclosed run with
+    `image_spent` and no raw `FileNotFoundError` (S43, S44, S46);
+  - `publish_image_run` refuses before its first write unless every planned attempt
+    succeeded (an HTTP 500 used to publish a full receipt marked `completed`).
+- **Receipts** (`image_record_validation.is_image_receipt`): a v1 receipt carrying any
+  image-only receipt row is an image receipt, refused by check and replay (S49).
+- **Review follow-ups**: reconciliation reports `preflight_rejected` (not
+  `completed_failure`) when nothing dispatched, adds `planned_dispatches`, bounds the
+  root before reading residue and ignores residue whose claim fields are not strings;
+  `publish_image_run` checks the clean boundary and session type before reading custody;
+  `close_run` closes only as `completed` (the only outcome a publishable run can have).
 
-Owner decision AK14133 (2026-10-06) completed AK6607 on its done contract and moved
-execution of this matrix to one follow-up task. Owner decision AK14132 excludes
-detectable parent observers from the boundary (deviation from proposal item 1), so rows
-that assumed a parent-side refusal must be read with that decision.
+## As-built deviations and notes
+
+- **Absent terminal** (S22-E07, S44-E06, S47): reported `effect_indeterminate` with
+  `dispatch_count: null` (unknown), not 1: nothing durable recorded a send, and the
+  report never mints one. A linked success terminal contradicted by complete residue for
+  the same attempt (S44-E05) is also indeterminate.
+- **S11**: demos are refused at graph binding and in the formatter (`image_privacy`), so
+  the demo-repetition precondition cannot be reached; repetition inside the actual
+  request is refused with `image_budget`.
+- **S09-E11/E12**: refusal at limit+1 is proven; inputs exactly at the declared depth and
+  node limits are also refused (fail closed) because derived commitments are bounded
+  more tightly. Follow-up AK6810.
+- **Caller codes**: post-send failures surface as `image_finalization` (S22, S51; the
+  design says "safe interruption", tests accept either fixed code); the provider port
+  wraps a pre-reserve refusal as `image_interruption` chained to the fixed inner code.
+  Follow-up AK6812.
+- **S21**: with logging forced to DEBUG, httpx writes its request line with the admitted
+  endpoint, never the `Location` URL or body; default worker logging emits nothing.
+- **Envelope metadata**: Revision 2 §4 keeps "safe metadata JSON"; as built, the
+  envelope key set is closed (`images` only; `imageDataBase64`, `imageDataMimeType`,
+  `pixelInspectionInputStatus`, an equal `mimeType`), so that segment carries no extra
+  metadata. No in-repo producer sends extra keys. Widening needs a vetted payload-free
+  key list.
+- **Plan order**: holds for the shipped single-predictor routes; a future plan whose
+  later predictor re-reads an earlier field would be refused (fail closed).
+- **Reconciliation** is a parent-side read-only report; shipped routes raise their fixed
+  failure code and do not call it. A root left with a lock but no `ready.json`, or a
+  record left with two links by a kill inside publication, refuses reconciliation with
+  `image_custody` (the root stays spent). Image transfers check the deadline per chunk
+  but not `per_request_io_timeout_ms` across chunks. Follow-up AK6811.
+
+## Test shorthands
+
+ADM `test_image_admission`, TLM `test_dspy_typed_lm`, STUB `test_stub_provider`,
+SIO `test_image_source_io`, ICT `test_image_input_contract`, PROF
+`test_image_source_profile`, PRIV `test_image_privacy`, EFF `test_image_effects`, CUS
+`test_image_custody`, EXE `test_image_execution`, SURF `test_program_surfaces_image_inputs`,
+RDB `test_receipt_domain_boundary` (all under `tests/`).
+
+- ADM: BND `test_s03_parent_refuses_bounds_outside_the_admission`; HELD
+  `test_s03_parent_refuses_drift_against_held_expectations`; WRK
+  `test_s03_send_time_drift_outside_the_admission_is_refused_before_send` (named worker
+  probes); SHIP `test_s03_shipped_route_refuses_body_or_source_drift_before_send`; T27
+  `test_s27_closed_admission_rejects_altered_or_omitted_bound`.
+- TLM: AFF `test_image_mode_unsupported_affordance_rejects_before_transport`.
+- SIO: MAL `test_s07_malformed_image_data_never_enters_effects`; DEC
+  `test_s07_decoder_faults_reject_inside_the_frozen_decoder`; AMB
+  `test_s07_ambiguous_descriptors_reject_before_any_read`.
+- ICT: BUD `test_s09_image_budgets_are_request_global_and_fail_closed`; JSN
+  `test_s09_input_json_bytes_depth_nodes_and_text_are_bounded`; REQ
+  `test_s09_s10_s11_actual_request_occurrences_and_bytes_are_counted`; LOC
+  `test_s12_local_reads_stay_inside_the_explicit_input_parent`; STR
+  `test_s38_s40_structure_and_dimensions_refuse_before_any_pillow_open`.
+- PROF: OBS `test_configured_observer_refuses_before_materialization`; MRK
+  `test_marker_defect_rejects_before_repair_or_lm`.
+- PRIV: HTTP `test_actual_generated_predict_typed_image_to_ordered_fake_http`.
+- CUS: PRE `test_presend_publication_fault_inside_real_reservation_prohibits_send`; POST
+  `test_post_send_failure_latches_and_never_publishes_early_success`.
 
 ## Per-case table
 
-| case | class | executing test nodes or reason | missing piece |
+| case | class | executing test nodes | production |
 |---|---|---|---|
-| AK6607-S01 | PARTIAL | EXE::refusal[execute,episode,generated-execute,request-execute]; EPI::test_runtime_input_materialization_denies_unadmitted_image_file_descriptors; SURF::test_production_direct_runner_denies_unadmitted_image_before_import | no 6 valid ceiling-sized images with network.mutate on; no probe/fallback spies |
-| AK6607-S02 | PARTIAL | EXE::sessions[*-session4]; RDB::test_anchored_receipt_refusal_before_parent_access[*-copied-*] | no schema-valid live admission-v2 JSON through validate_admission/execute |
-| AK6607-S03-E01 | PARTIAL | OCP::test_endpoint_is_revalidated_immediately_before_dispatch (text path) | admission-bound image endpoint drift |
-| AK6607-S03-E02 | PARTIAL | STUB::test_stub_preflight_rejection_records_zero_dispatch_attempt (stub text) | admitted-model drift on image path |
-| AK6607-S03-E03 | UNCOVERED | - | request image count > admission limit |
-| AK6607-S03-E04 | PARTIAL | PRIV::fake_http[wall_drift]; SUP::deadline[wall] | per-request IO timeout > admitted |
-| AK6607-S03-E05 | UNCOVERED | - | max_image_bytes drift |
-| AK6607-S03-E06 | UNCOVERED | - | max_request_body_bytes drift |
-| AK6607-S03-E07 | UNCOVERED | - | source changed vs admission/preparation |
-| AK6607-S03-E08 | PARTIAL | PRIV::fake_http[binding],[replacement] | no rejection of foreign/reused binding before send |
-| AK6607-S04 | UNCOVERED | - (TLM tests only text metadata/config) | LMRequest[text,image,text] into DSPyTypedLMAdapter(StubProvider) |
-| AK6607-S05 | COVERED | STUB::test_stub_denies_nominal_parts_even_in_direct_fixture_mode; STUB::test_direct_stub_rejects_malformed_image_union_before_fixture | - |
-| AK6607-S06-E01 | PARTIAL | INC::membrane[remote] | https; typed adapter (image_request_from_lm) |
-| AK6607-S06-E02 | PARTIAL | INC::b64[https://127.0.0.1/image.png] (primitive) | typed adapter + send counter |
-| AK6607-S06-E03 | UNCOVERED | - | file:// image part |
-| AK6607-S06-E04 | UNCOVERED | - | file_id part |
-| AK6607-S06-E05 | UNCOVERED | - | LMImagePart(path=) |
-| AK6607-S06-E06 | UNCOVERED | - | image part metadata |
-| AK6607-S06-E07 | UNCOVERED | - | assistant-role image |
-| AK6607-S06-E08 | UNCOVERED | - | system-role image |
-| AK6607-S06-E09 | UNCOVERED | - | detail=high |
-| AK6607-S06-E10 | UNCOVERED | - | detail=auto |
-| AK6607-S06-E11 | UNCOVERED | - | audio part |
-| AK6607-S06-E12 | UNCOVERED | - | document part |
-| AK6607-S06-E13 | UNCOVERED | - | tools in request |
-| AK6607-S06-E14 | PARTIAL | TLM::test_async_rejects_before_provider_effect_without_thread_fallback (text) | image-mode acall/aforward |
-| AK6607-S06-E15 | PARTIAL | TLM::test_unsupported_typed_features_reject_before_provider_effect[config-generation_config] (text) | image-mode config override |
-| AK6607-S07-E01 | PARTIAL | INC::b64[-_==],[https://127.0.0.1/image.png] | not via materializer/typed adapter; no error/log/receipt payload check |
-| AK6607-S07-E02 | PARTIAL | INC::b64[-_==] | same |
-| AK6607-S07-E03 | PARTIAL | INC::b64["QUJD "],["QUJD\n"] | same |
-| AK6607-S07-E04 | PARTIAL | INC::b64[QQ],[QQ===],[QR==] | same |
-| AK6607-S07-E05 | PARTIAL | INC::b64[<empty string>] | same |
-| AK6607-S07-E06 | UNCOVERED | - | PNG bytes declared image/jpeg (or reverse) |
-| AK6607-S07-E07 | UNCOVERED | - | image/svg+xml |
-| AK6607-S07-E08 | PARTIAL | INC::chunks[acTL] (scanner) | via materializer; log/receipt check |
-| AK6607-S07-E09 | UNCOVERED | - | WebP |
-| AK6607-S07-E10 | UNCOVERED | - (baseline JPEG test covers trailing bytes only) | truncated JPEG |
-| AK6607-S07-E11 | UNCOVERED | - | decompression warning |
-| AK6607-S07-E12 | UNCOVERED | - | absent codec |
-| AK6607-S07-E13 | UNCOVERED | - | non-Frozen decoder -> image_decoder_unavailable |
-| AK6607-S07-E14 | UNCOVERED | - | alias conflict (mimeType vs imageDataMimeType, extra keys) |
-| AK6607-S07-E15 | UNCOVERED | - | descriptor with two sources |
-| AK6607-S07-E16 | PARTIAL | ADM::test_admission_rejects_forged_or_noncanonical_identity (shared parse_json) | duplicate key in input descriptor |
-| AK6607-S08 | PARTIAL | INC::b64[data:image/png,QUJD],[data:image/png;foo=x;base64,QUJD] | via protected entry with callback/send spies |
-| AK6607-S09-E01 | UNCOVERED | - | 7th occurrence |
-| AK6607-S09-E02 | UNCOVERED | - | per-image bytes +1 |
-| AK6607-S09-E03 | UNCOVERED | - | summed bytes +1 |
-| AK6607-S09-E04 | PARTIAL | INC::dims[size2] (scanner) | exactly +1 over admitted pixels; no-partial-dispatch |
-| AK6607-S09-E05 | PARTIAL | INC::dims[size0] (scanner) | admission/request level; no-partial-dispatch |
-| AK6607-S09-E06 | PARTIAL | INC::dims[size1] (scanner) | same |
-| AK6607-S09-E07 | UNCOVERED | - | raw input JSON bytes |
-| AK6607-S09-E08 | UNCOVERED | - | HTTP body bytes |
-| AK6607-S09-E09 | UNCOVERED | - | text chars |
-| AK6607-S09-E10 | UNCOVERED | - | total parts |
-| AK6607-S09-E11 | UNCOVERED | - | input depth |
-| AK6607-S09-E12 | UNCOVERED | - | input nodes |
-| AK6607-S10 | UNCOVERED | - (membrane[positive] uses 2 identical images) | 7 identical occurrences |
-| AK6607-S11 | UNCOVERED | - | demo repetition (demos refused earlier at graph binding) |
-| AK6607-S12-E01 | COVERED | INC::membrane[outside]; INC::paths[/absolute.png] | - |
-| AK6607-S12-E02 | PARTIAL | INC::paths[../escape.png],[a/../escape.png] | existing forbidden target + read spy |
-| AK6607-S12-E03 | PARTIAL | INC::paths[~/input] | same |
-| AK6607-S12-E04 | UNCOVERED | - | symlink leaf pointing outside root |
-| AK6607-S12-E05 | PARTIAL | INC::symlink | read spy on target |
-| AK6607-S12-E06 | UNCOVERED | - | symlinked ancestor dir |
-| AK6607-S12-E07 | PARTIAL | INC::fifo | os.read spy |
-| AK6607-S12-E08 | UNCOVERED | - | socket leaf |
-| AK6607-S12-E09 | COVERED | INC::ancestor | - |
-| AK6607-S12-E10 | UNCOVERED | - | file > limit |
-| AK6607-S13 | UNCOVERED | - | changed bytes, same name -> new commitments; old admission rejects |
-| AK6607-S14 | COVERED | PRIV::fake_http[original]; EXE::shipped wire block kinds | - |
-| AK6607-S15 | PARTIAL | EXE::shipped[*-episode],[*-direct] (shared _prepare) | envelope parity; malformed envelope both paths; missing-import fallback |
-| AK6607-S16 | PARTIAL | INC::history[True]; WRK::observer falsifiers; PRIV::fake_http[original]; EXE::real_provider_session_mutation | DSPy global/instance callback inside worker; repr/model_dump |
-| AK6607-S17 | PARTIAL | EPI::...denies_unadmitted_image_file_descriptors; SURF::...denies_unadmitted_image_before_import | after-materialization Image.format cache spy, LM cache, context cleared |
-| AK6607-S18 | PARTIAL | EXE::shipped (no replay fixture; replay refused); RDB ordinary tests; OCR::test_pre_ak4778_stub_runtime_remains_valid_and_replay_readable | capture_replay_fixture=True with image_execution -> image_replay_unsupported |
-| AK6607-S19 | UNCOVERED | - | echoing completion -> completed_failure(privacy), nothing written |
-| AK6607-S20 | PARTIAL | INC::membrane[positive]; REC::noreplace | two attempts with distinct UUIDs; duplicate/foreign attempt_id rejection |
-| AK6607-S21 | PARTIAL | OCP::test_fully_read_non_success_is_completed_failure_without_retry[302]; OCP::test_owned_client_has_no_ambient_auth_cookies_redirects_or_retry (text) | image path; Location header; no-logging check |
-| AK6607-S22-E01 | PARTIAL | OCP::test_transport_and_read_failures_are_indeterminate_without_retry; OCP::test_indeterminate_latches_without_a_second_attempt_or_dispatch (text) | image custody/terminal path |
-| AK6607-S22-E02 | PARTIAL | same (FailingStream, text) | same |
-| AK6607-S22-E03 | UNCOVERED | - | KeyboardInterrupt in send |
-| AK6607-S22-E04 | UNCOVERED | - | SystemExit in read |
-| AK6607-S22-E05 | PARTIAL | PRIV::fake_http[typed_interrupt] | later call/retry/fallback denial; no-score |
-| AK6607-S22-E06 | PARTIAL | PRIV::fake_http[validation_interrupt],[cleanup_interrupt] | same |
-| AK6607-S22-E07 | UNCOVERED | - (no parent-side reconciliation) | absent terminal -> indeterminate |
-| AK6607-S23 | PARTIAL | REC::scan[count,result,typed,response,bytes,model,time]; OCP::test_attempt_history_is_bounded_and_truncation_is_explicit (text) | attempt-id/hash tamper in receipt or artifact chain; image truncation |
+| AK6607-S01 | COVERED | ADM::test_s01_code_defaults_without_owner_bound_admission_refuse_before_effects | proof-only |
+| AK6607-S02 | COVERED | ADM::test_s02_copied_live_admission_file_is_not_operator_authority | proof-only |
+| AK6607-S03-E01 | COVERED | ADM::BND[E01]; HELD[E01]; WRK (e01 probes) | proof-only |
+| AK6607-S03-E02 | COVERED | ADM::BND[E02]; HELD[E02]; WRK (e02 probes) | proof-only |
+| AK6607-S03-E03 | COVERED | ADM::BND[E03]; HELD[E03] | proof-only |
+| AK6607-S03-E04 | COVERED | ADM::BND[E04]; WRK (e04_send_timeout) | proof-only |
+| AK6607-S03-E05 | COVERED | ADM::BND[E05]; HELD[E05] | proof-only |
+| AK6607-S03-E06 | COVERED | ADM::BND[E06]; SHIP[AK6607-S03-E06] | proof-only |
+| AK6607-S03-E07 | COVERED | ADM::HELD[E07]; SHIP[AK6607-S03-E07] | proof-only |
+| AK6607-S03-E08 | COVERED | ADM::HELD[E08]; WRK (e08 probes, parent re-initialization) | proof-only |
+| AK6607-S04 | COVERED | STUB::test_native_typed_image_to_stub_is_not_a_text_canary[*] | proof-only |
+| AK6607-S05 | COVERED | STUB::test_stub_denies_nominal_parts_even_in_direct_fixture_mode; STUB::test_direct_stub_rejects_malformed_image_union_before_fixture | AK6607 |
+| AK6607-S06-E01 | COVERED | TLM::AFF[E01-remote_https_url] | proof-only |
+| AK6607-S06-E02 | COVERED | TLM::AFF[E02-loopback_image_url] | proof-only |
+| AK6607-S06-E03 | COVERED | TLM::AFF[E03-file_url] | proof-only |
+| AK6607-S06-E04 | COVERED | TLM::AFF[E04-file_id] | proof-only |
+| AK6607-S06-E05 | COVERED | TLM::AFF[E05-typed_local_path] | proof-only |
+| AK6607-S06-E06 | COVERED | TLM::AFF[E06-image_metadata] | proof-only |
+| AK6607-S06-E07 | COVERED | TLM::AFF[E07-assistant_image] | proof-only |
+| AK6607-S06-E08 | COVERED | TLM::AFF[E08-system_image] | proof-only |
+| AK6607-S06-E09 | COVERED | TLM::AFF[E09-detail_high] | proof-only |
+| AK6607-S06-E10 | COVERED | TLM::AFF[E10-detail_auto] | proof-only |
+| AK6607-S06-E11 | COVERED | TLM::AFF[E11-audio_part] | proof-only |
+| AK6607-S06-E12 | COVERED | TLM::AFF[E12-document_part] | proof-only |
+| AK6607-S06-E13 | COVERED | TLM::AFF[E13-tool_call] | proof-only |
+| AK6607-S06-E14 | COVERED | TLM::AFF[E14-async_invocation] | proof-only |
+| AK6607-S06-E15 | COVERED | TLM::AFF[E15-generation_override] | proof-only |
+| AK6607-S07-E01 | COVERED | SIO::MAL[E01-invalid-alphabet] | proof-only |
+| AK6607-S07-E02 | COVERED | SIO::MAL[E02-url-safe] | proof-only |
+| AK6607-S07-E03 | COVERED | SIO::MAL[E03-whitespace] | proof-only |
+| AK6607-S07-E04 | COVERED | SIO::MAL[E04-noncanonical-padding] | proof-only |
+| AK6607-S07-E05 | COVERED | SIO::MAL[E05-empty] | proof-only |
+| AK6607-S07-E06 | COVERED | SIO::MAL[E06-mime-mismatch] | proof-only |
+| AK6607-S07-E07 | COVERED | SIO::MAL[E07-svg] | proof-only |
+| AK6607-S07-E08 | COVERED | SIO::MAL[E08-animated-png] | proof-only |
+| AK6607-S07-E09 | COVERED | SIO::MAL[E09-webp] | proof-only |
+| AK6607-S07-E10 | COVERED | SIO::MAL[E10-truncated-jpeg] | proof-only |
+| AK6607-S07-E11 | COVERED | SIO::DEC[E11-decoder-warning] (warning injected into the native decoders) | proof-only |
+| AK6607-S07-E12 | COVERED | SIO::DEC[E12-absent-codec] | proof-only |
+| AK6607-S07-E13 | COVERED | SIO::test_s07_e13_absent_or_unfrozen_decoder_is_unavailable | proof-only |
+| AK6607-S07-E14 | COVERED | SIO::AMB[E14-alias-conflict] | fixed (closed envelope) |
+| AK6607-S07-E15 | COVERED | SIO::AMB[E15-multiple-sources] | fixed (closed envelope) |
+| AK6607-S07-E16 | COVERED | SIO::AMB[E16-duplicate-key] | proof-only |
+| AK6607-S08 | COVERED | SIO::test_s08_image_url_without_canonical_base64_header_is_never_laundered | fixed (`data:` only) |
+| AK6607-S09-E01 | COVERED | ICT::BUD[E01-occurrences] | proof-only |
+| AK6607-S09-E02 | COVERED | ICT::BUD[E02-image-bytes] | proof-only |
+| AK6607-S09-E03 | COVERED | ICT::BUD[E03-summed-bytes] | proof-only |
+| AK6607-S09-E04 | COVERED | ICT::BUD[E04-pixels] | proof-only |
+| AK6607-S09-E05 | COVERED | ICT::BUD[E05-width] | proof-only |
+| AK6607-S09-E06 | COVERED | ICT::BUD[E06-height] | proof-only |
+| AK6607-S09-E07 | COVERED | ICT::JSN (raw input JSON bytes) | proof-only |
+| AK6607-S09-E08 | COVERED | ICT::REQ (HTTP body bytes) | proof-only |
+| AK6607-S09-E09 | COVERED | ICT::JSN (text characters) | proof-only (closed envelope counts all text) |
+| AK6607-S09-E10 | COVERED | ICT::REQ (total parts) | proof-only |
+| AK6607-S09-E11 | COVERED | ICT::JSN (input depth, limit+1) | proof-only; AK6810 |
+| AK6607-S09-E12 | COVERED | ICT::JSN (input nodes, limit+1) | proof-only; AK6810 |
+| AK6607-S10 | COVERED | ICT::REQ | proof-only |
+| AK6607-S11 | COVERED | ICT::REQ; refusal at graph binding and formatter (see notes) | proof-only |
+| AK6607-S12-E01 | COVERED | ICT::LOC; ICT membrane[outside] and paths[/absolute.png] (AK6607) | proof-only |
+| AK6607-S12-E02 | COVERED | ICT::LOC | proof-only |
+| AK6607-S12-E03 | COVERED | ICT::LOC | proof-only |
+| AK6607-S12-E04 | COVERED | ICT::LOC | proof-only |
+| AK6607-S12-E05 | COVERED | ICT::LOC | proof-only |
+| AK6607-S12-E06 | COVERED | ICT::LOC | proof-only |
+| AK6607-S12-E07 | COVERED | ICT::LOC | proof-only |
+| AK6607-S12-E08 | COVERED | ICT::LOC | proof-only |
+| AK6607-S12-E09 | COVERED | ICT::LOC; ICT ancestor (AK6607) | proof-only |
+| AK6607-S12-E10 | COVERED | ICT::LOC | proof-only |
+| AK6607-S13 | COVERED | SIO::test_s13_same_filename_with_new_pixels_gets_new_identity | proof-only |
+| AK6607-S14 | COVERED | PRIV::HTTP[original]; EXE shipped wire block kinds | AK6607 |
+| AK6607-S15 | COVERED | SURF::test_s15_designmd_envelope_and_descriptor_share_one_membrane_in_both_routes; SURF::test_s15_envelope_materializer_parity_inside_the_clean_worker; SURF::test_s15_malformed_envelope_rejects_in_both_preparation_paths; SURF::test_s15_missing_image_helper_import_never_falls_back; EXE::test_s25_changed_source_after_prepare_refuses_before_ready_publication[malformed-envelope-*]; SIO::test_s15_extra_envelope_key_is_refused_before_any_decode | fixed (closed envelope) |
+| AK6607-S16 | COVERED | PROF::OBS[S16-global-callback, S16-instance-callback, S16-S31E06-substituted-trace-list, S16-S31E04-global-lm-history] | proof-only |
+| AK6607-S17 | COVERED | PROF::MRK[S17-interrupted-marker-scan] and every S34 case (post-run state) | proof-only |
+| AK6607-S18 | COVERED | RDB::test_s18_replay_capture_with_image_execution_refuses_before_any_work[poison, prepared] | proof-only |
+| AK6607-S19 | COVERED | EFF::test_s19_echoing_completion_is_completed_privacy_failure_with_nothing_written[base64, data_uri, marker] | fixed (`image_privacy`) |
+| AK6607-S20 | COVERED | EFF::test_s20_identical_requests_get_distinct_attempts_and_reject_duplicates | proof-only |
+| AK6607-S21 | COVERED | EFF::test_s21_redirect_is_one_completed_failure_without_location_logging | proof-only |
+| AK6607-S22-E01 | COVERED | EFF::test_s22_uncertain_image_effect_terminalizes_and_latches[send_error] | proof-only |
+| AK6607-S22-E02 | COVERED | EFF::test_s22_…[read_error] | proof-only |
+| AK6607-S22-E03 | COVERED | EFF::test_s22_…[send_interrupt] | proof-only |
+| AK6607-S22-E04 | COVERED | EFF::test_s22_…[read_exit] | proof-only |
+| AK6607-S22-E05 | COVERED | EFF::test_s22_…[typed_error] | proof-only |
+| AK6607-S22-E06 | COVERED | EFF::test_s22_…[finalize_error] | proof-only |
+| AK6607-S22-E07 | COVERED | CUS::POST[terminal_missing-None-3] | fixed (reconciliation) |
+| AK6607-S23 | COVERED | EFF::test_s23_projection_tampering_cannot_create_success_or_no_effect[7 tampers] | proof-only |
 | AK6607-S24 | OUT_OF_SCOPE_BY_DECISION | design/release acceptance statement; receiver/release/full-gate acceptance not authorized | - |
-| AK6607-S25 | PARTIAL | INC::membrane[positive]; EXE::shipped | Module/Predict counters on production prepare; changed source -> reject before ready.json |
-| AK6607-S26 | PARTIAL | EXE::shipped (S->A->M->R; verify_image_run ok) | source change invalidates downstream; cyclic/self-hash rejection |
-| AK6607-S27-E01 | UNCOVERED | - | source_package_sha256 alter/omit |
-| AK6607-S27-E02 | PARTIAL | PRIV::fake_http[plan] (detached view) | altered/omitted admission bytes rejected; unknown keys/bools/floats |
-| AK6607-S27-E03 | PARTIAL | PRIV::fake_http[plan] | same |
-| AK6607-S27-E04 | UNCOVERED | - | max_response_bytes |
-| AK6607-S27-E05 | UNCOVERED | - | max_output_artifact_bytes |
-| AK6607-S27-E06 | PARTIAL | PRIV::fake_http[limits] | same as E02 |
-| AK6607-S27-E07 | UNCOVERED | - | not_before_utc_ms |
-| AK6607-S27-E08 | PARTIAL | SUP::deadline[expiry]; PRIV::fake_http[deadlines] | omission/type laundering |
-| AK6607-S27-E09 | PARTIAL | PRIV::fake_http[wall_drift]; SUP::deadline[wall] | same |
-| AK6607-S27-E10 | UNCOVERED | - | caller_expectation_sha256 |
-| AK6607-S27-E11 | UNCOVERED | - | root_ino |
-| AK6607-S27-E12 | UNCOVERED | - | runtime_identity_sha256 |
-| AK6607-S27-E13 | UNCOVERED | - | decoder_profile_sha256 |
-| AK6607-S28-E01 | COVERED | PRIV::fake_http[original] (transport None; default transport and Client spies) | - |
-| AK6607-S28-E02 | COVERED | PRIV::fake_http[original] (HTTPTransport) | - |
-| AK6607-S28-E03 | COVERED | PRIV::fake_http[original] (BaseTransport()) | - |
-| AK6607-S28-E04 | COVERED | PRIV::fake_http[original] (MockTransport subclass) | - |
-| AK6607-S28-E05 | UNCOVERED | - (sessions[*-session4] is parent-only) | live-mode record with SyntheticImageAuthority |
-| AK6607-S29 | UNCOVERED | - (SPR drift test related) | nested Predict instance callback |
-| AK6607-S30 | UNCOVERED | - | callback in base settings hidden by override |
-| AK6607-S31-E01 | UNCOVERED | - | MLflow autolog |
-| AK6607-S31-E02 | UNCOVERED | - | retained safe_patch / SDK __wrapped__ |
-| AK6607-S31-E03 | UNCOVERED | - | active MLflow run |
-| AK6607-S31-E04 | PARTIAL | INC::history[True] | worker history not-cleared assertion |
-| AK6607-S31-E05 | UNCOVERED | - | nonempty module history |
-| AK6607-S31-E06 | UNCOVERED | - | substituted dspy trace list |
-| AK6607-S31-E07 | UNCOVERED | - | send_stream |
-| AK6607-S31-E08 | UNCOVERED | - | stream_listeners |
-| AK6607-S31-E09 | UNCOVERED | - | custom dspy.settings.adapter |
-| AK6607-S31-E10 | PARTIAL | SPR::drift[instance_forward] | class-level Predict.__call__ wrapping |
-| AK6607-S32 | UNCOVERED | - | incompatible annotation + warn_on_type_mismatch logger spy |
-| AK6607-S33 | PARTIAL | STUB::test_provider_text_dtos_do_not_format_payload_repr; SURF::test_image_loader_exception_has_no_payload_context_chain; OCP::test_adapter_failure_is_constant_redacted_and_cause_free | repr of image DTOs/parts/echo response |
-| AK6607-S34-E01 | UNCOVERED | - | marker defect + json_repair/expansion spies |
-| AK6607-S34-E02 | UNCOVERED | - | same |
-| AK6607-S34-E03 | UNCOVERED | - | same |
-| AK6607-S34-E04 | UNCOVERED | - | same |
-| AK6607-S34-E05 | UNCOVERED | - | same |
-| AK6607-S34-E06 | UNCOVERED | - | same |
-| AK6607-S34-E07 | UNCOVERED | - | same |
-| AK6607-S34-E08 | UNCOVERED | - | same |
-| AK6607-S34-E09 | UNCOVERED | - | same |
-| AK6607-S34-E10 | UNCOVERED | - | same |
-| AK6607-S34-E11 | UNCOVERED | - | same |
-| AK6607-S34-E12 | UNCOVERED | - | same |
-| AK6607-S35 | PARTIAL | PRIV::fake_http[original]; EXE::shipped | marker-expansion/json_repair spies; typed-boundary part spy (typed spy since restored in PRIV) |
-| AK6607-S36 | UNCOVERED | - | demos/History refusal |
-| AK6607-S37 | UNCOVERED | - | unparsable response + JSONAdapter spies |
-| AK6607-S38 | PARTIAL | INC::dims[size0,size1,size2] | JPEG header case; load/decompress spy |
-| AK6607-S39 | UNCOVERED | - | formats arg / plugin / LOAD_TRUNCATED / WebP |
-| AK6607-S40 | PARTIAL | INC::chunks[iCCP,tEXt,acTL,eXIf,zTXt] | iTXt |
-| AK6607-S41 | PARTIAL | INC::fifo | os.read spy |
-| AK6607-S42 | UNCOVERED | - | two contending workers on one custody root |
-| AK6607-S43-E01 | UNCOVERED | - | pending-file create fault |
-| AK6607-S43-E02 | UNCOVERED | - | partial write |
-| AK6607-S43-E03 | UNCOVERED | - | file fsync fault |
-| AK6607-S43-E04 | PARTIAL | REC::noreplace | inside real intent-1 reservation; no-send; reconstruction |
-| AK6607-S43-E05 | PARTIAL | REC::dirfsync | same |
-| AK6607-S43-E06 | UNCOVERED | - | readback mismatch |
-| AK6607-S44-E01 | PARTIAL | PRIV::fake_http[validation_interrupt],[cleanup_interrupt] | read-only reconstruction refusal |
-| AK6607-S44-E02 | PARTIAL | PRIV::fake_http[typed_interrupt] | same |
-| AK6607-S44-E03 | UNCOVERED | - | BaseLM finalization fault |
-| AK6607-S44-E04 | UNCOVERED | - | terminal write fault |
-| AK6607-S44-E05 | PARTIAL | REC::dirfsync (terminal-1.json) | real post-send tx; latch/reconstruction |
-| AK6607-S44-E06 | PARTIAL | SUP::reaped[signal] | durable intent + send entered; reconciliation |
-| AK6607-S45 | UNCOVERED | - | direct provider.invoke in image mode -> finalization_kind direct_provider |
-| AK6607-S46 | UNCOVERED | - (PRIV close_run token check related) | artifact/closure publication fault burns run |
-| AK6607-S47 | PARTIAL | SUP::reaped[deadline]; SUP::descendant[*]; SUP::parent_initialization_watchdog; SUP::monotonic_origin | trickling response; absent-terminal reconciliation (not implemented) |
-| AK6607-S48 | PARTIAL | EXE::shipped (verify spent; check/replay refused) | re-initialize over spent roots -> image_spent (since added in PRIV register_* views) |
-| AK6607-S49 | PARTIAL | EXE::shipped; RDB::test_ordinary_*; OCR::test_pre_ak4778_stub_runtime_remains_valid_and_replay_readable | mixed v1/image rows rejection; anchored check refused by AK6717 |
-| AK6607-S50 | PARTIAL | SURF image examples/loader tests; SIO::test_attachment_privacy_branch_does_not_redefine_text_attachments | inline examples/dataset keys; direct render_signature_surface guard; retriever accounting |
-| AK6607-S51 | PARTIAL | EXE::shipped (artifact/custody payload scans, benign response) | echo response; stdout/stderr/cache/MLflow/_last_runtime_trace |
+| AK6607-S25 | COVERED | EXE::test_s25_prepare_only_runs_no_module_lm_provider_session_or_ready[False, True]; EXE::test_s25_changed_source_after_prepare_refuses_before_ready_publication[pixels-*] | proof-only |
+| AK6607-S26 | COVERED | EXE::test_s26_commitments_run_s_a_m_r_and_a_changed_occurrence_breaks_every_link | proof-only |
+| AK6607-S27-E01 | COVERED | ADM::T27[AK6607-S27-E01-*] | proof-only |
+| AK6607-S27-E02 | COVERED | ADM::T27[AK6607-S27-E02-*] (refused through the preparation binding) | proof-only |
+| AK6607-S27-E03 | COVERED | ADM::T27[AK6607-S27-E03-*] | fixed (plan order) |
+| AK6607-S27-E04 | COVERED | ADM::T27[AK6607-S27-E04-*] | proof-only |
+| AK6607-S27-E05 | COVERED | ADM::T27[AK6607-S27-E05-*] | proof-only |
+| AK6607-S27-E06 | COVERED | ADM::T27[AK6607-S27-E06-*] | proof-only |
+| AK6607-S27-E07 | COVERED | ADM::T27[AK6607-S27-E07-*] | proof-only |
+| AK6607-S27-E08 | COVERED | ADM::T27[AK6607-S27-E08-*] | proof-only |
+| AK6607-S27-E09 | COVERED | ADM::T27[AK6607-S27-E09-*] | proof-only |
+| AK6607-S27-E10 | COVERED | ADM::T27[AK6607-S27-E10-*] | proof-only |
+| AK6607-S27-E11 | COVERED | ADM::T27[AK6607-S27-E11-*] | proof-only |
+| AK6607-S27-E12 | COVERED | ADM::T27[AK6607-S27-E12-*] | proof-only |
+| AK6607-S27-E13 | COVERED | ADM::T27[AK6607-S27-E13-*] | proof-only |
+| AK6607-S28-E01 | COVERED | PRIV::HTTP[original] (transport None; default transport and Client spies) | AK6607 |
+| AK6607-S28-E02 | COVERED | PRIV::HTTP[original] (HTTPTransport) | AK6607 |
+| AK6607-S28-E03 | COVERED | PRIV::HTTP[original] (BaseTransport()) | AK6607 |
+| AK6607-S28-E04 | COVERED | PRIV::HTTP[original] (MockTransport subclass) | AK6607 |
+| AK6607-S28-E05 | COVERED | ADM::test_s28_e05_synthetic_to_live_flag_is_refused_before_provider_factory[*]; WRK (s28 probes) | fixed (authority binding) |
+| AK6607-S29 | COVERED | PROF::OBS[S29-nested-predict-instance-callback] | proof-only |
+| AK6607-S30 | COVERED | PROF::OBS[S30-base-callback-hidden-by-override, S30-base-adapter-callback-hidden, S30-base-lm-callback-hidden] | fixed (unset adapter/lm) |
+| AK6607-S31-E01 | COVERED | PROF::OBS[S31E01-mlflow-imported, S31E01-mlflow-autolog] | proof-only |
+| AK6607-S31-E02 | COVERED | PROF::OBS[S31E02-disabled-retained-safe-patch, S31E02-retained-sdk-wrapper] | proof-only |
+| AK6607-S31-E03 | COVERED | PROF::OBS[S31E03-active-mlflow-run] | proof-only |
+| AK6607-S31-E04 | COVERED | PROF::OBS[S16-S31E04-global-lm-history] | proof-only |
+| AK6607-S31-E05 | COVERED | PROF::OBS[S31E05-module-history] | proof-only |
+| AK6607-S31-E06 | COVERED | PROF::OBS[S16-S31E06-substituted-trace-list, S31E06-substituted-trace-override] | proof-only |
+| AK6607-S31-E07 | COVERED | PROF::OBS[S31E07-send-stream] | proof-only |
+| AK6607-S31-E08 | COVERED | PROF::OBS[S31E08-stream-listener] | proof-only |
+| AK6607-S31-E09 | COVERED | PROF::OBS[S31E09-custom-adapter, S31E09-custom-adapter-hidden] | fixed (hidden variant) |
+| AK6607-S31-E10 | COVERED | PROF::OBS[S31E10-class-predict-call, -chain-of-thought-call, -chain-of-thought-forward, -adapter-call, -predict-getattribute] | fixed (class snapshot) |
+| AK6607-S32 | COVERED | PROF::test_incompatible_image_annotation_never_reaches_value_warning[int, list[int]] | proof-only |
+| AK6607-S33 | COVERED | STUB::test_nominal_dtos_and_fixed_errors_never_format_payloads; TLM::test_image_mode_nominal_repr_and_parse_failure_are_payload_free | proof-only |
+| AK6607-S34-E01 | COVERED | PROF::MRK[S34E01-json-repair-recoverable-missing-quote] | proof-only |
+| AK6607-S34-E02 | COVERED | PROF::MRK[S34E02-doubly-quoted-payload] | proof-only |
+| AK6607-S34-E03 | COVERED | PROF::MRK[S34E03-orphan-start] | proof-only |
+| AK6607-S34-E04 | COVERED | PROF::MRK[S34E04-orphan-end] | proof-only |
+| AK6607-S34-E05 | COVERED | PROF::MRK[S34E05-nested-marker] | proof-only |
+| AK6607-S34-E06 | COVERED | PROF::MRK[S34E06-added-image-block-key] | proof-only |
+| AK6607-S34-E07 | COVERED | PROF::MRK[S34E07-dropped-field] | proof-only |
+| AK6607-S34-E08 | COVERED | PROF::MRK[S34E08-multiple-blocks-in-one-marker] | proof-only |
+| AK6607-S34-E09 | COVERED | PROF::MRK[S34E09-unregistered-marker-in-plain-text] | proof-only |
+| AK6607-S34-E10 | COVERED | PROF::MRK[S34E10-registered-marker-moved-to-other-slot] | proof-only |
+| AK6607-S34-E11 | COVERED | PROF::MRK[S34E11-repeated-marker-outside-request-plan] | proof-only |
+| AK6607-S34-E12 | COVERED | PROF::MRK[S34E12-changed-canonical-marker-bytes] | proof-only |
+| AK6607-S35 | COVERED | PRIV::HTTP[original] and the other success views (repair, expansion and JSONAdapter spies at zero) | proof-only |
+| AK6607-S36 | COVERED | PROF::OBS[S36-text-only-demos, S36-conversation-history-demo] | proof-only |
+| AK6607-S37 | COVERED | PRIV::HTTP[unparsable] | proof-only |
+| AK6607-S38 | COVERED | ICT::STR (JPEG 8193×1, 1×8193, 4001×4000) | proof-only |
+| AK6607-S39 | COVERED | ICT::test_s39_frozen_formats_and_plugin_identity_cannot_be_widened | fixed (decoder identity) |
+| AK6607-S40 | COVERED | ICT::STR; ICT::test_unsupported_png_chunks_refused_without_native_open[iTXt] | proof-only |
+| AK6607-S41 | COVERED | ICT::test_fifo_open_is_nofollow_nonblocking_before_fstat; ICT::LOC (FIFO) | proof-only |
+| AK6607-S42 | COVERED | CUS::test_two_contending_workers_cannot_both_claim_one_custody_root | fixed (root claim) |
+| AK6607-S43-E01 | COVERED | CUS::PRE[intent_create] | fixed (verify code) |
+| AK6607-S43-E02 | COVERED | CUS::PRE[intent_partial] | fixed (verify code) |
+| AK6607-S43-E03 | COVERED | CUS::PRE[intent_fsync_file] | fixed (verify code) |
+| AK6607-S43-E04 | COVERED | CUS::PRE[intent_exists] | fixed (verify code) |
+| AK6607-S43-E05 | COVERED | CUS::PRE[intent_fsync_dir] | fixed (reconciliation) |
+| AK6607-S43-E06 | COVERED | CUS::PRE[intent_readback] | fixed (reconciliation) |
+| AK6607-S44-E01 | COVERED | CUS::POST[provider_interrupt-…] | fixed (verify code) |
+| AK6607-S44-E02 | COVERED | CUS::POST[typed_interrupt-…] | fixed (verify code) |
+| AK6607-S44-E03 | COVERED | CUS::POST[finalization-…] | fixed (verify code) |
+| AK6607-S44-E04 | COVERED | CUS::POST[terminal_write-…] | fixed (verify code) |
+| AK6607-S44-E05 | COVERED | CUS::POST[terminal_dir_fsync-…] | fixed (residue contradiction) |
+| AK6607-S44-E06 | COVERED | CUS::test_worker_killed_after_send_is_reconciled_indeterminate | fixed (reconciliation) |
+| AK6607-S45 | COVERED | EFF::test_s45_direct_provider_invoke_records_direct_provider_finalization | proof-only |
+| AK6607-S46 | COVERED | CUS::test_artifact_or_closure_fault_burns_the_run[artifact, closure]; CUS::test_completed_failure_is_spent_and_publishes_no_artifact | fixed (verify code, publish guard) |
+| AK6607-S47 | COVERED | CUS::test_trickling_response_cannot_extend_the_original_wall_deadline | fixed (reconciliation); AK6811 |
+| AK6607-S48 | COVERED | CUS::test_spent_completed_root_admits_only_read_only_verification | fixed (reconciliation) |
+| AK6607-S49 | COVERED | RDB::test_s49_image_episode_keeps_new_names_and_rejects_mixed_v1_rows | fixed (image-only rows) |
+| AK6607-S50 | COVERED | SURF::test_s50_whole_materialization_refuses_before_any_surface_or_harness_write[*]; SURF::test_s50_direct_renderer_guard_refuses_with_no_writes_or_generation[*] | proof-only |
+| AK6607-S51 | COVERED | RDB::test_s51_echoed_payload_leaves_no_copy_in_files_streams_caches_or_traces[*] | proof-only |
+
+Review follow-up tests outside the matrix: CUS::test_reconcile_labels_no_dispatch_and_ignores_malformed_residue,
+CUS::test_publish_checks_the_boundary_before_reading_custody,
+CUS::test_an_all_success_run_closes_only_as_completed.

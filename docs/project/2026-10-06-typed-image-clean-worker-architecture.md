@@ -59,7 +59,7 @@ mirror and the owner's exact endpoint/model/budget approval (AK6610).
 |---|---|
 | AK13975 | Clean isolated interpreter; an already-hooked caller is outside the boundary |
 | AK14132 | Detectable caller observers (trace, profile, MLflow, callbacks, LM history) are also outside the boundary (deviation from proposal item 1; CI runs under coverage) |
-| AK14133 | The 159-case red matrix moves to AK6756 (`2026-10-06-typed-image-revision2-traceability.md`) |
+| AK14133 | The 159-case red matrix moves to AK6756 (executed: `2026-10-06-typed-image-revision2-traceability.md`) |
 | AK14193 | Decoder profile v2 pins Pillow 12.1.1's own modules, `_imaging` and bundled codecs, formats and limits, but not OS C libraries (trusted platform like the interpreter) |
 
 ## Threat model limits
@@ -69,8 +69,24 @@ ELF symbols, memory or module-state tampering) is not contained; it could read p
 directly. Hooks registered before BOOT's first statement require an untrusted
 interpreter or loader and are outside the boundary.
 
+## Custody settlement (AK6756)
+
+- **One root, one claimant.** The parent initializer creates the root's `lock` with
+  `O_EXCL` before `ready.json`; a contending parent fails before any write, and a root
+  that was ever claimed stays spent.
+- **Read-only reconciliation.** `reconcile_image_custody` classifies a settled root from
+  its records only: an intent without its terminal is `effect_indeterminate` with an
+  unknown dispatch count, never success, and nothing is written. `verify_image_run`
+  accepts only a closed, residue-free, all-success run; anything else is `image_spent`.
+- **Publication follows success.** `publish_image_run` refuses before its first write
+  unless every planned attempt succeeded, and `close_run` closes only as `completed`.
+- **Closed envelope.** The DesignMD image envelope has a closed key set, so no extra key
+  can carry payload text to the provider (narrower than Revision 2's "safe metadata").
+
 ## Open work
 
-AK6756 (red matrix and three new custody mechanisms) and AK6610 (first live call after
-owner approval). Receipt-domain routing (AK6767) was closed as superseded: receipts are
-hash-only projections and image receipts are refused before any output read.
+The Revision 2 red matrix is executed (AK6756,
+`2026-10-06-typed-image-revision2-traceability.md`). AK6610 (first live call after owner
+approval) remains; AK6810-AK6812 track the matrix's smaller follow-ups. Receipt-domain
+routing (AK6767) was closed as superseded: receipts are hash-only projections and image
+receipts are refused before any output read.
