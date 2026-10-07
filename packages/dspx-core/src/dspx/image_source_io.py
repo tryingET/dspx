@@ -113,14 +113,10 @@ _UNSAFE_TEXT = re.compile(
 
 def image_generation_profile(intent: object) -> bool:
     """Only a ProgramIntent or a mapping can declare an image profile; others are text."""
-    from .image_input_contract import generation_preflight
-    from .services.program_intent import ProgramIntent
+    from .image_input_contract import generation_preflight, intent_document
 
-    if isinstance(intent, ProgramIntent):
-        return generation_preflight(intent.model_dump(mode="json"))
-    if isinstance(intent, Mapping):
-        return generation_preflight(dict(intent))
-    return False
+    document = intent_document(intent)
+    return False if document is None else generation_preflight(document)
 
 
 def validation_messages(error: ValidationError) -> str:

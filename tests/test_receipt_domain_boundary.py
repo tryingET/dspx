@@ -255,3 +255,30 @@ def test_ordinary_execution_retains_real_strategy_and_evidence(
         == "passed"
     )
     assert target.read_bytes() == (tmp_path / "source.py").read_bytes()
+
+
+def test_unanchored_image_schema_receipt_gets_the_exact_replay_refusal(
+    tmp_path: Path,
+) -> None:
+    """A dspx-image-* schema is image domain even with an ordinary run_kind."""
+    receipt = tmp_path / "manifest.json.meta.json"
+    receipt.write_text(
+        json.dumps({"run_kind": "program-runtime", "schema_version": "dspx-image-x"}),
+        encoding="utf-8",
+    )
+    target = tmp_path / "replay.json"
+    report = replay.execute_run_receipt(receipt, target)
+    assert list(report) == [
+        "status",
+        "error_codes",
+        "execution",
+        "execution_reproduction",
+        "dispatch_available",
+    ]
+    assert report["error_codes"] == ["image_execution_replay_unsupported"]
+    assert report["execution"] == {"attempted": False, "strategy": None}
+    assert not target.exists()
+    checked = replay.check_run_receipt(receipt)
+    assert checked["status"] == "invalid" and checked["error_codes"] == [
+        "image_custody"
+    ]

@@ -310,3 +310,33 @@ def test_ordinary_identifier_error_is_useful_without_payload_or_context(
     assert "valid Python identifiers" in result.output
     assert private_field not in result.output and str(source) not in result.output
     assert not candidate.exists() and not render_entries and not no_provider_effects
+
+
+@pytest.mark.parametrize("shape", ["namespace", "foreign_model", "mapping"])
+def test_every_data_bearing_intent_shape_reaches_the_image_preflight(
+    shape: str,
+) -> None:
+    """Only data-less stand-ins are text-only; any intent carrying data is preflighted."""
+    from types import SimpleNamespace
+
+    from pydantic import BaseModel
+
+    from dspx.image_admission import ImageContractError
+    from dspx.image_input_contract import generation_intent_preflight
+    from dspx.image_source_io import image_generation_profile
+
+    image = {"type": "image_base64", "media_type": "image/png", "data": "AAAA"}
+
+    class Foreign(BaseModel):
+        examples: list[dict[str, str]]
+
+    intent: object = {
+        "namespace": SimpleNamespace(examples=[image]),
+        "foreign_model": Foreign(examples=[image]),
+        "mapping": {"examples": [image]},
+    }[shape]
+    for check in (generation_intent_preflight, image_generation_profile):
+        with pytest.raises(ImageContractError):
+            check(intent)
+    assert image_generation_profile(object()) is False
+    generation_intent_preflight(object())

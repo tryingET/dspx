@@ -293,12 +293,8 @@ def is_image_receipt(receipt: object) -> bool:
 
 def image_receipt_refusal(code: str, *, replay: bool = False) -> dict[str, object]:
     """Fixed report: no path, receipt value, anchor attribute or exception text."""
-    report: dict[str, object] = {
-        "status": "invalid",
-        "error_codes": [code],
-        "execution_reproduction": False,
-        "dispatch_available": False,
-    }
-    if replay:
+    report: dict[str, object] = {"status": "invalid", "error_codes": [code]}
+    if replay:  # historical key order of the replay refusal
         report["execution"] = {"attempted": False, "strategy": None}
+    report.update(execution_reproduction=False, dispatch_available=False)
     return report

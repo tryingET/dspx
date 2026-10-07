@@ -94,14 +94,25 @@ def refuse_runtime_image_inputs(runtime_inputs: Mapping[str, Any]) -> None:
     raise ImageContractError("image_admission_invalid") from None
 
 
-def generation_intent_preflight(intent: object) -> None:
-    """Refuse generation-time image payloads; data-less legacy intents stay text-only."""
-    from .services.program_intent import ProgramIntent
+_INTENT_DATA = ("examples", "examples_path", "dataset", "datasets", "options")
 
-    if isinstance(intent, ProgramIntent):
-        generation_preflight(intent.model_dump(mode="json"))
-    elif isinstance(intent, Mapping):
-        generation_preflight(dict(intent))
+
+def intent_document(intent: object) -> dict[str, Any] | None:
+    """Every data-bearing intent shape is preflighted; only data-less stand-ins are not."""
+    dump = getattr(intent, "model_dump", None)
+    if isinstance(intent, Mapping):
+        return dict(cast(Mapping[str, Any], intent))
+    if callable(dump):
+        return dump(mode="json")
+    data = {key: getattr(intent, key, None) for key in (*_INTENT_DATA, "topology")}
+    return {key: value for key, value in data.items() if value is not None} or None
+
+
+def generation_intent_preflight(intent: object) -> None:
+    """Refuse generation-time image payloads before any renderer runs."""
+    document = intent_document(intent)
+    if document is not None:
+        generation_preflight(document)
 
 
 def safe_generation_document(path: Path) -> Any:

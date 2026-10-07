@@ -54,3 +54,12 @@ def test_baseline_records_only_existing_over_budget_modules() -> None:
         if name not in sizes or lines <= BUDGET
     }
     assert stale == {}, f"remove or fix stale baseline entries: {stale}"
+
+
+def test_baseline_tightens_when_a_recorded_module_shrinks() -> None:
+    """A shrunk module must lower its entry, so it cannot regrow to the old size."""
+    sizes = _sizes()
+    loose = {
+        name: lines for name, lines in _baseline().items() if sizes.get(name) != lines
+    }
+    assert loose == {}, f"lower these baseline entries to the current sizes: {loose}"
