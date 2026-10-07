@@ -130,8 +130,13 @@ def _observers(record: dict, *, entry: bool) -> None:
         "image_privacy",
     )
     callers = record.get("caller_modules")
-    if entry:
-        require(callers is None or _empty(callers), "image_privacy")
+    if entry:  # a base or outer adapter/LM may carry observers an override would mask
+        require(
+            (callers is None or _empty(callers))
+            and record.get("adapter") is None
+            and record.get("lm") is None,
+            "image_privacy",
+        )
     else:
         active = require_privacy()
         require(
@@ -158,6 +163,12 @@ def _ambient() -> None:
             "image_privacy",
         )
     require(_sdk_methods() == _METHODS, "image_privacy")
+    state = _sdk_state()
+    require(
+        len(state) == len(_SDK_STATE)
+        and all(item is held for item, held in zip(state, _SDK_STATE, strict=True)),
+        "image_privacy",
+    )
     for name, module in tuple(sys.modules.items()):
         if name.startswith("mlflow") and type(module) is ModuleType:
             state = vars(module)
@@ -314,42 +325,9 @@ class ImagePrivacy:
         self.root, self.root_types = root, root_types
 
     def signature(self, signature, inputs: dict | None) -> None:
-        from .image_source_io import plain_text
-        from .image_source_profile import valid_annotation, valid_value
+        from .image_source_profile import check_signature
 
-        plain_text(signature.instructions)
-        require(
-            not set(signature.input_fields)
-            & {"signature", "demos", "config", "lm", "new_signature"},
-            "signature_input_shape",
-        )
-        for name, info in signature.fields.items():
-            require(valid_annotation(info.annotation), "signature_input_shape")
-            plain_text(name)
-            if info.description:
-                plain_text(info.description)
-        if inputs is not None:
-            require(
-                tuple(inputs) == tuple(signature.input_fields), "signature_input_shape"
-            )
-            for name, value in inputs.items():
-                require(
-                    valid_value(signature.input_fields[name].annotation, value),
-                    "signature_input_shape",
-                )
-                if self.context is not None and type(value) is str:
-                    parts = self.context.split(
-                        value, slot=self.context.fields.index(name)
-                    )
-                    expected = [
-                        row.occurrence_id
-                        for row in self.context.occurrences
-                        if row.field_slot == self.context.fields.index(name)
-                    ]
-                    actual = [
-                        row.occurrence_id for row in parts if type(row) is not str
-                    ]
-                    require(actual == expected, "image_marker_invalid")
+        check_signature(self.context, signature, inputs)
 
 
 def require_privacy() -> ImagePrivacy:
@@ -496,3 +474,24 @@ _FORMATTER_BASELINE = {
     for name, fn in vars(BoundedImageChatAdapter).items()
     if callable(fn) and hasattr(fn, "__code__")
 }
+_PATH = (dspy.Predict, dspy.ChainOfThought, BoundedImageChatAdapter, dspy.BaseLM)
+_SDK_CLASSES = tuple(dict.fromkeys(cls for root in _PATH for cls in root.__mro__))
+
+
+def _sdk_state() -> list[object]:
+    """Every class on the call path by identity: a later class-level wrap, override,
+    attribute hook or code swap (e.g. ChainOfThought.__call__) differs from import."""
+    return [
+        part
+        for owner in _SDK_CLASSES
+        for name, value in vars(owner).items()
+        for part in (
+            name,
+            value,
+            getattr(value, "__code__", None),
+            getattr(value, "__wrapped__", None),
+        )
+    ]
+
+
+_SDK_STATE = _sdk_state()

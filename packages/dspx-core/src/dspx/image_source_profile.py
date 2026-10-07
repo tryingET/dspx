@@ -12,7 +12,7 @@ from typing import cast
 import dspy
 
 from .image_admission import ImageContractError, digest, parse_json, require, sha
-from .image_source_io import image_generation_profile, read_relative
+from .image_source_io import image_generation_profile, plain_text, read_relative
 from .image_privacy import require_privacy
 
 
@@ -127,6 +127,39 @@ def valid_value(annotation: object, value: object, depth: int = 0) -> bool:
             for key, item in value.items()
         )
     return False
+
+
+def check_signature(context, signature, inputs: dict | None) -> None:
+    """Helper shape tree against signature descriptors, then strict marker slots."""
+    plain_text(signature.instructions)
+    require(
+        not set(signature.input_fields)
+        & {"signature", "demos", "config", "lm", "new_signature"},
+        "signature_input_shape",
+    )
+    for name, info in signature.fields.items():
+        require(valid_annotation(info.annotation), "signature_input_shape")
+        plain_text(name)
+        if info.description:
+            plain_text(info.description)
+    if inputs is None:
+        return
+    require(tuple(inputs) == tuple(signature.input_fields), "signature_input_shape")
+    for name, value in inputs.items():
+        require(
+            valid_value(signature.input_fields[name].annotation, value),
+            "signature_input_shape",
+        )
+        if context is not None and type(value) is str:
+            slot = context.fields.index(name)
+            parts = context.split(value, slot=slot)
+            expected = [
+                row.occurrence_id
+                for row in context.occurrences
+                if row.field_slot == slot
+            ]
+            actual = [row.occurrence_id for row in parts if type(row) is not str]
+            require(actual == expected, "image_marker_invalid")
 
 
 def convert_value(annotation: object, value: object) -> object:

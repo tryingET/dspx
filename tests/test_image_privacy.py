@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import importlib
 import json
 import os
 from pathlib import Path
@@ -119,6 +120,7 @@ def _load_generated(tmp: Path):
         "forged_worker_start_identity",
         "forged_worker_deadline_ns",
         "forged_grant_sha256",
+        "unparsable",
     ],
 )
 def test_actual_generated_predict_typed_image_to_ordered_fake_http(
@@ -321,6 +323,16 @@ def test_actual_generated_predict_typed_image_to_ordered_fake_http(
             )
             assert not (custody / "closure.json").exists()
             return
+        if admission_view == "unparsable":
+            terminal_raw = read_record(root_fd, "terminal-1.json")
+            assert result == _status("failed", sha(terminal_raw))
+            assert set(list_root(root_fd)) == {
+                "ready.json",
+                "lock",
+                "intent-1.json",
+                "terminal-1.json",
+            }
+            return
         if admission_view == "wall_drift":
             assert result == _status("failed", sha(admission.raw))
             assert os.listdir(root_fd) == []
@@ -340,6 +352,35 @@ def test_actual_generated_predict_typed_image_to_ordered_fake_http(
     finally:
         for fd in (prep_fd, root_fd, input_fd, artifact_fd):
             os.close(fd)
+
+
+_REPAIR = (
+    ("json_repair", "loads"),
+    ("json_repair", "repair_json"),
+    ("dspy.adapters.base", "_expand_legacy_custom_type_markers_in_lm_message"),
+    ("dspy.adapters.base", "_expand_legacy_custom_type_markers_in_chat_message"),
+    ("dspy.adapters._legacy_type_markers", "_parse_legacy_payload"),
+    ("dspy.adapters.types.base_type", "split_message_content_for_custom_types"),
+    ("dspy.adapters.types.image", "encode_image"),
+    ("dspy.adapters.json_adapter:JSONAdapter", "__call__"),
+    ("dspy.adapters.json_adapter:JSONAdapter", "format"),
+    ("dspy.adapters.json_adapter:JSONAdapter", "parse"),
+)
+
+
+def _spy_repairs(patch: pytest.MonkeyPatch, calls: list[str]) -> None:
+    """Independent spies on installed legacy marker repair and the JSONAdapter path."""
+    for path, name in _REPAIR:
+        module, _, member = path.partition(":")
+        owner = importlib.import_module(module)
+        owner = getattr(owner, member) if member else owner
+        original = getattr(owner, name)
+
+        def spy(*args, _name=f"{path}.{name}", _original=original, **kwargs):
+            calls.append(_name)
+            return _original(*args, **kwargs)
+
+        patch.setattr(owner, name, spy)
 
 
 def _context(active, profile: ImageSourceProfile, input_fd: int):
@@ -538,18 +579,14 @@ def _privacy_execute_entry(params):
                         raise KeyboardInterrupt("synthetic-cleanup")
 
                 response_type = CleanupFault
+            content = "[[ ## answer ## ]]\nfixture result\n[[ ## completed ## ]]"
+            if admission_view == "unparsable":
+                content = "unstructured fixture text without any field section"
             return response_type(
                 200,
                 json={
                     "model": model,
-                    "choices": [
-                        {
-                            "message": {
-                                "role": "assistant",
-                                "content": "[[ ## answer ## ]]\nfixture result\n[[ ## completed ## ]]",
-                            }
-                        }
-                    ],
+                    "choices": [{"message": {"role": "assistant", "content": content}}],
                 },
                 request=request,
             )
@@ -585,6 +622,38 @@ def _privacy_execute_entry(params):
                     )
             assert not denied_entries and session._scan() == []
         lm = create_image_lm(session, transport=httpx.MockTransport(handler))
+        assert type(lm) is DSPyTypedLMAdapter  # no additional LM subclass
+        repaired: list[str] = []
+        if admission_view == "unparsable":
+            # AK6607-S37: the installed parser fails once; there is no JSONAdapter
+            # fallback, the one terminal stays and no later request is dispatched.
+            assert active.formatter.use_json_adapter_fallback is False
+            with pytest.MonkeyPatch.context() as spies:
+                _spy_repairs(spies, repaired)
+                spies.setattr(
+                    active.formatter,
+                    "_make_json_adapter_fallback",
+                    lambda: repaired.append("_make_json_adapter_fallback"),
+                )
+                with (
+                    dspy.context(lm=lm),
+                    pytest.raises(ImageContractError, match="^image_finalization$"),
+                ):
+                    program(**ctx.materialized())
+                with (
+                    dspy.context(lm=lm),
+                    pytest.raises(
+                        ImageContractError, match="^image_admission_invalid$"
+                    ),
+                ):
+                    program(**ctx.materialized())
+            assert repaired == [] and observed == [True]
+            assert len(session._scan()) == 1 and not session.poisoned
+            terminal = parse_json(read_record(root_fd, "terminal-1.json"))
+            assert terminal["dispatch_count"] == 1
+            assert terminal["provider_disposition"] == "completed_success"
+            assert not lm.history and not program.history
+            return _status("failed", sha(read_record(root_fd, "terminal-1.json")))
         faults = {
             "validation_interrupt",
             "cleanup_interrupt",
@@ -673,9 +742,10 @@ def _privacy_execute_entry(params):
 
         with pytest.MonkeyPatch.context() as spy:
             spy.setattr(DSPyTypedLMAdapter, "_forward_locked", typed_spy)
+            _spy_repairs(spy, repaired)  # AK6607-S35: no upstream marker expansion
             with dspy.context(lm=lm):
                 answer = program(**ctx.materialized())
-        assert answer.answer == "fixture result"
+        assert answer.answer == "fixture result" and repaired == []
         assert observed == [True] and typed == [True]
         assert not lm.history and not program.history and not dspy.settings.trace
         from dspx.image_artifacts import publish_image_run
