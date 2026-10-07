@@ -10,7 +10,7 @@ import importlib.metadata
 import importlib.util
 from pathlib import Path
 import struct
-from types import CodeType
+from types import CodeType, FunctionType
 import warnings
 import zlib
 
@@ -375,7 +375,13 @@ class FrozenImageDecoder:
                     "image_decoder_unavailable",
                 )
                 for function in functions:
-                    require(hasattr(function, "__code__"), "image_decoder_unavailable")
+                    # A real function bound to its own module: an object borrowing the
+                    # code, or a same-code clone with other globals (OPEN), refuses.
+                    require(
+                        type(function) is FunctionType
+                        and function.__globals__ is vars(module),
+                        "image_decoder_unavailable",
+                    )
                     compiled = compile(
                         path.read_bytes(),
                         function.__code__.co_filename,

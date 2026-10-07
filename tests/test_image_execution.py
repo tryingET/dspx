@@ -688,7 +688,6 @@ def _envelope(pixels: bytes, **override: object) -> str:
         "imageDataBase64": base64.b64encode(pixels).decode("ascii"),
         "imageDataMimeType": "image/png",
         "pixelInspectionInputStatus": "available_bounded_inline_image_payload",
-        "label": "hero",
         **override,
     }
     return json.dumps({"images": [image]})

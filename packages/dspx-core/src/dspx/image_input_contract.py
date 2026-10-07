@@ -23,24 +23,12 @@ from .image_admission import (
 )
 
 from .image_source_io import open_root, read_relative, plain_text, image_bytes
+from .image_source_io import END, START, _RESERVED, _UNSAFE_TEXT
 
-START = "<<CUSTOM-TYPE-START-IDENTIFIER>>"
-END = "<<CUSTOM-TYPE-END-IDENTIFIER>>"
-_RESERVED = frozenset(
-    {
-        "imageDataBase64",
-        "imageDataMimeType",
-        "pixelInspectionInputStatus",
-        "modelImageInput",
-        "image_file",
-        "image_base64",
-        "image_url",
-    }
-)
-_UNSAFE_TEXT = re.compile(
-    r"data:image/|<<CUSTOM-TYPE-(?:START|END)-IDENTIFIER>>|"
-    r"imageDataBase64|available_bounded_inline_image_payload|modelImageInput"
-)
+_SOURCES = {"image_file": "path", "image_base64": "data", "image_url": "url"}
+# Closed DesignMD image keys: anything else (a thumbnail, a label, a second source
+# or MIME alias) is refused, never forwarded as plain text beside the image.
+_ENVELOPE = {"imageDataBase64", "imageDataMimeType", "pixelInspectionInputStatus"}
 
 
 def generation_preflight(value: object) -> bool:
@@ -310,29 +298,21 @@ def materialize_image_inputs(
         # parse_json/bounded_tree proved exact dictionaries with string keys.
         descriptor = cast(dict[str, object], value) if type(value) is dict else None
         kind = descriptor.get("type") if descriptor is not None else None
-        if (
-            descriptor is not None
-            and type(kind) is str
-            and kind in {"image_file", "image_base64", "image_url"}
-        ):
-            keys = {
-                "image_file": {"type", "path", "media_type"},
-                "image_base64": {"type", "data", "media_type"},
-                "image_url": {"type", "url", "media_type"},
-            }[kind]
+        if descriptor is not None and type(kind) is str and kind in _SOURCES:
             require(
-                set(descriptor) == keys,
+                set(descriptor) == {"type", "media_type", _SOURCES[kind]},
                 "image_input_invalid",
             )
-            media = descriptor["media_type"]
-            source = descriptor[
-                {"image_file": "path", "image_base64": "data", "image_url": "url"}[kind]
-            ]
+            media, source = descriptor["media_type"], descriptor[_SOURCES[kind]]
             if type(media) is not str or type(source) is not str:
                 raise ImageContractError("image_input_invalid") from None
             require(
                 media in {"image/png", "image/jpeg"},
                 "image_input_invalid",
+            )
+            # An image_url is an inline data URI, never a bare body (no laundering).
+            require(
+                kind != "image_url" or source.startswith("data:"), "image_input_invalid"
             )
             require(len(occurrences) < 6, "image_budget")
             data = (
@@ -406,6 +386,7 @@ def materialize_image_inputs(
             packet = parse_json(value.encode("utf-8"))
             require(
                 type(packet) is dict
+                and set(packet) == {"images"}
                 and type(packet.get("images")) is list
                 and packet["images"],
                 "image_input_invalid",
@@ -414,6 +395,7 @@ def materialize_image_inputs(
             for index, image in enumerate(packet["images"]):
                 require(
                     type(image) is dict
+                    and set(image) <= _ENVELOPE | {"mimeType"}
                     and image.get("pixelInspectionInputStatus")
                     == "available_bounded_inline_image_payload",
                     "image_input_invalid",
@@ -421,6 +403,9 @@ def materialize_image_inputs(
                 media = image.get("imageDataMimeType")
                 require(image.get("mimeType", media) == media, "image_input_invalid")
                 require(media in {"image/png", "image/jpeg"}, "image_input_invalid")
+                safe = {
+                    key: item for key, item in image.items() if key not in _ENVELOPE
+                }
                 marker, _ = visit(
                     {
                         "type": "image_base64",
@@ -430,23 +415,6 @@ def materialize_image_inputs(
                     slot,
                     index,
                 )
-                safe = {
-                    key: item
-                    for key, item in image.items()
-                    if key
-                    not in {
-                        "imageDataBase64",
-                        "imageDataMimeType",
-                        "pixelInspectionInputStatus",
-                    }
-                }
-                for item in safe.values():
-                    require(
-                        type(item) in {str, int, bool, type(None)},
-                        "image_input_invalid",
-                    )
-                    if type(item) is str:
-                        plain_text(item)
                 segments.extend(
                     [canonical(safe).decode("ascii"), f"slot:{slot}:{index}", marker]
                 )
