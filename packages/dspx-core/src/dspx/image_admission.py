@@ -348,7 +348,7 @@ def validate_admission(
         and len(plan) == limits["total_dispatch_allowance"]
     )
     by_id = {row["occurrence_id"]: row for row in rows}
-    used = set()
+    used: list[str] = []
     for index, value in enumerate(plan, 1):
         row = closed(
             value,
@@ -367,8 +367,10 @@ def validate_admission(
             sum(by_id[item]["byte_count"] for item in seq)
             <= limits["max_request_image_bytes"]
         )
-        used.update(seq)
-    require(used == set(by_id))
+        used.extend(item for item in dict.fromkeys(seq) if item not in used)
+    # Every source occurrence is used, first uses in source order: missing, extra or
+    # reordered input use rejects; explicit repetition stays countable per request.
+    require(used == list(by_id))
     deadlines = closed(
         record["deadlines"],
         "not_before_utc_ms expires_utc_ms total_wall_ms per_request_io_timeout_ms",
@@ -440,7 +442,17 @@ def validate_image_provider_binding(
     if type(session) is not ImageCustodySession:
         raise ImageContractError("image_admission_invalid") from None
     require(active.session is session, "image_admission_invalid")
-    if type(session.authority) is SyntheticImageAuthority:
+    authority = session.authority
+    synthetic = type(authority) is SyntheticImageAuthority
+    # The authority kind stays bound to the admitted bytes and mode: a synthetic
+    # session whose authority is later flipped to live never selects a live client.
+    require(
+        type(authority) in {SyntheticImageAuthority, LiveImageAuthority}
+        and authority.expected_admission == session.admission.raw
+        and session.record["mode"] == ("synthetic" if synthetic else "live"),
+        "image_admission_invalid",
+    )
+    if synthetic:
         require(type(transport) is httpx.MockTransport, "image_admission_invalid")
     require(
         model == session.record["model"]
