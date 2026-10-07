@@ -33,6 +33,11 @@ records what was built (AK6607, re-landed by AK6760) and where owner decisions r
   callers) gets `image_execution_unavailable` before arguments are inspected.
 - **Closed control.** The parent names a `@worker_entry`-declared `module:function` and
   passes closed, integer-only JSON. No pickle, callable or transport object crosses.
+- **Bound handshake (AK6766).** The parent writes a one-use 32-byte grant only to the
+  anonymous permit pipe. The worker's ready record carries its PID, start identity,
+  original deadline and the grant's hash; the parent publishes `ready.json` (custody
+  ready v2) only if all four equal its own view of the child it spawned. A copied
+  control document or another process cannot obtain a permit or a ready record.
 
 ## Shipped routes
 
@@ -41,7 +46,8 @@ generated `direct_run.py`) type-check in the parent, reserve the nominal
 `SyntheticImageAuthority`, and run declared entries in the worker. The synthetic transport
 is a closed `SyntheticTransportFixture`; the worker builds the exact `httpx.MockTransport`
 and publishes only send ordinal, block kinds, image hashes/media and request hash. Live
-authority is never executed (first live call needs AK6766 and owner budget approval).
+authority is never executed: a first live call still needs a worker-side Live authority
+mirror and the owner's exact endpoint/model/budget approval (AK6610).
 
 ## Owner decisions that refine Revision 2
 
@@ -61,6 +67,6 @@ interpreter or loader and are outside the boundary.
 
 ## Open work
 
-AK6756 (red matrix and three new custody mechanisms), AK6766 (live-call prerequisites:
-PID/start/deadline-bound handshake), AK6767 (receipt-domain routing for unanchored
-receipts; explicit image anchors are refused before path access today).
+AK6756 (red matrix and three new custody mechanisms) and AK6610 (first live call after
+owner approval). Receipt-domain routing (AK6767) was closed as superseded: receipts are
+hash-only projections and image receipts are refused before any output read.

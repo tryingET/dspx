@@ -101,6 +101,7 @@ class _ShippedRun:
     anchored_check: dict[str, Any]
     wire: list[dict[str, Any]]
     terminal: dict[str, Any]
+    ready: dict[str, Any]
     receipt: Path
 
 
@@ -235,6 +236,7 @@ def _run_shipped_route(
                 for name in sorted(list_root(fds["wire"]))
             ],
             terminal=parse_json(read_record(fds["custody"], "terminal-1.json")),
+            ready=parse_json(read_record(fds["custody"], "ready.json")),
             receipt=receipt,
         )
     finally:
@@ -264,6 +266,10 @@ def test_shipped_production_image_route_artifacts_and_integrity_replay(
     assert wire[0]["message_block_kinds"][1] == ["text", "image_url", "text"]
     assert wire[0]["image_sha256"] == [sha(pixels)]
     assert wire[0]["image_media_types"] == [media]
+    ready = run.ready
+    assert ready["schema_version"] == "dspx-image-custody-ready-v2"
+    assert ready["worker_pid"] != os.getpid() and len(ready["grant_sha256"]) == 64
+    assert ready["worker_deadline_ns"] > 0 and ready["worker_start_identity"]
     terminal = run.terminal
     assert (
         terminal["provider_disposition"] == "completed_success"

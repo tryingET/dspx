@@ -32,7 +32,7 @@ import os
 import re
 import sys
 import sysconfig
-from typing import Any, Callable, Iterable, Never, TypeVar
+from typing import Any, Callable, Iterable, Never, TypeVar, cast
 
 from .image_admission import (
     ImageContractError,
@@ -291,6 +291,36 @@ def native_registration_closure(paths: Iterable[bytes] | None = None) -> None:
         _NATIVE_CLEAN.add(key)
 
 
+_SUPERVISED: dict[str, object] | None = None
+
+
+def set_supervised(binding: dict[str, object] | None) -> None:
+    """Parent side: the identity of the one worker currently being supervised."""
+    global _SUPERVISED
+    _SUPERVISED = binding
+
+
+def supervised_worker() -> dict[str, object]:
+    """Parent-held truth about the spawned child: PID, start, deadline, grant hash."""
+    require(type(_SUPERVISED) is dict, "image_custody")
+    return dict(cast(dict[str, object], _SUPERVISED))
+
+
+def worker_binding() -> dict[str, object]:
+    """Worker claim for the ready handshake; the parent publishes only on equality."""
+    from . import image_supervision as supervision
+
+    identity = supervision.worker_identity()
+    grant = getattr(supervision._LOCAL, "grant_sha256", None)
+    require(type(grant) is str and len(grant) == 64, "image_custody")
+    return {
+        "worker_pid": identity.pid,
+        "worker_start_identity": identity.start_identity,
+        "worker_deadline_ns": identity.deadline_ns,
+        "grant_sha256": grant,
+    }
+
+
 def validate_entry(entry: object, params: object) -> bytes:
     """Closed bounded control data naming a declared entry; never code or pickle."""
     require(type(entry) is str and _ENTRY.fullmatch(entry) is not None, "image_custody")
@@ -371,6 +401,7 @@ def run_clean_worker(control: object, status_fd: int, permit_fd: int) -> Never:
                 row["deadline_ns"] / 1_000_000_000,
                 row["started_utc_ms"],
                 row["wall_ms"],
+                row["deadline_ns"],
             ),
             status_fd=status_fd,
             permit_fd=permit_fd,

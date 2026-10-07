@@ -281,3 +281,42 @@ def test_worker_runs_only_declared_entries(tmp_path):
             f"{_HERE}:_undeclared", {"checkpoint": str(checkpoint)}, wall_ms=10_000
         )
     assert not checkpoint.exists()
+
+
+@worker_entry
+def _grant_entry(params):
+    from dspx.image_worker import worker_binding
+
+    binding = worker_binding()
+    identity = worker_identity()
+    assert binding["worker_pid"] == identity.pid == os.getpid()
+    assert binding["worker_start_identity"] == identity.start_identity
+    assert binding["worker_deadline_ns"] == identity.deadline_ns
+    parent_ready({"binding": binding})
+    assert Path(params["checkpoint"]).read_bytes() == b"bound"
+    return status()
+
+
+def test_permit_grant_binds_the_ready_handshake_to_the_spawned_worker(tmp_path):
+    """The parent's own view of the child it spawned must equal the worker's claim."""
+    from dspx.image_worker import supervised_worker
+
+    checkpoint = tmp_path / "bound"
+    seen = []
+
+    def initialize(record):
+        expected = supervised_worker()
+        assert record == {"binding": expected}, (record, expected)
+        grant = expected["grant_sha256"]
+        assert type(grant) is str and len(grant) == 64
+        checkpoint.write_bytes(b"bound")
+
+    result = supervise_image_worker(
+        f"{_HERE}:_grant_entry",
+        {"checkpoint": str(checkpoint)},
+        wall_ms=10_000,
+        parent_action=lambda record: (seen.append(True), initialize(record)),
+    )
+    assert result == status() and checkpoint.read_bytes() == b"bound"
+    with pytest.raises(ImageContractError, match="image_custody"):
+        supervised_worker()  # only valid while that worker is supervised

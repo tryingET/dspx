@@ -390,8 +390,9 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
         admission_raw, digest("admission-v2", parse_json(admission_raw, limit=65_536))
     )
     bound = closed(row["authority"], "caller_expectation_sha256 root_dev root_ino")
-    # Worker-local mirror of the parent's reserved nominal authority. It is usable
-    # only through the parent handshake, which checks ready.json independently.
+    # Worker-local mirror of the parent's reserved nominal authority. It is usable only
+    # through the parent handshake: ready.json is published only when the worker's PID,
+    # start, original deadline and one-use permit grant equal the parent's own view.
     authority = SyntheticImageAuthority(
         admission_raw,
         bound["caller_expectation_sha256"],

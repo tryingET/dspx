@@ -115,6 +115,7 @@ def _load_generated(tmp: Path):
         "presend_budget",
         "register_after_ready",
         "register_in_send",
+        "forged_worker",
     ],
 )
 def test_actual_generated_predict_typed_image_to_ordered_fake_http(
@@ -247,6 +248,19 @@ def test_actual_generated_predict_typed_image_to_ordered_fake_http(
             "admission_view": admission_view,
             "model": model,
         }
+        if admission_view == "forged_worker":
+            # A worker misreporting its PID gets no ready.json, lock or permit:
+            # the parent initializer refuses, which surfaces as image_durability.
+            with pytest.raises(ImageContractError, match="^image_durability$"):
+                supervise_image_worker(
+                    f"{_HERE}:_privacy_execute_entry",
+                    params,
+                    fds=(input_fd, root_fd, artifact_fd),
+                    wall_ms=30_000,
+                    parent_action=initialize,
+                )
+            assert list_root(root_fd) == []
+            return
         if admission_view.startswith("register_"):
             # An observer registered after ready/permit or during the send ends the
             # worker; the spent root keeps its intent without terminal, never retried.
@@ -436,6 +450,19 @@ def _privacy_execute_entry(params):
                 )
             assert os.listdir(root_fd) == []
             return _status("failed", sha(admission.raw))
+        if admission_view == "forged_worker":
+            import dspx.image_worker as handshake
+
+            forged = {**handshake.worker_binding(), "worker_pid": os.getpid() + 1}
+            with pytest.MonkeyPatch.context() as lie:
+                lie.setattr("dspx.image_custody.worker_binding", lambda: forged)
+                ImageCustodySession(
+                    root_fd=root_fd,
+                    admission=admission,
+                    authority=authority,
+                    context=ctx,
+                )
+            raise AssertionError("a forged worker binding was admitted")
         session = ImageCustodySession(
             root_fd=root_fd,
             admission=admission,

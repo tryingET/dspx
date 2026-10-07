@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import ctypes
 import errno
 import os
+import secrets
 import signal
 import subprocess
 import threading
@@ -21,6 +22,7 @@ from .image_admission import (
     hash_value,
     parse_json,
     require,
+    sha,
 )
 
 _LOCAL = threading.local()
@@ -46,6 +48,7 @@ class WorkerIdentity:
     deadline: float
     started_utc_ms: int
     wall_ms: int
+    deadline_ns: int
 
 
 def start_identity(pid: int) -> str:
@@ -81,7 +84,9 @@ def worker_status_fd() -> int | None:
 def bind_worker(identity: WorkerIdentity, *, status_fd: int, permit_fd: int) -> None:
     """Clean worker only: wait for the parent permit, then bind the original budget."""
     require(getattr(_LOCAL, "identity", None) is None, "image_custody")
-    require(os.read(permit_fd, 1) == b"1", "image_interruption")
+    permit = os.read(permit_fd, 33)  # b"1" + the parent's one-use 32-byte grant
+    require(len(permit) == 33 and permit[:1] == b"1", "image_interruption")
+    _LOCAL.grant_sha256 = sha(permit[1:])
     _LOCAL.identity = identity
     _LOCAL.write_fd, _LOCAL.permit_fd = status_fd, permit_fd
     _LOCAL.ready_sent = False
@@ -308,7 +313,12 @@ def _supervise_image_worker(
     The worker is a fresh `-I -S` interpreter (owner refinement 13975): no parent
     hook, trace, history or patch is inherited. No worker refreshes its deadline.
     """
-    from .image_worker import worker_command, worker_environment, worker_paths
+    from .image_worker import (
+        set_supervised,
+        worker_command,
+        worker_environment,
+        worker_paths,
+    )
 
     require(type(wall_ms) is int and 0 < wall_ms <= 180_000, "image_budget")
     deadline_ns = time.monotonic_ns() + wall_ms * 1_000_000
@@ -358,8 +368,17 @@ def _supervise_image_worker(
         os.close(control_write)
     os.close(write_fd)
     os.close(permit_read)
+    grant = secrets.token_bytes(32)  # only ever written to the anonymous permit pipe
     try:
         start = start_identity(pid)
+        set_supervised(
+            {
+                "worker_pid": pid,
+                "worker_start_identity": start,
+                "worker_deadline_ns": deadline_ns,
+                "grant_sha256": sha(grant),
+            }
+        )
     except BaseException:
         process.kill()  # unreaped child: its PID cannot be reused before wait()
         process.wait()
@@ -418,7 +437,7 @@ def _supervise_image_worker(
                 require(False, "image_custody")
 
     try:
-        require(os.write(permit_write, b"1") == 1, "image_interruption")
+        require(os.write(permit_write, b"1" + grant) == 33, "image_interruption")
         while time.monotonic() < deadline:
             try:
                 raw.extend(os.read(read_fd, 4096))
@@ -462,9 +481,12 @@ def _supervise_image_worker(
                 return completed
             time.sleep(0.005)
         failed = True
-    except BaseException:
+    except BaseException as error:
         failed = True
+        if type(error) is ImageContractError and failure_code == "image_interruption":
+            failure_code = error.code  # e.g. a refused parent initializer
     finally:
+        set_supervised(None)
         try:
             settled, unexpected = _settle_owned(pid, start, libc, admitted_initializers)
             require(settled and not unexpected, "image_interruption")

@@ -40,6 +40,7 @@ from .image_supervision import (
     worker_identity,
     require_admitted_worker_budget,
 )
+from .image_worker import supervised_worker, worker_binding
 
 
 def parent_initializer(
@@ -77,7 +78,7 @@ def parent_initializer(
         authority._used[0] = True
         closed(ready, _READY)
         expected = {
-            "schema_version": "dspx-image-custody-ready-v1",
+            "schema_version": "dspx-image-custody-ready-v2",
             **binding,
             "admission_sha256": admission.sha256,
             "source_package_sha256": source_sha256,
@@ -87,6 +88,8 @@ def parent_initializer(
             "request_plan_sha256": digest("request-plan-v1", record["request_plan"]),
             "creator_pid": parent_pid,
             "created_utc_ms": ready["created_utc_ms"],
+            # Parent-held truth about the spawned child and its one-use grant.
+            **supervised_worker(),
         }
         require(
             ready == expected
@@ -181,7 +184,7 @@ class ImageCustodySession:
         self._transaction: ImageAttemptTransaction | None = None
         authority._used[0] = True  # this reserved invocation is never reusable
         ready = {
-            "schema_version": "dspx-image-custody-ready-v1",
+            "schema_version": "dspx-image-custody-ready-v2",
             **self.binding,
             "admission_sha256": admission.sha256,
             "source_package_sha256": context.source_sha256,
@@ -195,6 +198,7 @@ class ImageCustodySession:
             ),
             "creator_pid": os.getppid(),
             "created_utc_ms": now_ms(),
+            **worker_binding(),
         }
         closed(ready, _READY)
         self._ready_raw = canonical(ready)
