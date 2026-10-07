@@ -39,7 +39,7 @@ from dspx.image_admission import (
     sha,
     validate_admission,
 )
-from dspx.image_artifacts import ImageRunAnchor, verify_image_run
+from dspx.image_artifacts import ImageRunAnchor, publish_image_run, verify_image_run
 from dspx.image_custody import ImageCustodySession, parent_initializer
 from dspx.image_execution import prepare_image_execution
 from dspx.image_privacy import image_privacy, runtime_identity
@@ -610,6 +610,14 @@ def _flow(params: dict[str, Any], fault: str) -> dict[str, object]:
                 outputs=outputs,
                 route="episode",
             )
+            if fault == "close_failed":  # an all-success run never closes as failed
+                try:
+                    session.close_run(binding, outcome="failed")
+                except ImageContractError:
+                    pass
+                else:
+                    closure = read_record(custody_fd, "closure.json")
+                    return _status("closed_failed", sha(closure))
             session.close_run(binding, outcome="completed")
         except ImageContractError:
             return _denied_after(active, session, lm, program, context, params)
@@ -862,3 +870,72 @@ def _wire_fds(tmp_path: Path):
             yield fd
         finally:
             os.close(fd)
+
+
+def _replace(run: _Run, name: str, row: dict[str, Any]) -> None:
+    """Test-owned rewrite of one custody record with the publisher's file shape."""
+    root = run.fds["custody"]
+    if name in list_root(root):
+        os.unlink(name, dir_fd=root)
+    fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=root)
+    try:
+        os.write(fd, canonical(row))
+    finally:
+        os.close(fd)
+
+
+def test_reconcile_labels_no_dispatch_and_ignores_malformed_residue(run: _Run) -> None:
+    """Review follow-up: no completion is claimed without a dispatch; no raw errors."""
+    assert run.execute()["status"] == "completed"
+    os.unlink("closure.json", dir_fd=run.fds["custody"])
+    _replace(
+        run,
+        "terminal-1.json",
+        {
+            **run.record("terminal-1.json"),
+            "provider_disposition": "preflight_rejected",
+            "dispatch_count": 0,
+            "response_sha256": None,
+            "response_byte_count": None,
+            "observed_model": None,
+            "result_finalization_completed": False,
+            "typed_finalization_completed": False,
+            "failure_code": "validation",
+        },
+    )
+    state = run.reconcile()
+    assert state["terminal_effect"] == "preflight_rejected"
+    assert state["planned_dispatches"] == state["consumed_dispatches"] == 1
+    # Canonical residue whose claim fields are not strings proves nothing.
+    _replace(
+        run,
+        f".pending-{uuid.uuid4()}",
+        {
+            "schema_version": "dspx-image-dispatch-terminal-v1",
+            "attempt_id": [run.record("intent-1.json")["attempt_id"]],
+            "provider_disposition": {"completed_success": True},
+        },
+    )
+    state = run.reconcile()
+    assert state["publication_residue"] == 1
+    assert state["terminal_effect"] == "preflight_rejected"
+    with pytest.raises(ImageContractError, match="^image_spent$"):
+        verify_image_run(run.anchor())
+
+
+def test_publish_checks_the_boundary_before_reading_custody(tmp_path: Path) -> None:
+    """Review follow-up: no session attribute or artifact root is read outside it."""
+    (tmp_path / "artifacts").mkdir(mode=0o700)
+    fd = os.open(tmp_path / "artifacts", os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(ImageContractError, match="^image_execution_unavailable$"):
+            publish_image_run(object(), artifact_fd=fd, outputs={}, route="episode")  # type: ignore[arg-type]
+    finally:
+        os.close(fd)
+
+
+def test_an_all_success_run_closes_only_as_completed(run: _Run) -> None:
+    """Review follow-up: close_run has no failed or indeterminate outcome to forge."""
+    result = run.execute("close_failed")
+    assert type(result) is dict and result["status"] == "completed", result
+    assert run.record("closure.json")["local_outcome"] == "completed"

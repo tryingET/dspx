@@ -479,7 +479,7 @@ _SDK_CLASSES = tuple(dict.fromkeys(cls for root in _PATH for cls in root.__mro__
 
 
 def _sdk_state() -> list[object]:
-    """Every class on the call path by identity: a later class-level wrap, override,
+    """The _PATH classes' MROs by identity: a later class-level wrap, override,
     attribute hook or code swap (e.g. ChainOfThought.__call__) differs from import."""
     return [
         part

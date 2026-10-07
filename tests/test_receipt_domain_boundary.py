@@ -450,15 +450,11 @@ def test_s49_image_episode_keeps_new_names_and_rejects_mixed_v1_rows(
             "schema_version": image_row["schema_version"],
         },
     }
-    # A genuine v1 row that also carries an image-only commitment is mixed, never v1.
-    for key in (
-        "admission_sha256",
-        "caller_run_id",
-        "content_artifact_manifest_sha256",
-        "input_manifest_sha256",
-        "source_package_sha256",
-    ):
-        mixed[f"v1-row-with-{key}"] = {**v1_row, key: image_row.get(key, "0" * 64)}
+    # A genuine v1 row that also carries any image-only receipt row is mixed, never v1.
+    image_only = sorted(set(image_row) - set(v1_row) - {"schema_version", "run_kind"})
+    assert {"admission_sha256", "effect_evidence", "non_authority"} <= set(image_only)
+    for key in image_only:
+        mixed[f"v1-row-with-{key}"] = {**v1_row, key: image_row[key]}
     for name, row in mixed.items():
         path = tmp_path / f"{name}.meta.json"
         path.write_text(json.dumps(row))

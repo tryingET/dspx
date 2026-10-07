@@ -334,21 +334,16 @@ class ImageCustodySession:
         binding = cast(ImageArtifactBinding, artifacts)
         verify_artifact_binding(binding, self)
         artifact_manifest_sha256 = binding.published_sha256
-        require(
-            outcome in {"completed", "failed", "effect_indeterminate"}, "image_custody"
-        )
+        # Only an all-success run publishes artifacts, so it only closes as completed.
+        require(outcome == "completed", "image_custody")
         require(not self.closed and self._transaction is None, "image_spent")
-        rows = self._scan(allow_open=outcome == "effect_indeterminate")
+        rows = self._scan()
         require(
-            outcome != "completed"
-            or (
-                bool(rows)
-                and len(rows) == len(self.record["request_plan"])
-                and all(
-                    term is not None
-                    and term["provider_disposition"] == "completed_success"
-                    for _, term in rows
-                )
+            bool(rows)
+            and len(rows) == len(self.record["request_plan"])
+            and all(
+                term is not None and term["provider_disposition"] == "completed_success"
+                for _, term in rows
             ),
             "image_custody",
         )

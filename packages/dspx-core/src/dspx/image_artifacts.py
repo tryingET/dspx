@@ -146,6 +146,11 @@ def publish_image_run(
     outputs: dict[str, object],
     route: str,
 ) -> ImageArtifactBinding:
+    from .image_custody import ImageCustodySession
+    from .image_worker import require_clean_boundary
+
+    require_clean_boundary()  # before any session attribute or artifact root is read
+    require(type(session) is ImageCustodySession, "image_custody")
     root = private_root(artifact_fd)
     require(not list_root(artifact_fd), "image_spent")
     # Only a settled, all-success run publishes: refused before the first write.

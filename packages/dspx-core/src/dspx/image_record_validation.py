@@ -181,16 +181,20 @@ def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
     from .image_records import list_root, read_record, residue, scan
 
     names = list_root(view.root_fd)
+    require(len(names) <= 131, "image_custody")  # the scan's bound, before any read
     claims = set()
     for name in filter(residue, names):
         try:
             row = parse_json(read_record(view.root_fd, name), limit=65_536)
         except (ImageContractError, OSError):
             continue  # empty or partial residue proves nothing
-        if type(row) is dict and row.get("schema_version") == (
-            "dspx-image-dispatch-terminal-v1"
+        if type(row) is not dict:
+            continue
+        claim = (row.get("attempt_id"), row.get("provider_disposition"))
+        if row.get("schema_version") == "dspx-image-dispatch-terminal-v1" and all(
+            type(value) is str for value in claim
         ):
-            claims.add((row.get("attempt_id"), row.get("provider_disposition")))
+            claims.add(claim)
     attempts = []
     for intent, terminal in scan(
         view, allow_open=True, allow_closure=True, allow_residue=True
@@ -220,18 +224,16 @@ def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
                 "terminal_contradicted": terminal is not None and contradicted,
             }
         )
+    # Worst attempt wins; a completion is never claimed for a root that never dispatched.
     effects = {row["provider_disposition"] for row in attempts}
-    effect = "completed_failure"
-    if not attempts:
-        effect = "none"
-    elif "effect_indeterminate" in effects:
-        effect = "effect_indeterminate"
-    elif effects == {"completed_success"}:
-        effect = "completed_success"
+    effect = "none" if not attempts else "completed_success"
+    for worse in ("preflight_rejected", "completed_failure", "effect_indeterminate"):
+        effect = worse if worse in effects else effect
     return {
         "schema_version": "dspx-image-custody-reconciliation-v1",
         "status": "spent",
         "dispatch_available": False,
+        "planned_dispatches": len(view.record["request_plan"]),
         "consumed_dispatches": len(attempts),
         "publication_residue": sum(residue(name) for name in names),
         "closure_present": "closure.json" in names,
@@ -453,11 +455,11 @@ def validate_artifact_chain(
 
 
 _IMAGE_RUN_KINDS = frozenset({"program-runtime-image", "generated-direct-image"})
-# Image-only commitment rows: a v1 receipt carrying any of them is mixed, never v1.
+# Image-only receipt rows (the closed image receipt minus its kind and schema): a v1
+# receipt carrying any of them is mixed, never v1.
 _IMAGE_ROWS: frozenset[str] = frozenset(
-    "caller_run_id admission_sha256 input_manifest_sha256 source_package_sha256 "
-    "content_artifact_manifest_sha256".split()
-)
+    _ARTIFACT_KEYS["direct_image_run_receipt.json"].split()
+) - {"schema_version", "run_kind"}
 
 
 def is_image_receipt(receipt: object) -> bool:
