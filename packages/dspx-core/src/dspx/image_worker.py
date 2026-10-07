@@ -27,6 +27,7 @@ tampering) is NOT contained: it could read the pixels directly.
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import os
 import re
@@ -378,6 +379,23 @@ def _not_dumpable() -> None:
     require(libc.prctl(4, 0, 0, 0, 0) == 0, "image_privacy")  # PR_SET_DUMPABLE
 
 
+def bind_worker(identity: object, *, status_fd: int, permit_fd: int) -> None:
+    """Clean worker only: take the parent's permit and one-use grant, bind the budget."""
+    from . import image_supervision as supervision
+
+    local = supervision._LOCAL
+    require(getattr(local, "identity", None) is None, "image_custody")
+    for fd in (status_fd, permit_fd):
+        os.set_inheritable(fd, False)  # no exec'd descendant inherits the handshake
+    permit = os.read(permit_fd, 33)  # b"1" + the parent's one-use 32-byte grant
+    require(len(permit) == 33 and permit[:1] == b"1", "image_interruption")
+    local.grant_sha256 = hashlib.sha256(permit[1:]).hexdigest()
+    local.identity = identity
+    local.write_fd, local.permit_fd = status_fd, permit_fd
+    local.ready_sent = False
+    supervision.worker_identity()
+
+
 def run_clean_worker(control: object, status_fd: int, permit_fd: int) -> Never:
     """Worker side of the supervised handshake. Never returns; no raw error output."""
     from . import image_supervision as supervision
@@ -393,7 +411,7 @@ def run_clean_worker(control: object, status_fd: int, permit_fd: int) -> Never:
             ),
             "image_custody",
         )
-        supervision.bind_worker(
+        bind_worker(
             supervision.WorkerIdentity(
                 os.getpid(),
                 row["parent_pid"],

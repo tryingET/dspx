@@ -115,7 +115,10 @@ def _load_generated(tmp: Path):
         "presend_budget",
         "register_after_ready",
         "register_in_send",
-        "forged_worker",
+        "forged_worker_pid",
+        "forged_worker_start_identity",
+        "forged_worker_deadline_ns",
+        "forged_grant_sha256",
     ],
 )
 def test_actual_generated_predict_typed_image_to_ordered_fake_http(
@@ -248,8 +251,8 @@ def test_actual_generated_predict_typed_image_to_ordered_fake_http(
             "admission_view": admission_view,
             "model": model,
         }
-        if admission_view == "forged_worker":
-            # A worker misreporting its PID gets no ready.json, lock or permit:
+        if admission_view.startswith("forged_"):
+            # A worker misreporting any binding field gets no ready.json, lock or permit:
             # the parent initializer refuses, which surfaces as image_durability.
             with pytest.raises(ImageContractError, match="^image_durability$"):
                 supervise_image_worker(
@@ -450,10 +453,20 @@ def _privacy_execute_entry(params):
                 )
             assert os.listdir(root_fd) == []
             return _status("failed", sha(admission.raw))
-        if admission_view == "forged_worker":
+        if admission_view.startswith("forged_"):
             import dspx.image_worker as handshake
 
-            forged = {**handshake.worker_binding(), "worker_pid": os.getpid() + 1}
+            field = admission_view.removeprefix("forged_")
+            real = handshake.worker_binding()
+            pid, deadline_ns = real["worker_pid"], real["worker_deadline_ns"]
+            assert type(pid) is int and type(deadline_ns) is int
+            lie_value = {
+                "worker_pid": pid + 1,
+                "worker_start_identity": "0",
+                "worker_deadline_ns": deadline_ns + 1,
+                "grant_sha256": "f" * 64,
+            }[field]
+            forged = {**real, field: lie_value}
             with pytest.MonkeyPatch.context() as lie:
                 lie.setattr("dspx.image_custody.worker_binding", lambda: forged)
                 ImageCustodySession(

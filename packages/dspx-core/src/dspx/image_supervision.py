@@ -81,18 +81,6 @@ def worker_status_fd() -> int | None:
     return fd if type(fd) is int else None
 
 
-def bind_worker(identity: WorkerIdentity, *, status_fd: int, permit_fd: int) -> None:
-    """Clean worker only: wait for the parent permit, then bind the original budget."""
-    require(getattr(_LOCAL, "identity", None) is None, "image_custody")
-    permit = os.read(permit_fd, 33)  # b"1" + the parent's one-use 32-byte grant
-    require(len(permit) == 33 and permit[:1] == b"1", "image_interruption")
-    _LOCAL.grant_sha256 = sha(permit[1:])
-    _LOCAL.identity = identity
-    _LOCAL.write_fd, _LOCAL.permit_fd = status_fd, permit_fd
-    _LOCAL.ready_sent = False
-    worker_identity()
-
-
 def worker_deadline() -> float:
     return worker_identity().deadline
 
@@ -371,14 +359,6 @@ def _supervise_image_worker(
     grant = secrets.token_bytes(32)  # only ever written to the anonymous permit pipe
     try:
         start = start_identity(pid)
-        set_supervised(
-            {
-                "worker_pid": pid,
-                "worker_start_identity": start,
-                "worker_deadline_ns": deadline_ns,
-                "grant_sha256": sha(grant),
-            }
-        )
     except BaseException:
         process.kill()  # unreaped child: its PID cannot be reused before wait()
         process.wait()
@@ -437,6 +417,14 @@ def _supervise_image_worker(
                 require(False, "image_custody")
 
     try:
+        set_supervised(  # cleared in the finally below, with the settlement
+            {
+                "worker_pid": pid,
+                "worker_start_identity": start,
+                "worker_deadline_ns": deadline_ns,
+                "grant_sha256": sha(grant),
+            }
+        )
         require(os.write(permit_write, b"1" + grant) == 33, "image_interruption")
         while time.monotonic() < deadline:
             try:
@@ -450,10 +438,9 @@ def _supervise_image_worker(
                     os.P_PID, initializer_pid, os.WEXITED | os.WNOHANG | os.WNOWAIT
                 )
                 if done is not None:
-                    require(
-                        done.si_code == os.CLD_EXITED and done.si_status == 0,
-                        "image_durability",
-                    )
+                    if done.si_code != os.CLD_EXITED or done.si_status != 0:
+                        failure_code = "image_durability"  # refused initializer
+                        raise ImageContractError(failure_code) from None
                     os.waitpid(initializer_pid, 0)
                     admitted_initializers.remove(initializer_pid)
                     initializer_pid = None
@@ -481,10 +468,8 @@ def _supervise_image_worker(
                 return completed
             time.sleep(0.005)
         failed = True
-    except BaseException as error:
+    except BaseException:
         failed = True
-        if type(error) is ImageContractError and failure_code == "image_interruption":
-            failure_code = error.code  # e.g. a refused parent initializer
     finally:
         set_supervised(None)
         try:

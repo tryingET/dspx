@@ -391,8 +391,9 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
     )
     bound = closed(row["authority"], "caller_expectation_sha256 root_dev root_ino")
     # Worker-local mirror of the parent's reserved nominal authority. It is usable only
-    # through the parent handshake: ready.json is published only when the worker's PID,
-    # start, original deadline and one-use permit grant equal the parent's own view.
+    # through this parent's handshake: ready.json is published only for a ready frame
+    # whose PID, start, deadline and grant hash equal the spawned child's (see the
+    # threat-model limits in docs/project/2026-10-06-typed-image-clean-worker-architecture).
     authority = SyntheticImageAuthority(
         admission_raw,
         bound["caller_expectation_sha256"],

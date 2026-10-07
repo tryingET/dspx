@@ -34,10 +34,14 @@ records what was built (AK6607, re-landed by AK6760) and where owner decisions r
 - **Closed control.** The parent names a `@worker_entry`-declared `module:function` and
   passes closed, integer-only JSON. No pickle, callable or transport object crosses.
 - **Bound handshake (AK6766).** The parent writes a one-use 32-byte grant only to the
-  anonymous permit pipe. The worker's ready record carries its PID, start identity,
-  original deadline and the grant's hash; the parent publishes `ready.json` (custody
-  ready v2) only if all four equal its own view of the child it spawned. A copied
-  control document or another process cannot obtain a permit or a ready record.
+  anonymous permit pipe. It publishes `ready.json` (custody ready v2) only for a ready
+  frame on its private status pipe whose PID, start identity, original deadline and
+  grant hash equal those of the child it spawned; `verify_image_run` re-checks the
+  binding's shape. A control document copied into another process, or a process holding
+  neither the parent's nor the worker's pipe ends, cannot make this parent publish. The
+  worker itself, its descendants and same-uid processes able to reopen
+  `/proc/<pid>/fd` are outside this guarantee (threat-model limits); a self-made
+  parent can only produce its own, separate ready record.
 
 ## Shipped routes
 

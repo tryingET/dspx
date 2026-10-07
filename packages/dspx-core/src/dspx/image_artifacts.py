@@ -412,7 +412,15 @@ def verify_image_run(anchor: ImageRunAnchor) -> dict[str, object]:
         all(ready[key] == value for key, value in record["custody"].items())
         and ready["admission_sha256"] == admission.sha256
         # ubs:ignore -- public sha256 commitment, not a secret
-        and ready["input_manifest_sha256"] == digest("manifest-v2", manifest),
+        and ready["input_manifest_sha256"] == digest("manifest-v2", manifest)
+        # Worker binding (custody ready v2): a distinct child, its deadline and grant.
+        and ready["schema_version"] == "dspx-image-custody-ready-v2"
+        and type(ready["worker_pid"]) is int
+        and ready["worker_pid"] not in {0, ready["creator_pid"]}
+        and type(ready["worker_deadline_ns"]) is int
+        and ready["worker_deadline_ns"] > 0
+        and str(ready["worker_start_identity"]).isdecimal()
+        and hash_value(ready["grant_sha256"]),
         "image_custody",
     )
     view = _ReadOnlyCustody(

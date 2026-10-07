@@ -112,7 +112,7 @@ _UNSAFE_TEXT = re.compile(
 
 
 def image_generation_profile(intent: object) -> bool:
-    """Only a ProgramIntent or a mapping can declare an image profile; others are text."""
+    """Any data-bearing intent shape is preflighted; data-less stand-ins are text."""
     from .image_input_contract import generation_preflight, intent_document
 
     document = intent_document(intent)
