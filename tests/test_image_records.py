@@ -174,3 +174,25 @@ def test_scan_rejects_contradictory_success_cross_fields(root, mutation):
     else:
         with pytest.raises(ImageContractError, match="image_custody"):
             scan(view)
+
+
+def test_scan_tolerates_only_own_residue_and_only_for_reconciliation(root):
+    """`.pending-<uuid4>` residue never passes a dispatching scan; nothing else passes."""
+    import uuid
+    from types import SimpleNamespace
+    from dspx.image_records import residue, scan
+
+    ready = {"fixture": "scanner-only-bound-ready"}
+    publish(root, "ready.json", ready)
+    os.close(os.open("lock", os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600, dir_fd=root))
+    own = ".pending-" + str(uuid.uuid4())
+    os.close(os.open(own, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600, dir_fd=root))
+    view = SimpleNamespace(root_fd=root, ready_raw=canonical(ready))
+    assert residue(own) and not residue(own.upper()) and not residue(".pending-x")
+    with pytest.raises(ImageContractError, match="image_custody"):
+        scan(view, allow_open=True, allow_closure=True)
+    assert scan(view, allow_open=True, allow_residue=True) == []
+    foreign = ".pending-" + str(uuid.uuid4()).upper()
+    os.close(os.open(foreign, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600, dir_fd=root))
+    with pytest.raises(ImageContractError, match="image_custody"):
+        scan(view, allow_open=True, allow_residue=True)
