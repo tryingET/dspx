@@ -266,7 +266,11 @@ def invoke_image_http(
         )
         if result is not None:
             return result
-    raise ImageContractError("image_finalization") from None
+    # A fully observed echo keeps only the fixed privacy failure (S19).
+    privacy = disposition == "completed_failure" and failure == "privacy"
+    raise ImageContractError(
+        "image_privacy" if privacy else "image_finalization"
+    ) from None
 
 
 def invoke_image_lm(
