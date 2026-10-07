@@ -15,7 +15,8 @@ from pathlib import Path
 import time
 import uuid
 from io import BytesIO
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -36,6 +37,7 @@ from dspx.image_admission import (
 from dspx.image_artifacts import ImageRunAnchor, verify_image_run
 from dspx.image_execution import (
     ImageExecutionRequest,
+    ImagePreparation,
     SyntheticTransportFixture,
     prepare_image_execution,
 )
@@ -50,7 +52,9 @@ _PRIVATE_ROOTS = ("preparation", "custody", "artifacts", "wire")
 _ANSWER = '[[ ## answer ## ]]\n[{"score":3.5,"other":null}]\n[[ ## completed ## ]]'
 
 
-def _shipped_inputs(root: Path, *, media: str) -> bytes:
+def _shipped_inputs(
+    root: Path, *, media: str, color: tuple[int, int, int] = (12, 34, 56)
+) -> bytes:
     """Materialize the generated candidate and one bounded synthetic image input."""
     materialize_program_from_intent(
         ProgramIntent(
@@ -67,7 +71,7 @@ def _shipped_inputs(root: Path, *, media: str) -> bytes:
         ),
         outdir=root / "candidate",
     )
-    image = Image.new("RGB", (2, 2), (12, 34, 56))
+    image = Image.new("RGB", (2, 2), color)
     buffer = BytesIO()
     image.save(buffer, format="PNG" if media == "image/png" else "JPEG")
     image.close()
@@ -105,120 +109,165 @@ class _ShippedRun:
     receipt: Path
 
 
-def _run_shipped_route(
-    root: Path, *, media: str, use_cot: bool, route: str
-) -> _ShippedRun:
-    """Run one shipped route; the caller-side parent never holds pixels."""
+@contextmanager
+def _route_fds(root: Path) -> Iterator[dict[str, int]]:
+    """Directory fds of one shipped-route root; closed after the caller's checks."""
     fds = {
         name: os.open(root / name, os.O_RDONLY | os.O_DIRECTORY)
         for name in ("candidate", "inputs", *_PRIVATE_ROOTS)
     }
     try:
-        prepared = prepare_image_execution(
-            candidate_fd=fds["candidate"],
-            input_fd=fds["inputs"],
-            input_name="inputs.json",
-            preparation_fd=fds["preparation"],
-            model="synthetic-vision-fixture",
-            use_cot=use_cot,
+        yield fds
+    finally:
+        for fd in fds.values():
+            os.close(fd)
+
+
+def _prepare_route(fds: dict[str, int], *, use_cot: bool) -> ImagePreparation:
+    return prepare_image_execution(
+        candidate_fd=fds["candidate"],
+        input_fd=fds["inputs"],
+        input_name="inputs.json",
+        preparation_fd=fds["preparation"],
+        model="synthetic-vision-fixture",
+        use_cot=use_cot,
+    )
+
+
+def _admitted_request(
+    fds: dict[str, int],
+    prepared: ImagePreparation,
+    *,
+    route: str,
+    completion: str,
+) -> ImageExecutionRequest:
+    """The caller-held synthetic admission for one prepared source (S -> A)."""
+    row = parse_json(prepared.raw)
+    custody = os.fstat(fds["custody"])
+    now = time.time_ns() // 1_000_000
+    record = {
+        "schema_version": "dspx-image-admission-v2",
+        "mode": "synthetic",
+        "provider_kind": "openai-compatible",
+        "model": row["model"],
+        "canonical_base_endpoint": "http://127.0.0.1:8000/v1",
+        "source_package_sha256": digest("source-v1", row["source"]),
+        "candidate_manifest_sha256": row["source"]["candidate_manifest_sha256"],
+        "runtime_identity_sha256": row["runtime_identity_sha256"],
+        "decoder_profile_sha256": row["source"]["decoder_profile_sha256"],
+        "request_plan": row["plan"],
+        "limits": {**CEILINGS, "total_dispatch_allowance": 1},
+        "deadlines": {
+            "not_before_utc_ms": now - 1000,
+            "expires_utc_ms": now + 60_000,
+            "total_wall_ms": 30_000,
+            "per_request_io_timeout_ms": 30_000,
+        },
+        "custody": {
+            "custody_id": str(uuid.uuid4()),
+            "caller_run_id": str(uuid.uuid4()),
+            "caller_binding_sha256": digest(
+                "caller-fixture-v1",
+                {
+                    "route": route,
+                    "source": row["source"],
+                    "artifact_dev": os.fstat(fds["artifacts"]).st_dev,
+                    "artifact_ino": os.fstat(fds["artifacts"]).st_ino,
+                },
+            ),
+            "root_dev": custody.st_dev,
+            "root_ino": custody.st_ino,
+            "caller_expectation_sha256": sha(prepared.raw),
+        },
+        "approval_binding": {
+            "owning_ak_task": None,
+            "operator_evidence_ref": None,
+            "parent_confirmation_sha256": None,
+        },
+    }
+    raw = canonical(record)
+    authority = SyntheticImageAuthority(
+        raw, sha(prepared.raw), custody.st_dev, custody.st_ino
+    )
+    admission = validate_admission(
+        raw,
+        source=row["source"],
+        authority=authority,
+        runtime_identity_sha256=runtime_identity(),
+    )
+    fixture = SyntheticTransportFixture(
+        completion=completion, observation_fd=fds["wire"]
+    )
+    return ImageExecutionRequest(
+        fds["candidate"],
+        fds["inputs"],
+        "inputs.json",
+        fds["artifacts"],
+        fds["custody"],
+        prepared,
+        admission,
+        authority,
+        fixture,
+    )
+
+
+def _generated_runner(root: Path) -> Any:
+    """The production-generated direct_run.py of this root's candidate."""
+    spec = importlib.util.spec_from_file_location(
+        "fixture_direct_image", root / "candidate" / "direct_run.py"
+    )
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner
+
+
+def _execute_route(
+    root: Path, request: ImageExecutionRequest, *, route: str
+) -> ImageRunAnchor:
+    if route == "episode":
+        result = run_program_runtime_episode(
+            manifest_path=root / "candidate" / "manifest.json",
+            inputs_path=root / "inputs" / "inputs.json",
+            outdir=root / "artifacts",
+            image_execution=request,
         )
-        row = parse_json(prepared.raw)
-        custody = os.fstat(fds["custody"])
-        now = time.time_ns() // 1_000_000
-        record = {
-            "schema_version": "dspx-image-admission-v2",
-            "mode": "synthetic",
-            "provider_kind": "openai-compatible",
-            "model": row["model"],
-            "canonical_base_endpoint": "http://127.0.0.1:8000/v1",
-            "source_package_sha256": digest("source-v1", row["source"]),
-            "candidate_manifest_sha256": row["source"]["candidate_manifest_sha256"],
-            "runtime_identity_sha256": row["runtime_identity_sha256"],
-            "decoder_profile_sha256": row["source"]["decoder_profile_sha256"],
-            "request_plan": row["plan"],
-            "limits": {**CEILINGS, "total_dispatch_allowance": 1},
-            "deadlines": {
-                "not_before_utc_ms": now - 1000,
-                "expires_utc_ms": now + 60_000,
-                "total_wall_ms": 30_000,
-                "per_request_io_timeout_ms": 30_000,
-            },
-            "custody": {
-                "custody_id": str(uuid.uuid4()),
-                "caller_run_id": str(uuid.uuid4()),
-                "caller_binding_sha256": digest(
-                    "caller-fixture-v1",
-                    {
-                        "route": route,
-                        "source": row["source"],
-                        "artifact_dev": os.fstat(fds["artifacts"]).st_dev,
-                        "artifact_ino": os.fstat(fds["artifacts"]).st_ino,
-                    },
-                ),
-                "root_dev": custody.st_dev,
-                "root_ino": custody.st_ino,
-                "caller_expectation_sha256": sha(prepared.raw),
-            },
-            "approval_binding": {
-                "owning_ak_task": None,
-                "operator_evidence_ref": None,
-                "parent_confirmation_sha256": None,
-            },
-        }
-        raw = canonical(record)
-        authority = SyntheticImageAuthority(
-            raw, sha(prepared.raw), custody.st_dev, custody.st_ino
+        assert result["status"] == "ok"
+        anchor = result["image_anchor"]
+    else:
+        anchor = _generated_runner(root).run_image(
+            candidate_fd=request.candidate_fd,
+            input_fd=request.input_fd,
+            input_name=request.input_name,
+            artifact_fd=request.artifact_fd,
+            custody_fd=request.custody_fd,
+            preparation=request.preparation,
+            admission=request.admission,
+            authority=request.authority,
+            fixture=request.fixture,
         )
-        admission = validate_admission(
-            raw,
-            source=row["source"],
-            authority=authority,
-            runtime_identity_sha256=runtime_identity(),
-        )
-        fixture = SyntheticTransportFixture(
+    assert type(anchor) is ImageRunAnchor
+    return anchor
+
+
+def _records(fd: int) -> list[dict[str, Any]]:
+    return [parse_json(read_record(fd, name)) for name in sorted(list_root(fd))]
+
+
+def _run_shipped_route(
+    root: Path, *, media: str, use_cot: bool, route: str
+) -> _ShippedRun:
+    """Run one shipped route; the caller-side parent never holds pixels."""
+    with _route_fds(root) as fds:
+        prepared = _prepare_route(fds, use_cot=use_cot)
+        request = _admitted_request(
+            fds,
+            prepared,
+            route=route,
             completion=("[[ ## reasoning ## ]]\nfixture reasoning\n" if use_cot else "")
             + _ANSWER,
-            observation_fd=fds["wire"],
         )
-        request = ImageExecutionRequest(
-            fds["candidate"],
-            fds["inputs"],
-            "inputs.json",
-            fds["artifacts"],
-            fds["custody"],
-            prepared,
-            admission,
-            authority,
-            fixture,
-        )
-        if route == "episode":
-            result = run_program_runtime_episode(
-                manifest_path=root / "candidate" / "manifest.json",
-                inputs_path=root / "inputs" / "inputs.json",
-                outdir=root / "artifacts",
-                image_execution=request,
-            )
-            assert result["status"] == "ok"
-            anchor = result["image_anchor"]
-        else:
-            spec = importlib.util.spec_from_file_location(
-                "fixture_direct_image", root / "candidate" / "direct_run.py"
-            )
-            assert spec is not None and spec.loader is not None
-            runner = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(runner)
-            anchor = runner.run_image(
-                candidate_fd=fds["candidate"],
-                input_fd=fds["inputs"],
-                input_name="inputs.json",
-                artifact_fd=fds["artifacts"],
-                custody_fd=fds["custody"],
-                preparation=prepared,
-                admission=admission,
-                authority=authority,
-                fixture=fixture,
-            )
-        assert type(anchor) is ImageRunAnchor
+        anchor = _execute_route(root, request, route=route)
         receipt = (
             root
             / "artifacts"
@@ -231,17 +280,11 @@ def _run_shipped_route(
         return _ShippedRun(
             verified=verify_image_run(anchor),
             anchored_check=check_run_receipt(receipt, image_anchor=anchor),
-            wire=[
-                parse_json(read_record(fds["wire"], name))
-                for name in sorted(list_root(fds["wire"]))
-            ],
+            wire=_records(fds["wire"]),
             terminal=parse_json(read_record(fds["custody"], "terminal-1.json")),
             ready=parse_json(read_record(fds["custody"], "ready.json")),
             receipt=receipt,
         )
-    finally:
-        for fd in fds.values():
-            os.close(fd)
 
 
 @pytest.mark.parametrize("route", ["episode", "direct"])
@@ -288,6 +331,7 @@ def test_shipped_production_image_route_artifacts_and_integrity_replay(
         assert (
             base64.b64encode(pixels) not in artifact and b"data:image/" not in artifact
         )
+        assert b"_last_runtime_trace" not in artifact and b"kwargs" not in artifact
     for path in (tmp_path / "custody").iterdir():
         assert base64.b64encode(pixels) not in path.read_bytes()
     # Receipt-domain migration (AK6710/AK6717) remains separate: an explicit anchor is
@@ -618,3 +662,302 @@ def test_refusal_containment_real_provider_session_mutation_has_zero_effects(
         assert lm._indeterminate_latched is False
     finally:
         provider._client.close()
+
+
+# AK6756 red matrix: shared route helpers and the S25/S26 rows. Synthetic fixtures only.
+_ENVELOPE_DEFECTS: dict[str, dict[str, object]] = {
+    "status": {"pixelInspectionInputStatus": "metadata_only_no_pixels"},
+    "media": {"imageDataMimeType": "image/gif"},
+    "data": {"imageDataBase64": "not-base64!"},
+    "nested": {"label": {"raw": "nested"}},
+    "mime-drift": {"mimeType": "image/jpeg"},
+}
+
+
+def _png(color: tuple[int, int, int] = (12, 34, 56)) -> bytes:
+    image = Image.new("RGB", (2, 2), color)
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    image.close()
+    return buffer.getvalue()
+
+
+def _envelope(pixels: bytes, **override: object) -> str:
+    """A DesignMD-style inline image envelope (visual_image_inputs_json)."""
+    image = {
+        "imageDataBase64": base64.b64encode(pixels).decode("ascii"),
+        "imageDataMimeType": "image/png",
+        "pixelInspectionInputStatus": "available_bounded_inline_image_payload",
+        "label": "hero",
+        **override,
+    }
+    return json.dumps({"images": [image]})
+
+
+def _single_field_inputs(root: Path, field: str, value: object) -> None:
+    """One-field image candidate with the shipped answer slot, and its input file."""
+    materialize_program_from_intent(
+        ProgramIntent(
+            name="EnvelopeParityProbe",
+            objective="Describe bounded synthetic pixels.",
+            input_fields=[{"name": field, "type": "str"}],
+            output_fields=[
+                {"name": "answer", "type": "list[dict[str, Optional[float]]]"}
+            ],
+            options={"image_enabled": True},
+        ),
+        outdir=root / "candidate",
+    )
+    (root / "inputs").mkdir(mode=0o700)
+    (root / "inputs" / "inputs.json").write_text(json.dumps({field: value}))
+    for name in _PRIVATE_ROOTS:
+        (root / name).mkdir(mode=0o700)
+
+
+def _payload_free(paths: list[Path], pixels: bytes) -> list[str]:
+    """Files under `paths` holding the payload, a data URI, a marker or an envelope key."""
+    needles = (
+        base64.b64encode(pixels),
+        b"data:image/",
+        b"<<CUSTOM-TYPE-START-IDENTIFIER>>",
+        b"imageDataBase64",
+        b"available_bounded_inline_image_payload",
+    )
+    return [
+        str(path)
+        for root in paths
+        for path in ([root] if root.is_file() else sorted(root.rglob("*")))
+        if path.is_file() and any(needle in path.read_bytes() for needle in needles)
+    ]
+
+
+@pytest.mark.parametrize("use_cot", [False, True])
+def test_s25_prepare_only_runs_no_module_lm_provider_session_or_ready(
+    tmp_path: Path, use_cot: bool
+):
+    """S25: the production prepare entry, counted inside the clean worker."""
+    from dspx.image_supervision import supervise_image_worker
+    from image_route_worker_entries import EFFECT_COUNTERS, SDK_COUNTERS
+
+    _shipped_inputs(tmp_path, media="image/png")
+    (tmp_path / "counted").mkdir(mode=0o700)
+    with _route_fds(tmp_path) as fds:
+        prepared = _prepare_route(fds, use_cot=use_cot)
+        counted = os.open(tmp_path / "counted", os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            status = supervise_image_worker(
+                "image_route_worker_entries:counted_prepare_entry",
+                {
+                    "candidate_fd": fds["candidate"],
+                    "input_fd": fds["inputs"],
+                    "input_name": "inputs.json",
+                    "preparation_fd": counted,
+                    "model": "synthetic-vision-fixture",
+                    "use_cot": use_cot,
+                },
+                fds=(fds["candidate"], fds["inputs"], counted),
+                wall_ms=30_000,
+            )
+            assert list_root(counted) == ["preparation.json"]
+            raw = read_record(counted, "preparation.json")
+        finally:
+            os.close(counted)
+        # The counted worker ran the same production preparation, byte for byte.
+        assert raw == prepared.raw
+        zero = dict.fromkeys((*SDK_COUNTERS, *EFFECT_COUNTERS), 0)
+        assert status == {
+            "status": "prepared",
+            "commitment_sha256": digest(
+                "prepare-counters-v1", {"production": sha(raw), "counts": zero}
+            ),
+            "fixture_evidence": True,
+            "live_authorized": False,
+            "failure_code": None,
+        }
+        # Only source, marker and plan commitments return; no dispatch-ready record.
+        row = parse_json(prepared.raw)
+        assert all(
+            set(item) == {"occurrence_id", "marker_sha256"} for item in row["markers"]
+        )
+        assert [list_root(fds[name]) for name in ("custody", "artifacts", "wire")] == [
+            [],
+            [],
+            [],
+        ]
+
+
+@pytest.mark.parametrize("route", ["episode", "direct"])
+@pytest.mark.parametrize("change", ["pixels", "malformed-envelope"])
+def test_s25_changed_source_after_prepare_refuses_before_ready_publication(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, route: str, change: str
+):
+    """S25/S15: a source changed after preparation never reaches ready.json or a send."""
+    from dspx.image_admission import ImageContractError
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+    if change == "pixels":
+        _shipped_inputs(tmp_path, media="image/png")
+        replacement = {
+            "visual": [
+                "A",
+                {
+                    "type": "image_base64",
+                    "media_type": "image/png",
+                    "data": base64.b64encode(_png((99, 1, 2))).decode("ascii"),
+                },
+                "B",
+            ],
+            "settings": {"nullable": None, "tuple": [7, True]},
+        }
+    else:
+        _single_field_inputs(tmp_path, "visual_image_inputs_json", _envelope(_png()))
+        replacement = {
+            "visual_image_inputs_json": _envelope(_png(), **_ENVELOPE_DEFECTS["status"])
+        }
+    with _route_fds(tmp_path) as fds:
+        prepared = _prepare_route(fds, use_cot=False)
+        request = _admitted_request(fds, prepared, route=route, completion=_ANSWER)
+        (tmp_path / "inputs" / "inputs.json").write_text(json.dumps(replacement))
+        with pytest.raises(ImageContractError) as caught:
+            _execute_route(tmp_path, request, route=route)
+        assert caught.value.code == (
+            "image_admission_invalid" if change == "pixels" else "image_input_invalid"
+        )
+        assert [list_root(fds[name]) for name in ("custody", "artifacts", "wire")] == [
+            [],
+            [],
+            [],
+        ]
+
+
+def test_s26_commitments_run_s_a_m_r_and_a_changed_occurrence_breaks_every_link(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """S26: S -> A -> M -> R without back edges; one changed occurrence breaks the chain."""
+    from dataclasses import replace
+
+    from dspx.image_admission import ImageContractError
+
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+    _shipped_inputs(tmp_path / "other", media="image/png", color=(99, 1, 2))
+    with _route_fds(tmp_path / "other") as fds:
+        other = parse_json(_prepare_route(fds, use_cot=False).raw)
+    root = tmp_path / "run"
+    _shipped_inputs(root, media="image/png")
+    with _route_fds(root) as fds:
+        prepared = _prepare_route(fds, use_cot=False)
+        request = _admitted_request(fds, prepared, route="direct", completion=_ANSWER)
+        anchor = _execute_route(root, request, route="direct")
+        source, admission, manifest = (
+            parse_json(raw)
+            for raw in (anchor.source_raw, anchor.admission_raw, anchor.manifest_raw)
+        )
+        intent = parse_json(read_record(fds["custody"], "intent-1.json"))
+        (wire,) = _records(fds["wire"])
+        s_sha, a_sha = digest("source-v1", source), request.admission.sha256
+        m_sha, r_sha = digest("manifest-v2", manifest), intent["request_sha256"]
+        # Forward edges: each record commits its predecessor; R is what was sent.
+        # ubs:ignore -- public sha256 commitment, not a secret
+        assert a_sha == digest("admission-v2", admission)
+        assert admission["source_package_sha256"] == s_sha
+        assert admission["request_plan"] == prepared.record["plan"]
+        assert (manifest["source_package_sha256"], manifest["admission_sha256"]) == (
+            s_sha,
+            a_sha,
+        )
+        assert manifest["marker_entries"] == prepared.record["markers"]
+        assert (intent["admission_sha256"], intent["input_manifest_sha256"]) == (
+            a_sha,
+            m_sha,
+        )
+        shape = admission["request_plan"][0]["request_shape_sha256"]
+        assert intent["request_shape_sha256"] == shape
+        # ubs:ignore -- public sha256 commitment, not a secret
+        assert r_sha == digest(
+            "request-v1",
+            {
+                "admission_sha256": a_sha,
+                "input_manifest_sha256": m_sha,
+                "plan_ordinal": 1,
+                "request_shape_sha256": shape,
+            },
+        )
+        assert wire["send_ordinal"] == 1 and wire["image_sha256"] == [
+            source["source_occurrences"][0]["content_sha256"]
+        ]
+        # No back edge or self hash: no record names a digest that comes after it.
+        for record, later in (
+            (source, (s_sha, a_sha, m_sha, r_sha)),
+            (admission, (a_sha, m_sha, r_sha)),
+            (manifest, (m_sha, r_sha)),
+        ):
+            assert [
+                value for value in later if value.encode() in canonical(record)
+            ] == []
+        # Positive control, then one changed occurrence invalidates every link.
+        authority = request.authority
+        assert isinstance(authority, SyntheticImageAuthority)
+        validate_admission(
+            anchor.admission_raw,
+            source=source,
+            authority=authority,
+            runtime_identity_sha256=runtime_identity(),
+        )
+        changed = {
+            **source,
+            "source_occurrences": other["source"]["source_occurrences"],
+        }
+        assert changed["source_occurrences"] != source["source_occurrences"]
+        assert other["markers"] != manifest["marker_entries"]
+        assert other["plan"][0]["request_shape_sha256"] != shape
+        with pytest.raises(ImageContractError):
+            validate_admission(
+                anchor.admission_raw,
+                source=changed,
+                authority=authority,
+                runtime_identity_sha256=runtime_identity(),
+            )
+        assert digest("source-v1", changed) not in (
+            admission["source_package_sha256"],
+            manifest["source_package_sha256"],
+        )
+        cyclic_admission = canonical({**admission, "input_manifest_sha256": m_sha})
+        tampered = {
+            "changed-occurrence": replace(anchor, source_raw=canonical(changed)),
+            "changed-marker": replace(
+                anchor,
+                manifest_raw=canonical(
+                    {**manifest, "marker_entries": other["markers"]}
+                ),
+            ),
+            "source-names-admission": replace(
+                anchor, source_raw=canonical({**source, "admission_sha256": a_sha})
+            ),
+            "admission-names-manifest": replace(anchor, admission_raw=cyclic_admission),
+            "self-hashed-manifest": replace(
+                anchor,
+                manifest_raw=canonical({**manifest, "input_manifest_sha256": m_sha}),
+            ),
+        }
+        refused = {}
+        for name, candidate in tampered.items():
+            with pytest.raises(ImageContractError) as caught:
+                verify_image_run(candidate)
+            refused[name] = caught.value.code
+        assert set(refused.values()) <= {"image_custody", "image_admission_invalid"}
+        with pytest.raises(ImageContractError, match="^image_admission_invalid$"):
+            validate_admission(
+                cyclic_admission,
+                source=source,
+                authority=SyntheticImageAuthority(
+                    cyclic_admission,
+                    authority.caller_expectation_sha256,
+                    authority.root_dev,
+                    authority.root_ino,
+                ),
+                runtime_identity_sha256=runtime_identity(),
+            )
+        # Every refusal was caused by the edit alone: the genuine chain still verifies.
+        assert verify_image_run(anchor)["status"] == "ok"

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 from pathlib import Path
@@ -14,9 +15,26 @@ import pytest
 from typer.testing import CliRunner
 
 import dspx.cli.dspx as cli
+from dspx.image_admission import digest, parse_json, sha
+from dspx.image_records import list_root
 from dspx.openai_compatible_provider import OpenAICompatibleProvider
 from dspx.stub_provider import StubProvider
 from dspx.services import program_service
+from dspx.services.program_runtime_episode import run_program_runtime_episode
+from test_image_execution import (
+    _ENVELOPE_DEFECTS,
+    _PRIVATE_ROOTS,
+    _RefusalPoison,
+    _envelope,
+    _generated_runner,
+    _payload_free,
+    _png,
+    _prepare_route,
+    _route_fds,
+    _run_shipped_route,
+    _shipped_inputs,
+    _single_field_inputs,
+)
 
 
 def test_production_direct_runner_denies_unadmitted_image_before_import(
@@ -340,3 +358,323 @@ def test_every_data_bearing_intent_shape_reaches_the_image_preflight(
             check(intent)
     assert image_generation_profile(object()) is False
     generation_intent_preflight(object())
+
+
+# AK6756 S15: generated-run and episode materializers share one membrane.
+def test_s15_designmd_envelope_and_descriptor_share_one_membrane_in_both_routes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """S15: equivalent envelope and descriptor inputs yield identical commitments."""
+    monkeypatch.setenv("MLFLOW_ENABLE", "0")
+    monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
+    pixels = _png()
+    descriptor = {
+        "type": "image_base64",
+        "media_type": "image/png",
+        "data": base64.b64encode(pixels).decode("ascii"),
+    }
+    _single_field_inputs(tmp_path / "descriptor", "visual", descriptor)
+    with _route_fds(tmp_path / "descriptor") as fds:
+        expected = parse_json(_prepare_route(fds, use_cot=False).raw)
+    for route in ("episode", "direct"):
+        root = tmp_path / route
+        _single_field_inputs(root, "visual_image_inputs_json", _envelope(pixels))
+        run = _run_shipped_route(root, media="image/png", use_cot=False, route=route)
+        assert run.verified["status"] == "ok" and run.verified["spent"] is True
+        # One send, the envelope image exactly once as an image block, never as text.
+        assert [
+            (row["image_sha256"], row["message_block_kinds"]) for row in run.wire
+        ] == [([sha(pixels)], [["text"], ["text", "image_url", "text"]])]
+        artifacts = root / "artifacts"
+        source = parse_json((artifacts / "image_source_package.json").read_bytes())
+        manifest = parse_json((artifacts / "image_input_manifest.json").read_bytes())
+        assert (
+            source["decoder_profile_sha256"]
+            == expected["source"]["decoder_profile_sha256"]
+        )
+        assert source["source_occurrences"] == expected["source"]["source_occurrences"]
+        assert manifest["marker_entries"] == expected["markers"]
+        assert _payload_free([root / name for name in _PRIVATE_ROOTS], pixels) == []
+
+
+def test_s15_envelope_materializer_parity_inside_the_clean_worker(tmp_path: Path):
+    """S15: the production membrane, run in the worker, drops the raw envelope field."""
+    from dspx.image_source_io import open_root
+    from dspx.image_supervision import supervise_image_worker
+
+    pixels = _png()
+    root = tmp_path / "parity"
+    root.mkdir(mode=0o700)
+    descriptor = {
+        "type": "image_base64",
+        "media_type": "image/png",
+        "data": base64.b64encode(pixels).decode("ascii"),
+    }
+    (root / "descriptor.json").write_text(json.dumps({"visual": descriptor}))
+    (root / "envelope.json").write_text(
+        json.dumps({"visual_image_inputs_json": _envelope(pixels)})
+    )
+    malformed = []
+    for kind, override in sorted(_ENVELOPE_DEFECTS.items()):
+        malformed.append(f"malformed-{kind}.json")
+        (root / malformed[-1]).write_text(
+            json.dumps({"visual_image_inputs_json": _envelope(pixels, **override)})
+        )
+    fd = open_root(root)
+    try:
+        status = supervise_image_worker(
+            "image_route_worker_entries:envelope_parity_entry",
+            {"root_fd": fd, "malformed": malformed},
+            fds=(fd,),
+            wall_ms=30_000,
+        )
+    finally:
+        os.close(fd)
+    observed = {
+        "parity": [True, True, True],
+        "envelope_text": {
+            "reserved_keys_left": [],
+            "payload_copies": 1,  # only inside the one source-issued marker
+            "marker_copies": 1,
+            "parts": ["text", "image"],
+        },
+        "malformed": ["image_input_invalid"] * len(malformed),
+    }
+    assert status == {
+        "status": "prepared",
+        "commitment_sha256": digest("envelope-parity-v1", observed),
+        "fixture_evidence": True,
+        "live_authorized": False,
+        "failure_code": None,
+    }
+
+
+@pytest.mark.parametrize("kind", sorted(_ENVELOPE_DEFECTS))
+@pytest.mark.parametrize("path", ["library-prepare", "generated-prepare"])
+def test_s15_malformed_envelope_rejects_in_both_preparation_paths(
+    tmp_path: Path, kind: str, path: str
+):
+    from dspx.image_admission import ImageContractError
+
+    _single_field_inputs(
+        tmp_path,
+        "visual_image_inputs_json",
+        _envelope(_png(), **_ENVELOPE_DEFECTS[kind]),
+    )
+    with _route_fds(tmp_path) as fds:
+        with pytest.raises(ImageContractError) as caught:
+            if path == "library-prepare":
+                _prepare_route(fds, use_cot=False)
+            else:
+                _generated_runner(tmp_path).prepare_image(
+                    candidate_fd=fds["candidate"],
+                    input_fd=fds["inputs"],
+                    input_name="inputs.json",
+                    preparation_fd=fds["preparation"],
+                    model="synthetic-vision-fixture",
+                )
+        assert caught.value.code == "image_input_invalid"
+        assert caught.value.__cause__ is None and caught.value.__suppress_context__
+        assert [list_root(fds[name]) for name in _PRIVATE_ROOTS] == [[]] * 4
+
+
+@pytest.mark.parametrize("entry", ["episode", "generated-prepare", "generated-run"])
+def test_s15_missing_image_helper_import_never_falls_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, entry: str
+):
+    """S15: without the shared helper there is no old materialization fallback."""
+    import sys
+
+    from dspx.services import program_runtime_episode as episode
+
+    _shipped_inputs(tmp_path, media="image/png")
+    runner = _generated_runner(tmp_path)
+    entries: list[str] = []
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        entries.append("fallback")
+        raise AssertionError("missing helper fell back to old materialization")
+
+    for owner, names in (
+        (
+            episode,
+            (
+                "_load_inputs",
+                "_materialize_runtime_inputs",
+                "_generated_program_module",
+                "_configure_provider",
+            ),
+        ),
+        (runner, ("_load_inputs", "_single_run")),
+    ):
+        for name in names:
+            monkeypatch.setattr(owner, name, forbidden)
+    monkeypatch.setitem(sys.modules, "dspx.image_execution", None)
+    poison = _RefusalPoison()
+    calls = {
+        "episode": lambda: run_program_runtime_episode(
+            manifest_path=tmp_path / "candidate" / "manifest.json",
+            inputs_path=tmp_path / "inputs" / "inputs.json",
+            outdir=tmp_path / "artifacts",
+            image_execution=poison,
+        ),
+        "generated-prepare": lambda: runner.prepare_image(candidate_fd=poison),
+        "generated-run": lambda: runner.run_image(candidate_fd=poison),
+    }
+    with pytest.raises(ImportError):
+        calls[entry]()
+    assert entries == []
+    assert [sorted((tmp_path / name).iterdir()) for name in _PRIVATE_ROOTS] == [[]] * 4
+
+
+# AK6756 S50: image generation inputs are refused before raw payload persistence.
+_GENERATION_PAYLOADS: dict[str, dict[str, object]] = {
+    "inline-examples": {
+        "examples": [{"visual": "plain synthetic text", "answer": "ok"}]
+    },
+    "inline-image-example": {
+        "examples": [
+            {
+                "visual": {
+                    "type": "image_base64",
+                    "media_type": "image/png",
+                    "data": "QUJD",
+                },
+                "answer": "ok",
+            }
+        ]
+    },
+    "dataset": {"dataset": {"train": [{"visual": "x", "answer": "y"}]}},
+    "datasets": {"datasets": {"train": {"path": "train.jsonl"}}},
+    "examples-path": {"examples_path": "examples.json"},
+    "reserved-key": {"options": {"image_enabled": True, "imageDataBase64": "QUJD"}},
+    "reserved-marker-text": {"constraints": ["<<CUSTOM-TYPE-START-IDENTIFIER>>"]},
+}
+_GUARDED_RENDERERS = (
+    "render_signature_surface",
+    "render_module_surface",
+    "render_program_code",
+    "render_direct_run_code",
+    "render_eval_smoke",
+    "render_eval_examples",
+    "render_eval_behavior",
+)
+
+
+def _image_generation_intent(payload: str):
+    from dspx.services.program_intent import ProgramIntent
+
+    fields: dict[str, object] = {"options": {"image_enabled": True}}
+    fields.update(_GENERATION_PAYLOADS[payload])
+    return ProgramIntent(
+        objective="Describe bounded synthetic pixels.",
+        inputs=["visual"],
+        outputs=["answer"],
+        **fields,  # type: ignore[arg-type]
+    )
+
+
+def _effect_spies(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
+    """Every file write, created directory and tree removal, at the real call sites."""
+    import builtins
+    import io
+    import shutil
+
+    effects: dict[str, list[str]] = {"writes": [], "mkdirs": [], "removals": []}
+    real_os_open, passthrough = os.open, {"open": io.open}
+    real_os_mkdir, real_rmtree = os.mkdir, shutil.rmtree
+    write_flags = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
+
+    def os_open_spy(path, flags, *args, **kwargs):
+        if flags & write_flags:
+            effects["writes"].append(os.fspath(path))
+        return real_os_open(path, flags, *args, **kwargs)
+
+    def open_spy(file, mode="r", *args, **kwargs):
+        if set(str(mode)) & set("wax+"):
+            effects["writes"].append(str(file))
+        return passthrough["open"](file, mode, *args, **kwargs)  # caller closes it
+
+    def os_mkdir_spy(path, *args, **kwargs):  # Path.mkdir lands here too
+        real_os_mkdir(path, *args, **kwargs)
+        effects["mkdirs"].append(os.fspath(path))  # only directories actually created
+
+    def rmtree_spy(path, *args, **kwargs):
+        effects["removals"].append(os.fspath(path))
+        return real_rmtree(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", os_open_spy)
+    monkeypatch.setattr(io, "open", open_spy)
+    monkeypatch.setattr(builtins, "open", open_spy)
+    monkeypatch.setattr(os, "mkdir", os_mkdir_spy)
+    monkeypatch.setattr(shutil, "rmtree", rmtree_spy)
+    return effects
+
+
+@pytest.mark.parametrize("payload", sorted(_GENERATION_PAYLOADS))
+def test_s50_whole_materialization_refuses_before_any_surface_or_harness_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    no_provider_effects: list[bool],
+    payload: str,
+) -> None:
+    from dspx.image_admission import ImageContractError
+
+    intent = _image_generation_intent(payload)
+    downstream: list[str] = []
+
+    def forbidden(label: str) -> Callable[..., object]:
+        def refuse(*args: object, **kwargs: object) -> object:
+            downstream.append(label)
+            raise AssertionError("image generation reached " + label)
+
+        return refuse
+
+    for name in (*_GUARDED_RENDERERS, "resolve_program_retriever_snapshots"):
+        monkeypatch.setattr(program_service, name, forbidden(name))
+    candidate = tmp_path / "candidate"
+    effects = _effect_spies(monkeypatch)
+    with pytest.raises(ImageContractError) as caught:
+        program_service.materialize_program_from_intent(intent, outdir=candidate)
+    assert str(caught.value) == "image_generation_inputs_unsupported"
+    assert caught.value.__cause__ is None and caught.value.__suppress_context__
+    # Pre-render effects are accounted for, not reported as zero: the empty candidate
+    # root was created and then removed; nothing was written; no retriever resolved.
+    root = str(candidate.resolve())
+    assert effects == {"writes": [], "mkdirs": [root], "removals": [root]}
+    assert downstream == [] and no_provider_effects == []
+    assert not candidate.exists() and list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("payload", sorted(_GENERATION_PAYLOADS))
+@pytest.mark.parametrize("renderer", _GUARDED_RENDERERS)
+def test_s50_direct_renderer_guard_refuses_with_no_writes_or_generation(
+    monkeypatch: pytest.MonkeyPatch,
+    no_provider_effects: list[bool],
+    payload: str,
+    renderer: str,
+) -> None:
+    from dspx import image_source_io, image_source_profile
+    from dspx.image_admission import ImageContractError
+    from dspx.services import module_service, program_surfaces, signatures_service
+
+    intent = _image_generation_intent(payload)
+    downstream: list[str] = []
+    for owner, name in (
+        (signatures_service, "run_generate_dto"),
+        (module_service, "run_generate"),
+        (image_source_io, "image_surface_sources"),
+        (image_source_profile, "image_program_code"),
+    ):
+
+        def refuse(*args: object, _name: str = name, **kwargs: object) -> object:
+            downstream.append(_name)
+            raise AssertionError("renderer started generation: " + _name)
+
+        monkeypatch.setattr(owner, name, refuse)
+    effects = _effect_spies(monkeypatch)
+    with pytest.raises(ImageContractError) as caught:
+        getattr(program_surfaces, renderer)(intent)
+    assert str(caught.value) == "image_generation_inputs_unsupported"
+    assert effects == {"writes": [], "mkdirs": [], "removals": []}
+    assert downstream == [] and no_provider_effects == []
