@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any, cast
 
 from .image_admission import require, hash_value
@@ -78,6 +79,179 @@ def validate_terminal(
             and failure is not None,
             "image_custody",
         )
+
+
+@dataclass(frozen=True, slots=True)
+class _ReadOnlySource:
+    source: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ReadOnlyCustody:
+    """Caller-anchored, payload-free view of a spent root; never a dispatch handle."""
+
+    root_fd: int
+    admission: Any
+    context: _ReadOnlySource
+    manifest_sha256: str
+    ready_raw: bytes
+
+    def _scan(self):
+        from .image_records import scan
+
+        return scan(self, allow_closure=True)
+
+    @property
+    def record(self):
+        return self.admission.record
+
+    @property
+    def binding(self):
+        return self.record["custody"]
+
+
+def read_only_custody(
+    custody_fd: int, *, admission_raw: bytes, source_raw: bytes, manifest_raw: bytes
+) -> ReadOnlyCustody:
+    from .image_admission import (
+        ImageAdmission,
+        closed,
+        digest,
+        parse_json,
+        validate_source,
+    )
+    from .image_records import _READY, list_root, private_root, read_record
+
+    private_root(custody_fd)
+    admission = ImageAdmission(
+        admission_raw, digest("admission-v2", parse_json(admission_raw))
+    )
+    record = admission.record
+    source = validate_source(parse_json(source_raw))
+    manifest = closed(
+        parse_json(manifest_raw),
+        "schema_version source_package_sha256 admission_sha256 marker_entries",
+    )
+    require(
+        manifest["schema_version"] == "dspx-image-input-manifest-v2"
+        # ubs:ignore -- public sha256 commitment, not a secret
+        and manifest["source_package_sha256"] == digest("source-v1", source)
+        and manifest["admission_sha256"] == admission.sha256
+        and record["source_package_sha256"] == manifest["source_package_sha256"],
+        "image_custody",
+    )
+    require("ready.json" in list_root(custody_fd), "image_custody")
+    ready_raw = read_record(custody_fd, "ready.json")
+    ready = closed(parse_json(ready_raw), _READY)
+    require(
+        all(ready[key] == value for key, value in record["custody"].items())
+        and ready["admission_sha256"] == admission.sha256
+        # ubs:ignore -- public sha256 commitment, not a secret
+        and ready["input_manifest_sha256"] == digest("manifest-v2", manifest)
+        # Worker binding (custody ready v2): a distinct child, its deadline and grant.
+        and ready["schema_version"] == "dspx-image-custody-ready-v2"
+        and type(ready["worker_pid"]) is int
+        and ready["worker_pid"] not in {0, ready["creator_pid"]}
+        and type(ready["worker_deadline_ns"]) is int
+        and ready["worker_deadline_ns"] > 0
+        and str(ready["worker_start_identity"]).isdecimal()
+        and hash_value(ready["grant_sha256"]),
+        "image_custody",
+    )
+    return ReadOnlyCustody(
+        custody_fd,
+        admission,
+        _ReadOnlySource(source),
+        digest("manifest-v2", manifest),
+        ready_raw,
+    )
+
+
+def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
+    """Read-only settlement: an intent without its terminal is effect_indeterminate.
+
+    Nothing is written, so no terminal is minted for an outcome nobody recorded: an
+    absent terminal keeps an unknown dispatch count and is never success. Own
+    publication residue is counted, never trusted as a record; a complete residue
+    terminal for the same attempt with another disposition (the worker reclassified an
+    unconfirmed publication) contradicts the linked one, which is then never success.
+    The root stays spent; no session, allowance or retry derives from this report.
+    """
+    from .image_admission import ImageContractError, parse_json, sha
+    from .image_records import list_root, read_record, residue, scan
+
+    names = list_root(view.root_fd)
+    claims = set()
+    for name in filter(residue, names):
+        try:
+            row = parse_json(read_record(view.root_fd, name), limit=65_536)
+        except (ImageContractError, OSError):
+            continue  # empty or partial residue proves nothing
+        if type(row) is dict and row.get("schema_version") == (
+            "dspx-image-dispatch-terminal-v1"
+        ):
+            claims.add((row.get("attempt_id"), row.get("provider_disposition")))
+    attempts = []
+    for intent, terminal in scan(
+        view, allow_open=True, allow_closure=True, allow_residue=True
+    ):
+        ordinal = intent["attempt_ordinal"]
+        recorded = None if terminal is None else terminal["provider_disposition"]
+        contradicted = any(
+            attempt == intent["attempt_id"] and claim != recorded
+            for attempt, claim in claims
+        )
+        attempts.append(
+            {
+                "attempt_ordinal": ordinal,
+                "attempt_id": intent["attempt_id"],
+                "intent_sha256": sha(
+                    read_record(view.root_fd, f"intent-{ordinal}.json")
+                ),
+                "terminal_sha256": None
+                if terminal is None
+                else sha(read_record(view.root_fd, f"terminal-{ordinal}.json")),
+                "provider_disposition": "effect_indeterminate"
+                if terminal is None or contradicted
+                else recorded,
+                "dispatch_count": None
+                if terminal is None
+                else terminal["dispatch_count"],
+                "terminal_contradicted": terminal is not None and contradicted,
+            }
+        )
+    effects = {row["provider_disposition"] for row in attempts}
+    effect = "completed_failure"
+    if not attempts:
+        effect = "none"
+    elif "effect_indeterminate" in effects:
+        effect = "effect_indeterminate"
+    elif effects == {"completed_success"}:
+        effect = "completed_success"
+    return {
+        "schema_version": "dspx-image-custody-reconciliation-v1",
+        "status": "spent",
+        "dispatch_available": False,
+        "consumed_dispatches": len(attempts),
+        "publication_residue": sum(residue(name) for name in names),
+        "closure_present": "closure.json" in names,
+        "terminal_effect": effect,
+        "attempts": attempts,
+    }
+
+
+def reconcile_image_custody(
+    custody_fd: int, *, admission_raw: bytes, source_raw: bytes, manifest_raw: bytes
+) -> dict[str, Any]:
+    """Parent-side report for a root whose worker is settled; reads records only."""
+    return reconcile(
+        read_only_custody(
+            custody_fd,
+            admission_raw=admission_raw,
+            source_raw=source_raw,
+            manifest_raw=manifest_raw,
+        )
+    )
 
 
 _ARTIFACT_KEYS = {

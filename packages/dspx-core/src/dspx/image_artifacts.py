@@ -7,19 +7,15 @@ import re
 from typing import TYPE_CHECKING, TypedDict, cast
 
 from .image_admission import (
-    ImageAdmission,
     canonical,
     closed,
-    digest,
     hash_value,
     parse_json,
     require,
     sha,
-    validate_source,
 )
 from .image_records import (
     _CLOSURE,
-    _READY,
     list_root,
     private_root,
     publish,
@@ -359,76 +355,30 @@ def _check_manifest(fd: int, name: str, expected: str, caller: str) -> ArtifactM
     return cast(ArtifactManifest, row)
 
 
-@dataclass(frozen=True, slots=True)
-class _ReadOnlySource:
-    source: dict[str, object]
-
-
-@dataclass(frozen=True, slots=True)
-class _ReadOnlyCustody:
-    root_fd: int
-    admission: ImageAdmission
-    context: _ReadOnlySource
-    manifest_sha256: str
-    ready_raw: bytes
-
-    def _scan(self):
-        return scan(self, allow_closure=True)
-
-    @property
-    def record(self):
-        return self.admission.record
-
-    @property
-    def binding(self):
-        return self.record["custody"]
-
-
 def verify_image_run(anchor: ImageRunAnchor) -> dict[str, object]:
     # Parent-side integrity check over payload-free custody/artifact records only.
     require(type(anchor) is ImageRunAnchor, "image_custody")
-    private_root(anchor.custody_fd)
     private_root(anchor.artifact_fd)
-    admission = ImageAdmission(
-        anchor.admission_raw, digest("admission-v2", parse_json(anchor.admission_raw))
+    from .image_record_validation import (
+        read_only_custody,
+        reconcile,
+        validate_artifact_chain,
     )
-    record = admission.record
-    source = validate_source(parse_json(anchor.source_raw))
-    manifest = closed(
-        parse_json(anchor.manifest_raw),
-        "schema_version source_package_sha256 admission_sha256 marker_entries",
-    )
-    require(
-        manifest["schema_version"] == "dspx-image-input-manifest-v2"
-        # ubs:ignore -- public sha256 commitment, not a secret
-        and manifest["source_package_sha256"] == digest("source-v1", source)
-        and manifest["admission_sha256"] == admission.sha256
-        and record["source_package_sha256"] == manifest["source_package_sha256"],
-        "image_custody",
-    )
-    ready_raw = read_record(anchor.custody_fd, "ready.json")
-    ready = closed(parse_json(ready_raw), _READY)
-    require(
-        all(ready[key] == value for key, value in record["custody"].items())
-        and ready["admission_sha256"] == admission.sha256
-        # ubs:ignore -- public sha256 commitment, not a secret
-        and ready["input_manifest_sha256"] == digest("manifest-v2", manifest)
-        # Worker binding (custody ready v2): a distinct child, its deadline and grant.
-        and ready["schema_version"] == "dspx-image-custody-ready-v2"
-        and type(ready["worker_pid"]) is int
-        and ready["worker_pid"] not in {0, ready["creator_pid"]}
-        and type(ready["worker_deadline_ns"]) is int
-        and ready["worker_deadline_ns"] > 0
-        and str(ready["worker_start_identity"]).isdecimal()
-        and hash_value(ready["grant_sha256"]),
-        "image_custody",
-    )
-    view = _ReadOnlyCustody(
+
+    view = read_only_custody(
         anchor.custody_fd,
-        admission,
-        _ReadOnlySource(source),
-        digest("manifest-v2", manifest),
-        ready_raw,
+        admission_raw=anchor.admission_raw,
+        source_raw=anchor.source_raw,
+        manifest_raw=anchor.manifest_raw,
+    )
+    admission, record = view.admission, view.record
+    state = reconcile(view)
+    # An absent terminal, unsettled residue or missing closure is a burnt run.
+    require(
+        state["terminal_effect"] == "completed_success"
+        and state["publication_residue"] == 0
+        and state["closure_present"],
+        "image_spent",
     )
     rows = scan(view, allow_closure=True)
     raw = read_record(anchor.custody_fd, "closure.json")
@@ -466,8 +416,6 @@ def verify_image_run(anchor: ImageRunAnchor) -> dict[str, object]:
         "image_custody",
     )
     caller = record["custody"]["caller_run_id"]
-    from .image_record_validation import validate_artifact_chain
-
     validate_artifact_chain(
         anchor.artifact_fd,
         closure["artifact_manifest_sha256"],

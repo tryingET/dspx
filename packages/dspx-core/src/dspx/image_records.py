@@ -152,11 +152,22 @@ def publish(root_fd: int, name: str, record: object) -> str:
             os.close(fd)
 
 
+def residue(name: str) -> bool:
+    """Own unsettled publication: exactly `.pending-` and a canonical uuid4."""
+    return name.startswith(".pending-") and uuid_value(name[9:])
+
+
 def scan(
-    self: Any, *, allow_open: bool = False, allow_closure: bool = False
+    self: Any,
+    *,
+    allow_open: bool = False,
+    allow_closure: bool = False,
+    allow_residue: bool = False,
 ) -> list[tuple[dict, dict | None]]:
     require(read_record(self.root_fd, "ready.json") == self.ready_raw, "image_custody")
     names = set(list_root(self.root_fd))
+    if allow_residue:  # read-only reconciliation only; never a dispatching scan
+        names = {name for name in names if not residue(name)}
     require(
         "lock" in names and "ready.json" in names and len(names) <= 131,
         "image_custody",

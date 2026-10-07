@@ -43,8 +43,6 @@ from dspx.image_admission import (
 )
 from dspx.image_artifacts import (
     ImageRunAnchor,
-    _ReadOnlyCustody,
-    _ReadOnlySource,
     _entry,
     publish_image_run,
     verify_image_run,
@@ -59,6 +57,7 @@ from dspx.image_execution import (
     prepare_image_execution,
 )
 from dspx.image_privacy import image_privacy, runtime_identity
+from dspx.image_record_validation import ReadOnlyCustody, _ReadOnlySource
 from dspx.image_records import list_root, publish, read_record, scan
 from dspx.image_supervision import supervise_image_worker
 from dspx.image_worker import worker_entry
@@ -656,7 +655,7 @@ def test_s20_identical_requests_get_distinct_attempts_and_reject_duplicates(
     )
     anchor = run.anchor(closure_sha)
     assert verify_image_run(anchor)["status"] == "ok"
-    view = _ReadOnlyCustody(
+    view = ReadOnlyCustody(
         custody,
         run.admission,
         _ReadOnlySource(run.source),
@@ -895,11 +894,11 @@ _TAMPER: dict[str, tuple[str, str, Callable[[dict], dict | None], str]] = {
     "custody_unknown_effect": (
         "custody",
         "terminal-1.json",
-        # A self-consistent unknown effect: the scan accepts it, success does not.
+        # A self-consistent unknown effect: the scan accepts it, but the run is burnt.
         lambda row: _set(
             row, provider_disposition="effect_indeterminate", failure_code="io"
         ),
-        "image_custody",
+        "image_spent",
     ),
     "custody_missing_terminal": (
         "custody",
