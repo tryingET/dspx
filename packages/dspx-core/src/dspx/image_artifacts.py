@@ -148,6 +148,20 @@ def publish_image_run(
 ) -> ImageArtifactBinding:
     root = private_root(artifact_fd)
     require(not list_root(artifact_fd), "image_spent")
+    # Only a settled, all-success run publishes: refused before the first write.
+    require(not session.poisoned and not session.closed, "image_spent")
+    rows = session._scan()
+    require(
+        rows
+        and len(rows) == len(session.record["request_plan"])
+        and all(
+            term is not None
+            and term["provider_disposition"] == "completed_success"
+            and term["typed_finalization_completed"] is True
+            for _, term in rows
+        ),
+        "image_custody",
+    )
     reject_output(outputs, session.context)
     from .image_privacy import require_privacy
     from .image_source_profile import ImageSourceProfile
@@ -224,8 +238,6 @@ def publish_image_run(
             "failure_code": None,
         },
     )
-    rows = session._scan()
-    require(rows and len(rows) == len(session.record["request_plan"]), "image_custody")
     publish(
         artifact_fd,
         content_names[4],
