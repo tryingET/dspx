@@ -364,6 +364,40 @@ def test_focused_json_bundle_capture_branch_is_sentinel_safe() -> None:
     assert "if self.predict._dspx_capture_predict" not in code
 
 
+def test_focused_json_bundle_names_every_output_and_reports_missing_ones() -> None:
+    # AK6820: a real S3 run omitted distillation_frames (not named in the old
+    # hardcoded bundle docstring) and still reported ok.
+    code = render_module_skeleton(
+        "ReviewModule",
+        inputs=["source"],
+        outputs=[
+            "section_units_json",
+            "distillation_frames_json",
+            "review_packet_json",
+        ],
+        signature_class_name="ReviewSignature",
+        signature_code="import dspy\n\nclass ReviewSignature(dspy.Signature):\n    source = dspy.InputField()\n    section_units_json = dspy.OutputField()\n    distillation_frames_json = dspy.OutputField()\n    review_packet_json = dspy.OutputField()",
+        focused_json_bundle_runtime=True,
+    )
+    namespace: dict[str, Any] = {}
+    # ubs:ignore -- test executes the module source rendered by the template under test
+    exec(code, namespace, namespace)  # ubs:ignore
+
+    bundle_doc = namespace["FocusedReviewModuleBundleSignature"].__doc__
+    for name in ("section_units", "distillation_frames", "review_packet"):
+        assert name in bundle_doc
+
+    class _Prediction:
+        note_bundle_json = json.dumps({"section_units": [], "review_packet": {}})
+
+    student = namespace["build_student"]()
+    student.focused_predict = lambda **kwargs: _Prediction()
+    prediction = student.forward(source="text")
+    packet = json.loads(prediction.review_packet_json)
+    assert packet["missing_output_families"] == ["distillation_frames"]
+    assert json.loads(prediction.distillation_frames_json) == []
+
+
 @pytest.mark.parametrize(
     "spec_kwargs",
     [

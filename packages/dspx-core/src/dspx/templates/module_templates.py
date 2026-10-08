@@ -96,11 +96,18 @@ def render_module_skeleton(
             ]
         )
 
+    output_families = [out.removesuffix("_json") for out in outs]
     if focused_json_bundle:
+        # Name every declared output: a model omits keys the prompt never lists.
         header.extend(
             [
                 f"class {focused_signature_class}(dspy.Signature):",
-                '    """Create one focused JSON bundle, then expand it to the declared output files.\n\n    Return one valid JSON object. The object may use output-field names directly or\n    unwrapped names such as section_units, evidence_cards, wiki_note_drafts,\n    review_packet, and artifact_contract_manifest. Keep canonical mutation forbidden.\n    If relevant image/figure rows are supplied, preserve figure_id/page/image_path\n    and review_embed; if no figure is relevant, image_refs must be [].\n    """',
+                '    """Create one focused JSON bundle, then expand it to the declared output files.\n\n'
+                "    Return one valid JSON object with one key for every declared output:\n"
+                f"    {', '.join(output_families)}.\n"
+                "    Keys may also use the full output-field names. Keep canonical mutation forbidden.\n"
+                "    If relevant image/figure rows are supplied, preserve figure_id/page/image_path\n"
+                '    and review_embed; if no figure is relevant, image_refs must be [].\n    """',
                 "",
             ]
         )
@@ -260,6 +267,9 @@ def render_module_skeleton(
             "            bundle = {'wiki_note_drafts': [], 'review_packet': {'state': 'needs_review', 'error': 'model_output_was_not_a_json_object'}}"
         )
         body.append("        known_image_refs = _collect_image_refs(bundle)")
+        body.append(
+            f"        missing_output_families = [base for base, out in {list(zip(output_families, outs))!r} if base not in bundle and out not in bundle]"
+        )
         for out in outs:
             base = out.removesuffix("_json") if out.endswith("_json") else out
             default = (
@@ -279,6 +289,10 @@ def render_module_skeleton(
                 body.append(f"        if isinstance({out}, dict):")
                 body.append(
                     f"            {out}.setdefault('canonical_mutation_performed', False)"
+                )
+                body.append("            if missing_output_families:")
+                body.append(
+                    f"                {out}['missing_output_families'] = missing_output_families"
                 )
             elif base == "artifact_contract_manifest":
                 body.append(
