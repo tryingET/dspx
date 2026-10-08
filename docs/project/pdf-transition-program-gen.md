@@ -124,6 +124,18 @@ This is separate from other DSPx/meta-adjudication sidecars such as `target_prof
 
 ## Running an existing candidate on real PDF source-package input
 
+Live provider (checked 2026-10-08, AK6820): the May replays used `dspy-lm-auth`, which the typed hard cutover removed. The only live provider is `openai-compatible` on a loopback URL. It needs `DSPX_POLICY_ALLOW_NETWORK_MUTATE=1` (otherwise `preflight_rejected`) and the model id the server echoes back: the workstation lane answers `baseline-text` requests with its upstream id, so request that id (otherwise `completed_failure`):
+
+```bash
+DSPX_POLICY_ALLOW_NETWORK_MUTATE=1 DSPX_PROVIDER=openai-compatible \
+DSPX_OPENAI_COMPAT_API_BASE=http://127.0.0.1:1234/v1 \
+DSPX_OPENAI_COMPAT_MODEL="$(curl -s http://127.0.0.1:1234/v1/models | jq -r '.data[0].root')" \
+DSPX_OPENAI_COMPAT_TIMEOUT=1500 MLFLOW_ENABLE=0 \
+uv run --package dspx-core -q python "$CANDIDATE/direct_run.py" --inputs in.json --outdir out
+```
+
+Some runs on the local 27B lane end in a `JSONDecodeError` from the model's bundle (3 of 16 on 2026-10-08); rerun them. `review_packet_json.missing_output_families` lists artifact families the model left out.
+
 After a candidate exists, use `program-run` to run that generated program against explicit runtime inputs without mutating the candidate manifest or canonical notes:
 
 ```bash
