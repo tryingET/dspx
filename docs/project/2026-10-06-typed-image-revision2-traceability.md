@@ -97,10 +97,14 @@ production diff found nothing blocking; its should-fix items are fixed below.
 - **Plan order**: holds for the shipped single-predictor routes; a future plan whose
   later predictor re-reads an earlier field would be refused (fail closed).
 - **Reconciliation** is a parent-side read-only report; shipped routes raise their fixed
-  failure code and do not call it. A root left with a lock but no `ready.json`, or a
-  record left with two links by a kill inside publication, refuses reconciliation with
-  `image_custody` (the root stays spent). Image transfers check the deadline per chunk
-  but not `per_request_io_timeout_ms` across chunks. Follow-up AK6811.
+  failure code and do not call it. A root left with a lock but no settled `ready.json`
+  reports spent with no attempt (`ready_present: false`, terminal effect `none`); a
+  record left with two links by a kill inside publication, the other its own pending
+  twin, reports its attempt `effect_indeterminate` (`publication_unsettled`), never
+  success; `verify_image_run` refuses both. Image transfers check the wall deadline and
+  one `per_request_io_timeout_ms` window from dispatch at every chunk: a trickle past
+  the window is an `io` `effect_indeterminate` terminal written by the worker itself
+  (AK6811, `test_image_settlement`).
 
 ## Test shorthands
 
@@ -108,7 +112,8 @@ ADM `test_image_admission`, TLM `test_dspy_typed_lm`, STUB `test_stub_provider`,
 SIO `test_image_source_io`, ICT `test_image_input_contract`, PROF
 `test_image_source_profile`, PRIV `test_image_privacy`, EFF `test_image_effects`, CUS
 `test_image_custody`, EXE `test_image_execution`, SURF `test_program_surfaces_image_inputs`,
-RDB `test_receipt_domain_boundary`, IIL `test_image_input_limits` (all under `tests/`).
+RDB `test_receipt_domain_boundary`, IIL `test_image_input_limits`, SET `test_image_settlement`
+(all under `tests/`).
 
 - ADM: BND `test_s03_parent_refuses_bounds_outside_the_admission`; HELD
   `test_s03_parent_refuses_drift_against_held_expectations`; WRK
@@ -289,7 +294,7 @@ RDB `test_receipt_domain_boundary`, IIL `test_image_input_limits` (all under `te
 | AK6607-S44-E06 | COVERED | CUS::test_worker_killed_after_send_is_reconciled_indeterminate | fixed (reconciliation) |
 | AK6607-S45 | COVERED | EFF::test_s45_direct_provider_invoke_records_direct_provider_finalization | proof-only |
 | AK6607-S46 | COVERED | CUS::test_artifact_or_closure_fault_burns_the_run[artifact, closure]; CUS::test_completed_failure_is_spent_and_publishes_no_artifact | fixed (verify code, publish guard) |
-| AK6607-S47 | COVERED | CUS::test_trickling_response_cannot_extend_the_original_wall_deadline | fixed (reconciliation); AK6811 |
+| AK6607-S47 | COVERED | CUS::test_trickling_response_cannot_extend_the_original_wall_deadline; SET::test_io_timeout_bounds_a_trickling_read_and_settles_inside_the_worker | fixed (reconciliation, IO window AK6811) |
 | AK6607-S48 | COVERED | CUS::test_spent_completed_root_admits_only_read_only_verification | fixed (reconciliation) |
 | AK6607-S49 | COVERED | RDB::test_s49_image_episode_keeps_new_names_and_rejects_mixed_v1_rows | fixed (image-only rows) |
 | AK6607-S50 | COVERED | SURF::test_s50_whole_materialization_refuses_before_any_surface_or_harness_write[*]; SURF::test_s50_direct_renderer_guard_refuses_with_no_writes_or_generation[*] | proof-only |

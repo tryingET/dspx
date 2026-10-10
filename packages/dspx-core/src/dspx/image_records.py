@@ -9,6 +9,7 @@ import json
 import stat
 import time
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 from .image_admission import (
@@ -22,8 +23,6 @@ from .image_admission import (
     sha,
     uuid_value,
 )
-
-from .image_record_validation import validate_terminal
 
 _READY = "schema_version custody_id caller_run_id caller_binding_sha256 caller_expectation_sha256 admission_sha256 source_package_sha256 input_manifest_sha256 runtime_identity_sha256 root_dev root_ino total_dispatch_allowance request_plan_sha256 creator_pid created_utc_ms worker_pid worker_start_identity worker_deadline_ns grant_sha256"
 _INTENT = "schema_version custody_id caller_run_id caller_binding_sha256 admission_sha256 input_manifest_sha256 attempt_id attempt_ordinal plan_ordinal request_sha256 request_shape_sha256 image_occurrence_sequence validated_image_count validated_image_bytes reserved_utc_ms deadline_utc_ms"
@@ -46,6 +45,78 @@ _FAILURES = {
     "durability",
     "privacy",
 }
+
+
+def validate_terminal(
+    terminal: Mapping[str, object],
+    intent: Mapping[str, object],
+    *,
+    model: str,
+    expires_ms: int,
+    max_response_bytes: int,
+) -> None:
+    count = terminal["dispatch_count"]
+    disposition = terminal["provider_disposition"]
+    kind = terminal["finalization_kind"]
+    result = terminal["result_finalization_completed"]
+    typed = terminal["typed_finalization_completed"]
+    response_hash = terminal["response_sha256"]
+    response_bytes = terminal["response_byte_count"]
+    observed = terminal["observed_model"]
+    failure = terminal["failure_code"]
+    timestamp = terminal["terminal_utc_ms"]
+    reserved = intent["reserved_utc_ms"]
+    if type(timestamp) is not int or type(reserved) is not int:
+        require(False, "image_custody")
+        return
+    require(reserved <= timestamp <= expires_ms, "image_custody")
+    require(type(count) is int and count in (0, 1), "image_custody")
+    require(type(result) is bool and type(typed) is bool, "image_custody")
+    require(kind in ("dspy_lm", "direct_provider"), "image_custody")
+    require(typed is False or (kind == "dspy_lm" and result is True), "image_custody")
+    require(observed is None or observed == model, "image_custody")
+    if response_hash is None:
+        require(response_bytes is None and observed is None, "image_custody")
+    else:
+        require(hash_value(response_hash), "image_custody")
+        require(
+            type(response_bytes) is int and 0 <= response_bytes <= max_response_bytes,
+            "image_custody",
+        )
+    if disposition == "completed_success":
+        require(
+            count == 1 and result is True and failure is None and observed == model,
+            "image_custody",
+        )
+        require(
+            response_hash is not None
+            and type(response_bytes) is int
+            and response_bytes > 0,
+            "image_custody",
+        )
+        require(typed is (kind == "dspy_lm"), "image_custody")
+    elif disposition == "completed_failure":
+        require(
+            count == 1 and response_hash is not None and failure is not None,
+            "image_custody",
+        )
+    elif disposition == "preflight_rejected":
+        require(
+            count == 0
+            and response_hash is None
+            and observed is None
+            and result is False
+            and typed is False
+            and failure is not None,
+            "image_custody",
+        )
+    else:
+        require(
+            disposition == "effect_indeterminate"
+            and count == 1
+            and failure is not None,
+            "image_custody",
+        )
 
 
 def now_ms() -> int:
@@ -80,7 +151,9 @@ def list_root(root_fd: int) -> list[str]:
         os.close(fd)
 
 
-def read_record(root_fd: int, name: str) -> bytes:
+def read_record(
+    root_fd: int, name: str, *, twin: tuple[int, int] | None = None
+) -> bytes:
     fd = os.open(
         name, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=root_fd
     )
@@ -90,7 +163,9 @@ def read_record(root_fd: int, name: str) -> bytes:
             stat.S_ISREG(row.st_mode)
             and stat.S_IMODE(row.st_mode) == 0o600
             and row.st_uid == os.geteuid()
-            and row.st_nlink == 1
+            # A second link only inside a reconciled link window, to its own twin.
+            and row.st_nlink == (1 if twin is None else 2)
+            and (twin is None or (row.st_dev, row.st_ino) == twin)
             and 0 < row.st_size <= 65_536,
             "image_custody",
         )
@@ -163,9 +238,12 @@ def scan(
     allow_open: bool = False,
     allow_closure: bool = False,
     allow_residue: bool = False,
+    window: Mapping[str, tuple[int, int]] | None = None,
 ) -> list[tuple[dict, dict | None]]:
     require(read_record(self.root_fd, "ready.json") == self.ready_raw, "image_custody")
     names = set(list_root(self.root_fd))
+    window = window or {}
+    require(allow_residue or not window, "image_custody")
     if allow_residue:  # read-only reconciliation only; never a dispatching scan
         names = {name for name in names if not residue(name)}
     require(
@@ -194,7 +272,7 @@ def scan(
             not missing and ordinal <= len(self.record["request_plan"]),
             "image_custody",
         )
-        raw = read_record(self.root_fd, intent_name)
+        raw = read_record(self.root_fd, intent_name, twin=window.get(intent_name))
         intent = closed(parse_json(raw), _INTENT)
         plan = self.record["request_plan"][ordinal - 1]
         require(
@@ -252,9 +330,10 @@ def scan(
         )
         terminal = None
         if terminal_name in names:
-            terminal = closed(
-                parse_json(read_record(self.root_fd, terminal_name)), _TERMINAL
+            raw_terminal = read_record(
+                self.root_fd, terminal_name, twin=window.get(terminal_name)
             )
+            terminal = closed(parse_json(raw_terminal), _TERMINAL)
             require(
                 terminal["schema_version"] == "dspx-image-dispatch-terminal-v1"
                 and terminal["intent_sha256"] == sha(raw),

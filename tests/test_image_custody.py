@@ -244,7 +244,15 @@ class _Run:
             manifest_sha256=digest("manifest-v2", self.manifest),
         )
 
-    def execute(self, fault: str = "none", *, barrier: str = "", initialize=True):
+    def execute(
+        self,
+        fault: str = "none",
+        *,
+        barrier: str = "",
+        initialize=True,
+        entry: str = f"{_HERE}:_custody_entry",
+        parent_action=None,
+    ):
         params = {
             "candidate_fd": self.fds["candidate"],
             "input_fd": self.fds["inputs"],
@@ -264,11 +272,13 @@ class _Run:
         }
         try:
             return supervise_image_worker(
-                f"{_HERE}:_custody_entry",
+                entry,
                 params,
                 fds=tuple(fd for name, fd in self.fds.items()),
                 wall_ms=self.wall_ms,
-                parent_action=self.initializer() if initialize else None,
+                parent_action=(parent_action or self.initializer())
+                if initialize
+                else None,
             )
         except ImageContractError as error:
             return error.code
@@ -761,7 +771,9 @@ def test_trickling_response_cannot_extend_the_original_wall_deadline(
     case: _Case, tmp_path: Path
 ) -> None:
     """AK6607-S47: per-read progress never refreshes the parent's absolute deadline."""
-    run = _Run(case, tmp_path, wall_ms=6_000, io_ms=1_000)
+    # The IO window equals the wall budget (its admitted maximum) and opens only at
+    # dispatch, so the wall deadline decides here (AK6811 covers the IO window).
+    run = _Run(case, tmp_path, wall_ms=6_000, io_ms=6_000)
     try:
         started = time.monotonic()
         outcome = run.execute("trickle")

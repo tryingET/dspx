@@ -1,84 +1,39 @@
-"""Closed image terminal cross-field checks; individual digest syntax is insufficient."""
+"""Read-only custody views and reconciliation, artifact chains and receipt routing."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
+import os
+import stat
+from dataclasses import dataclass, replace
 from typing import Any, cast
 
-from .image_admission import require, hash_value
+from .image_admission import ImageContractError, hash_value, require
 
 
-def validate_terminal(
-    terminal: Mapping[str, object],
-    intent: Mapping[str, object],
-    *,
-    model: str,
-    expires_ms: int,
-    max_response_bytes: int,
-) -> None:
-    count = terminal["dispatch_count"]
-    disposition = terminal["provider_disposition"]
-    kind = terminal["finalization_kind"]
-    result = terminal["result_finalization_completed"]
-    typed = terminal["typed_finalization_completed"]
-    response_hash = terminal["response_sha256"]
-    response_bytes = terminal["response_byte_count"]
-    observed = terminal["observed_model"]
-    failure = terminal["failure_code"]
-    timestamp = terminal["terminal_utc_ms"]
-    reserved = intent["reserved_utc_ms"]
-    if type(timestamp) is not int or type(reserved) is not int:
-        require(False, "image_custody")
-        return
-    require(reserved <= timestamp <= expires_ms, "image_custody")
-    require(type(count) is int and count in (0, 1), "image_custody")
-    require(type(result) is bool and type(typed) is bool, "image_custody")
-    require(kind in ("dspy_lm", "direct_provider"), "image_custody")
-    require(typed is False or (kind == "dspy_lm" and result is True), "image_custody")
-    require(observed is None or observed == model, "image_custody")
-    if response_hash is None:
-        require(response_bytes is None and observed is None, "image_custody")
-    else:
-        require(hash_value(response_hash), "image_custody")
-        require(
-            type(response_bytes) is int and 0 <= response_bytes <= max_response_bytes,
-            "image_custody",
-        )
-    if disposition == "completed_success":
-        require(
-            count == 1 and result is True and failure is None and observed == model,
-            "image_custody",
-        )
-        require(
-            response_hash is not None
-            and type(response_bytes) is int
-            and response_bytes > 0,
-            "image_custody",
-        )
-        require(typed is (kind == "dspy_lm"), "image_custody")
-    elif disposition == "completed_failure":
-        require(
-            count == 1 and response_hash is not None and failure is not None,
-            "image_custody",
-        )
-    elif disposition == "preflight_rejected":
-        require(
-            count == 0
-            and response_hash is None
-            and observed is None
-            and result is False
-            and typed is False
-            and failure is not None,
-            "image_custody",
-        )
-    else:
-        require(
-            disposition == "effect_indeterminate"
-            and count == 1
-            and failure is not None,
-            "image_custody",
-        )
+def link_window(root_fd: int, names: list[str]) -> dict[str, tuple[int, int]]:
+    """Records whose publication stopped between `os.link` and `os.unlink`.
+
+    Such a record has exactly two links, the other its own `.pending-<uuid4>` twin: its
+    bytes were written and fsynced, but the publisher never confirmed it. Read-only;
+    only reconciliation reads it, never as settled. Any other extra link is refused.
+    """
+    from .image_records import residue
+
+    try:
+        rows = {name: os.lstat(name, dir_fd=root_fd) for name in names}
+    except OSError:
+        raise ImageContractError("image_custody") from None
+    pairs = {
+        name: (row.st_dev, row.st_ino)
+        for name, row in rows.items()
+        if stat.S_ISREG(row.st_mode) and row.st_nlink == 2 and name != "lock"
+    }
+    twins = {pair for name, pair in pairs.items() if residue(name)}
+    return {
+        name: pair
+        for name, pair in pairs.items()
+        if not residue(name) and pair in twins
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,11 +49,12 @@ class ReadOnlyCustody:
     admission: Any
     context: _ReadOnlySource
     manifest_sha256: str
-    ready_raw: bytes
+    ready_raw: bytes | None  # None: claimed but never ready (reconciliation only)
 
     def _scan(self):
         from .image_records import scan
 
+        require(self.ready_raw is not None, "image_custody")
         return scan(self, allow_closure=True)
 
     @property
@@ -111,7 +67,12 @@ class ReadOnlyCustody:
 
 
 def read_only_custody(
-    custody_fd: int, *, admission_raw: bytes, source_raw: bytes, manifest_raw: bytes
+    custody_fd: int,
+    *,
+    admission_raw: bytes,
+    source_raw: bytes,
+    manifest_raw: bytes,
+    unready: bool = False,
 ) -> ReadOnlyCustody:
     from .image_admission import (
         ImageAdmission,
@@ -120,9 +81,9 @@ def read_only_custody(
         parse_json,
         validate_source,
     )
-    from .image_records import _READY, list_root, private_root, read_record
+    from .image_records import _READY, list_root, private_root, read_record, residue
 
-    private_root(custody_fd)
+    root = private_root(custody_fd)
     admission = ImageAdmission(
         admission_raw, digest("admission-v2", parse_json(admission_raw))
     )
@@ -140,7 +101,39 @@ def read_only_custody(
         and record["source_package_sha256"] == manifest["source_package_sha256"],
         "image_custody",
     )
-    require("ready.json" in list_root(custody_fd), "image_custody")
+    view = ReadOnlyCustody(
+        custody_fd,
+        admission,
+        _ReadOnlySource(source),
+        digest("manifest-v2", manifest),
+        None,
+    )
+    names = list_root(custody_fd)
+    require(len(names) <= 131, "image_custody")  # the scan's bound, before any stat
+    if unready and (
+        "ready.json" not in names or "ready.json" in link_window(custody_fd, names)
+    ):
+        # The initializer died between its O_EXCL claim and a settled ready.json, so
+        # nothing could dispatch. Names and inode metadata only: no record (not even
+        # a complete ready.json inside its link window) is read or trusted.
+        require(
+            {name for name in names if not residue(name)} - {"ready.json"} == {"lock"}
+            and (root.st_dev, root.st_ino)
+            == (view.binding["root_dev"], view.binding["root_ino"]),
+            "image_custody",
+        )
+        try:
+            lock = os.lstat("lock", dir_fd=custody_fd)
+        except OSError:
+            raise ImageContractError("image_custody") from None
+        require(
+            stat.S_ISREG(lock.st_mode)
+            and stat.S_IMODE(lock.st_mode) == 0o600
+            and (lock.st_uid, lock.st_nlink, lock.st_size) == (os.geteuid(), 1, 0),
+            "image_custody",
+        )
+        return view
+    require("ready.json" in names, "image_custody")
     ready_raw = read_record(custody_fd, "ready.json")
     ready = closed(parse_json(ready_raw), _READY)
     require(
@@ -158,13 +151,7 @@ def read_only_custody(
         and hash_value(ready["grant_sha256"]),
         "image_custody",
     )
-    return ReadOnlyCustody(
-        custody_fd,
-        admission,
-        _ReadOnlySource(source),
-        digest("manifest-v2", manifest),
-        ready_raw,
-    )
+    return replace(view, ready_raw=ready_raw)
 
 
 def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
@@ -175,15 +162,21 @@ def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
     publication residue is counted, never trusted as a record; a complete residue
     terminal for the same attempt with another disposition (the worker reclassified an
     unconfirmed publication) contradicts the linked one, which is then never success.
+    A record still linked to its own pending twin (publication killed between link and
+    unlink) is read, never settled: its attempt is effect_indeterminate with an
+    unknown dispatch count, and such a closure is not present. A root claimed but
+    never ready reports no attempt; nothing in it is read.
     The root stays spent; no session, allowance or retry derives from this report.
     """
-    from .image_admission import ImageContractError, parse_json, sha
+    from .image_admission import parse_json, sha
     from .image_records import list_root, read_record, residue, scan
 
     names = list_root(view.root_fd)
     require(len(names) <= 131, "image_custody")  # the scan's bound, before any read
+    window = link_window(view.root_fd, names)
+    ready = view.ready_raw is not None
     claims = set()
-    for name in filter(residue, names):
+    for name in filter(residue, names if ready else ()):
         try:
             row = parse_json(read_record(view.root_fd, name), limit=65_536)
         except (ImageContractError, OSError):
@@ -196,32 +189,44 @@ def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
         ):
             claims.add(claim)
     attempts = []
-    for intent, terminal in scan(
-        view, allow_open=True, allow_closure=True, allow_residue=True
-    ):
+    rows = []  # a root that never got ready has no attempt; no record is read
+    if ready:
+        rows = scan(
+            view, allow_open=True, allow_closure=True, allow_residue=True, window=window
+        )
+    for intent, terminal in rows:
         ordinal = intent["attempt_ordinal"]
         recorded = None if terminal is None else terminal["provider_disposition"]
         contradicted = any(
             attempt == intent["attempt_id"] and claim != recorded
             for attempt, claim in claims
         )
+        intent_name = f"intent-{ordinal}.json"
+        terminal_name = f"terminal-{ordinal}.json"
+        unsettled = intent_name in window or terminal_name in window
+        settled = None if unsettled else terminal  # only a settled terminal counts
         attempts.append(
             {
                 "attempt_ordinal": ordinal,
                 "attempt_id": intent["attempt_id"],
                 "intent_sha256": sha(
-                    read_record(view.root_fd, f"intent-{ordinal}.json")
+                    read_record(view.root_fd, intent_name, twin=window.get(intent_name))
                 ),
                 "terminal_sha256": None
                 if terminal is None
-                else sha(read_record(view.root_fd, f"terminal-{ordinal}.json")),
+                else sha(
+                    read_record(
+                        view.root_fd, terminal_name, twin=window.get(terminal_name)
+                    )
+                ),
                 "provider_disposition": "effect_indeterminate"
-                if terminal is None or contradicted
+                if settled is None or contradicted
                 else recorded,
                 "dispatch_count": None
-                if terminal is None
-                else terminal["dispatch_count"],
+                if settled is None
+                else settled["dispatch_count"],
                 "terminal_contradicted": terminal is not None and contradicted,
+                "publication_unsettled": unsettled,
             }
         )
     # Worst attempt wins; a completion is never claimed for a root that never dispatched.
@@ -233,10 +238,11 @@ def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
         "schema_version": "dspx-image-custody-reconciliation-v1",
         "status": "spent",
         "dispatch_available": False,
+        "ready_present": ready,
         "planned_dispatches": len(view.record["request_plan"]),
         "consumed_dispatches": len(attempts),
         "publication_residue": sum(residue(name) for name in names),
-        "closure_present": "closure.json" in names,
+        "closure_present": "closure.json" in names and "closure.json" not in window,
         "terminal_effect": effect,
         "attempts": attempts,
     }
@@ -252,6 +258,7 @@ def reconcile_image_custody(
             admission_raw=admission_raw,
             source_raw=source_raw,
             manifest_raw=manifest_raw,
+            unready=True,
         )
     )
 

@@ -78,6 +78,21 @@ interpreter or loader and are outside the boundary.
   its records only: an intent without its terminal is `effect_indeterminate` with an
   unknown dispatch count, never success, and nothing is written. `verify_image_run`
   accepts only a closed, residue-free, all-success run; anything else is `image_spent`.
+- **Unsettled roots (AK6811).** A root with its `lock` but no settled `ready.json` (the
+  initializer died after its claim) reconciles as spent with no attempt, terminal
+  effect `none` and `ready_present: false`, from names and inode metadata only;
+  `verify_image_run` still refuses it with `image_custody`. A record left with two links
+  by a kill between `os.link` and `os.unlink` in publication, the other its own
+  `.pending-<uuid4>` twin, is read but never settled: its attempt is
+  `effect_indeterminate` (`publication_unsettled: true`, unknown dispatch count) and
+  such a closure is not present. Any other extra link refuses with `image_custody`.
+- **One IO window per request (AK6811).** The response read is bounded by the admitted
+  `per_request_io_timeout_ms` from dispatch, checked at every chunk and at the end of the
+  body, besides the worker's wall deadline. A response that trickles past it makes the
+  worker itself write one `effect_indeterminate` terminal with failure code `io`, latch,
+  and raise the fixed `image_finalization`, without retry or fallback. A read that
+  stalls after the window's last chunk is still bounded by the per-read timeout, itself
+  at most the IO timeout.
 - **Publication follows success.** `publish_image_run` refuses before its first write
   unless every planned attempt succeeded, and `close_run` closes only as `completed`.
 - **Closed envelope.** The DesignMD image envelope has a closed key set, so no extra key
@@ -87,6 +102,7 @@ interpreter or loader and are outside the boundary.
 
 The Revision 2 red matrix is executed (AK6756,
 `2026-10-06-typed-image-revision2-traceability.md`). AK6610 (first live call after owner
-approval) remains; AK6810-AK6812 track the matrix's smaller follow-ups. Receipt-domain
+approval) remains; AK6810 and AK6812 track the matrix's smaller follow-ups (AK6811 is
+done). Receipt-domain
 routing (AK6767) was closed as superseded: receipts are hash-only projections and image
 receipts are refused before any output read.

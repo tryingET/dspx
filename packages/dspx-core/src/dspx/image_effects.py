@@ -93,6 +93,15 @@ class ObservedResponseFailure(Exception):
         super().__init__(code)
 
 
+class _IOWindowElapsed(Exception):
+    """The admitted per-request IO window closed before the response was complete."""
+
+
+def _within(io_deadline: float) -> None:
+    if time.monotonic() >= io_deadline:
+        raise _IOWindowElapsed from None
+
+
 def invoke_image_provider(
     provider: OpenAICompatibleProvider, request: ProviderRequest
 ) -> ProviderResult:
@@ -168,10 +177,15 @@ def invoke_image_http(
             require_admitted_worker_budget(session.record["deadlines"])
             binding.check(provider._client)
             tx.dispatch_entered = True
+            # One admitted window for the whole request IO, opened at dispatch: chunks
+            # that each beat the per-read timeout never extend it (AK6811).
+            window = session.record["deadlines"]["per_request_io_timeout_ms"]
+            io_deadline = time.monotonic() + window / 1000
             response = provider._client.send(http_request, stream=True)
             chunks: list[bytes] = []
             size = 0
             for chunk in response.iter_bytes():
+                _within(io_deadline)
                 worker_deadline()
                 require(type(chunk) is bytes, "image_input_invalid")
                 size += len(chunk)
@@ -180,6 +194,7 @@ def invoke_image_http(
                     "image_budget",
                 )
                 chunks.append(chunk)
+            _within(io_deadline)
             data = b"".join(chunks)
             tx.response_sha256, tx.response_byte_count = sha(data), len(data)
             # Body collection alone never selects completed_failure: unexpected
@@ -212,6 +227,8 @@ def invoke_image_http(
             tx.result_completed = True
         except ObservedResponseFailure as error:
             disposition, failure = "completed_failure", error.code
+        except _IOWindowElapsed:  # sent, response unknown: never retried, latched
+            disposition, failure = "effect_indeterminate", "io"
         except BaseException:
             if not tx.dispatch_entered:
                 disposition, failure = "preflight_rejected", "validation"
