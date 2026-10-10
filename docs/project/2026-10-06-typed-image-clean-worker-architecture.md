@@ -170,6 +170,9 @@ interpreter or loader and are outside the boundary.
   unless every planned attempt succeeded, and `close_run` closes only as `completed`.
 - **Closed envelope.** The DesignMD image envelope has a closed key set, so no extra key
   can carry payload text to the provider (narrower than Revision 2's "safe metadata").
+- **Exact PNG data (AK6938).** Before any Pillow open the scan inflates the IDAT stream,
+  bounded at the IHDR scanline size, and refuses unless it ends exactly at the last IDAT
+  byte and inflates to exactly that size, so no hidden bytes ride along in the data URI.
 
 ## Open work
 

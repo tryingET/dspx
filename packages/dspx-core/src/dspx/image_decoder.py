@@ -14,7 +14,7 @@ from types import CodeType, FunctionType
 import warnings
 import zlib
 
-from .image_admission import ImageContractError, digest, require, sha
+from .image_admission import ImageContractError, digest, refuse, require, sha
 
 # Exact Pillow wheel closure (modules, _imaging, bundled codecs). Unsupported installs are
 # unavailable, not repaired. OS C libraries (libc, libz, libm, ld.so) are the trusted
@@ -46,10 +46,31 @@ def dimensions(width: int, height: int) -> tuple[int, int]:
     return width, height
 
 
+def _inflate_exact(stream: bytes, expected: int) -> None:
+    """The IDAT zlib stream must inflate to exactly `expected` bytes and end at the last
+    IDAT byte, so nothing rides along unseen; output is counted, never kept, in steps of
+    at most 1 MiB, and never more than one byte beyond `expected` is produced."""
+    inflater, total, pending = zlib.decompressobj(), 0, stream
+    try:
+        while not inflater.eof:
+            out = inflater.decompress(pending, min(expected - total, 1 << 20) + 1)
+            moved = bool(out) or len(inflater.unconsumed_tail) < len(pending)
+            total, pending = total + len(out), inflater.unconsumed_tail
+            if total > expected or not moved:
+                break
+    except zlib.error:
+        refuse("image_decoder_invalid")
+    require(
+        inflater.eof and total == expected and not inflater.unused_data,
+        "image_decoder_invalid",
+    )
+
+
 def scan_png(raw: bytes) -> tuple[int, int]:
     require(raw.startswith(b"\x89PNG\r\n\x1a\n"), "image_decoder_invalid")
     pos, count = 8, 0
     seen: set[bytes] = set()
+    idat: list[bytes] = []
     idat_ended = False
     width = height = color = depth = 0
     palette_count = 0
@@ -123,11 +144,15 @@ def scan_png(raw: bytes) -> tuple[int, int]:
                 not idat_ended and (color != 3 or b"PLTE" in seen),
                 "image_decoder_invalid",
             )
+            idat.append(data)
         elif kind == b"IEND":
             require(
                 length == 0 and b"IDAT" in seen and end == len(raw),
                 "image_decoder_invalid",
             )
+            # IHDR already refused interlace, so one filter byte leads each packed row.
+            bits = width * {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[color] * depth
+            _inflate_exact(b"".join(idat), height * (1 + (bits + 7) // 8))
             return width, height
         else:
             require(b"IDAT" not in seen, "image_decoder_invalid")
