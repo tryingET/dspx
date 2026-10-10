@@ -71,9 +71,17 @@ production diff found nothing blocking; its should-fix items are fixed below.
 - **S11**: demos are refused at graph binding and in the formatter (`image_privacy`), so
   the demo-repetition precondition cannot be reached; repetition inside the actual
   request is refused with `image_budget`.
-- **S09-E11/E12**: refusal at limit+1 is proven; inputs exactly at the declared depth and
-  node limits are also refused (fail closed) because derived commitments are bounded
-  more tightly. Follow-up AK6810.
+- **S09-E11/E12** (fixed by AK6810): inputs exactly at the declared depth (16) and node
+  (4096) limits are accepted, by the materializer and by production prepare; limit+1
+  still refuses with `image_input_invalid` before any decode. The derived commitments
+  used to re-nest the input (each container added two shape levels and three nodes,
+  each string four source-package nodes), so `canonical()` refused beyond input depth
+  8 or about 1,000 strings. The shape now mirrors the input node for node (a leaf
+  is its kind name; domain `shape-v2`), and `plain_text_slots` has one row per
+  text-bearing field slot: `text_sha256` is SHA-256 over `text-slot-v1\0` and the
+  slot's texts (dict keys included) in visit order, each prefixed by its 8-byte big-endian UTF-8 length;
+  `char_count` is their sum. The source package now grows with the declared fields,
+  not with the input, and fits one 64 KiB custody record at the limits.
 - **Caller codes**: post-send failures surface as `image_finalization` (S22, S51; the
   design says "safe interruption", tests accept either fixed code); the provider port
   wraps a pre-reserve refusal as `image_interruption` chained to the fixed inner code.
@@ -99,7 +107,7 @@ ADM `test_image_admission`, TLM `test_dspy_typed_lm`, STUB `test_stub_provider`,
 SIO `test_image_source_io`, ICT `test_image_input_contract`, PROF
 `test_image_source_profile`, PRIV `test_image_privacy`, EFF `test_image_effects`, CUS
 `test_image_custody`, EXE `test_image_execution`, SURF `test_program_surfaces_image_inputs`,
-RDB `test_receipt_domain_boundary` (all under `tests/`).
+RDB `test_receipt_domain_boundary`, IIL `test_image_input_limits` (all under `tests/`).
 
 - ADM: BND `test_s03_parent_refuses_bounds_outside_the_admission`; HELD
   `test_s03_parent_refuses_drift_against_held_expectations`; WRK
@@ -115,6 +123,7 @@ RDB `test_receipt_domain_boundary` (all under `tests/`).
   `test_s09_s10_s11_actual_request_occurrences_and_bytes_are_counted`; LOC
   `test_s12_local_reads_stay_inside_the_explicit_input_parent`; STR
   `test_s38_s40_structure_and_dimensions_refuse_before_any_pillow_open`.
+- IIL: PREP `test_s09_e11_e12_production_prepare_reaches_the_declared_depth_and_node_limits`.
 - PROF: OBS `test_configured_observer_refuses_before_materialization`; MRK
   `test_marker_defect_rejects_before_repair_or_lm`.
 - PRIV: HTTP `test_actual_generated_predict_typed_image_to_ordered_fake_http`.
@@ -179,8 +188,8 @@ RDB `test_receipt_domain_boundary` (all under `tests/`).
 | AK6607-S09-E08 | COVERED | ICT::REQ (HTTP body bytes) | proof-only |
 | AK6607-S09-E09 | COVERED | ICT::JSN (text characters) | proof-only (closed envelope counts all text) |
 | AK6607-S09-E10 | COVERED | ICT::REQ (total parts) | proof-only |
-| AK6607-S09-E11 | COVERED | ICT::JSN (input depth, limit+1) | proof-only; AK6810 |
-| AK6607-S09-E12 | COVERED | ICT::JSN (input nodes, limit+1) | proof-only; AK6810 |
+| AK6607-S09-E11 | COVERED | ICT::JSN (input depth, at limit and limit+1); IIL::PREP[depth-*] | fixed (AK6810) |
+| AK6607-S09-E12 | COVERED | ICT::JSN (input nodes, at limit and limit+1); IIL::PREP[nodes-*] | fixed (AK6810) |
 | AK6607-S10 | COVERED | ICT::REQ | proof-only |
 | AK6607-S11 | COVERED | ICT::REQ; refusal at graph binding and formatter (see notes) | proof-only |
 | AK6607-S12-E01 | COVERED | ICT::LOC; ICT membrane[outside] and paths[/absolute.png] (AK6607) | proof-only |

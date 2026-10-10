@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -276,7 +277,12 @@ def materialize_image_inputs(
         type(inputs) is dict and set(inputs) == set(fields), "signature_input_shape"
     )
     occurrences: list[ImageOccurrence] = []
-    text_slots: list[dict[str, Any]] = []
+    # Derived commitments never outgrow the input's own bounds (AK6810): the shape
+    # mirrors it node for node (a leaf becomes its kind name, lists and dicts keep
+    # their items and keys), and each field slot gets one text row over its
+    # length-framed texts, so canonical() bounds both exactly as parse_json did.
+    text_digests: dict[int, Any] = {}
+    text_chars: dict[int, int] = {}
     text_count = 0
     byte_count = 0
     shape: list[object] = []
@@ -287,14 +293,13 @@ def materialize_image_inputs(
             plain_text(value)
             text_count += len(value)
             require(text_count <= 1_000_000, "image_budget")
-            text_slots.append(
-                {
-                    "field_slot": slot,
-                    "text_sha256": sha(value.encode("utf-8")),
-                    "char_count": len(value),
-                }
+            encoded = value.encode("utf-8")
+            framed = len(encoded).to_bytes(8, "big") + encoded
+            text_digests.setdefault(slot, hashlib.sha256(b"text-slot-v1\0")).update(
+                framed
             )
-            return value, {"kind": "str"}
+            text_chars[slot] = text_chars.get(slot, 0) + len(value)
+            return value, "str"
         # parse_json/bounded_tree proved exact dictionaries with string keys.
         descriptor = cast(dict[str, object], value) if type(value) is dict else None
         kind = descriptor.get("type") if descriptor is not None else None
@@ -343,7 +348,7 @@ def materialize_image_inputs(
                 marker,
             )
             occurrences.append(item)
-            return marker, {"kind": "str"}
+            return marker, "str"
         if type(value) is list:
             segments = [visit(item, slot, index) for index, item in enumerate(value)]
             if any(
@@ -357,26 +362,20 @@ def materialize_image_inputs(
                     if type(segment) is not str:
                         raise ImageContractError("image_input_invalid") from None
                     texts.append(segment)
-                return "\n".join(texts), {"kind": "str"}
-            return [item[0] for item in segments], {
-                "kind": "list",
-                "items": [item[1] for item in segments],
-            }
+                return "\n".join(texts), "str"
+            return [item[0] for item in segments], [item[1] for item in segments]
         if type(value) is dict:
             require(not (_RESERVED & set(value)), "image_input_invalid")
             for key in value:
                 visit(key, slot)
             converted = {key: visit(item, slot) for key, item in value.items()}
             return {key: item[0] for key, item in converted.items()}, {
-                "kind": "dict",
-                "items": {key: item[1] for key, item in converted.items()},
+                key: item[1] for key, item in converted.items()
             }
         require(type(value) in {int, float, bool, type(None)}, "image_input_invalid")
-        return value, {
-            "kind": {int: "int", float: "float", bool: "bool", type(None): "null"}[
-                type(value)
-            ]
-        }
+        return value, {int: "int", float: "float", bool: "bool", type(None): "null"}[
+            type(value)
+        ]
 
     values = []
     for slot, name in enumerate(fields):
@@ -418,7 +417,7 @@ def materialize_image_inputs(
                 segments.extend(
                     [canonical(safe).decode("ascii"), f"slot:{slot}:{index}", marker]
                 )
-            converted, field_shape = "\n".join(segments), {"kind": "str"}
+            converted, field_shape = "\n".join(segments), "str"
         else:
             converted, field_shape = visit(value, slot)
         values.append(converted)
@@ -429,10 +428,17 @@ def materialize_image_inputs(
         "candidate_manifest_sha256": candidate_manifest_sha256,
         "candidate_source_sha256": candidate_source_sha256,
         "raw_input_file_sha256": sha(raw),
-        "input_shape_sha256": digest("shape-v1", shape),
+        "input_shape_sha256": digest("shape-v2", shape),
         "decoder_profile_sha256": decoder.profile_sha256,
         "source_occurrences": [item.record() for item in occurrences],
-        "plain_text_slots": text_slots,
+        "plain_text_slots": [
+            {
+                "field_slot": slot,
+                "text_sha256": text_digests[slot].hexdigest(),
+                "char_count": count,
+            }
+            for slot, count in text_chars.items()
+        ],
     }
     return ImageContext(
         fields, tuple(values), tuple(occurrences), canonical(source), raw

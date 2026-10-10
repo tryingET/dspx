@@ -15,7 +15,8 @@ import zlib
 
 import pytest
 
-from dspx.image_admission import ImageContractError, sha
+from dspx.image_admission import ImageContractError, bounded_tree, canonical, sha
+from dspx.image_admission import validate_source
 from dspx.image_decoder import FrozenImageDecoder, scan_png, scan_jpeg
 from dspx.image_input_contract import image_bytes, open_root, read_relative
 from dspx.image_worker import worker_entry
@@ -586,28 +587,32 @@ def _nested(depth: int) -> object:
 
 def test_s09_input_json_bytes_depth_nodes_and_text_are_bounded(tmp_path: Path) -> None:
     """AK6607-S09-E07/E09/E11/E12: raw input JSON bytes, aggregate text characters,
-    nesting depth and traversal nodes refuse one beyond their limits before any send
-    (envelope metadata text cannot exist: its key set is closed, see S15-extra)."""
+    nesting depth and traversal nodes pass exactly at their limits and refuse one
+    beyond them before any send (envelope metadata text cannot exist: its key set is
+    closed, see S15-extra)."""
     visual = image("image_base64", b64(PIXELS))
     doc = json.dumps(one(visual)["document"]).encode()
     at_limit = doc + b" " * (41_943_040 - len(doc))
     text = {"visual": visual, "a": "x" * 500_000, "b": "y" * 500_000}
     over_text = {**text, "b": "y" * 500_001}
 
-    # Over the input ceilings (depth 16, 4096 nodes) by one: "x" at depth 17, and
-    # 1 + 1 + 3 + 1 + 4091 == 4097 nodes. The derived source/shape commitments are
-    # themselves bounded, so modest trees stand in for the positive control.
-    deep = {"visual": visual, "text": _nested(4)}
-    nodes = {"visual": visual, "text": ["x"] * 100}
+    # Exactly at the input ceilings (AK6810): "x" at depth 16, and 1 + 1 + 3 + 1 +
+    # 4090 == 4096 nodes, checked with the production counter; one more refuses.
+    deep = {"visual": visual, "text": _nested(15)}
+    nodes = {"visual": visual, "text": ["x"] * 4090}
+    for document, depth, count in ((deep, 15, 4096), (nodes, 16, 4095)):
+        bounded_tree(document)
+        with pytest.raises(ImageContractError, match="^image_budget$"):
+            bounded_tree(document, max_depth=depth, max_nodes=count)
     cases = [
         {"document": at_limit},
         {"document": at_limit + b" "},
         {"document": at_limit + b" ", "options": {"input_limit": 41_943_041}},
         {"document": text, "fields": ("visual", "a", "b")},
         {"document": over_text, "fields": ("visual", "a", "b")},
-        {"document": deep},
+        {"document": deep, "options": {"source": True}},
         {"document": {**deep, "text": _nested(16)}},
-        {"document": nodes},
+        {"document": nodes, "options": {"source": True}},
         {"document": {**nodes, "text": ["x"] * 4091}},
     ]
     facts = run_cases(
@@ -634,6 +639,10 @@ def test_s09_input_json_bytes_depth_nodes_and_text_are_bounded(tmp_path: Path) -
             assert fact["stage"] == stage, fact
     assert facts[1]["reads"] == {"over": 0} and facts[1]["opened"] == {"over": 1}
     assert facts[3]["text_chars"] == 1_000_000
+    # At the limits the derived commitments exist and fit one custody record.
+    for fact, chars in ((facts[5], 1), (facts[7], 4090)):
+        source = validate_source(fact["source"])
+        assert len(canonical(source)) <= 65_536 and fact["text_chars"] == chars
 
 
 def test_s09_s10_s11_actual_request_occurrences_and_bytes_are_counted(
