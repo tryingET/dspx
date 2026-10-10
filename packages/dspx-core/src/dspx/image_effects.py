@@ -16,6 +16,7 @@ from .image_admission import CEILINGS, ImageContractError, parse_json, require, 
 from .image_records import publish, read_record
 from .image_custody import ImageCustodySession
 from .image_input_contract import reject_output
+from .image_live import controlled_body, require_admitted_controls, sent_controls
 from .image_privacy import require_privacy
 from .image_supervision import worker_deadline, require_admitted_worker_budget
 from .policy import allow_network_mutate, check_capability, check_provider_allowed
@@ -139,9 +140,7 @@ def invoke_image_http(
             and provider.model == session.record["model"],
             "image_admission_invalid",
         )
-        raw = json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode(
-            "utf-8"
-        )
+        raw = controlled_body(body, session.record)  # max_tokens, thinking off
         require(
             len(raw) <= session.record["limits"]["max_request_body_bytes"],
             "image_budget",
@@ -167,6 +166,7 @@ def invoke_image_http(
                 }
             },
         )
+        require_admitted_controls(http_request.content, session.record)  # sent bytes
         tx.reserve(shape, sequence)
         response: httpx.Response | None = None
         result: ProviderResult | None = None
@@ -469,12 +469,13 @@ def fixture_transport(fixture: dict[str, object], model: str) -> httpx.MockTrans
                 observation_fd,
                 f"wire-{len(sends)}.json",
                 {
-                    "schema_version": "dspx-image-wire-observation-v1",
+                    "schema_version": "dspx-image-wire-observation-v2",
                     "send_ordinal": len(sends),
                     "message_block_kinds": kinds,
                     "image_sha256": images,
                     "image_media_types": media,
                     "request_sha256": sha(request.content),
+                    "controls": sent_controls(packet),
                 },
             )
         return httpx.Response(

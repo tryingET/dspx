@@ -161,7 +161,7 @@ def _admit(root: Path, opened: list[int], *, slots: int, repeat: bool) -> _Admit
     custody = os.fstat(fds["custody"])
     now = time.time_ns() // 1_000_000
     record = {
-        "schema_version": "dspx-image-admission-v2",
+        "schema_version": "dspx-image-admission-v3",
         "mode": "synthetic",
         "provider_kind": "openai-compatible",
         "model": _MODEL,
@@ -190,6 +190,7 @@ def _admit(root: Path, opened: list[int], *, slots: int, repeat: bool) -> _Admit
             "root_ino": custody.st_ino,
             "caller_expectation_sha256": sha(prepared.raw),
         },
+        "request_controls": {"max_output_tokens": 256, "thinking": "off"},
         "approval_binding": {
             "owning_ak_task": None,
             "operator_evidence_ref": None,
@@ -415,7 +416,7 @@ def _effects_entry(params):
     scenario, custody_fd = row["scenario"], row["custody_fd"]
     preparation = ImagePreparation(row["preparation"].encode("ascii"))
     raw = row["admission"].encode("ascii")
-    admission = ImageAdmission(raw, digest("admission-v2", parse_json(raw)))
+    admission = ImageAdmission(raw, digest("admission-v3", parse_json(raw)))
     bound = closed(row["authority"], "caller_expectation_sha256 root_dev root_ino")
 
     def mirror() -> SyntheticImageAuthority:

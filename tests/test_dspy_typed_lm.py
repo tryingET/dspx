@@ -848,7 +848,7 @@ def _run_affordance_worker(tmp: Path) -> dict[str, Any]:
         root = os.fstat(fds["custody"])
         now = time.time_ns() // 1_000_000
         record = {
-            "schema_version": "dspx-image-admission-v2",
+            "schema_version": "dspx-image-admission-v3",
             "mode": "synthetic",
             "provider_kind": "openai-compatible",
             "model": _MODEL,
@@ -873,6 +873,7 @@ def _run_affordance_worker(tmp: Path) -> dict[str, Any]:
                 "root_ino": root.st_ino,
                 "caller_expectation_sha256": "3" * 64,
             },
+            "request_controls": {"max_output_tokens": 256, "thinking": "off"},
             "approval_binding": dict.fromkeys(
                 (
                     "owning_ak_task",

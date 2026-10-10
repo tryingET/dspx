@@ -94,6 +94,7 @@ def runtime_identity() -> str:
         "image_custody",
         "image_privacy",
         "image_effects",
+        "image_live",
         "image_source_profile",
         "image_execution",
         "image_artifacts",

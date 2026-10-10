@@ -178,7 +178,7 @@ class _Run:
         self.root = (root.st_dev, root.st_ino)
         now = time.time_ns() // 1_000_000
         record = {
-            "schema_version": "dspx-image-admission-v2",
+            "schema_version": "dspx-image-admission-v3",
             "mode": "synthetic",
             "provider_kind": "openai-compatible",
             "model": _MODEL,
@@ -205,6 +205,7 @@ class _Run:
                 "root_ino": root.st_ino,
                 "caller_expectation_sha256": sha(case.preparation),
             },
+            "request_controls": {"max_output_tokens": 256, "thinking": "off"},
             "approval_binding": {
                 "owning_ak_task": None,
                 "operator_evidence_ref": None,
@@ -217,7 +218,7 @@ class _Run:
         self.manifest = {
             "schema_version": "dspx-image-input-manifest-v2",
             "source_package_sha256": record["source_package_sha256"],
-            "admission_sha256": digest("admission-v2", parse_json(self.admission_raw)),
+            "admission_sha256": digest("admission-v3", parse_json(self.admission_raw)),
             "marker_entries": self.prepared["markers"],
         }
 
@@ -577,7 +578,7 @@ def _flow(params: dict[str, Any], fault: str) -> dict[str, object]:
 
     preparation = ImagePreparation(params["preparation"].encode("ascii"))
     raw = params["admission"].encode("ascii")
-    admission = ImageAdmission(raw, digest("admission-v2", parse_json(raw)))
+    admission = ImageAdmission(raw, digest("admission-v3", parse_json(raw)))
     bound = params["authority"]
     # Worker-local mirror, usable only through the parent's bound ready handshake.
     authority = SyntheticImageAuthority(

@@ -1,5 +1,5 @@
 ---
-summary: "As-built architecture of DSPx typed image transport: guarded clean -I -S worker, refusal everywhere else, owner decisions that refine Revision 2, and what remains open."
+summary: "As-built architecture of DSPx typed image transport: guarded clean -I -S worker, refusal everywhere else, synthetic and live modes with admission-bound request controls, owner decisions that refine Revision 2, and what remains open."
 read_when:
   - "Changing or reviewing DSPx image transport, the image worker, its guard or the decoder profile."
   - "Reading the Revision 2 design (2026-10-03-typed-image-contract.md) and needing what was actually built."
@@ -46,12 +46,54 @@ records what was built (AK6607, re-landed by AK6760) and where owner decisions r
 ## Shipped routes
 
 `prepare_image_execution` and `execute_image_program` (used by the runtime episode and the
-generated `direct_run.py`) type-check in the parent, reserve the nominal
-`SyntheticImageAuthority`, and run declared entries in the worker. The synthetic transport
-is a closed `SyntheticTransportFixture`; the worker builds the exact `httpx.MockTransport`
-and publishes only send ordinal, block kinds, image hashes/media and request hash. Live
-authority is never executed: a first live call still needs a worker-side Live authority
-mirror and the owner's exact endpoint/model/budget approval (AK6610).
+generated `direct_run.py`) type-check in the parent, reserve the nominal authority, and
+run declared entries in the worker. Both modes share this one route (AK6918):
+
+- **Synthetic.** A `SyntheticImageAuthority` needs a closed `SyntheticTransportFixture`;
+  the worker builds the exact `httpx.MockTransport` and publishes only send ordinal,
+  block kinds, image hashes/media, request hash and the sent request controls (wire
+  observation v2). The worker status reports `fixture_evidence: true`,
+  `live_authorized: false`.
+- **Live.** A `LiveImageAuthority` takes no fixture (a fixture, or a synthetic authority
+  over a live admission and vice versa, refuses before spawn) and needs
+  `DSPX_POLICY_ALLOW_NETWORK_MUTATE=1`, checked in the parent before spawn and again in
+  the worker before send. The endpoint is the admitted `canonical_base_endpoint`, which
+  must be an IP-literal loopback `http` origin. The parent passes closed scalar params
+  (`mode`, caller expectation, custody root and the approval binding
+  `owning_ak_task`, `operator_evidence_ref`, `parent_confirmation_sha256`); the worker
+  (`image_live.mirror_authority`) mirrors only the admitted mode with every field
+  present, and its custody session re-runs `validate_admission`, which compares every
+  approval field with the admission. No transport is injected, so the provider builds
+  `HTTPTransport(trust_env=False, retries=0)`. The status reports
+  `fixture_evidence: false`, `live_authorized: true`, and `verify_image_run` checks the
+  same custody intent, terminal and closure as for synthetic runs. An
+  `effect_indeterminate` attempt is never retried, repeated or re-dispatched: the root
+  is spent.
+
+Tests reach the live path only through a test-owned loopback server
+(`tests/test_image_live_execution.py`): double-forked into its own session, because the
+supervising parent must stay single-threaded and childless, and every process it owns
+is settled. No test contacts a real provider.
+
+## Request controls (AK6918)
+
+Admission `dspx-image-admission-v3` (commitment domain `admission-v3`) adds a closed,
+required `request_controls` section in every mode:
+`{"max_output_tokens": N, "thinking": "off"}` with `1 <= N <= 8192`
+(`MAX_OUTPUT_TOKENS`; at up to 16 characters per token and 6 JSON bytes per character,
+8192 tokens stay inside the 2 MB response and 1 M character output ceilings, so the
+token cap binds first; the admitted IO window still bounds wall time). Unknown keys,
+booleans, strings, nulls, out-of-range values and any other thinking value refuse with
+`image_admission_invalid`; floats refuse with `image_input_invalid` (integer-only
+records). The image request body is the formatted `{model, messages}` plus exactly
+`max_tokens = N` and the vLLM chat-template switch
+`chat_template_kwargs: {"enable_thinking": false}`, both from the admission
+(`image_live.controlled_body`). Caller controls are refused before send: typed LM
+config or call kwargs, and a formatted body that already carries a control. Before
+reservation and send, `require_admitted_controls` re-parses the exact request bytes and
+refuses any drift (changed, missing, boolean, extra or duplicated keys). The body-size
+limit applies to the controlled body. Text (non-image) provider requests are unchanged,
+and no pinned provider module changed.
 
 ## Owner decisions that refine Revision 2
 
@@ -61,6 +103,7 @@ mirror and the owner's exact endpoint/model/budget approval (AK6610).
 | AK14132 | Detectable caller observers (trace, profile, MLflow, callbacks, LM history) are also outside the boundary (deviation from proposal item 1; CI runs under coverage) |
 | AK14133 | The 159-case red matrix moves to AK6756 (executed: `2026-10-06-typed-image-revision2-traceability.md`) |
 | AK14193 | Decoder profile v2 pins Pillow 12.1.1's own modules, `_imaging` and bundled codecs, formats and limits, but not OS C libraries (trusted platform like the interpreter) |
+| AK14879, AK14880 | Live image path (AK6918): an owner-bound `max_output_tokens` with thinking off in the admission; the later live harness targets a direct loopback vLLM; no live model call until a run's endpoint, model and budget are approved as AK evidence (AK6610) |
 
 ## Threat model limits
 
@@ -103,8 +146,12 @@ interpreter or loader and are outside the boundary.
 
 The Revision 2 red matrix is executed (AK6756,
 `2026-10-06-typed-image-revision2-traceability.md`); its follow-ups AK6810-AK6812 are
-fixed. Live image execution with an admission-bound output cap (AK6918, owner decision
-2026-10-10: Foundry adapts, bounded output, direct loopback vLLM) precedes AK6610 (first
-live call after owner approval). Receipt-domain routing (AK6767) was closed as
-superseded: receipts are hash-only projections and image receipts are refused before any
-output read.
+fixed. Live image execution with admission-bound output controls exists in code (AK6918,
+owner decisions AK14879/AK14880: bounded output, thinking off, direct loopback vLLM) and
+is exercised only against a test-owned loopback server. AK6610 is the first live call.
+Every live run still needs a per-run owner admission and its approval binding
+(owning AK task, operator evidence `ak://evidence/N`, parent confirmation hash), with
+the exact endpoint, model and budget recorded as AK evidence before the run; code
+verifies data identity only and never authenticates the operator. Receipt-domain
+routing (AK6767) was closed as superseded: receipts are hash-only projections and image
+receipts are refused before any output read.

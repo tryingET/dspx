@@ -80,7 +80,7 @@ _APPROVAL = dict(
 def test_admission_record_is_a_detached_view():
     raw = canonical({"limits": {"max_source_images": 1}})
     admission = ImageAdmission(
-        raw, digest("admission-v2", {"limits": {"max_source_images": 1}})
+        raw, digest("admission-v3", {"limits": {"max_source_images": 1}})
     )
     admission.record["limits"]["max_source_images"] = 6
     assert admission.record["limits"]["max_source_images"] == 1
@@ -94,7 +94,7 @@ def test_admission_rejects_forged_or_noncanonical_identity(raw):
 
 def test_admission_rejects_noncanonical_bytes_with_matching_semantic_digest():
     with pytest.raises(ImageContractError):
-        ImageAdmission(b'{ "x":1}', digest("admission-v2", {"x": 1}))
+        ImageAdmission(b'{ "x":1}', digest("admission-v3", {"x": 1}))
 
 
 def _refused(code: str, call) -> None:
@@ -115,7 +115,7 @@ def _bytes(record: object) -> bytes:
 
 
 def _identity(raw: bytes) -> ImageAdmission:
-    return ImageAdmission(raw, hashlib.sha256(b"admission-v2\0" + raw).hexdigest())
+    return ImageAdmission(raw, hashlib.sha256(b"admission-v3\0" + raw).hexdigest())
 
 
 def _record(
@@ -128,7 +128,7 @@ def _record(
 ) -> dict[str, Any]:
     now = time.time_ns() // 1_000_000
     return {
-        "schema_version": "dspx-image-admission-v2",
+        "schema_version": "dspx-image-admission-v3",
         "mode": "synthetic",
         "provider_kind": "openai-compatible",
         "model": _MODEL,
@@ -153,6 +153,7 @@ def _record(
             "root_ino": root[1],
             "caller_expectation_sha256": expectation,
         },
+        "request_controls": {"max_output_tokens": 256, "thinking": "off"},
         "approval_binding": dict.fromkeys(_APPROVAL),
     }
 
@@ -416,7 +417,7 @@ def _mutated(record: dict[str, Any], case: str, mutation: str) -> dict[str, Any]
 def test_s27_closed_admission_rejects_altered_or_omitted_bound(
     world: _World, monkeypatch: pytest.MonkeyPatch, case: str, mutation: str
 ):
-    """AK6607-S27: Given admission-v2 and held caller expectations; When a bound is
+    """AK6607-S27: Given admission-v3 and held caller expectations; When a bound is
     altered or omitted; Then admission rejects before provider construction and send."""
     raw = _bytes(_mutated(world.record, case, mutation))
     assert raw != world.raw
@@ -492,7 +493,7 @@ def test_s02_copied_live_admission_file_is_not_operator_authority(
     assert type(admission) is ImageAdmission
     assert [item.name for item in fields(ImageAdmission)] == ["raw", "sha256"]
     # ubs:ignore -- public sha256 admission commitment, not a secret
-    assert admission.sha256 == digest("admission-v2", parse_json(raw))
+    assert admission.sha256 == digest("admission-v3", parse_json(raw))
     entries = _no_effects(monkeypatch)
     request = ImageExecutionRequest(
         **world.kwargs(), admission=admission, authority=live()
@@ -774,7 +775,7 @@ def _drift_entry(params: dict[str, Any]) -> dict[str, object]:
 
     preparation = ImagePreparation(params["preparation"].encode("ascii"))
     raw = params["admission"].encode("ascii")
-    admission = ImageAdmission(raw, digest("admission-v2", parse_json(raw)))
+    admission = ImageAdmission(raw, digest("admission-v3", parse_json(raw)))
     record = admission.record
     root = (record["custody"]["root_dev"], record["custody"]["root_ino"])
     expectation = params["expectation"]
@@ -823,7 +824,7 @@ def _drift_entry(params: dict[str, Any]) -> dict[str, object]:
 
         live = {**record, "mode": "live", "approval_binding": _APPROVAL}
         live_raw = canonical(live)
-        live_admission = ImageAdmission(live_raw, digest("admission-v2", live))
+        live_admission = ImageAdmission(live_raw, digest("admission-v3", live))
         flagged = SyntheticImageAuthority(live_raw, expectation, *root, _used=[False])
         probe("s28_live_record_session", lambda: session_for(live_admission, flagged))
         session = session_for(admission, authority)

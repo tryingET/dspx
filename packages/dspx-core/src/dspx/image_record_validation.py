@@ -75,6 +75,7 @@ def read_only_custody(
     unready: bool = False,
 ) -> ReadOnlyCustody:
     from .image_admission import (
+        ADMISSION_DOMAIN,
         ImageAdmission,
         closed,
         digest,
@@ -85,7 +86,7 @@ def read_only_custody(
 
     root = private_root(custody_fd)
     admission = ImageAdmission(
-        admission_raw, digest("admission-v2", parse_json(admission_raw))
+        admission_raw, digest(ADMISSION_DOMAIN, parse_json(admission_raw))
     )
     record = admission.record
     source = validate_source(parse_json(source_raw))

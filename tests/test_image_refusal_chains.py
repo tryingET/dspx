@@ -108,7 +108,7 @@ def _attempt(call, sends: list, lm, session, custody_fd: int) -> dict[str, Any]:
 def _refusal_entry(params: dict[str, Any]) -> dict[str, object]:
     row = closed(params, _PARAMS)
     raw = row["admission"].encode("ascii")
-    admission = ImageAdmission(raw, digest("admission-v2", parse_json(raw)))
+    admission = ImageAdmission(raw, digest("admission-v3", parse_json(raw)))
     bound = closed(row["authority"], "caller_expectation_sha256 root_dev root_ino")
     authority = SyntheticImageAuthority(
         raw,

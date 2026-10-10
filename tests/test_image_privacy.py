@@ -187,7 +187,7 @@ def test_actual_generated_predict_typed_image_to_ordered_fake_http(
         stat = os.fstat(root_fd)
         now = time.time_ns() // 1_000_000
         record = {
-            "schema_version": "dspx-image-admission-v2",
+            "schema_version": "dspx-image-admission-v3",
             "mode": "synthetic",
             "provider_kind": "openai-compatible",
             "model": model,
@@ -214,6 +214,7 @@ def test_actual_generated_predict_typed_image_to_ordered_fake_http(
                 "root_ino": stat.st_ino,
                 "caller_expectation_sha256": "3" * 64,
             },
+            "request_controls": {"max_output_tokens": 256, "thinking": "off"},
             "approval_binding": {
                 "owning_ak_task": None,
                 "operator_evidence_ref": None,

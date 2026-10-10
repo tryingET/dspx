@@ -146,7 +146,7 @@ def _admitted_request(
     custody = os.fstat(fds["custody"])
     now = time.time_ns() // 1_000_000
     record = {
-        "schema_version": "dspx-image-admission-v2",
+        "schema_version": "dspx-image-admission-v3",
         "mode": "synthetic",
         "provider_kind": "openai-compatible",
         "model": row["model"],
@@ -179,6 +179,7 @@ def _admitted_request(
             "root_ino": custody.st_ino,
             "caller_expectation_sha256": sha(prepared.raw),
         },
+        "request_controls": {"max_output_tokens": 256, "thinking": "off"},
         "approval_binding": {
             "owning_ak_task": None,
             "operator_evidence_ref": None,
@@ -859,7 +860,7 @@ def test_s26_commitments_run_s_a_m_r_and_a_changed_occurrence_breaks_every_link(
         m_sha, r_sha = digest("manifest-v2", manifest), intent["request_sha256"]
         # Forward edges: each record commits its predecessor; R is what was sent.
         # ubs:ignore -- public sha256 commitment, not a secret
-        assert a_sha == digest("admission-v2", admission)
+        assert a_sha == digest("admission-v3", admission)
         assert admission["source_package_sha256"] == s_sha
         assert admission["request_plan"] == prepared.record["plan"]
         assert (manifest["source_package_sha256"], manifest["admission_sha256"]) == (

@@ -34,6 +34,11 @@ CEILINGS: Final = {
     "max_output_artifact_bytes": 4_194_304,
     "total_dispatch_allowance": 64,
 }
+# Owner-bound output cap (AK6918). Even at 16 chars per token and 6 JSON bytes per
+# char, 8192 tokens stay under the response (2 MB) and output (1 M chars) ceilings, so
+# the token cap binds first; the admitted IO window (<= 30 s) still bounds wall time.
+MAX_OUTPUT_TOKENS: Final = 8192
+ADMISSION_DOMAIN: Final = "admission-v3"
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 _CODES = frozenset(
     {
@@ -231,7 +236,7 @@ class ImageAdmission:
         require(
             canonical(record) == self.raw
             # ubs:ignore -- public sha256 commitment, not a secret
-            and self.sha256 == digest("admission-v2", record),
+            and self.sha256 == digest(ADMISSION_DOMAIN, record),
             "image_admission_invalid",
         )
 
@@ -297,6 +302,14 @@ def validate_source(record: object) -> dict[str, Any]:
     return source
 
 
+def request_controls(value: object) -> dict[str, Any]:
+    """Closed owner-bound controls: an output-token cap and thinking off, nothing else."""
+    row = closed(value, "max_output_tokens thinking")
+    require(positive(row["max_output_tokens"], MAX_OUTPUT_TOKENS))
+    require(type(row["thinking"]) is str and row["thinking"] == "off")
+    return row
+
+
 def validate_admission(
     raw: bytes,
     *,
@@ -312,10 +325,10 @@ def validate_admission(
         parse_json(raw, limit=65_536),
         "schema_version mode provider_kind model canonical_base_endpoint source_package_sha256 "
         "candidate_manifest_sha256 runtime_identity_sha256 decoder_profile_sha256 request_plan "
-        "limits deadlines custody approval_binding",
+        "limits deadlines custody approval_binding request_controls",
     )
     require(canonical(record) == raw)
-    require(record["schema_version"] == "dspx-image-admission-v2")
+    require(record["schema_version"] == "dspx-image-admission-v3")
     synthetic = type(authority) is SyntheticImageAuthority
     require(record["mode"] == ("synthetic" if synthetic else "live"))
     require(record["provider_kind"] == "openai-compatible")
@@ -341,6 +354,7 @@ def validate_admission(
     )
     limits = closed(record["limits"], " ".join(CEILINGS))
     require(all(positive(limits[key], ceiling) for key, ceiling in CEILINGS.items()))
+    request_controls(record["request_controls"])  # required in every mode
     rows = source["source_occurrences"]
     require(len(rows) <= limits["max_source_images"])
     require(sum(row["byte_count"] for row in rows) <= limits["max_source_image_bytes"])
@@ -433,7 +447,7 @@ def validate_admission(
         )
         require(hash_value(approval["parent_confirmation_sha256"]))
         require(approval == {key: getattr(authority, key) for key in approval})
-    return ImageAdmission(raw, digest("admission-v2", record))
+    return ImageAdmission(raw, digest(ADMISSION_DOMAIN, record))
 
 
 def validate_image_provider_binding(
@@ -466,8 +480,12 @@ def validate_image_provider_binding(
         and session.record["mode"] == ("synthetic" if synthetic else "live"),
         "image_admission_invalid",
     )
+    # Synthetic: the owner fixture's MockTransport. Live: no injected transport, so the
+    # provider builds its own HTTPTransport(trust_env=False, retries=0).
     if synthetic:
         require(type(transport) is httpx.MockTransport, "image_admission_invalid")
+    else:
+        require(transport is None, "image_admission_invalid")
     require(
         model == session.record["model"]
         and base_url == session.record["canonical_base_endpoint"],

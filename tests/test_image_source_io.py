@@ -872,7 +872,7 @@ def _synthetic_admission(
     row = os.stat(root)
     now = time.time_ns() // 1_000_000
     record = {
-        "schema_version": "dspx-image-admission-v2",
+        "schema_version": "dspx-image-admission-v3",
         "mode": "synthetic",
         "provider_kind": "openai-compatible",
         "model": "synthetic-vision-fixture",
@@ -904,6 +904,7 @@ def _synthetic_admission(
             "root_ino": row.st_ino,
             "caller_expectation_sha256": "3" * 64,
         },
+        "request_controls": {"max_output_tokens": 256, "thinking": "off"},
         "approval_binding": dict.fromkeys(
             ("owning_ak_task", "operator_evidence_ref", "parent_confirmation_sha256")
         ),

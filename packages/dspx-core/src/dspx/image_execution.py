@@ -1,8 +1,10 @@
-"""Shared shipped image preparation/execution in the clean worker; synthetic fixture only.
+"""Shared shipped image preparation/execution in the clean worker: synthetic or live.
 
 Owner refinement 13975: the parent validates types, reserves its nominal authority and
 names a declared entry; all payload reading, formatting and dispatch happen inside the
-fresh `-I -S` worker. Live authority is never executed by this module.
+fresh `-I -S` worker. A synthetic authority needs its owner fixture; a live authority
+(AK6918) takes none, needs the network-mutate policy and reaches only the admitted
+loopback endpoint, and the worker re-validates its mirrored approval binding.
 """
 
 from __future__ import annotations
@@ -16,9 +18,11 @@ import dspy
 from dspy.core.types import LMImagePart, LMTextPart
 
 from .image_admission import (
+    ADMISSION_DOMAIN,
     CEILINGS,
     ImageAdmission,
     ImageContractError,
+    LiveImageAuthority,
     SyntheticImageAuthority,
     canonical,
     closed,
@@ -32,12 +36,14 @@ from .image_custody import ImageCustodySession, parent_initializer
 from .image_decoder import FrozenImageDecoder
 from .image_effects import SyntheticTransportFixture, fixture_transport
 from .image_input_contract import ImageContext, materialize_image_inputs, reject_output
+from .image_live import authority_params, mirror_authority
 from .image_privacy import image_privacy, runtime_identity
 from .image_records import list_root, private_root, publish, read_record
 from .image_source_io import read_relative
 from .image_source_profile import ImageSourceProfile, convert_value
 from .image_supervision import supervise_image_worker
 from .image_worker import worker_entry
+from .policy import allow_network_mutate
 from .provider_contract import (
     ProviderImagePart,
     ProviderPartsMessage,
@@ -77,7 +83,7 @@ class ImageExecutionRequest:
     preparation: ImagePreparation
     admission: ImageAdmission
     authority: object
-    fixture: SyntheticTransportFixture
+    fixture: SyntheticTransportFixture | None
 
     def execute(self, *, route: str):
         return execute_image_program(
@@ -101,13 +107,13 @@ class RequestPreview:
 
 
 def _status(
-    status: str, commitment: str, failure: str | None = None
+    status: str, commitment: str, failure: str | None = None, *, live: bool = False
 ) -> dict[str, object]:
     return {
         "status": status,
         "commitment_sha256": commitment,
-        "fixture_evidence": True,
-        "live_authorized": False,
+        "fixture_evidence": not live,
+        "live_authorized": live,
         "failure_code": failure,
     }
 
@@ -283,24 +289,27 @@ def execute_image_program(
     preparation: ImagePreparation,
     admission: ImageAdmission,
     authority: object,
-    fixture: SyntheticTransportFixture,
+    fixture: SyntheticTransportFixture | None,
     route: str,
 ):
     """No configuration/env/raw JSON can mint the nominal parent capability."""
     from .image_artifacts import ImageRunAnchor, verify_image_run
 
+    live = type(authority) is LiveImageAuthority
     require(
         all(type(fd) is int for fd in (candidate_fd, input_fd, artifact_fd, custody_fd))
         and type(input_name) is str
         and type(preparation) is ImagePreparation
         and type(admission) is ImageAdmission
-        and type(authority) is SyntheticImageAuthority
-        and type(fixture) is SyntheticTransportFixture
+        # A synthetic authority needs its owner fixture; a live one never takes one.
+        and (live or type(authority) is SyntheticImageAuthority)
+        and (fixture is None if live else type(fixture) is SyntheticTransportFixture)
         and type(route) is str
         and route in {"episode", "direct"},
         "image_admission_invalid",
     )
-    authority = cast(SyntheticImageAuthority, authority)
+    require(not live or allow_network_mutate(), "image_admission_invalid")
+    authority = cast(SyntheticImageAuthority | LiveImageAuthority, authority)
     prepared = parse_json(preparation.raw, limit=65_536)
     validate_admission(
         admission.raw,
@@ -337,7 +346,8 @@ def execute_image_program(
         source_sha256=record["source_package_sha256"],
         manifest_sha256=digest("manifest-v2", manifest),
     )
-    observed = () if fixture.observation_fd is None else (fixture.observation_fd,)
+    spy = None if fixture is None else fixture.observation_fd
+    observed = () if spy is None else (spy,)
     params: dict[str, object] = {
         "candidate_fd": candidate_fd,
         "input_fd": input_fd,
@@ -346,12 +356,8 @@ def execute_image_program(
         "custody_fd": custody_fd,
         "preparation": preparation.raw.decode("ascii"),
         "admission": admission.raw.decode("ascii"),
-        "authority": {
-            "caller_expectation_sha256": authority.caller_expectation_sha256,
-            "root_dev": authority.root_dev,
-            "root_ino": authority.root_ino,
-        },
-        "fixture": fixture.record,
+        "authority": authority_params(authority),  # mode and approval binding
+        "fixture": None if fixture is None else fixture.record,
         "route": route,
     }
     result = supervise_image_worker(
@@ -361,11 +367,12 @@ def execute_image_program(
         wall_ms=record["deadlines"]["total_wall_ms"],
         parent_action=initialize,
     )
-    require(result["status"] == "completed", "image_custody")
+    commitment = cast(str, result["commitment_sha256"])
+    require(result == _status("completed", commitment, live=live), "image_custody")
     anchor = ImageRunAnchor(
         custody_fd,
         artifact_fd,
-        cast(str, result["commitment_sha256"]),
+        commitment,
         admission.raw,
         canonical(prepared["source"]),
         canonical(manifest),
@@ -387,21 +394,17 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
     preparation = ImagePreparation(row["preparation"].encode("ascii"))
     admission_raw = row["admission"].encode("ascii")
     admission = ImageAdmission(
-        admission_raw, digest("admission-v2", parse_json(admission_raw, limit=65_536))
+        admission_raw, digest(ADMISSION_DOMAIN, parse_json(admission_raw, limit=65_536))
     )
-    bound = closed(row["authority"], "caller_expectation_sha256 root_dev root_ino")
-    # Worker-local mirror of the parent's reserved nominal authority. It is usable only
-    # through this parent's handshake: ready.json is published only for a ready frame
-    # whose PID, start, deadline and grant hash equal the spawned child's (see the
-    # threat-model limits in docs/project/2026-10-06-typed-image-clean-worker-architecture).
-    authority = SyntheticImageAuthority(
-        admission_raw,
-        bound["caller_expectation_sha256"],
-        bound["root_dev"],
-        bound["root_ino"],
-        _used=[False],
-    )
-    fixture = closed(row["fixture"], "completion observation_fd")
+    # Worker-local mirror of the parent's reserved nominal authority, of the admitted
+    # mode only. It is usable only through this parent's handshake: ready.json is
+    # published only for a ready frame whose PID, start, deadline and grant hash equal
+    # the spawned child's (threat-model limits in docs/project/2026-10-06-typed-image-
+    # clean-worker-architecture). The session re-runs validate_admission on it.
+    authority = mirror_authority(admission, row["authority"])
+    live = type(authority) is LiveImageAuthority
+    require(live is (row["fixture"] is None), "image_admission_invalid")
+    fixture = None if live else closed(row["fixture"], "completion observation_fd")
     prepared = preparation.record
     record = admission.record
     custody_fd, artifact_fd = row["custody_fd"], row["artifact_fd"]
@@ -423,9 +426,12 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
             context=context,
         )
         active.session = session
-        lm = create_image_lm(
-            session, transport=fixture_transport(fixture, record["model"])
+        # Live: no transport, so the provider builds HTTPTransport(trust_env=False,
+        # retries=0) for the admitted loopback endpoint; synthetic: the owner fixture.
+        transport = (
+            None if fixture is None else fixture_transport(fixture, record["model"])
         )
+        lm = create_image_lm(session, transport=transport)
         active.lm = lm
         with dspy.context(lm=lm):
             prediction = root(**context.materialized())
@@ -440,7 +446,8 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
             session, artifact_fd=artifact_fd, outputs=outputs, route=row["route"]
         )
         session.close_run(binding, outcome="completed")
-        return _status("completed", sha(read_record(custody_fd, "closure.json")))
+        closure = sha(read_record(custody_fd, "closure.json"))
+        return _status("completed", closure, live=live)
 
 
 def run_image_episode(
