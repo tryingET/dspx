@@ -583,14 +583,11 @@ def _privacy_execute_entry(params):
             content = "[[ ## answer ## ]]\nfixture result\n[[ ## completed ## ]]"
             if admission_view == "unparsable":
                 content = "unstructured fixture text without any field section"
-            return response_type(
-                200,
-                json={
-                    "model": model,
-                    "choices": [{"message": {"role": "assistant", "content": content}}],
-                },
-                request=request,
-            )
+            message = {"role": "assistant", "content": content}
+            usage = {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+            choice = {"message": message, "finish_reason": "stop"}
+            body = {"model": model, "choices": [choice], "usage": usage}
+            return response_type(200, json=body, request=request)
 
         # Characterize exact synthetic transport separation before the
         # admitted positive; no client/default transport may be created.

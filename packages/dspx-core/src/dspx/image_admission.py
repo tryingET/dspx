@@ -35,9 +35,10 @@ CEILINGS: Final = {
     "total_dispatch_allowance": 64,
 }
 # Owner-bound output cap (AK6918). Even at 16 chars per token and 6 JSON bytes per
-# char, 8192 tokens stay under the response (2 MB) and output (1 M chars) ceilings, so
-# the token cap binds first; the admitted IO window (<= 30 s) still bounds wall time.
+# char, 8192 tokens stay under the response (2 MB) and output (1 M chars) ceilings,
+# which stay independently bounded; the admitted IO window (<= 30 s) bounds wall time.
 MAX_OUTPUT_TOKENS: Final = 8192
+ADMISSION_SCHEMA: Final = "dspx-image-admission-v3"
 ADMISSION_DOMAIN: Final = "admission-v3"
 _HASH = re.compile(r"[0-9a-f]{64}\Z")
 _CODES = frozenset(
@@ -245,6 +246,13 @@ class ImageAdmission:
         return parse_json(self.raw, limit=65_536)
 
 
+def admission_of(raw: bytes) -> ImageAdmission:
+    """The commitment of retained v3 admission bytes; any other schema is refused."""
+    record = parse_json(raw, limit=65_536)
+    require(type(record) is dict and record.get("schema_version") == ADMISSION_SCHEMA)
+    return ImageAdmission(raw, digest(ADMISSION_DOMAIN, record))
+
+
 def validate_source(record: object) -> dict[str, Any]:
     source = closed(
         record,
@@ -328,7 +336,7 @@ def validate_admission(
         "limits deadlines custody approval_binding request_controls",
     )
     require(canonical(record) == raw)
-    require(record["schema_version"] == "dspx-image-admission-v3")
+    require(record["schema_version"] == ADMISSION_SCHEMA)
     synthetic = type(authority) is SyntheticImageAuthority
     require(record["mode"] == ("synthetic" if synthetic else "live"))
     require(record["provider_kind"] == "openai-compatible")
@@ -434,19 +442,10 @@ def validate_admission(
     )
     if synthetic:
         require(all(value is None for value in approval.values()))
-    else:
-        require(
-            type(approval["owning_ak_task"]) is int and approval["owning_ak_task"] > 0
-        )
-        require(
-            type(approval["operator_evidence_ref"]) is str
-            and re.fullmatch(
-                r"ak://evidence/[1-9][0-9]*", approval["operator_evidence_ref"]
-            )
-            is not None
-        )
-        require(hash_value(approval["parent_confirmation_sha256"]))
-        require(approval == {key: getattr(authority, key) for key in approval})
+    else:  # bound to these bytes, exact parent field types, a short validity window
+        from .image_live import require_live_approval
+
+        require_live_approval(record, authority)
     return ImageAdmission(raw, digest(ADMISSION_DOMAIN, record))
 
 

@@ -13,14 +13,18 @@ parent's ready handshake. The request body adds exactly the admission's controls
 
 from __future__ import annotations
 
+import copy
 import json
-from typing import Any, cast
+import re
+from typing import Any, Final, cast
 
 from .image_admission import (
     ImageAdmission,
     LiveImageAuthority,
     SyntheticImageAuthority,
     closed,
+    digest,
+    hash_value,
     request_controls,
     require,
 )
@@ -34,6 +38,44 @@ _BOUND = "mode caller_expectation_sha256 root_dev root_ino " + " ".join(APPROVAL
 _THINKING = {"off": False}  # admitted thinking -> vLLM chat-template `enable_thinking`
 _FORMATTED = frozenset({"model", "messages"})
 _WIRE = _FORMATTED | {"max_tokens", "chat_template_kwargs"}
+_FINISHED = frozenset({"stop", "length"})
+_REASONING = ("reasoning", "reasoning_content")
+_EVIDENCE = re.compile(r"ak://evidence/[1-9][0-9]*\Z")
+# A copied live admission is replayable for at most 30 minutes from its not-before.
+LIVE_VALIDITY_MS: Final = 1_800_000
+
+
+def live_confirmation_sha256(record: dict[str, Any]) -> str:
+    """The digest the owner confirms for one live admission (computed by the harness).
+
+    It covers every admitted field except `operator_evidence_ref` and the confirmation
+    itself: the owner's AK evidence carries this digest and the admission then names
+    that evidence, so neither commitment is circular.
+    """
+    unsigned = copy.deepcopy(record)
+    approval = unsigned["approval_binding"]
+    approval["operator_evidence_ref"] = approval["parent_confirmation_sha256"] = None
+    return digest("live-confirmation-v1", unsigned)
+
+
+def require_live_approval(record: dict[str, Any], authority: object) -> None:
+    """A live admission's approval binding, in the parent and the worker session.
+
+    Well formed, confirmed over these very bytes, held with exact types by the parent
+    authority, and valid for at most `LIVE_VALIDITY_MS`. Code checks data identity
+    only; the operator is authenticated out of band (AK evidence).
+    """
+    task, ref, confirmation = (record["approval_binding"][k] for k in APPROVAL_FIELDS)
+    require(type(task) is int and task > 0)
+    require(type(ref) is str and _EVIDENCE.fullmatch(ref) is not None)
+    require(hash_value(confirmation))
+    require(confirmation == live_confirmation_sha256(record))
+    held = tuple(getattr(authority, key) for key in APPROVAL_FIELDS)
+    require(tuple(type(value) for value in held) == (int, str, str))
+    require(held == (task, ref, confirmation))
+    deadlines = record["deadlines"]
+    window = deadlines["expires_utc_ms"] - deadlines["not_before_utc_ms"]
+    require(window <= LIVE_VALIDITY_MS)
 
 
 def authority_params(
@@ -114,3 +156,29 @@ def require_admitted_controls(raw: bytes, record: dict[str, Any]) -> None:
         and set(switch) == {"enable_thinking"}
         and switch["enable_thinking"] is _THINKING[controls["thinking"]]
     )
+
+
+def honoured_controls(data: bytes, record: dict[str, Any]) -> bool:
+    """Whether a provider-validated response shows the admitted controls took effect.
+
+    Every choice finished with "stop" or "length" and carries no reasoning (absent or
+    null only), and `usage.completion_tokens` is an integer within the admitted cap.
+    Anything else is a completed failure, never success.
+    """
+    cap = request_controls(record["request_controls"])["max_output_tokens"]
+    try:
+        payload = json.loads(data)
+        tokens, choices = payload["usage"]["completion_tokens"], payload["choices"]
+        return (
+            type(tokens) is int
+            and 0 <= tokens <= cap
+            and type(choices) is list
+            and bool(choices)
+            and all(
+                choice["finish_reason"] in _FINISHED
+                and all(choice["message"].get(key) is None for key in _REASONING)
+                for choice in choices
+            )
+        )
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return False

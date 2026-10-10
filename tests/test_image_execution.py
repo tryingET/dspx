@@ -770,7 +770,7 @@ def test_s25_prepare_only_runs_no_module_lm_provider_session_or_ready(
             "commitment_sha256": digest(
                 "prepare-counters-v1", {"production": sha(raw), "counts": zero}
             ),
-            "fixture_evidence": True,
+            "fixture_evidence": False,  # preparation is mode-free (AK6918 review)
             "live_authorized": False,
             "failure_code": None,
         }

@@ -16,7 +16,12 @@ from .image_admission import CEILINGS, ImageContractError, parse_json, require, 
 from .image_records import publish, read_record
 from .image_custody import ImageCustodySession
 from .image_input_contract import reject_output
-from .image_live import controlled_body, require_admitted_controls, sent_controls
+from .image_live import (
+    controlled_body,
+    honoured_controls,
+    require_admitted_controls,
+    sent_controls,
+)
 from .image_privacy import require_privacy
 from .image_supervision import worker_deadline, require_admitted_worker_budget
 from .policy import allow_network_mutate, check_capability, check_provider_allowed
@@ -211,6 +216,8 @@ def invoke_image_http(
             except (_ResponseFailure, json.JSONDecodeError, UnicodeDecodeError):
                 raise ObservedResponseFailure("response") from None
             tx.observed_model = observed
+            if not honoured_controls(data, session.record):  # reasoning, usage, finish
+                raise ObservedResponseFailure("response")
             try:
                 reject_output(text, session.context)
                 require(
@@ -416,8 +423,10 @@ def image_effect_envelope(session) -> dict[str, object]:
 class SyntheticTransportFixture:
     """Owner-defined closed response. The worker builds the exact MockTransport.
 
-    Its handler publishes only send ordinal, block kinds, image hashes/media types and
-    the request hash. No callable, transport object or HTTP body crosses processes.
+    Its handler publishes only send ordinal, block kinds, image hashes/media types, the
+    request hash and the sent controls (wire observation v2), and answers with one
+    controlled completion: finish "stop", no reasoning, usage within any admitted cap.
+    No callable, transport object or HTTP body crosses processes.
     """
 
     completion: str
@@ -478,20 +487,10 @@ def fixture_transport(fixture: dict[str, object], model: str) -> httpx.MockTrans
                     "controls": sent_controls(packet),
                 },
             )
-        return httpx.Response(
-            200,
-            json={
-                "model": model,
-                "choices": [
-                    {
-                        "message": {
-                            "role": "assistant",
-                            "content": fixture["completion"],
-                        }
-                    }
-                ],
-            },
-            request=request,
-        )
+        message = {"role": "assistant", "content": fixture["completion"]}
+        choice = {"message": message, "finish_reason": "stop"}
+        usage = {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+        body = {"model": model, "choices": [choice], "usage": usage}
+        return httpx.Response(200, json=body, request=request)
 
     return httpx.MockTransport(handler)

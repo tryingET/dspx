@@ -551,10 +551,12 @@ def test_s51_echoed_payload_leaves_no_copy_in_files_streams_caches_or_traces(
     ]
     assert [row["image_sha256"] for row in wire] == [[sha(pixels)]]
     # Only a payload-free digest, length and outcome of the echo remain.
-    body = json.dumps(
+    message = {"role": "assistant", "content": completion}
+    body = json.dumps(  # the owner fixture's controlled completion (AK6918 review)
         {
             "model": "synthetic-vision-fixture",
-            "choices": [{"message": {"role": "assistant", "content": completion}}],
+            "choices": [{"message": message, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
         },
         ensure_ascii=False,
         separators=(",", ":"),

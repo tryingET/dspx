@@ -53,7 +53,7 @@ run declared entries in the worker. Both modes share this one route (AK6918):
   the worker builds the exact `httpx.MockTransport` and publishes only send ordinal,
   block kinds, image hashes/media, request hash and the sent request controls (wire
   observation v2). The worker status reports `fixture_evidence: true`,
-  `live_authorized: false`.
+  `live_authorized: false`; the mode-free preparation reports both false.
 - **Live.** A `LiveImageAuthority` takes no fixture (a fixture, or a synthetic authority
   over a live admission and vice versa, refuses before spawn) and needs
   `DSPX_POLICY_ALLOW_NETWORK_MUTATE=1`, checked in the parent before spawn and again in
@@ -63,7 +63,8 @@ run declared entries in the worker. Both modes share this one route (AK6918):
   `owning_ak_task`, `operator_evidence_ref`, `parent_confirmation_sha256`); the worker
   (`image_live.mirror_authority`) mirrors only the admitted mode with every field
   present, and its custody session re-runs `validate_admission`, which compares every
-  approval field with the admission. No transport is injected, so the provider builds
+  approval field with the admission (see Live approval binding). No transport is
+  injected, so the provider builds
   `HTTPTransport(trust_env=False, retries=0)`. The status reports
   `fixture_evidence: false`, `live_authorized: true`, and `verify_image_run` checks the
   same custody intent, terminal and closure as for synthetic runs. An
@@ -81,8 +82,8 @@ Admission `dspx-image-admission-v3` (commitment domain `admission-v3`) adds a cl
 required `request_controls` section in every mode:
 `{"max_output_tokens": N, "thinking": "off"}` with `1 <= N <= 8192`
 (`MAX_OUTPUT_TOKENS`; at up to 16 characters per token and 6 JSON bytes per character,
-8192 tokens stay inside the 2 MB response and 1 M character output ceilings, so the
-token cap binds first; the admitted IO window still bounds wall time). Unknown keys,
+8192 tokens stay inside the 2 MB response and 1 M character output ceilings, which
+remain independently bounded; the admitted IO window bounds wall time). Unknown keys,
 booleans, strings, nulls, out-of-range values and any other thinking value refuse with
 `image_admission_invalid`; floats refuse with `image_input_invalid` (integer-only
 records). The image request body is the formatted `{model, messages}` plus exactly
@@ -94,6 +95,34 @@ reservation and send, `require_admitted_controls` re-parses the exact request by
 refuses any drift (changed, missing, boolean, extra or duplicated keys). The body-size
 limit applies to the controlled body. Text (non-image) provider requests are unchanged,
 and no pinned provider module changed.
+
+The response must show the controls took effect, in both modes
+(`image_live.honoured_controls`, after the provider's own validation): every choice
+finishes with `stop` or `length` and carries no reasoning (`reasoning`,
+`reasoning_content` absent or null), and `usage.completion_tokens` is an integer within
+the admitted cap. Anything else, including a missing `usage` or finish reason, is one
+completed failure `response`: never success, no artifact. The owner fixture answers
+with such a controlled completion.
+
+## Live approval binding (AK6918 review)
+
+`validate_admission` (parent and worker session) requires, for a live admission:
+
+- `owning_ak_task` a positive int, `operator_evidence_ref` matching
+  `ak://evidence/N`, and the parent `LiveImageAuthority` holding exactly these values
+  with exact types (`int`, `str`, `str`; `True` is not a task number);
+- `parent_confirmation_sha256 == live_confirmation_sha256(record)`, which is
+  `digest("live-confirmation-v1", A')` with A' the admission record whose
+  `operator_evidence_ref` and `parent_confirmation_sha256` are null. The evidence
+  reference stays outside the digest so the owner's AK evidence can carry the digest
+  and the admission can then name that evidence without a cycle; the parent still
+  binds the reference. One recorded confirmation therefore fits only the endpoint,
+  model, controls, limits, deadlines, custody and task it was computed for;
+- a validity window `expires_utc_ms - not_before_utc_ms <= 1_800_000` (30 minutes), so
+  a copied live admission cannot be replayed for long.
+
+Retained custody is read only for `dspx-image-admission-v3`; any other admission
+schema refuses with `image_admission_invalid`.
 
 ## Owner decisions that refine Revision 2
 
@@ -150,8 +179,9 @@ fixed. Live image execution with admission-bound output controls exists in code 
 owner decisions AK14879/AK14880: bounded output, thinking off, direct loopback vLLM) and
 is exercised only against a test-owned loopback server. AK6610 is the first live call.
 Every live run still needs a per-run owner admission and its approval binding
-(owning AK task, operator evidence `ak://evidence/N`, parent confirmation hash), with
-the exact endpoint, model and budget recorded as AK evidence before the run; code
-verifies data identity only and never authenticates the operator. Receipt-domain
+(owning AK task, operator evidence `ak://evidence/N`, the confirmation digest of that
+admission), with the exact endpoint, model, budget and confirmation digest recorded as
+AK evidence before the run; code verifies data identity only and never authenticates
+the operator. Receipt-domain
 routing (AK6767) was closed as superseded: receipts are hash-only projections and image
 receipts are refused before any output read.

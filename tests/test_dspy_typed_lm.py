@@ -800,8 +800,10 @@ def _affordance_entry(params: dict[str, Any]) -> dict[str, object]:
 
         def handler(request: httpx.Request) -> httpx.Response:
             sends.append(request.content)
-            choice = {"message": {"role": "assistant", "content": "fixture result"}}
-            body = {"model": _MODEL, "choices": [choice]}
+            message = {"role": "assistant", "content": "fixture result"}
+            choice = {"message": message, "finish_reason": "stop"}
+            usage = {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+            body = {"model": _MODEL, "choices": [choice], "usage": usage}
             return httpx.Response(200, json=body, request=request)
 
         lm = create_image_lm(session, transport=httpx.MockTransport(handler))

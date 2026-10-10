@@ -74,20 +74,12 @@ def read_only_custody(
     manifest_raw: bytes,
     unready: bool = False,
 ) -> ReadOnlyCustody:
-    from .image_admission import (
-        ADMISSION_DOMAIN,
-        ImageAdmission,
-        closed,
-        digest,
-        parse_json,
-        validate_source,
-    )
+    from .image_admission import admission_of, closed, digest, parse_json
+    from .image_admission import validate_source
     from .image_records import _READY, list_root, private_root, read_record, residue
 
     root = private_root(custody_fd)
-    admission = ImageAdmission(
-        admission_raw, digest(ADMISSION_DOMAIN, parse_json(admission_raw))
-    )
+    admission = admission_of(admission_raw)  # a non-v3 admission: admission invalid
     record = admission.record
     source = validate_source(parse_json(source_raw))
     manifest = closed(

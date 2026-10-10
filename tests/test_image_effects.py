@@ -364,11 +364,10 @@ def _transport(scenario: str, sends: list[list[str]]) -> httpx.MockTransport:
             fault = httpx.ReadError if scenario == "read_error" else SystemExit
             return httpx.Response(200, stream=_FaultStream(fault), request=request)
         message = {"role": "assistant", "content": _ANSWER}
-        return httpx.Response(
-            200,
-            json={"model": _MODEL, "choices": [{"message": message}]},
-            request=request,
-        )
+        choice = {"message": message, "finish_reason": "stop"}  # controls honoured
+        usage = {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
+        body = {"model": _MODEL, "choices": [choice], "usage": usage}
+        return httpx.Response(200, json=body, request=request)
 
     return httpx.MockTransport(handler)
 

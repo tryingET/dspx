@@ -26,7 +26,6 @@ import test_image_admission as admission_tests
 import test_image_effects as effects
 from dspx.image_admission import (
     ImageAdmission,
-    LiveImageAuthority,
     SyntheticImageAuthority,
     canonical,
     closed,
@@ -45,6 +44,7 @@ from dspx.image_supervision import supervise_image_worker
 from dspx.image_worker import worker_entry
 from dspx.provider_registry import create_image_lm
 from test_image_admission import _World, _bytes, _identity, _no_effects, _refused
+from test_image_live_admission import _held, _live
 from test_image_execution import _ANSWER, _admitted_request, _execute_route
 from test_image_execution import _prepare_route, _records, _route_fds, _shipped_inputs
 
@@ -140,13 +140,11 @@ def test_v3_controls_are_required_in_live_mode_and_v2_is_refused(
 ) -> None:
     """Given a live admission without controls, or a v2-labelled admission with valid
     controls; When the parent validates; Then both refuse with the fixed code."""
-    grant = (6918, "ak://evidence/14880", "6" * 64)
-    approval = dict(zip(admission_tests._APPROVAL, grant, strict=True))
-    live = {**world.record, "mode": "live", "approval_binding": approval}
-    assert world.validate(canonical(live), _live(world, canonical(live), grant))
+    live = _live(world)  # confirmed over its own bytes
+    assert world.validate(canonical(live), _held(world, live))
     del live["request_controls"]
     raw = canonical(live)
-    _refused(_INVALID, lambda: world.validate(raw, _live(world, raw, grant)))
+    _refused(_INVALID, lambda: world.validate(raw, _held(world, live)))
     labelled = canonical({**world.record, "schema_version": "dspx-image-admission-v2"})
     _refused(_INVALID, lambda: world.validate(labelled, world.held(labelled)))
     entries = _no_effects(monkeypatch)
@@ -154,13 +152,28 @@ def test_v3_controls_are_required_in_live_mode_and_v2_is_refused(
     world.done(entries)
 
 
-def _live(world: _World, raw: bytes, grant: tuple[int, str, str]) -> LiveImageAuthority:
-    return LiveImageAuthority(raw, admission_tests._EXPECT, *world.root, *grant)
-
-
 # ---------------------------------------------------------------------------
 # (b) The shipped synthetic route sends exactly the admitted controls.
 # ---------------------------------------------------------------------------
+
+
+_V2 = "dspx-image-admission-v2"
+
+
+def _worker_statuses(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
+    """The statuses the shipped parent entries receive from their clean workers."""
+    from dspx import image_execution
+
+    seen: list[dict[str, Any]] = []
+    real = image_execution.supervise_image_worker
+
+    def spy(*args: Any, **kwargs: Any) -> dict[str, object]:
+        result = real(*args, **kwargs)
+        seen.append(result)
+        return result
+
+    monkeypatch.setattr(image_execution, "supervise_image_worker", spy)
+    return seen
 
 
 def _with_controls(
@@ -193,6 +206,7 @@ def test_synthetic_worker_route_sends_the_admitted_output_cap_and_thinking_off(
     monkeypatch.setenv("MLFLOW_ENABLE", "0")
     monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
     _shipped_inputs(tmp_path, media="image/png")
+    statuses = _worker_statuses(monkeypatch)
     with _route_fds(tmp_path) as fds:
         prepared = _prepare_route(fds, use_cot=False)
         request = _admitted_request(fds, prepared, route=route, completion=_ANSWER)
@@ -200,6 +214,19 @@ def test_synthetic_worker_route_sends_the_admitted_output_cap_and_thinking_off(
         anchor = _execute_route(tmp_path, request, route=route)
         assert verify_image_run(anchor)["status"] == "ok"
         (wire,) = _records(fds["wire"])
+        # AK6918 review: read-only custody names a non-v3 admission precisely.
+        relabelled = {**request.admission.record, "schema_version": _V2}
+        stale = replace(anchor, admission_raw=canonical(relabelled))
+        _refused(_INVALID, lambda: verify_image_run(stale))
+    # AK6918 review: preparation is mode-free (no fixture, no live authority); the
+    # synthetic run reports fixture evidence only.
+    assert [
+        (row["status"], row["fixture_evidence"], row["live_authorized"])
+        for row in statuses
+    ] == [
+        ("prepared", False, False),
+        ("completed", True, False),
+    ]
     assert wire["schema_version"] == "dspx-image-wire-observation-v2"
     assert wire["send_ordinal"] == 1 and len(wire["request_sha256"]) == 64
     # Every body key besides model and messages: exactly the two admitted controls.

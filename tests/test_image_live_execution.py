@@ -14,7 +14,7 @@ the real `HTTPTransport(trust_env=False, retries=0)`.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 import base64
 import ctypes
@@ -48,15 +48,14 @@ from dspx.image_privacy import runtime_identity
 from dspx.image_records import list_root, read_record
 from test_image_execution import _ANSWER, _admitted_request, _execute_route
 from test_image_execution import _prepare_route, _route_fds, _shipped_inputs
+from test_image_live_admission import _confirmation
+from test_image_response_controls import IGNORED, response_body
 
 _INVALID = "image_admission_invalid"
-_GRANT = (
-    6918,
-    "ak://evidence/14880",
-    hashlib.sha256(b"owner-confirmation").hexdigest(),
-)
+_TASK_REF = (6918, "ak://evidence/14880")  # the confirmation is computed per admission
 _FIELDS = ("owning_ak_task", "operator_evidence_ref", "parent_confirmation_sha256")
-_CONTROLS = {"max_output_tokens": 512, "thinking": "off"}
+_CAP = 512  # the admitted max_output_tokens of every live admission here
+_CONTROLS = {"max_output_tokens": _CAP, "thinking": "off"}
 _SWITCH_OFF = {"enable_thinking": False}
 _EXECUTE = "dspx.image_execution:_execute_entry"
 
@@ -66,17 +65,10 @@ _EXECUTE = "dspx.image_execution:_execute_entry"
 # ---------------------------------------------------------------------------
 
 
-def _completion(model: str) -> bytes:
-    message = {"role": "assistant", "content": _ANSWER, "reasoning_content": None}
-    return json.dumps(
-        {
-            "id": "chatcmpl-loopback-fixture",
-            "object": "chat.completion",
-            "model": model,
-            "choices": [{"index": 0, "message": message, "finish_reason": "stop"}],
-            "usage": {"prompt_tokens": 40, "completion_tokens": 9, "total_tokens": 49},
-        }
-    ).encode()
+def _completion(model: str, behaviour: str, cap: int) -> bytes:
+    """A controlled completion, or the one response variant the behaviour names."""
+    variant = behaviour if behaviour in IGNORED else "valid_null_reasoning"
+    return response_body(model, variant, cap, _ANSWER)
 
 
 def _record(log: Path, ordinal: int, head: str, body: bytes) -> dict[str, Any]:
@@ -129,7 +121,7 @@ def _answer(connection: socket.socket, log: Path, ordinal: int, behaviour: str) 
             return
         body += chunk
     row = _record(log, ordinal, head.decode("latin-1"), body)
-    payload = _completion(row["model"])
+    payload = _completion(row["model"], behaviour, row["controls"]["max_tokens"])
     status = (
         b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
         b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(payload)
@@ -223,25 +215,37 @@ def _live_policy(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _live_record(
-    request: ImageExecutionRequest, endpoint: str, **edits: object
+    request: ImageExecutionRequest,
+    endpoint: str,
+    binding: tuple[object, ...] | None = None,
+    **edits: Any,
 ) -> dict[str, Any]:
-    return {
+    """A live admission; without `binding`, its own confirmed approval binding."""
+    record = {
         **request.admission.record,
         "mode": "live",
         "canonical_base_endpoint": endpoint,
         "request_controls": dict(_CONTROLS),
-        "approval_binding": dict(zip(_FIELDS, _GRANT, strict=True)),
+        "approval_binding": dict(zip(_FIELDS, (*_TASK_REF, None), strict=True)),
         **edits,
     }
+    own = _confirmation(record)
+    grant = (*_TASK_REF, own) if binding is None else binding
+    record["approval_binding"] = dict(zip(_FIELDS, grant, strict=True))
+    return record
+
+
+def _grant(raw: bytes) -> tuple[Any, ...]:
+    return tuple(parse_json(raw)["approval_binding"][key] for key in _FIELDS)
 
 
 def _authority(
-    request: ImageExecutionRequest, raw: bytes, grant: tuple[Any, ...] = _GRANT
+    request: ImageExecutionRequest, raw: bytes, grant: tuple[Any, ...] | None = None
 ) -> LiveImageAuthority:
     held = request.authority
     assert type(held) is SyntheticImageAuthority
     bound = (held.caller_expectation_sha256, held.root_dev, held.root_ino)
-    return LiveImageAuthority(raw, *bound, *grant)
+    return LiveImageAuthority(raw, *bound, *(_grant(raw) if grant is None else grant))
 
 
 def _live(
@@ -250,7 +254,7 @@ def _live(
     port: int,
     *,
     route: str = "direct",
-    **edits: object,
+    **edits: Any,
 ) -> ImageExecutionRequest:
     """An owner live admission with its exact parent authority; no fixture."""
     synthetic = _admitted_request(fds, prepared, route=route, completion=_ANSWER)
@@ -347,7 +351,10 @@ def test_live_run_sends_once_through_the_real_transport_with_admitted_controls(
     assert run["params"]["fixture"] is None
     bound = run["params"]["authority"]
     assert bound["mode"] == "live"
-    assert tuple(bound[key] for key in _FIELDS) == _GRANT
+    assert tuple(bound[key] for key in _FIELDS) == _grant(request.admission.raw)
+    assert bound["owning_ak_task"] == 6918 and bound["parent_confirmation_sha256"] == (
+        _confirmation(request.admission.record)
+    )
     assert run["result"] == {
         "status": "completed",
         "commitment_sha256": sha(closure),
@@ -383,14 +390,17 @@ def test_live_run_sends_once_through_the_real_transport_with_admitted_controls(
 # (d) Refusals before any send.
 # ---------------------------------------------------------------------------
 
-_FOREIGN_REF = (6918, "https://evidence/14880", _GRANT[2])
-_BOOLEAN_TASK = (True, *_GRANT[1:])
-# case -> (admitted approval binding, the parent authority's approval fields)
-_APPROVALS: dict[str, tuple[tuple[object, ...], tuple[object, ...]]] = {
-    "approval_absent": ((None, None, None), (None, None, None)),
-    "task_mismatch": (_GRANT, (6610, *_GRANT[1:])),
-    "evidence_mismatch": (_GRANT, (6918, "ak://evidence/14879", _GRANT[2])),
-    "confirmation_mismatch": (_GRANT, (*_GRANT[:2], "5" * 64)),
+_Edit = Callable[[tuple[Any, ...]], tuple[Any, ...]]
+_SAME: _Edit = lambda grant: grant  # noqa: E731
+_FOREIGN_REF: _Edit = lambda g: (g[0], "https://e/14880", g[2])  # noqa: E731
+_BOOLEAN_TASK: _Edit = lambda g: (True, *g[1:])  # noqa: E731
+# case -> (edit of the admitted confirmed binding, edit giving the parent's fields)
+_APPROVALS: dict[str, tuple[_Edit, _Edit]] = {
+    "approval_absent": (lambda g: (None,) * 3, lambda g: (None,) * 3),
+    "task_mismatch": (_SAME, lambda g: (6610, *g[1:])),
+    "evidence_mismatch": (_SAME, lambda g: (g[0], "ak://evidence/14879", g[2])),
+    "confirmation_mismatch": (_SAME, lambda g: (*g[:2], "5" * 64)),
+    "unconfirmed_bytes": (lambda g: (*g[:2], "5" * 64), lambda g: (*g[:2], "5" * 64)),
     "evidence_not_ak": (_FOREIGN_REF, _FOREIGN_REF),
     "task_boolean": (_BOOLEAN_TASK, _BOOLEAN_TASK),
 }
@@ -403,15 +413,15 @@ def test_live_without_exact_approval_binding_refuses_in_the_parent(
     """Given a live admission whose approval binding is absent, malformed or differs
     from the parent's LiveImageAuthority; When the shipped entry runs; Then it refuses
     before the worker, custody or any request reaches the server."""
-    admitted, held = _APPROVALS[case]
+    admit_edit, held_edit = _APPROVALS[case]
     _shipped_inputs(tmp_path, media="image/png")
     with _route_fds(tmp_path) as fds, _server(tmp_path) as server:
         prepared = _prepare_route(fds, use_cot=False)
         synthetic = _admitted_request(fds, prepared, route="direct", completion=_ANSWER)
         endpoint = f"http://127.0.0.1:{server.port}/v1"
-        approval = dict(zip(_FIELDS, admitted, strict=True))
-        raw = canonical(_live_record(synthetic, endpoint, approval_binding=approval))
-        authority = _authority(synthetic, raw, held)
+        confirmed = _grant(canonical(_live_record(synthetic, endpoint)))
+        raw = canonical(_live_record(synthetic, endpoint, admit_edit(confirmed)))
+        authority = _authority(synthetic, raw, held_edit(confirmed))
         entries = _no_spawn(monkeypatch)
         live = replace(
             synthetic, admission=_unchecked(raw), authority=authority, fixture=None
@@ -622,3 +632,36 @@ def test_live_trickle_ends_at_the_io_window_without_retry_or_repeat(
         "max_tokens": 512,
         "chat_template_kwargs": _SWITCH_OFF,
     }
+
+
+# ---------------------------------------------------------------------------
+# AK6918 review: the live response must show the admitted controls took effect.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("variant", IGNORED)
+def test_live_response_that_ignored_the_controls_is_a_completed_failure(
+    tmp_path: Path, variant: str
+) -> None:
+    """Given an exact live admission (output cap 512, thinking off) and a server whose
+    completion <variant> (reasoning, no usage, tokens over the cap, or a finish reason
+    other than stop/length); When the shipped route runs; Then the one send is a
+    completed failure `response`, never success, with no artifact or closure."""
+    _shipped_inputs(tmp_path, media="image/png")
+    with _route_fds(tmp_path) as fds, _server(tmp_path, variant) as server:
+        prepared = _prepare_route(fds, use_cot=False)
+        request = _live(fds, prepared, server.port)
+        _refused("image_finalization", lambda: request.execute(route="direct"))
+        names = sorted(list_root(fds["custody"]))
+        terminal = parse_json(read_record(fds["custody"], "terminal-1.json"))
+        artifacts = list_root(fds["artifacts"])
+        requests = server.requests()
+    model = parse_json(prepared.raw)["model"]
+    body = response_body(model, variant, _CAP, _ANSWER)
+    assert names == ["intent-1.json", "lock", "ready.json", "terminal-1.json"]
+    assert terminal["provider_disposition"] == "completed_failure"
+    assert terminal["failure_code"] == "response" and terminal["dispatch_count"] == 1
+    assert (
+        terminal["response_sha256"] == sha(body) and terminal["observed_model"] == model
+    )
+    assert artifacts == [] and len(requests) == 1

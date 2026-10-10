@@ -49,6 +49,7 @@ from dspx.image_execution import (
     execute_image_program,
     prepare_image_execution,
 )
+from dspx.image_live import APPROVAL_FIELDS, live_confirmation_sha256
 from dspx.image_privacy import image_privacy, runtime_identity
 from dspx.image_records import list_root, publish, read_record
 from dspx.image_supervision import supervise_image_worker
@@ -68,13 +69,7 @@ _EXPECT = "3" * 64
 _INVALID = "image_admission_invalid"
 _ANSWER = "[[ ## answer ## ]]\nfixture result\n[[ ## completed ## ]]"
 _GRANT = (6610, "ak://evidence/13666", "5" * 64)  # plausible, never authenticated
-_APPROVAL = dict(
-    zip(
-        ("owning_ak_task", "operator_evidence_ref", "parent_confirmation_sha256"),
-        _GRANT,
-        strict=True,
-    )
-)
+_APPROVAL = dict(zip(APPROVAL_FIELDS, _GRANT, strict=True))
 
 
 def test_admission_record_is_a_detached_view():
@@ -465,16 +460,17 @@ def test_s02_copied_live_admission_file_is_not_operator_authority(
     monkeypatch.setenv("DSPX_POLICY_ALLOW_NETWORK_MUTATE", "1")
     monkeypatch.setenv("DSPX_IMAGE_APPROVAL_REF", "ak://evidence/13666")
     copied = world.tmp / "copied-admission.json"
-    copied.write_bytes(
-        canonical({**world.record, "mode": "live", "approval_binding": _APPROVAL})
-    )
+    record = {**world.record, "mode": "live", "approval_binding": _APPROVAL}
+    confirmed = (*_GRANT[:2], live_confirmation_sha256(record))  # of these bytes
+    record["approval_binding"] = dict(zip(APPROVAL_FIELDS, confirmed, strict=True))
+    copied.write_bytes(canonical(record))
     raw = copied.read_bytes()
 
     def live(
         *,
         root: tuple[int, int] = world.root,
         expectation: str = _EXPECT,
-        grant: tuple[int, str, str] = _GRANT,
+        grant: tuple[int, str, str] = confirmed,
     ) -> LiveImageAuthority:
         return LiveImageAuthority(raw, expectation, root[0], root[1], *grant)
 

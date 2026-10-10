@@ -18,12 +18,12 @@ import dspy
 from dspy.core.types import LMImagePart, LMTextPart
 
 from .image_admission import (
-    ADMISSION_DOMAIN,
     CEILINGS,
     ImageAdmission,
     ImageContractError,
     LiveImageAuthority,
     SyntheticImageAuthority,
+    admission_of,
     canonical,
     closed,
     digest,
@@ -107,13 +107,14 @@ class RequestPreview:
 
 
 def _status(
-    status: str, commitment: str, failure: str | None = None, *, live: bool = False
+    status: str, commitment: str, failure: str | None = None, *, mode: str = ""
 ) -> dict[str, object]:
+    # Preparation is mode-free: no fixture is read and no authority is used.
     return {
         "status": status,
         "commitment_sha256": commitment,
-        "fixture_evidence": not live,
-        "live_authorized": live,
+        "fixture_evidence": mode == "synthetic",
+        "live_authorized": mode == "live",
         "failure_code": failure,
     }
 
@@ -368,7 +369,8 @@ def execute_image_program(
         parent_action=initialize,
     )
     commitment = cast(str, result["commitment_sha256"])
-    require(result == _status("completed", commitment, live=live), "image_custody")
+    completed = _status("completed", commitment, mode=record["mode"])
+    require(result == completed, "image_custody")
     anchor = ImageRunAnchor(
         custody_fd,
         artifact_fd,
@@ -393,9 +395,7 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
     row = closed(params, _EXECUTION)
     preparation = ImagePreparation(row["preparation"].encode("ascii"))
     admission_raw = row["admission"].encode("ascii")
-    admission = ImageAdmission(
-        admission_raw, digest(ADMISSION_DOMAIN, parse_json(admission_raw, limit=65_536))
-    )
+    admission = admission_of(admission_raw)
     # Worker-local mirror of the parent's reserved nominal authority, of the admitted
     # mode only. It is usable only through this parent's handshake: ready.json is
     # published only for a ready frame whose PID, start, deadline and grant hash equal
@@ -447,7 +447,7 @@ def _execute_entry(params: dict[str, object]) -> dict[str, object]:
         )
         session.close_run(binding, outcome="completed")
         closure = sha(read_record(custody_fd, "closure.json"))
-        return _status("completed", closure, live=live)
+        return _status("completed", closure, mode=record["mode"])
 
 
 def run_image_episode(
