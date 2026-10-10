@@ -83,9 +83,10 @@ production diff found nothing blocking; its should-fix items are fixed below.
   `char_count` is their sum. The source package now grows with the declared fields,
   not with the input, and fits one 64 KiB custody record at the limits.
 - **Caller codes**: post-send failures surface as `image_finalization` (S22, S51; the
-  design says "safe interruption", tests accept either fixed code); the provider port
-  wraps a pre-reserve refusal as `image_interruption` chained to the fixed inner code.
-  Follow-up AK6812.
+  design says "safe interruption", tests accept either fixed code). At the provider
+  port a pre-reserve refusal keeps its own fixed code (E07/E08:
+  `image_admission_invalid`); every custody-transaction failure is raised with no cause
+  or context (AK6812, `test_image_refusal_chains`).
 - **S21**: with logging forced to DEBUG, httpx writes its request line with the admitted
   endpoint, never the `Location` URL or body; default worker logging emits nothing.
 - **Envelope metadata**: Revision 2 §4 keeps "safe metadata JSON"; as built, the

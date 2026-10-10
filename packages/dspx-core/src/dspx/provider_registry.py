@@ -30,6 +30,7 @@ REMOVED_PROVIDER_NAMES: Final = frozenset(
 )
 _PROVIDER_NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 _REPLAY_FIXTURE_ENV: Final = "DSPX_REPLAY_FIXTURE_JSON"
+_INVALID_FIXTURE: Final = object()
 _STUB_MODEL: Final = "stub/echo"
 
 _STUB_CAPABILITIES: Final = ProviderCapabilities(
@@ -182,9 +183,13 @@ def _explicit_replay_fixture_text() -> str | None:
     if len(raw) > 1_000_000:
         raise ValueError("explicit replay fixture exceeds the size bound")
     try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError("explicit replay fixture must contain valid JSON") from exc
+        payload: object = json.loads(raw)
+    except json.JSONDecodeError:
+        payload = _INVALID_FIXTURE
+    # Refused outside the handler: the decode error's `.doc` is the raw fixture text,
+    # so it must be neither the cause nor the context of the fixed error.
+    if payload is _INVALID_FIXTURE:
+        raise ValueError("explicit replay fixture must contain valid JSON")
     if not isinstance(payload, dict):
         raise ValueError("explicit replay fixture must contain a JSON object")
     return json.dumps(payload, ensure_ascii=False, sort_keys=True)

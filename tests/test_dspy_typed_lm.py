@@ -585,8 +585,8 @@ _S06_CASES = {
     "E04-file_id": [f"typed:{_REFUSED}"],
     "E05-typed_local_path": [f"typed:{_REFUSED}"],
     "E06-image_metadata": [f"typed:{_REFUSED}"],
-    "E07-assistant_image": [f"typed:{_REFUSED}", "provider:image_interruption"],
-    "E08-system_image": [f"typed:{_REFUSED}", "provider:image_interruption"],
+    "E07-assistant_image": [f"typed:{_REFUSED}", f"provider:{_REFUSED}"],
+    "E08-system_image": [f"typed:{_REFUSED}", f"provider:{_REFUSED}"],
     "E09-detail_high": [f"typed:{_REFUSED}"],
     "E10-detail_auto": [f"typed:{_REFUSED}"],
     "E11-audio_part": [f"typed:{_REFUSED}"],
@@ -971,9 +971,9 @@ def test_image_mode_unsupported_affordance_rejects_before_transport(
         # A direct port call is itself the invoke; it still records no attempt.
         assert row["deltas"] == [0, int(direct), 0, 0]
         assert row["custody"] == _IDLE_ROOT and row["spent"] is False
-        # Fixed codes only: the typed refusal is chain-free; the port's custody
-        # transaction wraps its own fixed pre-reserve refusal, never upstream errors.
-        assert row["chain"] == ([f"ImageContractError:{_REFUSED}"] if direct else [])
+        # Fixed codes only, chain-free on both routes: the port's custody transaction
+        # re-raises its pre-reserve refusal's own code with no cause or context.
+        assert row["chain"] == []
     _assert_first_slot_only(image_affordances)
 
 

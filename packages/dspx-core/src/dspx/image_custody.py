@@ -18,6 +18,7 @@ from .image_admission import (
     digest,
     sha,
     parse_json,
+    refuse,
     require,
     validate_admission,
 )
@@ -312,20 +313,35 @@ class ImageCustodySession:
                         tx.intent is None or tx.terminal is not None,
                         "image_finalization",
                     )
-                except BaseException:
-                    if tx.intent is not None and tx.terminal is None:
-                        self.poisoned = True
-                        tx.finish(
-                            "effect_indeterminate"
-                            if tx.dispatch_entered
-                            else "preflight_rejected",
-                            failure_code="interruption",
-                        )
-                    raise ImageContractError("image_interruption") from None
+                except BaseException as error:
+                    refuse(self._settle(tx, error))
                 finally:
                     self._transaction = None
             finally:
                 os.close(fd)
+
+    def _settle(self, tx: ImageAttemptTransaction, error: BaseException) -> str:
+        """The one fixed code for a failed body; the caller raises it chain-free."""
+        if tx.intent is None:
+            # Nothing reserved: a fixed refusal keeps its precise code; any other
+            # exception (KeyboardInterrupt, SystemExit, ...) is an interruption.
+            return (
+                error.code
+                if type(error) is ImageContractError
+                else "image_interruption"
+            )
+        if tx.terminal is None:
+            self.poisoned = True
+            try:
+                tx.finish(
+                    "effect_indeterminate"
+                    if tx.dispatch_entered
+                    else "preflight_rejected",
+                    failure_code="interruption",
+                )
+            except ImageContractError as failure:
+                return failure.code  # the terminal itself failed (image_durability)
+        return "image_interruption"
 
     def close_run(self, artifacts: object, *, outcome: str) -> None:
         from .image_artifacts import ImageArtifactBinding, verify_artifact_binding

@@ -11,7 +11,7 @@ import math
 import re
 import time
 import uuid
-from typing import Any, Final, cast
+from typing import Any, Final, Never, cast
 
 CEILINGS: Final = {
     "max_source_images": 6,
@@ -69,6 +69,19 @@ class ImageContractError(ValueError):
 def require(condition: bool, code: str = "image_admission_invalid") -> None:
     if not condition:
         raise ImageContractError(code) from None
+
+
+def refuse(code: str) -> Never:
+    """Raise one fixed code with neither cause nor context, even from a handler.
+
+    `from None` only hides the context: a raise in `except` (or in a generator context
+    manager, which the caller's `with` handler closes) still links the trigger.
+    """
+    error = ImageContractError(code)
+    try:
+        raise error from None
+    finally:
+        error.__context__ = None
 
 
 def bounded_tree(

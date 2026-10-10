@@ -63,6 +63,22 @@ def test_invalid_replay_fixture_fails_before_provider_invocation(monkeypatch) ->
         create_from_env()
 
 
+def test_invalid_replay_fixture_refusal_never_chains_the_fixture_text(
+    monkeypatch,
+) -> None:
+    """AK6812: given an unparsable replay fixture, when the stub is selected,
+    then the fixed message is raised alone: the JSONDecodeError, whose `.doc` is
+    the raw fixture text, is neither its cause nor its context."""
+    monkeypatch.setenv("DSPX_PROVIDER", "stub")
+    monkeypatch.setenv("DSPX_REPLAY_FIXTURE_JSON", '{"api_key": "replay-secret"')
+    with pytest.raises(ValueError) as failure:
+        create_from_env()
+    assert type(failure.value) is ValueError
+    assert str(failure.value) == "explicit replay fixture must contain valid JSON"
+    assert failure.value.__cause__ is None and failure.value.__context__ is None
+    assert _exception_chain(failure.value) == [failure.value]
+
+
 def test_stub_preflight_rejection_records_zero_dispatch_attempt() -> None:
     provider = StubProvider()
     from dspx.provider_contract import (

@@ -100,8 +100,9 @@ _HISTORICAL_RUNNER_SHA256 = (
 )
 # Historical bytes: 6ea779d0f1af7e8adb2f0a7a4bc499c450b1f890; changes:
 # c617826c (roles/backend), c9a52177 (provider), AK6607/AK6760 typed image
-# transport (typed LM, provider contract/registry/stub, provider). Synthetic characterization
-# ONLY: these fixed current bytes confer no live eligibility or production repin.
+# transport (typed LM, provider contract/registry/stub, provider), AK6812 chain-free
+# registry replay-fixture refusal. Synthetic characterization ONLY: these fixed
+# current bytes confer no live eligibility or production repin.
 _CURRENT_SOURCE_DELTAS = {
     "packages/dspx-core/src/dspx/dspy_typed_lm.py": (
         "b4b4127ac151e8fbb6b039d7679cf2169244a37b8fa11e5573843e5b8c64b6f1",
@@ -121,7 +122,7 @@ _CURRENT_SOURCE_DELTAS = {
     ),
     "packages/dspx-core/src/dspx/provider_registry.py": (
         "237fa4d9aa1b153bc3ccf45f5676c29b3efcac4ae32575e1935557a34361a6cb",
-        "15744b59fdf301f44625b7e8e35fe19705925e5e931df7daea263d2f7272a718",
+        "0caecc59da2c6422bf2efe18464036b1a65e3559eee3fb9cbedaccf0a73892cc",
     ),
     "packages/dspx-core/src/dspx/services/program_oracle_semantic_backend.py": (
         "ba4c983f12f478f58ef17590b22a68ee241fa8a249f79918de8a2622f6dc60f2",
