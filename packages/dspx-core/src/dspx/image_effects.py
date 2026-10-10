@@ -6,7 +6,7 @@ import base64
 from dataclasses import dataclass
 import json
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import httpx
 from dspy import BaseLM, LMRequest, LMResponse
@@ -159,7 +159,7 @@ def invoke_image_http(
         http_request = httpx.Request(
             "POST",
             endpoint,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "Accept-Encoding": "identity"},
             content=raw,
             extensions={
                 "timeout": {
@@ -184,7 +184,11 @@ def invoke_image_http(
             response = provider._client.send(http_request, stream=True)
             chunks: list[bytes] = []
             size = 0
-            for chunk in response.iter_bytes():
+            stream = response.stream
+            require(isinstance(stream, httpx.SyncByteStream), "image_input_invalid")
+            # The transport's raw chunks: every received chunk meets the window and the
+            # byte bound, and a content coding is never inflated (AK6811 review).
+            for chunk in cast(httpx.SyncByteStream, stream):
                 _within(io_deadline)
                 worker_deadline()
                 require(type(chunk) is bytes, "image_input_invalid")
@@ -199,7 +203,8 @@ def invoke_image_http(
             tx.response_sha256, tx.response_byte_count = sha(data), len(data)
             # Body collection alone never selects completed_failure: unexpected
             # validation/SDK/cleanup faults remain unknown even with these facts.
-            if not 200 <= response.status_code < 300:
+            coding = response.headers.get("content-encoding", "identity")
+            if not 200 <= response.status_code < 300 or coding.lower() != "identity":
                 raise ObservedResponseFailure("response")
             try:
                 text, usage, observed = provider._validated_response(data)

@@ -87,12 +87,13 @@ interpreter or loader and are outside the boundary.
   `effect_indeterminate` (`publication_unsettled: true`, unknown dispatch count) and
   such a closure is not present. Any other extra link refuses with `image_custody`.
 - **One IO window per request (AK6811).** The response read is bounded by the admitted
-  `per_request_io_timeout_ms` from dispatch, checked at every chunk and at the end of the
-  body, besides the worker's wall deadline. A response that trickles past it makes the
-  worker itself write one `effect_indeterminate` terminal with failure code `io`, latch,
-  and raise the fixed `image_finalization`, without retry or fallback. A read that
-  stalls after the window's last chunk is still bounded by the per-read timeout, itself
-  at most the IO timeout.
+  `per_request_io_timeout_ms` from dispatch, checked at every raw transport chunk and at
+  the end of the body, besides the worker's wall deadline. The request asks for and the
+  read requires an identity coding; a coded body is never inflated and is a completed
+  failure. A response that trickles past the window makes the worker itself write one
+  `effect_indeterminate` terminal with failure code `io`, latch, and raise the fixed
+  `image_finalization`, without retry or fallback. Between chunks only the per-read
+  timeout (at most the IO timeout) runs; the wall deadline is the hard bound.
 - **Publication follows success.** `publish_image_run` refuses before its first write
   unless every planned attempt succeeded, and `close_run` closes only as `completed`.
 - **Closed envelope.** The DesignMD image envelope has a closed key set, so no extra key

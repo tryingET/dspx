@@ -39,7 +39,7 @@ _REPLAY = {
     "reason": "image_execution_replay_unsupported",
 }
 _SCHEMAS = {
-    "image_source_package.json": "dspx-image-source-package-v1",
+    "image_source_package.json": "dspx-image-source-package-v2",
     "image_input_manifest.json": "dspx-image-input-manifest-v2",
     "runtime_image_inputs.json": "program-runtime-image-inputs-v1",
     "image_behavior_results.json": "program-image-behavior-results-v1",

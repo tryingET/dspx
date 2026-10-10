@@ -189,7 +189,7 @@ def _source(count: int = 2) -> dict[str, Any]:
     names = ("candidate_manifest", "candidate_source", "raw_input_file", "input_shape")
     row = {"field_slot": 0, "media_type": "image/png", "byte_count": 96}
     return {
-        "schema_version": "dspx-image-source-package-v1",
+        "schema_version": "dspx-image-source-package-v2",
         **{f"{name}_sha256": char * 64 for name, char in zip(names, "abcd")},
         "decoder_profile_sha256": "e" * 64,
         "source_occurrences": [

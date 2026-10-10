@@ -280,7 +280,7 @@ def materialize_image_inputs(
     # Derived commitments never outgrow the input's own bounds (AK6810): the shape
     # mirrors it node for node (a leaf becomes its kind name, lists and dicts keep
     # their items and keys), and each field slot gets one text row over its
-    # length-framed texts, so canonical() bounds both exactly as parse_json did.
+    # length-framed texts; neither depends on the input's nesting (AK6810).
     text_digests: dict[int, Any] = {}
     text_chars: dict[int, int] = {}
     text_count = 0
@@ -424,7 +424,7 @@ def materialize_image_inputs(
         shape.append(field_shape)
     require(bool(occurrences), "image_input_invalid")
     source = {
-        "schema_version": "dspx-image-source-package-v1",
+        "schema_version": "dspx-image-source-package-v2",
         "candidate_manifest_sha256": candidate_manifest_sha256,
         "candidate_source_sha256": candidate_source_sha256,
         "raw_input_file_sha256": sha(raw),

@@ -11,18 +11,22 @@ its claim and `ready.json`) and asserts on durable records and read-only reconci
 
 from __future__ import annotations
 
+import gzip
 import os
 import signal
 import sys
+import time
 import uuid
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 
 import test_image_custody as custody
 from dspx.image_admission import ImageContractError, canonical, digest, parse_json, sha
 from dspx.image_artifacts import ImageRunAnchor, verify_image_run
+from dspx.image_record_validation import read_only_custody, reconcile
 from dspx.image_records import residue
 from dspx.image_worker import worker_entry
 from test_image_custody import _Case, _Run, _assert_spent, _commitment, _reconciled
@@ -76,7 +80,36 @@ def _settlement_entry(params: dict[str, Any]) -> dict[str, object]:
         patch.setattr(custody, "_denied_after", observed)
         if fault.startswith("window:"):
             _kill_inside_link_window(patch, fault.removeprefix("window:"))
+        if fault.startswith("gzip_"):
+            patch.setattr(custody, "_transport", _coded_transport)
         return custody._custody_entry(params)
+
+
+class _CodedTrickle(httpx.SyncByteStream):
+    """A gzip header whose comment never ends: raw bytes arrive, none ever decode."""
+
+    def __iter__(self):
+        yield b"\x1f\x8b\x08\x10\x00\x00\x00\x00\x00\xff"  # FCOMMENT set
+        while True:
+            time.sleep(0.1)
+            yield b"c"
+
+
+def _coded_transport(params: dict[str, Any], fault: str) -> httpx.MockTransport:
+    from dspx.image_effects import fixture_transport
+
+    owner = fixture_transport(params["fixture"], custody._MODEL)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        plain = owner.handler(request)  # the owner fixture records exactly this send
+        assert isinstance(plain, httpx.Response)
+        headers = {"Content-Encoding": "gzip"}
+        if fault == "gzip_trickle":
+            return httpx.Response(200, headers=headers, stream=_CodedTrickle())
+        body = gzip.compress(plain.read())  # a valid completion behind a coding
+        return httpx.Response(200, headers=headers, content=body, request=request)
+
+    return httpx.MockTransport(handler)
 
 
 def _raw(run: _Run, name: str) -> bytes:
@@ -137,6 +170,35 @@ def test_io_timeout_bounds_a_trickling_read_and_settles_inside_the_worker(
         run.close()
 
 
+def test_a_content_coding_cannot_hide_a_trickle_from_the_io_window(
+    case: _Case, tmp_path: Path
+) -> None:
+    """Review follow-up: raw chunks that decode to nothing still meet the window."""
+    run = _Run(case, tmp_path, wall_ms=20_000, io_ms=1_000)
+    try:
+        result = run.execute("gzip_trickle", entry=_ENTRY)
+        assert type(result) is dict and result["status"] == "failed", result
+        intent, terminal = run.record("intent-1.json"), run.record("terminal-1.json")
+        assert terminal["provider_disposition"] == "effect_indeterminate"
+        assert terminal["failure_code"] == "io" and terminal["response_sha256"] is None
+        elapsed = terminal["terminal_utc_ms"] - intent["reserved_utc_ms"]
+        assert 1_000 <= elapsed < 1_000 + 2_000
+        assert len(run.names("wire")) == 1
+    finally:
+        run.close()
+
+
+def test_a_coded_response_is_a_completed_failure_and_never_decoded(run: _Run) -> None:
+    """Review follow-up: only identity bodies are read; a coding is never inflated."""
+    result = run.execute("gzip_body", entry=_ENTRY)
+    assert type(result) is dict and result["status"] == "failed", result
+    terminal = run.record("terminal-1.json")
+    assert terminal["provider_disposition"] == "completed_failure"
+    assert terminal["failure_code"] == "response" and terminal["dispatch_count"] == 1
+    assert run.names("artifacts") == [] and len(run.names("wire")) == 1
+    _reconciled(_assert_spent(run, sends=1), "completed_failure", terminal=True)
+
+
 # ----------------------------------------- a claimed root that never got ready
 
 
@@ -195,10 +257,20 @@ def test_claimed_root_without_ready_reconciles_as_spent_without_attempts(
         "attempts": [],
     }
     assert run.snapshot() == before  # pure read: nothing written, nothing minted
+    # A view taken while unready is re-checked on reconcile's own listing (review).
+    view = read_only_custody(
+        run.fds["custody"],
+        admission_raw=run.admission_raw,
+        source_raw=canonical(run.prepared["source"]),
+        manifest_raw=canonical(run.manifest),
+        unready=True,
+    )
     # Any record without a settled ready.json is not a state the protocol can reach.
     _replace(run, "intent-1.json", {"schema_version": "dspx-image-dispatch-intent-v1"})
     with pytest.raises(ImageContractError, match="^image_custody$"):
         run.reconcile()
+    with pytest.raises(ImageContractError, match="^image_custody$"):
+        reconcile(view)
 
 
 # ------------------------------------------------------- link-window residue

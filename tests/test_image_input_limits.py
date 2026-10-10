@@ -102,3 +102,23 @@ def test_s09_e11_e12_production_prepare_reaches_the_declared_depth_and_node_limi
     assert sum(row["char_count"] for row in source["plain_text_slots"]) == (
         1 if kind == "depth" else 4090
     )
+
+
+def test_source_package_v2_has_one_increasing_text_row_per_slot() -> None:
+    """Review follow-up: the per-slot text rows are their own schema version."""
+    from test_image_admission import _source
+
+    source = {**_source(), "schema_version": "dspx-image-source-package-v2"}
+    rows = [
+        {"field_slot": slot, "text_sha256": "f" * 64, "char_count": 1}
+        for slot in (1, 3)
+    ]
+    assert (
+        validate_source({**source, "plain_text_slots": rows})["plain_text_slots"]
+        == rows
+    )
+    for bad in (rows[::-1], [rows[0], rows[0]]):  # reordered or repeated slots
+        with pytest.raises(ImageContractError, match="^image_admission_invalid$"):
+            validate_source({**source, "plain_text_slots": bad})
+    with pytest.raises(ImageContractError, match="^image_admission_invalid$"):
+        validate_source({**source, "schema_version": "dspx-image-source-package-v1"})

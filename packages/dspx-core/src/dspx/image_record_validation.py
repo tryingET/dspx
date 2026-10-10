@@ -175,6 +175,12 @@ def reconcile(view: ReadOnlyCustody) -> dict[str, Any]:
     require(len(names) <= 131, "image_custody")  # the scan's bound, before any read
     window = link_window(view.root_fd, names)
     ready = view.ready_raw is not None
+    require(  # an unready view is re-checked on this listing, not trusted from before
+        ready
+        or {name for name in names if not residue(name)} - {"ready.json"} == {"lock"}
+        and ("ready.json" not in names or "ready.json" in window),
+        "image_custody",
+    )
     claims = set()
     for name in filter(residue, names if ready else ()):
         try:

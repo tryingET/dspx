@@ -77,11 +77,12 @@ production diff found nothing blocking; its should-fix items are fixed below.
   used to re-nest the input (each container added two shape levels and three nodes,
   each string four source-package nodes), so `canonical()` refused beyond input depth
   8 or about 1,000 strings. The shape now mirrors the input node for node (a leaf
-  is its kind name; domain `shape-v2`), and `plain_text_slots` has one row per
-  text-bearing field slot: `text_sha256` is SHA-256 over `text-slot-v1\0` and the
+  is its kind name; domain `shape-v2`), and `plain_text_slots` (source package schema now
+  `dspx-image-source-package-v2`) has one row per text-bearing field slot, in slot order: `text_sha256` is SHA-256 over `text-slot-v1\0` and the
   slot's texts (dict keys included) in visit order, each prefixed by its 8-byte big-endian UTF-8 length;
-  `char_count` is their sum. The source package now grows with the declared fields,
-  not with the input, and fits one 64 KiB custody record at the limits.
+  `char_count` is their sum. The source package now grows with the declared text
+  fields, not with the input; a signature with more than about 550 text fields
+  exceeds the 64 KiB preparation record and is refused (`image_budget`, fail closed).
 - **Caller codes**: post-send failures surface as `image_finalization` (S22, S51; the
   design says "safe interruption", tests accept either fixed code). At the provider
   port a pre-reserve refusal keeps its own fixed code (E07/E08:
@@ -102,7 +103,8 @@ production diff found nothing blocking; its should-fix items are fixed below.
   record left with two links by a kill inside publication, the other its own pending
   twin, reports its attempt `effect_indeterminate` (`publication_unsettled`), never
   success; `verify_image_run` refuses both. Image transfers check the wall deadline and
-  one `per_request_io_timeout_ms` window from dispatch at every chunk: a trickle past
+  one `per_request_io_timeout_ms` window from dispatch at every raw transport chunk
+  (identity coding only; a coded body is never inflated): a trickle past
   the window is an `io` `effect_indeterminate` terminal written by the worker itself
   (AK6811, `test_image_settlement`).
 

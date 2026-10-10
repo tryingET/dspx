@@ -247,7 +247,7 @@ def validate_source(record: object) -> dict[str, Any]:
         "raw_input_file_sha256 input_shape_sha256 decoder_profile_sha256 "
         "source_occurrences plain_text_slots",
     )
-    require(source["schema_version"] == "dspx-image-source-package-v1")
+    require(source["schema_version"] == "dspx-image-source-package-v2")
     require(
         all(
             hash_value(source[key])
@@ -282,10 +282,11 @@ def validate_source(record: object) -> dict[str, Any]:
         total += row["byte_count"]
     require(total <= 25_165_824)
     require(type(source["plain_text_slots"]) is list)
-    chars = 0
-    for value in source["plain_text_slots"]:
+    chars, last = 0, -1
+    for value in source["plain_text_slots"]:  # one row per text slot, in slot order
         row = closed(value, "field_slot text_sha256 char_count")
-        require(type(row["field_slot"]) is int and 0 <= row["field_slot"] < 4096)
+        require(type(row["field_slot"]) is int and last < row["field_slot"] < 4096)
+        last = row["field_slot"]
         require(
             hash_value(row["text_sha256"])
             and type(row["char_count"]) is int
