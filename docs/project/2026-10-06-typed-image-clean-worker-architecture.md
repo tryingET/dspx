@@ -101,8 +101,9 @@ interpreter or loader and are outside the boundary.
 ## Open work
 
 The Revision 2 red matrix is executed (AK6756,
-`2026-10-06-typed-image-revision2-traceability.md`). AK6610 (first live call after owner
-approval) remains; AK6810 and AK6812 track the matrix's smaller follow-ups (AK6811 is
-done). Receipt-domain
-routing (AK6767) was closed as superseded: receipts are hash-only projections and image
-receipts are refused before any output read.
+`2026-10-06-typed-image-revision2-traceability.md`); its follow-ups AK6810-AK6812 are
+fixed. Live image execution with an admission-bound output cap (AK6918, owner decision
+2026-10-10: Foundry adapts, bounded output, direct loopback vLLM) precedes AK6610 (first
+live call after owner approval). Receipt-domain routing (AK6767) was closed as
+superseded: receipts are hash-only projections and image receipts are refused before any
+output read.
