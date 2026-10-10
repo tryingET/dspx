@@ -172,7 +172,9 @@ interpreter or loader and are outside the boundary.
   can carry payload text to the provider (narrower than Revision 2's "safe metadata").
 - **Exact PNG data (AK6938).** Before any Pillow open the scan inflates the IDAT stream,
   bounded at the IHDR scanline size, and refuses unless it ends exactly at the last IDAT
-  byte and inflates to exactly that size, so no hidden bytes ride along in the data URI.
+  byte and inflates to exactly that size: no bytes beyond the exact zlib stream and
+  scanline size are admitted. Encoder choices, padding bits and unused palette entries
+  can still carry a few bits; the decoder does not claim otherwise.
 
 ## Open work
 
